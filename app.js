@@ -1,25 +1,13 @@
-const clientId = "91d4165085fd4ed3bd281f16667d64bc"; // 🔥 remplace ici
-const redirectUri = window.location.origin + window.location.pathname;
+const clientId = "91d4165085fd4ed3bd281f16667d64bc";
+const redirectUri = "https://theodore33-web.github.io/LyricsOriginal/";
 
 // 🔐 LOGIN SPOTIFY
 function login() {
   const scope = "user-read-playback-state user-read-currently-playing";
 
-  const url = `https://accounts.spotify.com/authorize?client_id=${clientId}&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}`;
+  const url = `https://accounts.spotify.com/authorize?client_id=${clientId}&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&show_dialog=true`;
 
   window.location = url;
-}
-
-function getCode() {
-  const params = new URLSearchParams(window.location.search);
-  return params.get("code");
-}
-
-const code = getCode();
-
-if (code) {
-  document.getElementById("title").innerText =
-    "Connecté à Spotify ✅ (mais token manquant)";
 }
 
 // 🎯 TOKEN
@@ -57,7 +45,8 @@ async function loadLyrics(artist, track) {
   );
 
   const data = await res.json();
-  return data.syncedLyrics;
+
+  return data.syncedLyrics || data.plainLyrics;
 }
 
 // 🧠 PARSE LRC
@@ -115,7 +104,10 @@ function updateLyrics(currentTime) {
 let startTime = 0;
 
 async function init() {
-  if (!accessToken) return;
+  if (!accessToken) {
+    document.getElementById("title").innerText = "Clique sur 'Se connecter à Spotify'";
+    return;
+  }
 
   const trackData = await getCurrentTrack();
 
