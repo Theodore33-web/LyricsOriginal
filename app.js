@@ -10,6 +10,18 @@ function login() {
   window.location = url;
 }
 
+function getCode() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("code");
+}
+
+const code = getCode();
+
+if (code) {
+  document.getElementById("title").innerText =
+    "Connecté à Spotify ✅ (mais token manquant)";
+}
+
 // 🎯 TOKEN
 function getToken() {
   const hash = window.location.hash;
