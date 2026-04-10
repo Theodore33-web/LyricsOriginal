@@ -1,9 +1,9 @@
 const clientId = "91d4165085fd4ed3bd281f16667d64bc";
 const redirectUri = "https://theodore33-web.github.io/LyricsOriginal/";
 
-// 🔐 LOGIN SPOTIFY
+// 🔐 LOGIN
 function login() {
-  const scope = "user-read-playback-state user-read-currently-playing";
+  const scope = "user-read-private user-read-email";
 
   const url = `https://accounts.spotify.com/authorize?client_id=${clientId}&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&show_dialog=true`;
 
@@ -26,142 +26,43 @@ function getToken() {
 
 let accessToken = getToken();
 
-// 🎧 TRACK EN COURS
-async function getCurrentTrack() {
-  if (!accessToken) return null;
+// 🧪 TEST API
+async function testAPI() {
+  console.log("TOKEN =", accessToken);
 
-  const res = await fetch("https://api.spotify.com/v1/me/player/currently-playing", {
+  if (!accessToken) {
+    console.log("❌ Pas de token → login nécessaire");
+    return;
+  }
+
+  const res = await fetch("https://api.spotify.com/v1/me", {
     headers: {
       Authorization: `Bearer ${accessToken}`
     }
   });
 
-  // 🔴 Token expiré
+  console.log("STATUS =", res.status);
+
   if (res.status === 401) {
+    console.log("❌ Token invalide ou expiré");
     login();
-    return null;
+    return;
   }
-
-  // 🟡 Rien en cours
-  if (res.status === 204) return null;
 
   const data = await res.json();
+  console.log("DATA =", data);
 
-  if (!data || !data.item) return null;
-
-  return {
-    artist: data.item.artists[0].name,
-    track: data.item.name,
-    progress: data.progress_ms / 1000
-  };
+  // affichage simple
+  document.body.innerHTML = `
+    <h1>✅ Connecté à Spotify</h1>
+    <p>Nom : ${data.display_name}</p>
+    <p>Email : ${data.email}</p>
+  `;
 }
-
-// 📜 LYRICS
-async function loadLyrics(artist, track) {
-  const res = await fetch(
-    `https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(track)}`
-  );
-
-  const data = await res.json();
-
-  return data.syncedLyrics || data.plainLyrics;
-}
-
-// 🧠 PARSE LRC
-let lyrics = [];
-
-function parseLyrics(lrc) {
-  const lines = lrc.split("\n");
-
-  lyrics = lines.map(line => {
-    const match = line.match(/\[(\d+):(\d+\.\d+)\](.*)/);
-    if (!match) return null;
-
-    const minutes = parseInt(match[1]);
-    const seconds = parseFloat(match[2]);
-
-    return {
-      time: minutes * 60 + seconds,
-      text: match[3]
-    };
-  }).filter(Boolean);
-
-  displayLyrics();
-}
-
-// 🖥️ DISPLAY
-function displayLyrics() {
-  const lyricsDiv = document.getElementById("lyrics");
-
-  lyricsDiv.innerHTML = lyrics
-    .map((l, i) => `<div class="line" id="line-${i}">${l.text}</div>`)
-    .join("");
-}
-
-// ⏱ SYNC OPTIMISÉ
-let currentIndex = 0;
-
-function updateLyrics(currentTime) {
-  if (
-    currentIndex < lyrics.length - 1 &&
-    currentTime >= lyrics[currentIndex + 1].time
-  ) {
-    currentIndex++;
-  }
-
-  document.querySelectorAll(".line").forEach(el => el.classList.remove("active"));
-
-  const el = document.getElementById(`line-${currentIndex}`);
-  if (el) {
-    el.classList.add("active");
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
-  }
-}
-
-// 🚀 INIT
-let startTime = 0;
-
-async function init() {
-  accessToken = getToken();
-
-  if (!accessToken) {
-    document.getElementById("title").innerText = "Clique sur 'Se connecter à Spotify'";
-    return;
-  }
-
-  const trackData = await getCurrentTrack();
-
-  if (!trackData) {
-    document.getElementById("title").innerText = "Lance une musique sur Spotify 🎧";
-    return;
-  }
-
-  document.getElementById("title").innerText =
-    `${trackData.artist} - ${trackData.track}`;
-
-  const lrc = await loadLyrics(trackData.artist, trackData.track);
-
-  if (!lrc) {
-    document.getElementById("lyrics").innerText = "Paroles non trouvées 😢";
-    return;
-  }
-
-  parseLyrics(lrc);
-
-  startTime = Date.now() - trackData.progress * 1000;
-
-  syncLoop();
-}
-
-// 🔁 LOOP
-function syncLoop() {
-  const currentTime = (Date.now() - startTime) / 1000;
-  updateLyrics(currentTime);
-  requestAnimationFrame(syncLoop);
-}
-
-// 🔄 refresh automatique (optionnel mais utile)
-setInterval(init, 5000);
 
 // 🚀 START
-init();
+if (!accessToken) {
+  document.body.innerHTML = `<button onclick="login()">Se connecter à Spotify</button>`;
+} else {
+  testAPI();
+}
