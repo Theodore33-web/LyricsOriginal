@@ -24,23 +24,30 @@ function getToken() {
   return localStorage.getItem("spotify_token");
 }
 
-const accessToken = getToken();
+let accessToken = getToken();
 
 // 🎧 TRACK EN COURS
 async function getCurrentTrack() {
+  if (!accessToken) return null;
+
   const res = await fetch("https://api.spotify.com/v1/me/player/currently-playing", {
     headers: {
       Authorization: `Bearer ${accessToken}`
-      if (res.status === 401) {
-  login(); // redemande un token
-  return null;
-
     }
   });
 
+  // 🔴 Token expiré
+  if (res.status === 401) {
+    login();
+    return null;
+  }
+
+  // 🟡 Rien en cours
   if (res.status === 204) return null;
 
   const data = await res.json();
+
+  if (!data || !data.item) return null;
 
   return {
     artist: data.item.artists[0].name,
@@ -52,7 +59,7 @@ async function getCurrentTrack() {
 // 📜 LYRICS
 async function loadLyrics(artist, track) {
   const res = await fetch(
-    `https://lrclib.net/api/get?artist_name=${artist}&track_name=${track}`
+    `https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(track)}`
   );
 
   const data = await res.json();
@@ -91,30 +98,32 @@ function displayLyrics() {
     .join("");
 }
 
-// ⏱ SYNC
+// ⏱ SYNC OPTIMISÉ
+let currentIndex = 0;
+
 function updateLyrics(currentTime) {
-  lyrics.forEach((line, i) => {
-    const next = lyrics[i + 1];
+  if (
+    currentIndex < lyrics.length - 1 &&
+    currentTime >= lyrics[currentIndex + 1].time
+  ) {
+    currentIndex++;
+  }
 
-    if (
-      currentTime >= line.time &&
-      (!next || currentTime < next.time)
-    ) {
-      document.querySelectorAll(".line").forEach(el => el.classList.remove("active"));
+  document.querySelectorAll(".line").forEach(el => el.classList.remove("active"));
 
-      const el = document.getElementById(`line-${i}`);
-      if (el) {
-        el.classList.add("active");
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
-      }
-    }
-  });
+  const el = document.getElementById(`line-${currentIndex}`);
+  if (el) {
+    el.classList.add("active");
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
 }
 
 // 🚀 INIT
 let startTime = 0;
 
 async function init() {
+  accessToken = getToken();
+
   if (!accessToken) {
     document.getElementById("title").innerText = "Clique sur 'Se connecter à Spotify'";
     return;
@@ -151,4 +160,8 @@ function syncLoop() {
   requestAnimationFrame(syncLoop);
 }
 
+// 🔄 refresh automatique (optionnel mais utile)
+setInterval(init, 5000);
+
+// 🚀 START
 init();
