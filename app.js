@@ -13,8 +13,15 @@ function login() {
 // 🎯 TOKEN
 function getToken() {
   const hash = window.location.hash;
-  if (!hash) return null;
-  return hash.split("&")[0].split("=")[1];
+
+  if (hash) {
+    const token = hash.split("&")[0].split("=")[1];
+    localStorage.setItem("spotify_token", token);
+    window.location.hash = "";
+    return token;
+  }
+
+  return localStorage.getItem("spotify_token");
 }
 
 const accessToken = getToken();
@@ -24,6 +31,10 @@ async function getCurrentTrack() {
   const res = await fetch("https://api.spotify.com/v1/me/player/currently-playing", {
     headers: {
       Authorization: `Bearer ${accessToken}`
+      if (res.status === 401) {
+  login(); // redemande un token
+  return null;
+
     }
   });
 
