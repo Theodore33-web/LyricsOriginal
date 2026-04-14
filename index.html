@@ -3,11 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Spotify Lyrics Dashboard</title>
+    <title>Spotify Dashboard & Synchronized Lyrics</title>
     <style>
+        :root {
+            --spotify-green: #1DB954;
+            --bg-black: #121212;
+            --card-grey: #181818;
+            --light-grey: #282828;
+            --text-grey: #b3b3b3;
+        }
+
         body { 
             font-family: 'Segoe UI', sans-serif; 
-            background-color: #121212; 
+            background-color: var(--bg-black); 
             color: white; 
             margin: 0;
             padding: 20px;
@@ -16,19 +24,20 @@
             align-items: center;
         }
 
-        h1 { color: #1DB954; margin-bottom: 20px; }
-
+        /* Accueil */
+        #login-section { text-align: center; margin-top: 100px; }
         #login-btn { 
-            background-color: #1DB954; color: white; border: none; 
-            padding: 15px 30px; border-radius: 30px; font-weight: bold; 
-            cursor: pointer; font-size: 16px;
+            background-color: var(--spotify-green); color: white; border: none; 
+            padding: 15px 40px; border-radius: 40px; font-weight: bold; 
+            cursor: pointer; font-size: 18px; transition: transform 0.2s;
         }
+        #login-btn:hover { transform: scale(1.05); }
 
-        /* Layout Principal */
+        /* Dashboard Layout */
         #dashboard { 
             display: none; 
             width: 100%;
-            max-width: 1100px;
+            max-width: 1200px;
             gap: 20px;
             margin-top: 20px;
         }
@@ -36,76 +45,84 @@
         /* SECTION GAUCHE : PAROLES */
         .lyrics-section {
             flex: 2;
-            background: #181818;
-            padding: 30px;
+            background: var(--card-grey);
+            padding: 40px;
             border-radius: 20px;
-            min-height: 400px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            height: 70vh;
+            overflow-y: auto;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .lyrics-section::-webkit-scrollbar { width: 0px; }
+
+        .lyric-line {
+            font-size: 1.5rem;
+            margin: 15px 0;
+            color: var(--text-grey);
+            transition: all 0.4s ease;
+            opacity: 0.4;
+        }
+        .lyric-line.active {
+            color: var(--spotify-green);
+            opacity: 1;
+            transform: scale(1.1);
+            font-weight: bold;
         }
 
-        /* SECTION DROITE : PROFIL + LECTEUR */
+        /* SECTION DROITE : SIDEBAR */
         .sidebar {
             flex: 1;
             display: flex;
             flex-direction: column;
             gap: 20px;
-            min-width: 300px;
+            min-width: 320px;
         }
 
         .card {
-            background: #282828;
-            padding: 20px;
+            background: var(--light-grey);
+            padding: 25px;
             border-radius: 20px;
             text-align: center;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }
 
-        /* Éléments spécifiques */
-        #avatar { border-radius: 50%; width: 60px; border: 2px solid #1DB954; }
-        #track-art { width: 100%; max-width: 200px; border-radius: 10px; margin: 15px 0; }
+        #avatar { border-radius: 50%; width: 60px; border: 2px solid var(--spotify-green); }
+        #track-art { width: 100%; border-radius: 12px; margin: 20px 0; box-shadow: 0 8px 20px rgba(0,0,0,0.4); }
         
         .controls button { 
             background: none; border: none; color: white; 
-            font-size: 25px; cursor: pointer; margin: 0 10px; 
+            font-size: 30px; cursor: pointer; margin: 0 10px; 
         }
-        .controls button:hover { color: #1DB954; }
+        .controls button:hover { color: var(--spotify-green); }
         
-        #lyrics-content {
-            color: #b3b3b3;
-            line-height: 1.6;
-            font-size: 1.1em;
-            white-space: pre-wrap;
-        }
+        #track-title { font-size: 1.3rem; margin: 10px 0 5px 0; }
+        #track-artist { color: var(--text-grey); font-size: 1rem; }
     </style>
 </head>
 <body>
 
-    <h1>Spotify Player</h1>
-    
-    <button id="login-btn">Se connecter avec Spotify</button>
+    <div id="login-section">
+        <h1 style="color: var(--spotify-green); font-size: 3rem;">Spotify Lyrics</h1>
+        <button id="login-btn">Se connecter avec Spotify</button>
+    </div>
 
     <div id="dashboard">
-        <div class="lyrics-section">
-            <h2 style="color: #1DB954; border-bottom: 1px solid #333; padding-bottom: 10px;">Paroles</h2>
-            <div id="lyrics-content">
-                Les paroles s'afficheront ici... 
-                <br><br>
-                <small>(Note : L'API Spotify ne permet pas l'accès direct aux paroles. Vous pouvez intégrer une API comme Musixmatch ou Genius ici).</small>
-            </div>
+        <div class="lyrics-section" id="lyrics-container">
+            <div id="lyrics-content">Lancez une musique pour voir les paroles...</div>
         </div>
 
         <div class="sidebar">
-            <div class="card">
-                <img id="avatar" src="" alt="Profil">
-                <h4 id="name" style="margin: 10px 0 0 0;">Utilisateur</h4>
-                <p style="font-size: 11px; color: #1DB954; margin: 5px 0;">MEMBRE PREMIUM</p>
+            <div class="card" style="display: flex; align-items: center; justify-content: center; gap: 15px;">
+                <img id="avatar" src="" alt="">
+                <div style="text-align: left;">
+                    <h4 id="name" style="margin: 0;">Chargement...</h4>
+                    <span style="color: var(--spotify-green); font-size: 11px; font-weight: bold;">PREMIUM</span>
+                </div>
             </div>
 
             <div class="card">
-                <p style="color: #1DB954; font-weight: bold; font-size: 0.9em;">LECTURE EN COURS</p>
                 <img id="track-art" src="" alt="" style="display:none;">
-                <h3 id="track-title" style="font-size: 1.2em; margin: 10px 0;">Ouvre Spotify</h3>
-                <p id="track-artist" style="color: #b3b3b3; font-size: 0.9em; margin-bottom: 15px;"></p>
+                <h3 id="track-title">Aucune lecture</h3>
+                <p id="track-artist"></p>
                 
                 <div class="controls">
                     <button onclick="previousTrack()">⏮</button>
@@ -117,18 +134,22 @@
     </div>
 
     <script>
+        // --- CONFIGURATION ---
         const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
         let currentToken = "";
+        let lastTrackId = "";
+        let currentLyrics = [];
 
+        // --- AUTHENTIFICATION ---
         const params = new URLSearchParams(window.location.search);
         const code = params.get("code");
 
-        if (!code) {
-            document.getElementById('login-btn').onclick = () => redirectToSpotify();
-        } else {
-            document.getElementById('login-btn').style.display = 'none';
+        if (code) {
+            document.getElementById('login-section').style.display = 'none';
             handleCallback(code);
+        } else {
+            document.getElementById('login-btn').onclick = () => redirectToSpotify();
         }
 
         async function redirectToSpotify() {
@@ -156,64 +177,96 @@
             const user = await response.json();
             document.getElementById('dashboard').style.display = 'flex';
             document.getElementById('name').innerText = user.display_name;
-            document.getElementById('avatar').src = user.images[0]?.url || "https://via.placeholder.com/60";
+            document.getElementById('avatar').src = user.images[0]?.url || "";
             updateNowPlaying();
         }
 
-        async function togglePlay() {
-            const res = await fetch('https://api.spotify.com/v1/me/player', { headers: { 'Authorization': 'Bearer ' + currentToken } });
-            if (res.status === 204) return alert("Lancez Spotify sur un appareil !");
-            const playback = await res.json();
-            const endpoint = playback.is_playing ? 'pause' : 'play';
-            await fetch(`https://api.spotify.com/v1/me/player/$${endpoint}`, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + currentToken } });
-            setTimeout(updateNowPlaying, 500);
+        // --- PAROLES LRCLIB ---
+        async function fetchLyrics(artist, title, album, duration) {
+            try {
+                const url = `https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}&album_name=${encodeURIComponent(album)}&duration=${Math.round(duration)}`;
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.syncedLyrics) {
+                    parseLyrics(data.syncedLyrics);
+                } else {
+                    document.getElementById('lyrics-content').innerText = data.plainLyrics || "Paroles introuvables.";
+                    currentLyrics = [];
+                }
+            } catch (e) {
+                document.getElementById('lyrics-content').innerText = "Erreur de chargement des paroles.";
+            }
         }
 
-        async function nextTrack() {
-            await fetch('https://api.spotify.com/v1/me/player/next', { method: 'POST', headers: { 'Authorization': 'Bearer ' + currentToken } });
-            setTimeout(updateNowPlaying, 500);
+        function parseLyrics(lrc) {
+            const lines = lrc.split('\n');
+            currentLyrics = lines.map(line => {
+                const match = line.match(/\[(\d+):(\d+\.\d+)\](.*)/);
+                if (match) {
+                    return { time: parseInt(match[1]) * 60 + parseFloat(match[2]), text: match[3].trim() };
+                }
+                return null;
+            }).filter(l => l && l.text !== "");
+            
+            document.getElementById('lyrics-content').innerHTML = currentLyrics.map((l, i) => `<div id="line-${i}" class="lyric-line">${l.text}</div>`).join('');
         }
 
-        async function previousTrack() {
-            await fetch('https://api.spotify.com/v1/me/player/previous', { method: 'POST', headers: { 'Authorization': 'Bearer ' + currentToken } });
-            setTimeout(updateNowPlaying, 500);
+        function highlightLyrics(currentTime) {
+            currentLyrics.forEach((line, i) => {
+                const el = document.getElementById(`line-${i}`);
+                const next = currentLyrics[i+1];
+                if (currentTime >= line.time && (!next || currentTime < next.time)) {
+                    if (!el.classList.contains('active')) {
+                        document.querySelectorAll('.lyric-line').forEach(l => l.classList.remove('active'));
+                        el.classList.add('active');
+                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }
+            });
         }
 
+        // --- CONTRÔLES LECTURE ---
         async function updateNowPlaying() {
             if (!currentToken) return;
             try {
                 const response = await fetch('https://api.spotify.com/v1/me/player/currently-playing', { headers: { 'Authorization': 'Bearer ' + currentToken } });
-                if (response.status === 204) {
-                    document.getElementById('track-title').innerText = "Rien n'est diffusé";
-                    document.getElementById('track-art').style.display = "none";
-                    return;
-                }
+                if (response.status === 204) return;
                 const data = await response.json();
+
                 if (data && data.item) {
                     document.getElementById('track-title').innerText = data.item.name;
                     document.getElementById('track-artist').innerText = data.item.artists.map(a => a.name).join(", ");
                     const art = document.getElementById('track-art');
-                    art.src = data.item.album.images[0].url;
-                    art.style.display = "inline-block";
+                    art.src = data.item.album.images[0].url; art.style.display = "inline-block";
                     document.getElementById('play-pause-btn').innerText = data.is_playing ? "⏸" : "▶️";
+
+                    highlightLyrics(data.progress_ms / 1000);
+
+                    if (data.item.id !== lastTrackId) {
+                        lastTrackId = data.item.id;
+                        fetchLyrics(data.item.artists[0].name, data.item.name, data.item.album.name, data.item.duration_ms / 1000);
+                    }
                 }
-            } catch (e) { console.error(e); }
+            } catch (e) {}
         }
 
-        function generateCodeVerifier(length) {
-            let text = '';
-            let possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-            for (let i = 0; i < length; i++) text += possible.charAt(Math.floor(Math.random() * possible.length));
-            return text;
+        async function togglePlay() {
+            const res = await fetch('https://api.spotify.com/v1/me/player', { headers: { 'Authorization': 'Bearer ' + currentToken } });
+            const playback = await res.json();
+            const endpoint = playback.is_playing ? 'pause' : 'play';
+            await fetch(`https://api.spotify.com/v1/me/player/$${endpoint}`, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + currentToken } });
+            updateNowPlaying();
         }
 
-        async function generateCodeChallenge(codeVerifier) {
-            const data = new TextEncoder().encode(codeVerifier);
-            const digest = await window.crypto.subtle.digest('SHA-256', data);
-            return btoa(String.fromCharCode.apply(null, new Uint8Array(digest))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-        }
+        async function nextTrack() { await fetch('https://api.spotify.com/v1/me/player/next', { method: 'POST', headers: { 'Authorization': 'Bearer ' + currentToken } }); updateNowPlaying(); }
+        async function previousTrack() { await fetch('https://api.spotify.com/v1/me/player/previous', { method: 'POST', headers: { 'Authorization': 'Bearer ' + currentToken } }); updateNowPlaying(); }
 
-        setInterval(updateNowPlaying, 3000);
+        // --- UTILS CRYPTO ---
+        function generateCodeVerifier(l) { let t = ''; let p = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'; for (let i = 0; i < l; i++) t += p.charAt(Math.floor(Math.random() * p.length)); return t; }
+        async function generateCodeChallenge(v) { const d = await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(v)); return btoa(String.fromCharCode.apply(null, new Uint8Array(d))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+
+        setInterval(updateNowPlaying, 1000); // Mise à jour chaque seconde pour la synchro lyrics
     </script>
 </body>
 </html>
