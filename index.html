@@ -86,7 +86,22 @@
         }
 
         #avatar { border-radius: 50%; width: 60px; border: 2px solid var(--spotify-green); }
-        #track-art { width: 150px; height: 150px; object-fit: cover; border-radius: 12px; margin: 15px auto; display: block; box-shadow: 0 8px 20px rgba(0,0,0,0.4); }
+
+#track-art { 
+    width: 150px; 
+    height: 150px; 
+    object-fit: cover; 
+    border-radius: 12px; 
+    margin: 5px auto; /* Réduit la marge du haut à 5px */
+    display: block; 
+    box-shadow: 0 8px 20px rgba(0,0,0,0.4); 
+}
+
+#track-title { 
+    font-size: 1.2rem; 
+    margin: 10px 0 2px 0; /* Réduit l'espace avec l'image et l'artiste */
+}
+
         
         .controls button { 
             background: none; border: none; color: white; 
