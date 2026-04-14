@@ -2,47 +2,124 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Mon Spotify GitHub</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mon Spotify Dashboard</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; text-align: center; padding: 50px; background-color: #121212; color: white; }
-        button { background-color: #1DB954; color: white; border: none; padding: 15px 30px; border-radius: 30px; font-weight: bold; cursor: pointer; font-size: 16px; margin: 5px; }
-        button:hover { background-color: #1ed760; }
-        #profile { margin-top: 30px; display: none; }
-        #avatar { border-radius: 50%; width: 100px; border: 3px solid #1DB954; margin-bottom: 10px; }
-        #track-art { width: 150px; border-radius: 8px; margin-top: 10px; }
-        .controls { margin: 20px 0; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background-color: #121212; 
+            color: white; 
+            padding: 20px; 
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 { margin-bottom: 30px; color: #1DB954; }
+
+        /* Bouton de connexion au centre au début */
+        #login-btn { 
+            background-color: #1DB954; 
+            color: white; 
+            border: none; 
+            padding: 15px 30px; 
+            border-radius: 30px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            font-size: 16px;
+            transition: transform 0.2s;
+        }
+        #login-btn:hover { transform: scale(1.05); background-color: #1ed760; }
+
+        /* Conteneur principal (Dashboard) */
+        #profile { 
+            display: none; /* Changé en 'flex' via JS après connexion */
+            width: 100%;
+            max-width: 1000px;
+            flex-direction: row; 
+            justify-content: space-between; 
+            align-items: flex-start; 
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        /* Section Lecteur (Gauche) */
+        .player-section {
+            flex: 2;
+            background: #181818;
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+
+        /* Section Utilisateur (Droite) */
+        .user-section {
+            flex: 1;
+            background: #282828;
+            padding: 20px;
+            border-radius: 20px;
+            text-align: center;
+            min-width: 200px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        #avatar { border-radius: 50%; width: 80px; border: 2px solid #1DB954; margin-bottom: 10px; }
+        #track-art { width: 250px; border-radius: 10px; margin: 20px 0; box-shadow: 0 8px 20px rgba(0,0,0,0.6); }
+        
+        .controls button { 
+            background: none; 
+            border: none; 
+            color: white; 
+            font-size: 30px; 
+            cursor: pointer; 
+            margin: 0 15px; 
+            transition: color 0.2s;
+        }
+        .controls button:hover { color: #1DB954; }
+        #play-pause-btn { font-size: 45px; }
+
+        #track-title { margin: 10px 0 5px 0; font-size: 1.5em; }
+        #track-artist { color: #b3b3b3; margin: 0; font-size: 1.1em; }
     </style>
 </head>
 <body>
 
-    <h1>Mon Lecteur Spotify</h1>
+    <h1>Spotify Player</h1>
     
     <button id="login-btn">Se connecter avec Spotify</button>
 
     <div id="profile">
-        <img id="avatar" src="" alt="Photo de profil">
-        <h2 id="name"></h2>
-        
-        <div class="controls">
-            <button onclick="previousTrack()">⏮️</button>
-            <button id="play-pause-btn" onclick="togglePlay()">⏸️ Pause</button>
-            <button onclick="nextTrack()">⏭️</button>
+        <div class="player-section">
+            <div id="now-playing">
+                <p style="color: #1DB954; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">En cours d'écoute</p>
+                <img id="track-art" src="" alt="Album Art" style="display:none;">
+                <h3 id="track-title">Ouvre Spotify pour commencer</h3>
+                <p id="track-artist"></p>
+            </div>
+
+            <div class="controls">
+                <button onclick="previousTrack()">⏮</button>
+                <button id="play-pause-btn" onclick="togglePlay()">▶️</button>
+                <button onclick="nextTrack()">⏭</button>
+            </div>
         </div>
 
-        <div id="now-playing" style="border-top: 1px solid #333; padding-top: 20px;">
-            <p style="color: #1DB954; font-weight: bold; margin-bottom: 5px;">En cours d'écoute :</p>
-            <img id="track-art" src="" alt="" style="display:none;">
-            <h3 id="track-title" style="margin: 10px 0 5px 0;">Aucune musique</h3>
-            <p id="track-artist" style="color: #b3b3b3; margin: 0;"></p>
+        <div class="user-section">
+            <img id="avatar" src="" alt="Profil">
+            <h4 id="name" style="margin: 5px 0;">Chargement...</h4>
+            <p style="font-size: 12px; color: #1DB954; font-weight: bold;">PREMIUM</p>
         </div>
     </div>
 
     <script>
+        // --- CONFIGURATION ---
         const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
         let currentToken = "";
 
-        // --- AUTHENTIFICATION ---
+        // --- AUTHENTIFICATION PKCE ---
         const params = new URLSearchParams(window.location.search);
         const code = params.get("code");
 
@@ -103,14 +180,15 @@
             });
             const user = await response.json();
             
-            document.getElementById('profile').style.display = 'block';
+            // On affiche le dashboard en mode FLEX
+            document.getElementById('profile').style.display = 'flex';
             document.getElementById('name').innerText = user.display_name;
-            document.getElementById('avatar').src = user.images[0]?.url || "";
+            document.getElementById('avatar').src = user.images[0]?.url || "https://via.placeholder.com/80";
             
             updateNowPlaying();
         }
 
-        // --- CONTRÔLES DU LECTEUR ---
+        // --- CONTRÔLES ---
         async function nextTrack() {
             await fetch('https://api.spotify.com/v1/me/player/next', {
                 method: 'POST',
@@ -132,7 +210,7 @@
                 headers: { 'Authorization': 'Bearer ' + currentToken }
             });
             
-            if (res.status === 204) return alert("Ouvrez Spotify sur un appareil !");
+            if (res.status === 204) return alert("Lancez Spotify sur un appareil !");
             
             const playback = await res.json();
             const endpoint = playback.is_playing ? 'pause' : 'play';
@@ -156,6 +234,7 @@
                 if (response.status === 204) {
                     document.getElementById('track-title').innerText = "Rien n'est diffusé";
                     document.getElementById('track-art').style.display = "none";
+                    document.getElementById('track-artist').innerText = "";
                     return;
                 }
 
@@ -166,12 +245,12 @@
                     const art = document.getElementById('track-art');
                     art.src = data.item.album.images[0].url;
                     art.style.display = "inline-block";
-                    document.getElementById('play-pause-btn').innerText = data.is_playing ? "⏸️ Pause" : "▶️ Play";
+                    document.getElementById('play-pause-btn').innerText = data.is_playing ? "⏸" : "▶️";
                 }
-            } catch (e) { console.error(e); }
+            } catch (e) { console.error("Erreur update:", e); }
         }
 
-        // --- UTILS ---
+        // --- UTILS CRYPTO ---
         function generateCodeVerifier(length) {
             let text = '';
             let possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -188,6 +267,7 @@
                 .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
         }
 
+        // Rafraîchir l'affichage toutes les 3 secondes
         setInterval(updateNowPlaying, 3000);
     </script>
 </body>
