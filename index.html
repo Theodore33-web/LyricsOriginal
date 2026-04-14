@@ -40,15 +40,16 @@
             max-width: 1200px;
             gap: 20px;
             margin-top: 20px;
+            flex-direction: row; /* Côte à côte sur PC */
         }
 
         /* SECTION GAUCHE : PAROLES */
         .lyrics-section {
             flex: 2;
             background: var(--card-grey);
-            padding: 40px;
+            padding: 30px;
             border-radius: 20px;
-            height: 70vh;
+            height: 75vh;
             overflow-y: auto;
             text-align: center;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
@@ -60,7 +61,7 @@
             margin: 15px 0;
             color: var(--text-grey);
             transition: all 0.4s ease;
-            opacity: 0.4;
+            opacity: 0.3;
         }
         .lyric-line.active {
             color: var(--spotify-green);
@@ -75,33 +76,29 @@
             display: flex;
             flex-direction: column;
             gap: 20px;
-            min-width: 320px;
+            min-width: 300px;
         }
 
         .card {
             background: var(--light-grey);
-            padding: 25px;
+            padding: 15px;
             border-radius: 20px;
             text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }
 
-        #avatar { border-radius: 50%; width: 60px; border: 2px solid var(--spotify-green); }
-
-#track-art { 
-    width: 150px; 
-    height: 150px; 
-    object-fit: cover; 
-    border-radius: 12px; 
-    margin: 5px auto; /* Réduit la marge du haut à 5px */
-    display: block; 
-    box-shadow: 0 8px 20px rgba(0,0,0,0.4); 
-}
-
-#track-title { 
-    font-size: 1.2rem; 
-    margin: 10px 0 2px 0; /* Réduit l'espace avec l'image et l'artiste */
-}
-
+        #avatar { border-radius: 50%; width: 50px; border: 2px solid var(--spotify-green); }
+        
+        /* IMAGE DE L'ALBUM RÉDUITE */
+        #track-art { 
+            width: 150px; 
+            height: 150px; 
+            object-fit: cover; 
+            border-radius: 12px; 
+            margin: 10px auto; 
+            display: block; 
+            box-shadow: 0 8px 20px rgba(0,0,0,0.4); 
+        }
         
         .controls button { 
             background: none; border: none; color: white; 
@@ -109,20 +106,29 @@
         }
         .controls button:hover { color: var(--spotify-green); }
         
-        #track-title { font-size: 1.3rem; margin: 10px 0 5px 0; }
-        #track-artist { color: var(--text-grey); font-size: 1rem; }
+        #track-title { font-size: 1.2rem; margin: 10px 0 2px 0; }
+        #track-artist { color: var(--text-grey); font-size: 0.9rem; margin-top: 0; }
+
+        /* 📱 ADAPTATION MOBILE */
+        @media (max-width: 768px) {
+            #dashboard { flex-direction: column-reverse; }
+            .sidebar { width: 100%; min-width: unset; }
+            .lyrics-section { height: 50vh; padding: 20px; }
+            .lyric-line { font-size: 1.2rem; }
+        }
     </style>
 </head>
 <body>
 
     <div id="login-section">
-        <h1 style="color: var(--spotify-green); font-size: 3rem;">Lyrics Original</h1>
+        <h1 style="color: var(--spotify-green); font-size: 3rem; margin-bottom: 10px;">Lyrics Original</h1>
+        <p style="color: var(--text-grey); margin-bottom: 30px;">Tes paroles synchronisées en un clic.</p>
         <button id="login-btn">Se connecter avec Spotify</button>
     </div>
 
     <div id="dashboard">
         <div class="lyrics-section" id="lyrics-container">
-            <div id="lyrics-content">Lancez une musique pour voir les paroles...</div>
+            <div id="lyrics-content">Lancez une musique sur Spotify...</div>
         </div>
 
         <div class="sidebar">
@@ -135,6 +141,7 @@
             </div>
 
             <div class="card">
+                <p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 0;">LECTURE EN COURS</p>
                 <img id="track-art" src="" alt="" style="display:none;">
                 <h3 id="track-title">Aucune lecture</h3>
                 <p id="track-artist"></p>
@@ -230,6 +237,7 @@
         function highlightLyrics(currentTime) {
             currentLyrics.forEach((line, i) => {
                 const el = document.getElementById(`line-${i}`);
+                if (!el) return;
                 const next = currentLyrics[i+1];
                 if (currentTime >= line.time && (!next || currentTime < next.time)) {
                     if (!el.classList.contains('active')) {
@@ -241,7 +249,7 @@
             });
         }
 
-        // --- CONTRÔLES LECTURE ---
+        // --- CONTRÔLES ---
         async function updateNowPlaying() {
             if (!currentToken) return;
             try {
@@ -253,7 +261,7 @@
                     document.getElementById('track-title').innerText = data.item.name;
                     document.getElementById('track-artist').innerText = data.item.artists.map(a => a.name).join(", ");
                     const art = document.getElementById('track-art');
-                    art.src = data.item.album.images[0].url; art.style.display = "inline-block";
+                    art.src = data.item.album.images[0].url; art.style.display = "block";
                     document.getElementById('play-pause-btn').innerText = data.is_playing ? "⏸" : "▶️";
 
                     highlightLyrics(data.progress_ms / 1000);
@@ -266,42 +274,24 @@
             } catch (e) {}
         }
 
-       async function togglePlay() {
-    try {
-        // 1. On récupère l'état actuel pour savoir si on fait 'play' ou 'pause'
-        const res = await fetch('https://api.spotify.com/v1/me/player', { 
-            headers: { 'Authorization': 'Bearer ' + currentToken } 
-        });
-
-        if (res.status === 204) {
-            alert("Aucun appareil actif détecté. Lancez la musique sur Spotify d'abord !");
-            return;
+        async function togglePlay() {
+            try {
+                const res = await fetch('https://api.spotify.com/v1/me/player', { headers: { 'Authorization': 'Bearer ' + currentToken } });
+                if (res.status === 204) return alert("Lancez Spotify sur un appareil !");
+                const playback = await res.json();
+                const endpoint = playback.is_playing ? 'pause' : 'play';
+                await fetch(`https://api.spotify.com/v1/me/player/${endpoint}`, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + currentToken } });
+                setTimeout(updateNowPlaying, 500);
+            } catch (e) {}
         }
 
-        const playback = await res.json();
-        const endpoint = playback.is_playing ? 'pause' : 'play';
+        async function nextTrack() { await fetch('https://api.spotify.com/v1/me/player/next', { method: 'POST', headers: { 'Authorization': 'Bearer ' + currentToken } }); setTimeout(updateNowPlaying, 500); }
+        async function previousTrack() { await fetch('https://api.spotify.com/v1/me/player/previous', { method: 'POST', headers: { 'Authorization': 'Bearer ' + currentToken } }); setTimeout(updateNowPlaying, 500); }
 
-        // 2. On envoie l'ordre à Spotify (Correction de l'URL et du $)
-        await fetch(`https://api.spotify.com/v1/me/player/${endpoint}`, { 
-            method: 'PUT', 
-            headers: { 'Authorization': 'Bearer ' + currentToken } 
-        });
-
-        // 3. Petite pause pour laisser le temps à Spotify de changer d'état avant de rafraîchir
-        setTimeout(updateNowPlaying, 500);
-    } catch (error) {
-        console.error("Erreur togglePlay:", error);
-    }
-}
-
-        async function nextTrack() { await fetch('https://api.spotify.com/v1/me/player/next', { method: 'POST', headers: { 'Authorization': 'Bearer ' + currentToken } }); updateNowPlaying(); }
-        async function previousTrack() { await fetch('https://api.spotify.com/v1/me/player/previous', { method: 'POST', headers: { 'Authorization': 'Bearer ' + currentToken } }); updateNowPlaying(); }
-
-        // --- UTILS CRYPTO ---
         function generateCodeVerifier(l) { let t = ''; let p = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'; for (let i = 0; i < l; i++) t += p.charAt(Math.floor(Math.random() * p.length)); return t; }
         async function generateCodeChallenge(v) { const d = await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(v)); return btoa(String.fromCharCode.apply(null, new Uint8Array(d))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
 
-        setInterval(updateNowPlaying, 1000); // Mise à jour chaque seconde pour la synchro lyrics
+        setInterval(updateNowPlaying, 1000);
     </script>
 </body>
 </html>
