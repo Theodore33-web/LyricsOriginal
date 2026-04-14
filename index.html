@@ -1,56 +1,116 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <title>Spotify Lyrics Player</title>
-
-  <style>
-    body {
-      background: #121212;
-      color: white;
-      font-family: Arial;
-      text-align: center;
-    }
-
-    button {
-      padding: 10px 20px;
-      background: #1db954;
-      border: none;
-      color: white;
-      font-size: 16px;
-      cursor: pointer;
-      margin-top: 20px;
-    }
-
-    #lyrics {
-      margin-top: 30px;
-      max-height: 300px;
-      overflow-y: auto;
-      font-size: 18px;
-    }
-
-    .line {
-      opacity: 0.4;
-      transition: 0.3s;
-    }
-
-    .active {
-      color: #1db954;
-      font-size: 22px;
-      opacity: 1;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mon Lecteur Spotify Sans Serveur</title>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 50px; }
+        #profile { margin-top: 20px; text-align: center; display: none; }
+        img { border-radius: 50%; width: 150px; }
+        button { padding: 10px 20px; cursor: pointer; background: #1DB954; color: white; border: none; border-radius: 20px; font-weight: bold; }
+    </style>
 </head>
-
 <body>
 
-<h1 id="title">Spotify Lyrics</h1>
+    <h1>Spotify SPA</h1>
+    
+    <button id="login-btn">Se connecter à mon compte Spotify</button>
 
-<button onclick="login()">Se connecter à Spotify</button>
+    <div id="profile">
+        <h2 id="display-name"></h2>
+        <img id="avatar" src="" alt="Avatar">
+        <p>Tu es connecté !</p>
+    </div>
 
-<div id="lyrics"></div>
+    <script>
+        // CONFIGURATION : Remplace par ton Client ID du dashboard Spotify
+        const clientId = "TON_CLIENT_ID_ICI"; 
+        const redirectUri = "http://localhost:5500"; // Doit correspondre exactement au dashboard
 
-<script src="app.js"></script>
+        const loginBtn = document.getElementById('login-btn');
+        const profileSection = document.getElementById('profile');
 
+        // 1. DÉMARRAGE : Vérifier si on revient d'une connexion
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get("code");
+
+        if (!code) {
+            loginBtn.addEventListener('click', () => redirectToSpotify());
+        } else {
+            loginBtn.style.display = 'none';
+            handleCallback(code);
+        }
+
+        // 2. FONCTION : Redirection vers Spotify
+        async function redirectToSpotify() {
+            const verifier = generateCodeVerifier(128);
+            const challenge = await generateCodeChallenge(verifier);
+
+            localStorage.setItem("verifier", verifier);
+
+            const params = new URLSearchParams();
+            params.append("client_id", clientId);
+            params.append("response_type", "code");
+            params.append("redirect_uri", redirectUri);
+            params.append("scope", "user-read-private user-read-email");
+            params.append("code_challenge_method", "S256");
+            params.append("code_challenge", challenge);
+
+            document.location = `https://accounts.spotify.com/authorize?${params.toString()}`;
+        }
+
+        // 3. FONCTION : Échange du code contre un Token
+        async function handleCallback(code) {
+            const verifier = localStorage.getItem("verifier");
+
+            const params = new URLSearchParams();
+            params.append("client_id", clientId);
+            params.append("grant_type", "authorization_code");
+            params.append("code", code);
+            params.append("redirect_uri", redirectUri);
+            params.append("code_verifier", verifier);
+
+            const result = await fetch("https://accounts.spotify.com/api/token", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: params
+            });
+
+            const { access_token } = await result.json();
+            fetchUserProfile(access_token);
+        }
+
+        // 4. FONCTION : Appel API avec le Token
+        async function fetchUserProfile(token) {
+            const result = await fetch("https://api.spotify.com/v1/me", {
+                method: "GET",
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const data = await result.json();
+            
+            // Mise à jour de l'interface
+            profileSection.style.display = 'block';
+            document.getElementById('display-name').innerText = data.display_name;
+            document.getElementById('avatar').src = data.images[0]?.url || "";
+        }
+
+        // --- OUTILS CRYPTO (Obligatoires pour PKCE) ---
+        function generateCodeVerifier(length) {
+            let text = '';
+            let possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+            for (let i = 0; i < length; i++) {
+                text += possible.charAt(Math.floor(Math.random() * possible.length));
+            }
+            return text;
+        }
+
+        async function generateCodeChallenge(codeVerifier) {
+            const data = new TextEncoder().encode(codeVerifier);
+            const digest = await window.crypto.subtle.digest('SHA-256', data);
+            return btoa(String.fromCharCode.apply(null, new Uint8Array(digest)))
+                .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        }
+    </script>
 </body>
 </html>
