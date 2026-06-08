@@ -109,6 +109,48 @@
         #track-title { font-size: 1.2rem; margin: 10px 0 2px 0; }
         #track-artist { color: var(--text-grey); font-size: 0.9rem; margin-top: 0; }
 
+        /* Style Eléments de Recherche */
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .search-box input {
+            flex: 1;
+            background: #121212;
+            border: 1px solid #333;
+            border-radius: 20px;
+            padding: 8px 15px;
+            color: white;
+            outline: none;
+        }
+        .search-box input:focus { border-color: var(--spotify-green); }
+        .search-box button {
+            background: var(--spotify-green);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 8px 15px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        #search-results {
+            max-height: 150px;
+            overflow-y: auto;
+            text-align: left;
+        }
+        .search-item {
+            padding: 8px;
+            cursor: pointer;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .search-item:hover { background: #333; }
+        .search-item img { width: 30px; height: 30px; border-radius: 4px; }
+
         /* 📱 ADAPTATION MOBILE */
         @media (max-width: 768px) {
             #dashboard { flex-direction: column-reverse; }
@@ -138,6 +180,15 @@
                     <h4 id="name" style="margin: 0;">Chargement...</h4>
                     <span style="color: var(--spotify-green); font-size: 11px; font-weight: bold;">PREMIUM</span>
                 </div>
+            </div>
+
+            <div class="card">
+                <p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 0 0 10px 0; text-align: left;">RECHERCHER</p>
+                <div class="search-box">
+                    <input type="text" id="search-input" placeholder="Titre, artiste...">
+                    <button onclick="searchTrack()">🔍</button>
+                </div>
+                <div id="search-results"></div>
             </div>
 
             <div class="card">
@@ -203,6 +254,67 @@
             updateNowPlaying();
         }
 
+        // --- FONCTIONNALITÉ RECHERCHE & LECTURE ---
+        async function searchTrack() {
+            const query = document.getElementById('search-input').value;
+            if (!query || !currentToken) return;
+
+            try {
+                const response = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=5`, {
+                    headers: { 'Authorization': 'Bearer ' + currentToken }
+                });
+                const data = await response.json();
+                const resultsContainer = document.getElementById('search-results');
+                resultsContainer.innerHTML = "";
+
+                if (data.tracks && data.tracks.items.length > 0) {
+                    data.tracks.items.forEach(track => {
+                        const item = document.createElement('div');
+                        item.className = 'search-item';
+                        item.innerHTML = `
+                            <img src="${track.album.images[2]?.url || ''}" alt="">
+                            <div>
+                                <strong style="display:block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${track.name}</strong>
+                                <span style="font-size: 0.8rem; color: var(--text-grey);">${track.artists[0].name}</span>
+                            </div>
+                        `;
+                        // Clic pour lancer la musique
+                        item.onclick = () => playTrack(track.uri);
+                        resultsContainer.appendChild(item);
+                    });
+                } else {
+                    resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Aucun résultat</p>";
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        async function playTrack(trackUri) {
+            try {
+                const response = await fetch('https://api.spotify.com/v1/me/player/play', {
+                    method: 'PUT',
+                    headers: { 
+                        'Authorization': 'Bearer ' + currentToken,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ uris: [trackUri] })
+                });
+                
+                if (response.status === 204) {
+                    // Succès, on vide la recherche et on force le rafraîchissement
+                    document.getElementById('search-results').innerHTML = "";
+                    document.getElementById('search-input').value = "";
+                    setTimeout(updateNowPlaying, 600);
+                } else if (response.status === 404) {
+                    alert("Erreur : Aucun appareil d'écoute actif trouvé. Ouvrez Spotify sur votre téléphone ou PC.");
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        // Permet de valider la recherche en appuyant sur la touche "Entrée"
+        document.getElementById('search-input')?.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') searchTrack();
+        });
+
         // --- PAROLES LRCLIB ---
         async function fetchLyrics(artist, title, album, duration) {
             try {
@@ -253,7 +365,7 @@
         async function updateNowPlaying() {
             if (!currentToken) return;
             try {
-                const response = await fetch('https://api.spotify.com/v1/me/player/currently-playing', { headers: { 'Authorization': 'Bearer ' + currentToken } });
+                const response = await fetch('https://api.spotify.com/v1/me/player', { headers: { 'Authorization': 'Bearer ' + currentToken } });
                 if (response.status === 204) return;
                 const data = await response.json();
 
