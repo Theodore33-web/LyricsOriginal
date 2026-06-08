@@ -228,7 +228,7 @@
         let lastTrackId = "";
         let currentLyrics = [];
 
-        // --- ENTRER VOS PARAMÈTRES ACRCLOUD ---
+        // --- PARAMÈTRES ACRCLOUD MIS À JOUR ---
         const acrAccessKey = "e5c443d8f0f15902b0641c6dec6f8999";
         const acrAccessSecret = "1xV0C2O2iYfuLqmfQURFbhdnhUxrtlztNnG6XxDzD";
         const acrHost = "identify-eu-west-1.acrcloud.com";
@@ -299,11 +299,6 @@
                 return;
             }
 
-            if (acrAccessKey === "e5c443d8f0f15902b0641c6dec6f8999") {
-                alert("Erreur : Configurez d'abord vos clés d'API ACRCloud dans le script.");
-                return;
-            }
-
             try {
                 console.log("[MICRO] Initialisation de la capture...");
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -367,7 +362,7 @@
             }
         }
 
-        // --- TRAITEMENT ET ENVOI À ACRCLOUD (AVEC INTEGRATION DE L'ID SPOTIFY DIRECT) ---
+        // --- TRAITEMENT ET ENVOI À ACRCLOUD ---
         async function recognizeAudioWithACRCloud(blob) {
             const resultsContainer = document.getElementById('search-results');
             const currentTimestamp = Math.floor(Date.now() / 1000);
@@ -408,7 +403,6 @@
                         const item = document.createElement('div');
                         item.className = 'search-item';
                         
-                        // Extraction automatique de la métadonnée tierce liée (3rd Party Spotify Integration)
                         let spotifyUri = null;
                         if (track.external_metadata && track.external_metadata.spotify) {
                             const spotifyTrackId = track.external_metadata.spotify.track.id;
@@ -424,7 +418,6 @@
                             </div>
                         `;
                         
-                        // Si l'URI Spotify direct est disponible, on l'exécute immédiatement sans recherche textuelle
                         item.onclick = () => {
                             if (spotifyUri) {
                                 playTrack(spotifyUri);
@@ -447,13 +440,14 @@
             }
         }
 
-        // --- COMMANDES ET INTERFACE SPOTIFY ---
+        // --- COMMANDES ET INTERFACE SPOTIFY (CORRIGÉES) ---
         async function searchTrack() {
             const query = document.getElementById('search-input').value;
             if (!query || !currentToken) return;
 
             try {
-                const response = await fetch(`https://api.spotify.com/v1/search?q=7{encodeURIComponent(query)}&type=track&limit=5`, {
+                // Correction appliquée ici : ajout du symbole $ manquant
+                const response = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=5`, {
                     headers: { 'Authorization': 'Bearer ' + currentToken }
                 });
                 const data = await response.json();
@@ -550,7 +544,7 @@
         async function updateNowPlaying() {
             if (!currentToken) return;
             try {
-                const response = await fetch('https://api.spotify.com/v1/me/player/currently-playing', { headers: { 'Authorization': 'Bearer ' + currentToken } });
+                const response = await fetch('https://api.spotify.com/v1/me/player', { headers: { 'Authorization': 'Bearer ' + currentToken } });
                 if (response.status === 204 || response.status === 401) return;
                 const data = await response.json();
 
@@ -574,11 +568,12 @@
 
         async function togglePlay() {
             try {
-                const res = await fetch('https://api.spotify.com/v1/me/player/currently-playing', { headers: { 'Authorization': 'Bearer ' + currentToken } });
+                const res = await fetch('https://api.spotify.com/v1/me/player', { headers: { 'Authorization': 'Bearer ' + currentToken } });
                 if (res.status === 204) return alert("Lancez l'application Spotify sur l'un de vos appareils !");
                 const playback = await res.json();
                 const endpoint = playback.is_playing ? 'pause' : 'play';
-                await fetch(`https://api.spotify.com/v1/search?q=8{endpoint}`, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + currentToken } });
+                // Correction appliquée ici : ajout du symbole $ manquant
+                await fetch(`https://api.spotify.com/v1/me/player/${endpoint}`, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + currentToken } });
                 setTimeout(updateNowPlaying, 500);
             } catch (e) {}
         }
