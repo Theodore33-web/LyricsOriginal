@@ -142,28 +142,21 @@
             animation: pulse 1.5s infinite;
         }
 
-        #lib-btn {
-            background: #333;
-            transition: background 0.3s;
-        }
-        #lib-btn.active {
-            background: var(--spotify-green);
-        }
-
-        .load-more-btn {
+        .lib-btn {
             background: none;
-            border: 1px solid var(--text-grey);
-            color: var(--text-grey);
+            border: 1px solid var(--spotify-green);
+            color: var(--spotify-green);
             border-radius: 20px;
-            padding: 6px 12px;
-            margin: 10px auto;
+            padding: 8px 15px;
+            margin-top: 5px;
             cursor: pointer;
             font-size: 0.8rem;
-            display: block;
+            font-weight: bold;
+            width: 100%;
             transition: all 0.2s;
         }
-        .load-more-btn:hover {
-            border-color: white;
+        .lib-btn:hover {
+            background: var(--spotify-green);
             color: white;
         }
 
@@ -174,7 +167,7 @@
         }
 
         #search-results {
-            max-height: 250px;
+            max-height: 200px;
             overflow-y: auto;
             text-align: left;
             margin-top: 10px;
@@ -230,8 +223,8 @@
                     <input type="text" id="search-input" placeholder="Titre, artiste...">
                     <button onclick="searchTrack()" title="Rechercher par texte">🔍</button>
                     <button id="mic-btn" onclick="toggleMicrophoneListen()" title="Identifier via AudD">🎙️</button>
-                    <button id="lib-btn" onclick="getUserLibrary()" title="Ouvrir/Fermer ma bibliothèque">📂</button>
                 </div>
+                <button class="lib-btn" onclick="getUserLibrary()">📂 Ouvrir ma bibliothèque (Likés)</button>
                 <div id="search-results"></div>
             </div>
 
@@ -257,11 +250,8 @@
         let lastTrackId = "";
         let currentLyrics = [];
 
-        // --- RECO AUDD ET VARIABLES BIBLIOTHÈQUE ---
-        const auddApiToken = "187ef3238849ff75583d237fa40dbb48"; 
-        let isLibraryVisible = false;
-        let libraryOffset = 0;
-        const libraryLimit = 10;
+        // --- INSÉREZ VOTRE JETON D'API AUDD.IO ICI ---
+        const auddApiToken = "VOTRE_API_TOKEN_AUDD"; 
 
         let mediaRecorder = null;
         let audioChunks = [];
@@ -281,6 +271,7 @@
             const verifier = generateCodeVerifier(128);
             const challenge = await generateCodeChallenge(verifier);
             localStorage.setItem("verifier", verifier);
+            // Ajout des scopes user-library-read et playlist-read-private pour accéder à votre contenu
             const scope = "user-read-private user-read-email user-modify-playback-state user-read-playback-state user-library-read playlist-read-private";
             const authUrl = new URL("https://accounts.spotify.com/authorize");
             const args = { response_type: 'code', client_id: clientId, scope: scope, redirect_uri: redirectUri, code_challenge_method: 'S256', code_challenge: challenge };
@@ -318,53 +309,25 @@
             }
         }
 
-        // --- FORMULE DE LA BIBLIOTHÈQUE AVEC ALLÈGEMENT ET BOUTON PLUS ---
+        // --- ACCÈS À LA BIBLIOTHÈQUE (Titres Likés) ---
         async function getUserLibrary() {
             if (!currentToken) return;
             const resultsContainer = document.getElementById('search-results');
-            const libBtn = document.getElementById('lib-btn');
-
-            // EFFACEMENT : Si la bibliothèque est déjà visible, on l'enlève au clic
-            if (isLibraryVisible && libraryOffset === 0) {
-                resultsContainer.innerHTML = "";
-                libBtn.classList.remove('active');
-                isLibraryVisible = false;
-                return;
-            }
-
-            // Si c'est le tout premier chargement
-            if (libraryOffset === 0) {
-                resultsContainer.innerHTML = "<p id='lib-loading' style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement de la bibliothèque...</p>";
-                libBtn.classList.add('active');
-                isLibraryVisible = true;
-            }
-
-            // Suppression du bouton "Afficher plus" temporairement pendant le chargement
-            const oldMoreBtn = document.getElementById('load-more-btn');
-            if (oldMoreBtn) oldMoreBtn.remove();
+            resultsContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement de la bibliothèque...</p>";
             
             try {
-                // Utilisation de la formule d'origine stable avec gestion de la limite et de l'offset
-                const response = await fetch(`https://api.spotify.com/v1/search?q=$$9{libraryLimit}&offset=${libraryOffset}`, {
+                const response = await fetch('https://api.spotify.com/v1/me/tracks?limit=10', {
                     headers: { 'Authorization': 'Bearer ' + currentToken }
                 });
                 const data = await response.json();
-
-                // On efface le texte "chargement..." initial
-                const loadingText = document.getElementById('lib-loading');
-                if (loadingText) loadingText.remove();
+                resultsContainer.innerHTML = "";
 
                 if (data.items && data.items.length > 0) {
-                    // Ajout du titre d'en-tête seulement au début
-                    if (libraryOffset === 0) {
-                        const titleHeader = document.createElement('p');
-                        titleHeader.id = "lib-title-header";
-                        titleHeader.style = "color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;";
-                        titleHeader.innerText = "VOS TITRES LIKÉS";
-                        resultsContainer.appendChild(titleHeader);
-                    }
+                    const titleHeader = document.createElement('p');
+                    titleHeader.style = "color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;";
+                    titleHeader.innerText = "VOS TITRES LIKÉS";
+                    resultsContainer.appendChild(titleHeader);
 
-                    // Injection des morceaux
                     data.items.forEach(obj => {
                         const track = obj.track;
                         const item = document.createElement('div');
@@ -379,32 +342,12 @@
                         item.onclick = () => playTrack(track.uri);
                         resultsContainer.appendChild(item);
                     });
-
-                    // Si on a récupéré le quota complet de 10 titres, on affiche le bouton "Afficher plus"
-                    if (data.items.length === libraryLimit) {
-                        libraryOffset += libraryLimit; // On décale pour le prochain coup
-                        const moreBtn = document.createElement('button');
-                        moreBtn.id = "load-more-btn";
-                        moreBtn.className = "load-more-btn";
-                        moreBtn.innerText = "Afficher plus (10)";
-                        moreBtn.onclick = getUserLibrary; // Relance la même fonction
-                        resultsContainer.appendChild(moreBtn);
-                    } else {
-                        // Plus rien à charger, on remet l'offset à 0 pour le prochain cycle de clic
-                        libraryOffset = 0;
-                    }
-                } else if (libraryOffset === 0) {
+                } else {
                     resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Aucun morceau favori trouvé.</p>";
-                    libraryOffset = 0;
-                    isLibraryVisible = false;
-                    libBtn.classList.remove('active');
                 }
             } catch (e) { 
                 console.error(e); 
-                resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur de chargement.</p>";
-                libraryOffset = 0;
-                isLibraryVisible = false;
-                libBtn.classList.remove('active');
+                resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur lors du chargement de la bibliothèque.</p>";
             }
         }
 
@@ -412,9 +355,6 @@
         async function toggleMicrophoneListen() {
             const micBtn = document.getElementById('mic-btn');
             const resultsContainer = document.getElementById('search-results');
-            document.getElementById('lib-btn').classList.remove('active');
-            isLibraryVisible = false;
-            libraryOffset = 0;
 
             if (isRecording) {
                 if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
@@ -512,9 +452,6 @@
         async function searchTrack() {
             const query = document.getElementById('search-input').value;
             if (!query || !currentToken) return;
-            document.getElementById('lib-btn').classList.remove('active');
-            isLibraryVisible = false;
-            libraryOffset = 0;
 
             try {
                 const response = await fetch(`https://api.spotify.com/v1/search?q=$${encodeURIComponent(query)}&type=track&limit=5`, {
@@ -554,9 +491,6 @@
                 if (response.status === 204) {
                     document.getElementById('search-results').innerHTML = "";
                     document.getElementById('search-input').value = "";
-                    document.getElementById('lib-btn').classList.remove('active');
-                    isLibraryVisible = false;
-                    libraryOffset = 0;
                     setTimeout(updateNowPlaying, 600);
                 } else if (response.status === 404) {
                     alert("Ouvrez Spotify et lancez une lecture sur l'un de vos appareils.");
@@ -658,4 +592,5 @@
         setInterval(updateNowPlaying, 1000);
     </script>
 </body>
+</html>
 </html>
