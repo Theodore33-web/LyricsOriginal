@@ -155,25 +155,8 @@
             width: 100%;
             transition: all 0.2s;
         }
-        .lib-btn:hover, .lib-btn.active {
+        .lib-btn:hover {
             background: var(--spotify-green);
-            color: white;
-        }
-
-        .load-more-btn {
-            background: none;
-            border: 1px solid var(--text-grey);
-            color: var(--text-grey);
-            border-radius: 20px;
-            padding: 6px 12px;
-            margin: 10px auto;
-            cursor: pointer;
-            font-size: 0.8rem;
-            display: block;
-            transition: all 0.2s;
-        }
-        .load-more-btn:hover {
-            border-color: white;
             color: white;
         }
 
@@ -184,7 +167,7 @@
         }
 
         #search-results {
-            max-height: 250px;
+            max-height: 200px;
             overflow-y: auto;
             text-align: left;
             margin-top: 10px;
@@ -241,7 +224,7 @@
                     <button onclick="searchTrack()" title="Rechercher par texte">🔍</button>
                     <button id="mic-btn" onclick="toggleMicrophoneListen()" title="Identifier via AudD">🎙️</button>
                 </div>
-                <button id="lib-toggle-btn" class="lib-btn" onclick="getUserLibrary()">📂 Ouvrir ma bibliothèque (Likés)</button>
+                <button class="lib-btn" onclick="getUserLibrary()">📂 Ouvrir ma bibliothèque (Likés)</button>
                 <div id="search-results"></div>
             </div>
 
@@ -267,11 +250,8 @@
         let lastTrackId = "";
         let currentLyrics = [];
 
-        // --- API CONFIG & VARIABLES PAGINATION ---
+        // --- INSÉREZ VOTRE JETON D'API AUDD.IO ICI ---
         const auddApiToken = "VOTRE_API_TOKEN_AUDD"; 
-        let isLibraryVisible = false;
-        let libraryOffset = 0;
-        const libraryLimit = 10;
 
         let mediaRecorder = null;
         let audioChunks = [];
@@ -291,6 +271,7 @@
             const verifier = generateCodeVerifier(128);
             const challenge = await generateCodeChallenge(verifier);
             localStorage.setItem("verifier", verifier);
+            // Ajout des scopes user-library-read et playlist-read-private pour accéder à votre contenu
             const scope = "user-read-private user-read-email user-modify-playback-state user-read-playback-state user-library-read playlist-read-private";
             const authUrl = new URL("https://accounts.spotify.com/authorize");
             const args = { response_type: 'code', client_id: clientId, scope: scope, redirect_uri: redirectUri, code_challenge_method: 'S256', code_challenge: challenge };
@@ -328,50 +309,24 @@
             }
         }
 
-        // --- GESTION BIBLIOTHÈQUE SYNCHRONE AVEC PAGINATION ET SUPPRESSION ---
+        // --- ACCÈS À LA BIBLIOTHÈQUE (Titres Likés) ---
         async function getUserLibrary() {
             if (!currentToken) return;
             const resultsContainer = document.getElementById('search-results');
-            const toggleBtn = document.getElementById('lib-toggle-btn');
-
-            // 1. Fermer la liste si elle est déjà ouverte
-            if (isLibraryVisible && libraryOffset === 0) {
-                resultsContainer.innerHTML = "";
-                toggleBtn.classList.remove('active');
-                toggleBtn.innerText = "📂 Ouvrir ma bibliothèque (Likés)";
-                isLibraryVisible = false;
-                return;
-            }
-
-            // Affichage de l'état de chargement initial
-            if (libraryOffset === 0) {
-                resultsContainer.innerHTML = "<p id='lib-loading' style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement de la bibliothèque...</p>";
-                toggleBtn.classList.add('active');
-                toggleBtn.innerText = "📁 Fermer ma bibliothèque";
-                isLibraryVisible = true;
-            }
-
-            // Supprimer l'ancien bouton "Afficher plus" s'il existe pendant l'appel
-            const existingMoreBtn = document.getElementById('load-more-btn');
-            if (existingMoreBtn) existingMoreBtn.remove();
+            resultsContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement de la bibliothèque...</p>";
             
             try {
-                const response = await fetch(`https://api.spotify.com/v1/me/tracks?limit=10?limit=${libraryLimit}&offset=${libraryOffset}`, {
+                const response = await fetch('https://api.spotify.com/v1/me/tracks?limit=10', {
                     headers: { 'Authorization': 'Bearer ' + currentToken }
                 });
                 const data = await response.json();
-
-                const loadingMsg = document.getElementById('lib-loading');
-                if (loadingMsg) loadingMsg.remove();
+                resultsContainer.innerHTML = "";
 
                 if (data.items && data.items.length > 0) {
-                    if (libraryOffset === 0) {
-                        const titleHeader = document.createElement('p');
-                        titleHeader.id = "lib-title-header";
-                        titleHeader.style = "color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;";
-                        titleHeader.innerText = "VOS TITRES LIKÉS";
-                        resultsContainer.appendChild(titleHeader);
-                    }
+                    const titleHeader = document.createElement('p');
+                    titleHeader.style = "color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;";
+                    titleHeader.innerText = "VOS TITRES LIKÉS";
+                    resultsContainer.appendChild(titleHeader);
 
                     data.items.forEach(obj => {
                         const track = obj.track;
@@ -387,44 +342,19 @@
                         item.onclick = () => playTrack(track.uri);
                         resultsContainer.appendChild(item);
                     });
-
-                    // Si on a reçu exactement le nombre limite demandé, on peut en charger plus
-                    if (data.items.length === libraryLimit) {
-                        libraryOffset += libraryLimit;
-                        const moreBtn = document.createElement('button');
-                        moreBtn.id = "load-more-btn";
-                        moreBtn.className = "load-more-btn";
-                        moreBtn.innerText = "Afficher plus (10)";
-                        moreBtn.onclick = getUserLibrary; 
-                        resultsContainer.appendChild(moreBtn);
-                    } else {
-                        // Fin de la bibliothèque atteinte
-                        libraryOffset = 0;
-                    }
-                } else if (libraryOffset === 0) {
+                } else {
                     resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Aucun morceau favori trouvé.</p>";
-                    resetLibraryState();
                 }
             } catch (e) { 
                 console.error(e); 
                 resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur lors du chargement de la bibliothèque.</p>";
-                resetLibraryState();
             }
-        }
-
-        function resetLibraryState() {
-            libraryOffset = 0;
-            isLibraryVisible = false;
-            const toggleBtn = document.getElementById('lib-toggle-btn');
-            toggleBtn.classList.remove('active');
-            toggleBtn.innerText = "📂 Ouvrir ma bibliothèque (Likés)";
         }
 
         // --- RECONNAISSANCE VOCALE (AudD.io) ---
         async function toggleMicrophoneListen() {
             const micBtn = document.getElementById('mic-btn');
             const resultsContainer = document.getElementById('search-results');
-            resetLibraryState();
 
             if (isRecording) {
                 if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
@@ -522,10 +452,9 @@
         async function searchTrack() {
             const query = document.getElementById('search-input').value;
             if (!query || !currentToken) return;
-            resetLibraryState();
 
             try {
-                const response = await fetch(`https://api.spotify.com/v1/search?q=$$?q=${encodeURIComponent(query)}&type=track&limit=5`, {
+                const response = await fetch(`https://api.spotify.com/v1/search?q=$${encodeURIComponent(query)}&type=track&limit=5`, {
                     headers: { 'Authorization': 'Bearer ' + currentToken }
                 });
                 const data = await response.json();
@@ -562,7 +491,6 @@
                 if (response.status === 204) {
                     document.getElementById('search-results').innerHTML = "";
                     document.getElementById('search-input').value = "";
-                    resetLibraryState();
                     setTimeout(updateNowPlaying, 600);
                 } else if (response.status === 404) {
                     alert("Ouvrez Spotify et lancez une lecture sur l'un de vos appareils.");
@@ -650,15 +578,9 @@
                 if (res.status === 204) return alert("Activez d'abord votre lecteur Spotify.");
                 const playback = await res.json();
                 const endpoint = playback.is_playing ? 'pause' : 'play';
-                
-                await fetch(`https://api.spotify.com/v1/me/player/$$/${endpoint}`, { 
-                    method: 'PUT', 
-                    headers: { 'Authorization': 'Bearer ' + currentToken } 
-                });
+                await fetch(`https://api.spotify.com/v1/me/player/$${endpoint}`, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + currentToken } });
                 setTimeout(updateNowPlaying, 500);
-            } catch (e) {
-                console.error("Erreur togglePlay:", e);
-            }
+            } catch (e) {}
         }
 
         async function nextTrack() { await fetch('https://api.spotify.com/v1/me/player/next', { method: 'POST', headers: { 'Authorization': 'Bearer ' + currentToken } }); setTimeout(updateNowPlaying, 500); }
@@ -671,3 +593,4 @@
     </script>
 </body>
 </html>
+        
