@@ -142,21 +142,28 @@
             animation: pulse 1.5s infinite;
         }
 
-        .lib-btn {
+        #lib-toggle-btn {
+            background: #333;
+            transition: background 0.3s;
+        }
+        #lib-toggle-btn.active {
+            background: var(--spotify-green);
+        }
+
+        .load-more-btn {
             background: none;
-            border: 1px solid var(--spotify-green);
-            color: var(--spotify-green);
+            border: 1px solid var(--text-grey);
+            color: var(--text-grey);
             border-radius: 20px;
-            padding: 8px 15px;
-            margin-top: 5px;
+            padding: 6px 12px;
+            margin: 10px auto;
             cursor: pointer;
             font-size: 0.8rem;
-            font-weight: bold;
-            width: 100%;
+            display: block;
             transition: all 0.2s;
         }
-        .lib-btn:hover {
-            background: var(--spotify-green);
+        .load-more-btn:hover {
+            border-color: white;
             color: white;
         }
 
@@ -167,7 +174,7 @@
         }
 
         #search-results {
-            max-height: 200px;
+            max-height: 250px;
             overflow-y: auto;
             text-align: left;
             margin-top: 10px;
@@ -223,8 +230,8 @@
                     <input type="text" id="search-input" placeholder="Titre, artiste...">
                     <button onclick="searchTrack()" title="Rechercher par texte">🔍</button>
                     <button id="mic-btn" onclick="toggleMicrophoneListen()" title="Identifier via AudD">🎙️</button>
+                    <button id="lib-toggle-btn" onclick="toggleLibrary()" title="Ouvrir/Fermer ma bibliothèque">📂</button>
                 </div>
-                <button class="lib-btn" onclick="getUserLibrary()">📂 Ouvrir ma bibliothèque (Likés)</button>
                 <div id="search-results"></div>
             </div>
 
@@ -250,8 +257,11 @@
         let lastTrackId = "";
         let currentLyrics = [];
 
-        // --- INSÉREZ VOTRE JETON D'API AUDD.IO ICI ---
+        // --- CONFIGURATION RECONNEXION ET STOCKAGE BIBLIOTHÈQUE ---
         const auddApiToken = "187ef3238849ff75583d237fa40dbb48"; 
+        let isLibraryVisible = false;
+        let libraryOffset = 0;
+        const libraryLimit = 10;
 
         let mediaRecorder = null;
         let audioChunks = [];
@@ -271,7 +281,6 @@
             const verifier = generateCodeVerifier(128);
             const challenge = await generateCodeChallenge(verifier);
             localStorage.setItem("verifier", verifier);
-            // Ajout des scopes user-library-read et playlist-read-private pour accéder à votre contenu
             const scope = "user-read-private user-read-email user-modify-playback-state user-read-playback-state user-library-read playlist-read-private";
             const authUrl = new URL("https://accounts.spotify.com/authorize");
             const args = { response_type: 'code', client_id: clientId, scope: scope, redirect_uri: redirectUri, code_challenge_method: 'S256', code_challenge: challenge };
@@ -309,25 +318,51 @@
             }
         }
 
-        // --- ACCÈS À LA BIBLIOTHÈQUE (Titres Likés) ---
-        async function getUserLibrary() {
+        // --- GESTION ET PAGINATION DE LA BIBLIOTHÈQUE ---
+        function toggleLibrary() {
+            const resultsContainer = document.getElementById('search-results');
+            const libBtn = document.getElementById('lib-toggle-btn');
+            
+            if (isLibraryVisible) {
+                // Si elle est visible, on l'enlève
+                resultsContainer.innerHTML = "";
+                libBtn.classList.remove('active');
+                isLibraryVisible = false;
+                libraryOffset = 0;
+            } else {
+                // Sinon, on la charge depuis le début
+                libBtn.classList.add('active');
+                isLibraryVisible = true;
+                libraryOffset = 0;
+                resultsContainer.innerHTML = "";
+                fetchLibraryTracks();
+            }
+        }
+
+        async function fetchLibraryTracks() {
             if (!currentToken) return;
             const resultsContainer = document.getElementById('search-results');
-            resultsContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement de la bibliothèque...</p>";
             
+            // Retrait de l'ancien bouton "Afficher plus" s'il existe
+            const oldMoreBtn = document.getElementById('load-more-btn');
+            if (oldMoreBtn) oldMoreBtn.remove();
+
+            // Création ou maintien de l'en-tête
+            if (libraryOffset === 0) {
+                const titleHeader = document.createElement('p');
+                titleHeader.id = "lib-header-title";
+                titleHeader.style = "color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;";
+                titleHeader.innerText = "VOS TITRES LIKÉS";
+                resultsContainer.appendChild(titleHeader);
+            }
+
             try {
-                const response = await fetch('https://api.spotify.com/v1/me/tracks?limit=10', {
+                const response = await fetch(`https://api.spotify.com/v1/search?q=$$9{libraryLimit}&offset=${libraryOffset}`, {
                     headers: { 'Authorization': 'Bearer ' + currentToken }
                 });
                 const data = await response.json();
-                resultsContainer.innerHTML = "";
 
                 if (data.items && data.items.length > 0) {
-                    const titleHeader = document.createElement('p');
-                    titleHeader.style = "color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;";
-                    titleHeader.innerText = "VOS TITRES LIKÉS";
-                    resultsContainer.appendChild(titleHeader);
-
                     data.items.forEach(obj => {
                         const track = obj.track;
                         const item = document.createElement('div');
@@ -342,12 +377,23 @@
                         item.onclick = () => playTrack(track.uri);
                         resultsContainer.appendChild(item);
                     });
-                } else {
+
+                    // Si on a potentiellement d'autres morceaux à charger, on ajoute le bouton
+                    if (data.items.length === libraryLimit) {
+                        libraryOffset += libraryLimit;
+                        const moreBtn = document.createElement('button');
+                        moreBtn.id = "load-more-btn";
+                        moreBtn.className = "load-more-btn";
+                        moreBtn.innerText = "Afficher plus (10)";
+                        moreBtn.onclick = fetchLibraryTracks;
+                        resultsContainer.appendChild(moreBtn);
+                    }
+                } else if (libraryOffset === 0) {
                     resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Aucun morceau favori trouvé.</p>";
                 }
             } catch (e) { 
                 console.error(e); 
-                resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur lors du chargement de la bibliothèque.</p>";
+                resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur lors du chargement.</p>";
             }
         }
 
@@ -355,6 +401,8 @@
         async function toggleMicrophoneListen() {
             const micBtn = document.getElementById('mic-btn');
             const resultsContainer = document.getElementById('search-results');
+            document.getElementById('lib-toggle-btn').classList.remove('active');
+            isLibraryVisible = false;
 
             if (isRecording) {
                 if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
@@ -452,6 +500,8 @@
         async function searchTrack() {
             const query = document.getElementById('search-input').value;
             if (!query || !currentToken) return;
+            document.getElementById('lib-toggle-btn').classList.remove('active');
+            isLibraryVisible = false;
 
             try {
                 const response = await fetch(`https://api.spotify.com/v1/search?q=$${encodeURIComponent(query)}&type=track&limit=5`, {
@@ -491,6 +541,8 @@
                 if (response.status === 204) {
                     document.getElementById('search-results').innerHTML = "";
                     document.getElementById('search-input').value = "";
+                    document.getElementById('lib-toggle-btn').classList.remove('active');
+                    isLibraryVisible = false;
                     setTimeout(updateNowPlaying, 600);
                 } else if (response.status === 404) {
                     alert("Ouvrez Spotify et lancez une lecture sur l'un de vos appareils.");
