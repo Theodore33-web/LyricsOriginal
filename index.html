@@ -250,6 +250,10 @@
         let lastTrackId = "";
         let currentLyrics = [];
 
+        // --- VARIABLES DE PAGINATION POUR LA BIBLIOTHÈQUE ---
+        let libraryItems = [];
+        let displayedCount = 10;
+
         // --- INSÉREZ VOTRE JETON D'API AUDD.IO ICI ---
         const auddApiToken = "VOTRE_API_TOKEN_AUDD"; 
 
@@ -271,7 +275,6 @@
             const verifier = generateCodeVerifier(128);
             const challenge = await generateCodeChallenge(verifier);
             localStorage.setItem("verifier", verifier);
-            // Ajout des scopes user-library-read et playlist-read-private pour accéder à votre contenu
             const scope = "user-read-private user-read-email user-modify-playback-state user-read-playback-state user-library-read playlist-read-private";
             const authUrl = new URL("https://accounts.spotify.com/authorize");
             const args = { response_type: 'code', client_id: clientId, scope: scope, redirect_uri: redirectUri, code_challenge_method: 'S256', code_challenge: challenge };
@@ -316,38 +319,63 @@
             resultsContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement de la bibliothèque...</p>";
             
             try {
-                const response = await fetch('https://api.spotify.com/v1/me/tracks?limit=10', {
+                // Modifié pour récupérer jusqu'à 50 titres maximum par défaut sur l'API Spotify
+                const response = await fetch('https://api.spotify.com/v1/me/tracks?limit=50', {
                     headers: { 'Authorization': 'Bearer ' + currentToken }
                 });
                 const data = await response.json();
                 resultsContainer.innerHTML = "";
 
                 if (data.items && data.items.length > 0) {
-                    const titleHeader = document.createElement('p');
-                    titleHeader.style = "color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;";
-                    titleHeader.innerText = "VOS TITRES LIKÉS";
-                    resultsContainer.appendChild(titleHeader);
-
-                    data.items.forEach(obj => {
-                        const track = obj.track;
-                        const item = document.createElement('div');
-                        item.className = 'search-item';
-                        item.innerHTML = `
-                            <img src="${track.album.images && track.album.images.length > 2 ? track.album.images[2].url : 'https://via.placeholder.com/30'}" alt="">
-                            <div>
-                                <strong style="display:block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${track.name}</strong>
-                                <span style="font-size: 0.8rem; color: var(--text-grey);">${track.artists[0].name}</span>
-                            </div>
-                        `;
-                        item.onclick = () => playTrack(track.uri);
-                        resultsContainer.appendChild(item);
-                    });
+                    libraryItems = data.items;
+                    displayedCount = 10; 
+                    renderLibrarySection();
                 } else {
                     resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Aucun morceau favori trouvé.</p>";
                 }
             } catch (e) { 
                 console.error(e); 
                 resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur lors du chargement de la bibliothèque.</p>";
+            }
+        }
+
+        // --- FONCTION DE RENDU ET PAGINATION POUR LA BIBLIOTHÈQUE ---
+        function renderLibrarySection() {
+            const resultsContainer = document.getElementById('search-results');
+            resultsContainer.innerHTML = "";
+
+            const titleHeader = document.createElement('p');
+            titleHeader.style = "color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;";
+            titleHeader.innerText = "VOS TITRES LIKÉS";
+            resultsContainer.appendChild(titleHeader);
+
+            const itemsToDisplay = libraryItems.slice(0, displayedCount);
+
+            itemsToDisplay.forEach(obj => {
+                const track = obj.track;
+                const item = document.createElement('div');
+                item.className = 'search-item';
+                item.innerHTML = `
+                    <img src="${track.album.images && track.album.images.length > 2 ? track.album.images[2].url : 'https://via.placeholder.com/30'}" alt="">
+                    <div>
+                        <strong style="display:block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${track.name}</strong>
+                        <span style="font-size: 0.8rem; color: var(--text-grey);">${track.artists[0].name}</span>
+                    </div>
+                `;
+                item.onclick = () => playTrack(track.uri);
+                resultsContainer.appendChild(item);
+            });
+
+            if (libraryItems.length > displayedCount) {
+                const moreBtn = document.createElement('button');
+                moreBtn.className = 'lib-btn';
+                moreBtn.style.marginTop = '10px';
+                moreBtn.innerText = "➕ Afficher plus (+10)";
+                moreBtn.onclick = () => {
+                    displayedCount += 10;
+                    renderLibrarySection();
+                };
+                resultsContainer.appendChild(moreBtn);
             }
         }
 
@@ -454,7 +482,8 @@
             if (!query || !currentToken) return;
 
             try {
-                const response = await fetch(`https://api.spotify.com/v1/search?q=$${encodeURIComponent(query)}&type=track&limit=5`, {
+                // Correction de la syntaxe de l'URL avec les backticks corrects `` ` ``
+                const response = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=5`, {
                     headers: { 'Authorization': 'Bearer ' + currentToken }
                 });
                 const data = await response.json();
@@ -550,7 +579,7 @@
         async function updateNowPlaying() {
             if (!currentToken) return;
             try {
-                const response = await fetch('https://api.spotify.com/v1/me/player', { headers: { 'Authorization': 'Bearer ' + currentToken } });
+                const response = await fetch('https://api.spotify.com/v1/me/player/currently-playing', { headers: { 'Authorization': 'Bearer ' + currentToken } });
                 if (response.status === 204 || response.status === 401) return;
                 const data = await response.json();
 
@@ -578,7 +607,8 @@
                 if (res.status === 204) return alert("Activez d'abord votre lecteur Spotify.");
                 const playback = await res.json();
                 const endpoint = playback.is_playing ? 'pause' : 'play';
-                await fetch(`https://api.spotify.com/v1/me/player/$${endpoint}`, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + currentToken } });
+                // Correction de la syntaxe de l'URL avec les backticks corrects `` ` ``
+                await fetch(`https://api.spotify.com/v1/me/player/${endpoint}`, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + currentToken } });
                 setTimeout(updateNowPlaying, 500);
             } catch (e) {}
         }
@@ -593,4 +623,3 @@
     </script>
 </body>
 </html>
-        
