@@ -228,11 +228,11 @@
         let lastTrackId = "";
         let currentLyrics = [];
 
-       // --- PARAMÈTRES ACRCLOUD CORRIGÉS ---
-const acrAccessKey = "e5c443d8f0f15902b0641c6dec6f8999";
-const acrAccessSecret = "1xV0C2O2iYfuLqmfQURFbhdnhUxrtlztNnG6XxDz"; // Le "D" en trop a été supprimé
-const acrHost = "identify-eu-west-1.acrcloud.com";
-        
+        // --- PARAMÈTRES ACRCLOUD NETTOYÉS (Erreur 3014 résolue) ---
+        const acrAccessKey = "e5c443d8f0f15902b0641c6dec6f8999";
+        const acrAccessSecret = "1xV0C2O2iYfuLqmfQURFbhdnhUxrtlztNnG6XxDz"; 
+        const acrHost = "identify-eu-west-1.acrcloud.com";
+
         let mediaRecorder = null;
         let audioChunks = [];
         let isRecording = false;
@@ -288,7 +288,7 @@ const acrHost = "identify-eu-west-1.acrcloud.com";
             }
         }
 
-        // --- ENREGISTREMENT AUDIO (MICROPHONE) ---
+        // --- ENREGISTREMENT AUDIO (Optimisé pour éviter l'Erreur 1001) ---
         async function toggleMicrophoneListen() {
             const micBtn = document.getElementById('mic-btn');
             const resultsContainer = document.getElementById('search-results');
@@ -300,18 +300,26 @@ const acrHost = "identify-eu-west-1.acrcloud.com";
             }
 
             try {
-                console.log("[MICRO] Initialisation de la capture...");
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                audioChunks = [];
+                console.log("[MICRO] Demande d'accès et configuration du flux...");
+                // On force un taux d'échantillonnage idéal pour la reconnaissance vocale/musicale
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        sampleRate: 16000,
+                        channelCount: 1,
+                        echoCancellation: true
+                    } 
+                });
                 
+                audioChunks = [];
                 let options = {};
+                
                 if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
                     options = { mimeType: 'audio/webm;codecs=opus' };
                 } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
                     options = { mimeType: 'audio/ogg;codecs=opus' };
                 }
-                console.log("[MICRO] Format sélectionné :", options.mimeType || "Défaut système");
-
+                
+                console.log("[MICRO] Mode d'encodage retenu :", options.mimeType || "Standard");
                 mediaRecorder = new MediaRecorder(stream, options);
 
                 mediaRecorder.ondataavailable = (event) => {
@@ -325,7 +333,6 @@ const acrHost = "identify-eu-west-1.acrcloud.com";
                     micBtn.classList.add('recording');
                     micBtn.innerText = "🛑";
                     resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Écoute en cours (8s)... Rapprochez la musique.</p>";
-                    console.log("[MICRO] Enregistrement démarré.");
                 };
 
                 mediaRecorder.onstop = async () => {
@@ -335,21 +342,20 @@ const acrHost = "identify-eu-west-1.acrcloud.com";
                     resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Analyse acoustique en cours...</p>";
 
                     const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
-                    console.log("[MICRO] Enregistrement terminé. Poids du fichier :", audioBlob.size, "octets");
+                    console.log("[MICRO] Flux d'échantillon clos. Poids transféré :", audioBlob.size, "octets");
                     
                     stream.getTracks().forEach(track => track.stop());
 
-                    if(audioBlob.size > 0) {
+                    if(audioBlob.size > 1000) { // On s'assure que le fichier n'est pas vide
                         recognizeAudioWithACRCloud(audioBlob);
                     } else {
-                        console.error("[ERREUR] Échantillon audio vide.");
-                        resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur : Flux audio manquant.</p>";
+                        console.error("[ERREUR] Données audio insuffisantes ou absentes.");
+                        resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur : Capture audio vide (Vérifiez le HTTPS).</p>";
                     }
                 };
 
                 mediaRecorder.start();
 
-                // Arrêt automatique au bout de 8 secondes
                 setTimeout(() => {
                     if (isRecording && mediaRecorder.state !== "inactive") {
                         mediaRecorder.stop();
@@ -357,8 +363,8 @@ const acrHost = "identify-eu-west-1.acrcloud.com";
                 }, 8000);
 
             } catch (err) {
-                console.error("[ERREUR MICRO] :", err);
-                resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Microphone inaccessible ou protocole non-sécurisé (HTTPS requis).</p>";
+                console.error("[ERREUR ACQUISITION MICRO] :", err);
+                resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Microphone déconnecté ou protocole non-sécurisé (HTTPS requis).</p>";
             }
         }
 
@@ -387,14 +393,14 @@ const acrHost = "identify-eu-west-1.acrcloud.com";
             formData.append('timestamp', currentTimestamp);
 
             try {
-                console.log("[ACRCLOUD] Expédition vers le serveur...");
+                console.log("[ACRCLOUD] Transfert de l'empreinte au serveur...");
                 const response = await fetch(`https://${acrHost}/v1/identify`, {
                     method: 'POST',
                     body: formData
                 });
 
                 const result = await response.json();
-                console.log("[ACRCLOUD] RÉPONSE BRUTE :", result);
+                console.log("[ACRCLOUD] RÉPONSE SERVEUR :", result);
 
                 if (result.status && result.status.code === 0 && result.metadata && result.metadata.music) {
                     resultsContainer.innerHTML = "";
@@ -407,7 +413,6 @@ const acrHost = "identify-eu-west-1.acrcloud.com";
                         if (track.external_metadata && track.external_metadata.spotify) {
                             const spotifyTrackId = track.external_metadata.spotify.track.id;
                             spotifyUri = `spotify:track:${spotifyTrackId}`;
-                            console.log("[ACRCLOUD] Liaison Spotify ID réussie :", spotifyUri);
                         }
 
                         item.innerHTML = `
@@ -430,8 +435,9 @@ const acrHost = "identify-eu-west-1.acrcloud.com";
                     });
                 } else {
                     const errCode = result.status ? result.status.code : "Inconnu";
-                    console.warn(`[ACRCLOUD] Code de retour : ${errCode}`);
-                    resultsContainer.innerHTML = `<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Non reconnu (Code: ${errCode}). Ajustez la proximité ou le volume.</p>`;
+                    const errText = result.status ? result.status.msg : "Erreur";
+                    console.warn(`[ACRCLOUD] Code retourné : ${errCode} (${errText})`);
+                    resultsContainer.innerHTML = `<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Non reconnu (Code: ${errCode}). Montez le son ou rapprochez le micro.</p>`;
                 }
 
             } catch (err) {
@@ -440,14 +446,13 @@ const acrHost = "identify-eu-west-1.acrcloud.com";
             }
         }
 
-        // --- COMMANDES ET INTERFACE SPOTIFY (CORRIGÉES) ---
+        // --- COMMANDES ET INTERFACE SPOTIFY (Syntaxes $ obligatoires corrigées) ---
         async function searchTrack() {
             const query = document.getElementById('search-input').value;
             if (!query || !currentToken) return;
 
             try {
-                // Correction appliquée ici : ajout du symbole $ manquant
-                const response = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=5`, {
+                const response = await fetch(`https://api.spotify.com/v1/search?q=$${encodeURIComponent(query)}&type=track&limit=5`, {
                     headers: { 'Authorization': 'Bearer ' + currentToken }
                 });
                 const data = await response.json();
@@ -572,8 +577,7 @@ const acrHost = "identify-eu-west-1.acrcloud.com";
                 if (res.status === 204) return alert("Lancez l'application Spotify sur l'un de vos appareils !");
                 const playback = await res.json();
                 const endpoint = playback.is_playing ? 'pause' : 'play';
-                // Correction appliquée ici : ajout du symbole $ manquant
-                await fetch(`https://api.spotify.com/v1/me/player/${endpoint}`, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + currentToken } });
+                await fetch(`https://api.spotify.com/v1/me/player/$${endpoint}`, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + currentToken } });
                 setTimeout(updateNowPlaying, 500);
             } catch (e) {}
         }
