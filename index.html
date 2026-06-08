@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lyrics Original</title>
+    <title>Lyrics Original - AudD</title>
     <style>
         :root {
             --spotify-green: #1DB954;
@@ -172,13 +172,12 @@
             .lyric-line { font-size: 1.2rem; }
         }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 </head>
 <body>
 
     <div id="login-section">
         <h1 style="color: var(--spotify-green); font-size: 3rem; margin-bottom: 10px;">Lyrics Original</h1>
-        <p style="color: var(--text-grey); margin-bottom: 30px;">Tes paroles synchronisées en un clic.</p>
+        <p style="color: var(--text-grey); margin-bottom: 30px;">Tes paroles synchronisées avec AudD & Spotify.</p>
         <button id="login-btn">Se connecter avec Spotify</button>
     </div>
 
@@ -201,7 +200,7 @@
                 <div class="search-box">
                     <input type="text" id="search-input" placeholder="Titre, artiste...">
                     <button onclick="searchTrack()" title="Rechercher par texte">🔍</button>
-                    <button id="mic-btn" onclick="toggleMicrophoneListen()" title="Identifier la musique ambiante">🎙️</button>
+                    <button id="mic-btn" onclick="toggleMicrophoneListen()" title="Identifier via AudD">🎙️</button>
                 </div>
                 <div id="search-results"></div>
             </div>
@@ -228,10 +227,8 @@
         let lastTrackId = "";
         let currentLyrics = [];
 
-        // --- PARAMÈTRES ACRCLOUD NETTOYÉS (Erreur 3014 résolue) ---
-        const acrAccessKey = "e5c443d8f0f15902b0641c6dec6f8999";
-        const acrAccessSecret = "1xV0C2O2iYfuLqmfQURFbhdnhUxrtlztNnG6XxDz"; 
-        const acrHost = "identify-eu-west-1.acrcloud.com";
+        // --- APRES INSCRIPTION SUR AUDD.IO, REMPLACEZ CETTE VALEUR ---
+        const auddApiToken = "187ef3238849ff75583d237fa40dbb48"; 
 
         let mediaRecorder = null;
         let audioChunks = [];
@@ -288,165 +285,124 @@
             }
         }
 
-        // --- ENREGISTREMENT AUDIO (Optimisé pour éviter l'Erreur 1001) ---
+        // --- ENREGISTREMENT EN WEBMAUDIO (NATIVEMENT SUPPORTÉ PAR AUDD) ---
         async function toggleMicrophoneListen() {
             const micBtn = document.getElementById('mic-btn');
             const resultsContainer = document.getElementById('search-results');
 
             if (isRecording) {
-                console.log("[MICRO] Arrêt manuel requis.");
                 if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
                 return;
             }
 
             try {
-                console.log("[MICRO] Demande d'accès et configuration du flux...");
-                // On force un taux d'échantillonnage idéal pour la reconnaissance vocale/musicale
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    audio: {
-                        sampleRate: 16000,
-                        channelCount: 1,
-                        echoCancellation: true
-                    } 
-                });
-                
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 audioChunks = [];
-                let options = {};
                 
-                if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
-                    options = { mimeType: 'audio/webm;codecs=opus' };
-                } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
-                    options = { mimeType: 'audio/ogg;codecs=opus' };
-                }
-                
-                console.log("[MICRO] Mode d'encodage retenu :", options.mimeType || "Standard");
-                mediaRecorder = new MediaRecorder(stream, options);
+                mediaRecorder = new MediaRecorder(stream);
 
                 mediaRecorder.ondataavailable = (event) => {
-                    if (event.data.size > 0) {
-                        audioChunks.push(event.data);
-                    }
+                    if (event.data.size > 0) audioChunks.push(event.data);
                 };
 
                 mediaRecorder.onstart = () => {
                     isRecording = true;
                     micBtn.classList.add('recording');
                     micBtn.innerText = "🛑";
-                    resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Écoute en cours (8s)... Rapprochez la musique.</p>";
+                    resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>AudD vous écoute (10s)...</p>";
                 };
 
                 mediaRecorder.onstop = async () => {
                     isRecording = false;
                     micBtn.classList.remove('recording');
                     micBtn.innerText = "🎙️";
-                    resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Analyse acoustique en cours...</p>";
+                    resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Analyse de l'empreinte AudD...</p>";
 
                     const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
-                    console.log("[MICRO] Flux d'échantillon clos. Poids transféré :", audioBlob.size, "octets");
-                    
                     stream.getTracks().forEach(track => track.stop());
 
-                    if(audioBlob.size > 1000) { // On s'assure que le fichier n'est pas vide
-                        recognizeAudioWithACRCloud(audioBlob);
+                    if (audioBlob.size > 1000) {
+                        recognizeAudioWithAudD(audioBlob);
                     } else {
-                        console.error("[ERREUR] Données audio insuffisantes ou absentes.");
-                        resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur : Capture audio vide (Vérifiez le HTTPS).</p>";
+                        resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur : Enregistrement vide.</p>";
                     }
                 };
 
+                // AudD recommande entre 5 et 10 secondes de capture pour maximiser la fidélité
                 mediaRecorder.start();
-
                 setTimeout(() => {
-                    if (isRecording && mediaRecorder.state !== "inactive") {
-                        mediaRecorder.stop();
-                    }
-                }, 8000);
+                    if (isRecording && mediaRecorder.state !== "inactive") mediaRecorder.stop();
+                }, 10000);
 
             } catch (err) {
-                console.error("[ERREUR ACQUISITION MICRO] :", err);
-                resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Microphone déconnecté ou protocole non-sécurisé (HTTPS requis).</p>";
+                resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Microphone bloqué (Vérifiez le protocole HTTPS).</p>";
             }
         }
 
-        // --- TRAITEMENT ET ENVOI À ACRCLOUD ---
-        async function recognizeAudioWithACRCloud(blob) {
+        // --- ENVOI UNIQUE ET EN CLAIR À AUDD.IO ---
+        async function recognizeAudioWithAudD(blob) {
             const resultsContainer = document.getElementById('search-results');
-            const currentTimestamp = Math.floor(Date.now() / 1000);
             
-            const stringToSign = [
-                'POST',
-                '/v1/identify',
-                acrAccessKey,
-                'audio',
-                '1',
-                currentTimestamp
-            ].join('\n');
-
-            const signature = CryptoJS.HmacSHA1(stringToSign, acrAccessSecret).toString(CryptoJS.enc.Base64);
-
             const formData = new FormData();
-            formData.append('sample', blob);
-            formData.append('access_key', acrAccessKey);
-            formData.append('data_type', 'audio');
-            formData.append('signature_version', '1');
-            formData.append('signature', signature);
-            formData.append('timestamp', currentTimestamp);
+            formData.append('file', blob);
+            formData.append('api_token', auddApiToken);
+            formData.append('return', 'spotify'); // Demande à AudD d'inclure les ID de liaison Spotify
 
             try {
-                console.log("[ACRCLOUD] Transfert de l'empreinte au serveur...");
-                const response = await fetch(`https://${acrHost}/v1/identify`, {
+                const response = await fetch('https://api.audd.io/', {
                     method: 'POST',
                     body: formData
                 });
 
                 const result = await response.json();
-                console.log("[ACRCLOUD] RÉPONSE SERVEUR :", result);
+                console.log("[AUDD RÉPONSE] :", result);
 
-                if (result.status && result.status.code === 0 && result.metadata && result.metadata.music) {
+                if (result.status === "success" && result.result) {
                     resultsContainer.innerHTML = "";
+                    const track = result.result;
                     
-                    result.metadata.music.forEach(track => {
-                        const item = document.createElement('div');
-                        item.className = 'search-item';
-                        
-                        let spotifyUri = null;
-                        if (track.external_metadata && track.external_metadata.spotify) {
-                            const spotifyTrackId = track.external_metadata.spotify.track.id;
-                            spotifyUri = `spotify:track:${spotifyTrackId}`;
-                        }
+                    let spotifyUri = null;
+                    if (track.spotify && track.spotify.id) {
+                        spotifyUri = `spotify:track:${track.spotify.id}`;
+                    }
 
-                        item.innerHTML = `
-                            <div style="background:#1DB954; width:30px; height:30px; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:12px;">🎧</div>
-                            <div>
-                                <strong style="display:block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${track.title}</strong>
-                                <span style="font-size: 0.8rem; color: var(--text-grey);">${track.artists[0].name}</span>
-                            </div>
-                        `;
-                        
-                        item.onclick = () => {
-                            if (spotifyUri) {
-                                playTrack(spotifyUri);
-                            } else {
-                                document.getElementById('search-input').value = `${track.title} ${track.artists[0].name}`;
-                                searchTrack();
-                            }
-                        };
-                        resultsContainer.appendChild(item);
-                    });
+                    const item = document.createElement('div');
+                    item.className = 'search-item';
+                    
+                    // Récupération de l'image de couverture si disponible via l'objet Spotify retourné par AudD
+                    const coverImg = (track.spotify && track.spotify.album && track.spotify.album.images.length > 0) 
+                                      ? track.spotify.album.images[2].url 
+                                      : "https://via.placeholder.com/30";
+
+                    item.innerHTML = `
+                        <img src="${coverImg}" alt="">
+                        <div>
+                            <strong style="display:block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${track.title}</strong>
+                            <span style="font-size: 0.8rem; color: var(--text-grey);">${track.artist}</span>
+                        </div>
+                    `;
+                    
+                    item.onclick = () => {
+                        if (spotifyUri) {
+                            playTrack(spotifyUri);
+                        } else {
+                            document.getElementById('search-input').value = `${track.title} ${track.artist}`;
+                            searchTrack();
+                        }
+                    };
+                    resultsContainer.appendChild(item);
+
                 } else {
-                    const errCode = result.status ? result.status.code : "Inconnu";
-                    const errText = result.status ? result.status.msg : "Erreur";
-                    console.warn(`[ACRCLOUD] Code retourné : ${errCode} (${errText})`);
-                    resultsContainer.innerHTML = `<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Non reconnu (Code: ${errCode}). Montez le son ou rapprochez le micro.</p>`;
+                    resultsContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>AudD n'a pas pu identifier cette musique.</p>";
                 }
 
             } catch (err) {
-                console.error("[ACRCLOUD ERREUR RÉSEAU] :", err);
-                resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur réseau serveur.</p>";
+                console.error(err);
+                resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Échec de communication avec AudD.</p>";
             }
         }
 
-        // --- COMMANDES ET INTERFACE SPOTIFY (Syntaxes $ obligatoires corrigées) ---
+        // --- LOGIQUE CORE INTERFACE SPOTIFY ---
         async function searchTrack() {
             const query = document.getElementById('search-input').value;
             if (!query || !currentToken) return;
@@ -474,7 +430,7 @@
                         resultsContainer.appendChild(item);
                     });
                 } else {
-                    resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Aucun résultat trouvé sur Spotify.</p>";
+                    resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Aucun match Spotify.</p>";
                 }
             } catch (e) { console.error(e); }
         }
@@ -491,7 +447,7 @@
                     document.getElementById('search-input').value = "";
                     setTimeout(updateNowPlaying, 600);
                 } else if (response.status === 404) {
-                    alert("Aucun lecteur actif détecté. Assurez-vous d'ouvrir l'application Spotify sur l'un de vos appareils.");
+                    alert("Ouvrez l'application active Spotify sur un appareil.");
                 }
             } catch (e) { console.error(e); }
         }
@@ -500,7 +456,7 @@
             if (e.key === 'Enter') searchTrack();
         });
 
-        // --- GESTIONNAIRE DES PAROLES (LRCLIB) ---
+        // --- GESTION DES PAROLES (LRCLIB) ---
         async function fetchLyrics(artist, title, album, duration) {
             try {
                 const url = `https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}&album_name=${encodeURIComponent(album)}&duration=${Math.round(duration)}`;
@@ -510,11 +466,11 @@
                 if (data.syncedLyrics) {
                     parseLyrics(data.syncedLyrics);
                 } else {
-                    document.getElementById('lyrics-content').innerText = data.plainLyrics || "Paroles introuvables.";
+                    document.getElementById('lyrics-content').innerText = data.plainLyrics || "Paroles fixes disponibles.";
                     currentLyrics = [];
                 }
             } catch (e) {
-                document.getElementById('lyrics-content').innerText = "Erreur de chargement des paroles.";
+                document.getElementById('lyrics-content').innerText = "Paroles indisponibles.";
             }
         }
 
@@ -545,7 +501,6 @@
             });
         }
 
-        // --- SYNCHRONISATION CONTINU ---
         async function updateNowPlaying() {
             if (!currentToken) return;
             try {
@@ -574,7 +529,7 @@
         async function togglePlay() {
             try {
                 const res = await fetch('https://api.spotify.com/v1/me/player', { headers: { 'Authorization': 'Bearer ' + currentToken } });
-                if (res.status === 204) return alert("Lancez l'application Spotify sur l'un de vos appareils !");
+                if (res.status === 204) return alert("Lancez Spotify sur un appareil !");
                 const playback = await res.json();
                 const endpoint = playback.is_playing ? 'pause' : 'play';
                 await fetch(`https://api.spotify.com/v1/me/player/$${endpoint}`, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + currentToken } });
