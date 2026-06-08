@@ -24,6 +24,7 @@
             align-items: center;
         }
 
+        /* Accueil */
         #login-section { text-align: center; margin-top: 100px; }
         #login-btn { 
             background-color: var(--spotify-green); color: white; border: none; 
@@ -32,15 +33,17 @@
         }
         #login-btn:hover { transform: scale(1.05); }
 
+        /* Dashboard Layout */
         #dashboard { 
             display: none; 
             width: 100%;
             max-width: 1200px;
             gap: 20px;
             margin-top: 20px;
-            flex-direction: row;
+            flex-direction: row; /* Côte à côte sur PC */
         }
 
+        /* SECTION GAUCHE : PAROLES */
         .lyrics-section {
             flex: 2;
             background: var(--card-grey);
@@ -67,6 +70,7 @@
             font-weight: bold;
         }
 
+        /* SECTION DROITE : SIDEBAR */
         .sidebar {
             flex: 1;
             display: flex;
@@ -83,8 +87,9 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }
 
-        #avatar { border-radius: 50%; width: 50px; border: 2px solid var(--spotify-green); height: 50px; object-fit: cover; }
+        #avatar { border-radius: 50%; width: 50px; border: 2px solid var(--spotify-green); }
         
+        /* IMAGE DE L'ALBUM RÉDUITE */
         #track-art { 
             width: 150px; 
             height: 150px; 
@@ -104,6 +109,7 @@
         #track-title { font-size: 1.2rem; margin: 10px 0 2px 0; }
         #track-artist { color: var(--text-grey); font-size: 0.9rem; margin-top: 0; }
 
+        /* Style Eléments de Recherche */
         .search-box {
             display: flex;
             gap: 10px;
@@ -119,7 +125,7 @@
             outline: none;
         }
         .search-box input:focus { border-color: var(--spotify-green); }
-        .search-box button, .lib-btn {
+        .search-box button {
             background: var(--spotify-green);
             color: white;
             border: none;
@@ -128,21 +134,12 @@
             cursor: pointer;
             font-weight: bold;
         }
-        .lib-btn {
-            width: 100%;
-            background: #333;
-            margin-bottom: 12px;
-            font-size: 0.85rem;
-            transition: background 0.2s;
-        }
-        .lib-btn:hover { background: var(--spotify-green); }
-
         #search-results {
-            max-height: 200px;
+            max-height: 150px;
             overflow-y: auto;
             text-align: left;
         }
-        .search-item, .playlist-item {
+        .search-item {
             padding: 8px;
             cursor: pointer;
             border-radius: 8px;
@@ -151,9 +148,10 @@
             align-items: center;
             gap: 10px;
         }
-        .search-item:hover, .playlist-item:hover { background: #333; }
-        .search-item img, .playlist-item img { width: 35px; height: 35px; border-radius: 4px; object-fit: cover; }
+        .search-item:hover { background: #333; }
+        .search-item img { width: 30px; height: 30px; border-radius: 4px; }
 
+        /* 📱 ADAPTATION MOBILE */
         @media (max-width: 768px) {
             #dashboard { flex-direction: column-reverse; }
             .sidebar { width: 100%; min-width: unset; }
@@ -185,10 +183,9 @@
             </div>
 
             <div class="card">
-                <button class="lib-btn" onclick="fetchMyPlaylists()">📚 Ma Bibliothèque (Playlists)</button>
-                
+                <p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 0 0 10px 0; text-align: left;">RECHERCHER</p>
                 <div class="search-box">
-                    <input type="text" id="search-input" placeholder="Chercher un titre, artiste...">
+                    <input type="text" id="search-input" placeholder="Titre, artiste...">
                     <button onclick="searchTrack()">🔍</button>
                 </div>
                 <div id="search-results"></div>
@@ -210,6 +207,7 @@
     </div>
 
     <script>
+        // --- CONFIGURATION ---
         const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
         let currentToken = "";
@@ -231,124 +229,32 @@
             const verifier = generateCodeVerifier(128);
             const challenge = await generateCodeChallenge(verifier);
             localStorage.setItem("verifier", verifier);
-            
-            const scope = "user-read-private user-read-email user-modify-playback-state user-read-playback-state playlist-read-private";
+            const scope = "user-read-private user-read-email user-modify-playback-state user-read-playback-state";
             const authUrl = new URL("https://accounts.spotify.com/authorize");
-            const args = {
-                response_type: 'code',
-                client_id: clientId,
-                scope: scope,
-                redirect_uri: redirectUri,
-                code_challenge_method: 'S256',
-                code_challenge: challenge
-            };
+            const args = { response_type: 'code', client_id: clientId, scope: scope, redirect_uri: redirectUri, code_challenge_method: 'S256', code_challenge: challenge };
             authUrl.search = new URLSearchParams(args).toString();
             window.location.href = authUrl.toString();
         }
 
         async function handleCallback(code) {
             const verifier = localStorage.getItem("verifier");
-            const body = new URLSearchParams({
-                client_id: clientId,
-                grant_type: 'authorization_code',
-                code: code,
-                redirect_uri: redirectUri,
-                code_verifier: verifier
-            });
-
-            try {
-                const response = await fetch('https://accounts.spotify.com/api/token', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: body
-                });
-                const data = await response.json();
-                if (data.access_token) {
-                    // Nettoyer l'URL des paramètres de code Spotify
-                    window.history.replaceState({}, document.title, window.location.pathname);
-                    getUserData(data.access_token);
-                }
-            } catch (e) {
-                console.error("Erreur d'échange de token:", e);
-            }
+            const body = new URLSearchParams({ client_id: clientId, grant_type: 'authorization_code', code: code, redirect_uri: redirectUri, code_verifier: verifier });
+            const response = await fetch('https://accounts.spotify.com/api/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body });
+            const data = await response.json();
+            if (data.access_token) getUserData(data.access_token);
         }
 
         async function getUserData(token) {
             currentToken = token;
-            try {
-                const response = await fetch('https://api.spotify.com/v1/me', {
-                    headers: { 'Authorization': 'Bearer ' + token }
-                });
-                const user = await response.json();
-                document.getElementById('dashboard').style.display = 'flex';
-                document.getElementById('name').innerText = user.display_name;
-                document.getElementById('avatar').src = user.images && user.images.length > 0 ? user.images[0].url : "https://via.placeholder.com/50";
-                updateNowPlaying();
-            } catch (e) {
-                console.error(e);
-            }
+            const response = await fetch('https://api.spotify.com/v1/me', { headers: { 'Authorization': 'Bearer ' + token } });
+            const user = await response.json();
+            document.getElementById('dashboard').style.display = 'flex';
+            document.getElementById('name').innerText = user.display_name;
+            document.getElementById('avatar').src = user.images[0]?.url || "";
+            updateNowPlaying();
         }
 
-        // --- BIBLIOTHÈQUE ---
-        async function fetchMyPlaylists() {
-            if (!currentToken) return alert("Veuillez vous connecter d'abord !");
-            const resultsContainer = document.getElementById('search-results');
-            resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Chargement de vos playlists...</p>";
-
-            try {
-                const response = await fetch('https://api.spotify.com/v1/me/playlists?limit=20', {
-                    headers: { 'Authorization': 'Bearer ' + currentToken }
-                });
-                
-                if (!response.ok) {
-                    resultsContainer.innerHTML = `<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur API (${response.status}). Reconnectez-vous.</p>`;
-                    return;
-                }
-
-                const data = await response.json();
-                resultsContainer.innerHTML = "";
-
-                if (data.items && data.items.length > 0) {
-                    data.items.forEach(playlist => {
-                        const imgUrl = playlist.images && playlist.images.length > 0 ? playlist.images[0].url : 'https://via.placeholder.com/35';
-                        
-                        const item = document.createElement('div');
-                        item.className = 'playlist-item';
-                        item.innerHTML = `
-                            <img src="${imgUrl}" alt="">
-                            <div>
-                                <strong style="display:block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${playlist.name}</strong>
-                                <span style="font-size: 0.75rem; color: var(--text-grey);">${playlist.tracks.total} titres</span>
-                            </div>
-                        `;
-                        item.onclick = () => playContext(playlist.uri);
-                        resultsContainer.appendChild(item);
-                    });
-                } else {
-                    resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Aucune playlist trouvée.</p>";
-                }
-            } catch (e) { 
-                console.error(e);
-                resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur de connexion.</p>";
-            }
-        }
-
-        async function playContext(contextUri) {
-            try {
-                const response = await fetch('https://api.spotify.com/v1/me/player/play', {
-                    method: 'PUT',
-                    headers: { 'Authorization': 'Bearer ' + currentToken, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ context_uri: contextUri })
-                });
-                if (response.status === 204) {
-                    setTimeout(updateNowPlaying, 600);
-                } else if (response.status === 404) {
-                    alert("Ouvrez Spotify sur votre appareil pour lier la lecture !");
-                }
-            } catch (e) { console.error(e); }
-        }
-
-        // --- RECHERCHE (CORRIGÉE) ---
+        // --- FONCTIONNALITÉ RECHERCHE & LECTURE ---
         async function searchTrack() {
             const query = document.getElementById('search-input').value;
             if (!query || !currentToken) return;
@@ -366,12 +272,13 @@
                         const item = document.createElement('div');
                         item.className = 'search-item';
                         item.innerHTML = `
-                            <img src="${track.album.images && track.album.images.length > 2 ? track.album.images[2].url : 'https://via.placeholder.com/35'}" alt="">
+                            <img src="${track.album.images[2]?.url || ''}" alt="">
                             <div>
                                 <strong style="display:block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${track.name}</strong>
                                 <span style="font-size: 0.8rem; color: var(--text-grey);">${track.artists[0].name}</span>
                             </div>
                         `;
+                        // Clic pour lancer la musique
                         item.onclick = () => playTrack(track.uri);
                         resultsContainer.appendChild(item);
                     });
@@ -385,22 +292,30 @@
             try {
                 const response = await fetch('https://api.spotify.com/v1/me/player/play', {
                     method: 'PUT',
-                    headers: { 'Authorization': 'Bearer ' + currentToken, 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Authorization': 'Bearer ' + currentToken,
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify({ uris: [trackUri] })
                 });
+                
                 if (response.status === 204) {
+                    // Succès, on vide la recherche et on force le rafraîchissement
                     document.getElementById('search-results').innerHTML = "";
                     document.getElementById('search-input').value = "";
                     setTimeout(updateNowPlaying, 600);
+                } else if (response.status === 404) {
+                    alert("Erreur : Aucun appareil d'écoute actif trouvé. Ouvrez Spotify sur votre téléphone ou PC.");
                 }
             } catch (e) { console.error(e); }
         }
 
+        // Permet de valider la recherche en appuyant sur la touche "Entrée"
         document.getElementById('search-input')?.addEventListener('keypress', function (e) {
             if (e.key === 'Enter') searchTrack();
         });
 
-        // --- PAROLES ---
+        // --- PAROLES LRCLIB ---
         async function fetchLyrics(artist, title, album, duration) {
             try {
                 const url = `https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}&album_name=${encodeURIComponent(album)}&duration=${Math.round(duration)}`;
@@ -446,22 +361,19 @@
             });
         }
 
-        // --- LECTEUR CONTROLES ---
+        // --- CONTRÔLES ---
         async function updateNowPlaying() {
             if (!currentToken) return;
             try {
-                const response = await fetch('https://api.spotify.com/v1/me/player/currently-playing', { 
-                    headers: { 'Authorization': 'Bearer ' + currentToken } 
-                });
-                if (response.status === 204 || response.status === 401) return;
+                const response = await fetch('https://api.spotify.com/v1/me/player', { headers: { 'Authorization': 'Bearer ' + currentToken } });
+                if (response.status === 204) return;
                 const data = await response.json();
 
                 if (data && data.item) {
                     document.getElementById('track-title').innerText = data.item.name;
                     document.getElementById('track-artist').innerText = data.item.artists.map(a => a.name).join(", ");
                     const art = document.getElementById('track-art');
-                    art.src = data.item.album.images && data.item.album.images.length > 0 ? data.item.album.images[0].url : ""; 
-                    art.style.display = "block";
+                    art.src = data.item.album.images[0].url; art.style.display = "block";
                     document.getElementById('play-pause-btn').innerText = data.is_playing ? "⏸" : "▶️";
 
                     highlightLyrics(data.progress_ms / 1000);
@@ -476,29 +388,17 @@
 
         async function togglePlay() {
             try {
-                const res = await fetch('https://api.spotify.com/v1/me/player/currently-playing', { 
-                    headers: { 'Authorization': 'Bearer ' + currentToken } 
-                });
+                const res = await fetch('https://api.spotify.com/v1/me/player', { headers: { 'Authorization': 'Bearer ' + currentToken } });
                 if (res.status === 204) return alert("Lancez Spotify sur un appareil !");
                 const playback = await res.json();
                 const endpoint = playback.is_playing ? 'pause' : 'play';
-                
-                await fetch(`https://api.spotify.com/v1/me/player/${endpoint}`, { 
-                    method: 'PUT', 
-                    headers: { 'Authorization': 'Bearer ' + currentToken } 
-                });
+                await fetch(`https://api.spotify.com/v1/me/player/${endpoint}`, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + currentToken } });
                 setTimeout(updateNowPlaying, 500);
             } catch (e) {}
         }
 
-        async function nextTrack() { 
-            await fetch('https://api.spotify.com/v1/me/player/next', { method: 'POST', headers: { 'Authorization': 'Bearer ' + currentToken } }); 
-            setTimeout(updateNowPlaying, 500); 
-        }
-        async function previousTrack() { 
-            await fetch('https://api.spotify.com/v1/me/player/previous', { method: 'POST', headers: { 'Authorization': 'Bearer ' + currentToken } }); 
-            setTimeout(updateNowPlaying, 500); 
-        }
+        async function nextTrack() { await fetch('https://api.spotify.com/v1/me/player/next', { method: 'POST', headers: { 'Authorization': 'Bearer ' + currentToken } }); setTimeout(updateNowPlaying, 500); }
+        async function previousTrack() { await fetch('https://api.spotify.com/v1/me/player/previous', { method: 'POST', headers: { 'Authorization': 'Bearer ' + currentToken } }); setTimeout(updateNowPlaying, 500); }
 
         function generateCodeVerifier(l) { let t = ''; let p = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'; for (let i = 0; i < l; i++) t += p.charAt(Math.floor(Math.random() * p.length)); return t; }
         async function generateCodeChallenge(v) { const d = await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(v)); return btoa(String.fromCharCode.apply(null, new Uint8Array(d))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
@@ -507,3 +407,4 @@
     </script>
 </body>
 </html>
+
