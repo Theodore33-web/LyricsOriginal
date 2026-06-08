@@ -104,19 +104,23 @@
         #track-title { font-size: 1.2rem; margin: 10px 0 2px 0; }
         #track-artist { color: var(--text-grey); font-size: 0.9rem; margin-top: 0; }
 
+        /* Alignement sur une seule ligne de la recherche, du micro et de la bibliothèque */
         .search-box {
             display: flex;
-            gap: 8px;
+            gap: 6px;
             margin-bottom: 10px;
+            align-items: center;
         }
         .search-box input {
             flex: 1;
+            max-width: 150px; /* Réduction légère de la largeur pour tout faire tenir */
             background: #121212;
             border: 1px solid #333;
             border-radius: 20px;
-            padding: 8px 15px;
+            padding: 8px 12px;
             color: white;
             outline: none;
+            font-size: 0.85rem;
         }
         .search-box input:focus { border-color: var(--spotify-green); }
         
@@ -124,13 +128,15 @@
             background: var(--spotify-green);
             color: white;
             border: none;
-            border-radius: 20px;
-            padding: 8px 12px;
+            border-radius: 50%; /* Boutons ronds pour un aspect logo */
+            width: 34px;
+            height: 34px;
             cursor: pointer;
             font-weight: bold;
             display: flex;
             align-items: center;
             justify-content: center;
+            flex-shrink: 0; /* Empêche la déformation */
         }
         
         #mic-btn {
@@ -142,6 +148,19 @@
             animation: pulse 1.5s infinite;
         }
 
+        #lib-toggle-btn {
+            background: transparent;
+            border: 1px solid var(--spotify-green);
+            color: var(--spotify-green);
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+        #lib-toggle-btn:hover {
+            background: var(--spotify-green);
+            color: white;
+        }
+
+        /* Style existant conservé pour le bouton dynamique "Afficher plus" */
         .lib-btn {
             background: none;
             border: 1px solid var(--spotify-green);
@@ -223,8 +242,8 @@
                     <input type="text" id="search-input" placeholder="Titre, artiste...">
                     <button onclick="searchTrack()" title="Rechercher par texte">🔍</button>
                     <button id="mic-btn" onclick="toggleMicrophoneListen()" title="Identifier via AudD">🎙️</button>
+                    <button id="lib-toggle-btn" onclick="getUserLibrary()" title="Ouvrir ma bibliothèque (Likés)">📂</button>
                 </div>
-                <button class="lib-btn" onclick="getUserLibrary()">📂 Ouvrir ma bibliothèque (Likés)</button>
                 <div id="search-results"></div>
             </div>
 
@@ -250,11 +269,9 @@
         let lastTrackId = "";
         let currentLyrics = [];
 
-        // --- VARIABLES DE PAGINATION POUR LA BIBLIOTHÈQUE ---
         let libraryItems = [];
         let displayedCount = 10;
 
-        // --- INSÉREZ VOTRE JETON D'API AUDD.IO ICI ---
         const auddApiToken = "VOTRE_API_TOKEN_AUDD"; 
 
         let mediaRecorder = null;
@@ -312,14 +329,12 @@
             }
         }
 
-        // --- ACCÈS À LA BIBLIOTHÈQUE (Titres Likés) ---
         async function getUserLibrary() {
             if (!currentToken) return;
             const resultsContainer = document.getElementById('search-results');
             resultsContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement de la bibliothèque...</p>";
             
             try {
-                // Modifié pour récupérer jusqu'à 50 titres maximum par défaut sur l'API Spotify
                 const response = await fetch('https://api.spotify.com/v1/me/tracks?limit=50', {
                     headers: { 'Authorization': 'Bearer ' + currentToken }
                 });
@@ -339,7 +354,6 @@
             }
         }
 
-        // --- FONCTION DE RENDU ET PAGINATION POUR LA BIBLIOTHÈQUE ---
         function renderLibrarySection() {
             const resultsContainer = document.getElementById('search-results');
             resultsContainer.innerHTML = "";
@@ -379,7 +393,6 @@
             }
         }
 
-        // --- RECONNAISSANCE VOCALE (AudD.io) ---
         async function toggleMicrophoneListen() {
             const micBtn = document.getElementById('mic-btn');
             const resultsContainer = document.getElementById('search-results');
@@ -476,13 +489,11 @@
             }
         }
 
-        // --- RECHERCHE MANUELLE ET CONTRÔLE SPOTIFY ---
         async function searchTrack() {
             const query = document.getElementById('search-input').value;
             if (!query || !currentToken) return;
 
             try {
-                // Correction de la syntaxe de l'URL avec les backticks corrects `` ` ``
                 const response = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=5`, {
                     headers: { 'Authorization': 'Bearer ' + currentToken }
                 });
@@ -531,7 +542,6 @@
             if (e.key === 'Enter') searchTrack();
         });
 
-        // --- SYNCHRONISATION DES PAROLES (LRCLIB) ---
         async function fetchLyrics(artist, title, album, duration) {
             try {
                 const url = `https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}&album_name=${encodeURIComponent(album)}&duration=${Math.round(duration)}`;
@@ -607,7 +617,6 @@
                 if (res.status === 204) return alert("Activez d'abord votre lecteur Spotify.");
                 const playback = await res.json();
                 const endpoint = playback.is_playing ? 'pause' : 'play';
-                // Correction de la syntaxe de l'URL avec les backticks corrects `` ` ``
                 await fetch(`https://api.spotify.com/v1/me/player/${endpoint}`, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + currentToken } });
                 setTimeout(updateNowPlaying, 500);
             } catch (e) {}
