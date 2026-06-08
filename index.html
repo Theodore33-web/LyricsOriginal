@@ -11,6 +11,7 @@
             --card-grey: #181818;
             --light-grey: #282828;
             --text-grey: #b3b3b3;
+            --acr-purple: #a855f7;
         }
 
         body { 
@@ -40,7 +41,7 @@
             max-width: 1200px;
             gap: 20px;
             margin-top: 20px;
-            flex-direction: row; /* Côte à côte sur PC */
+            flex-direction: row;
         }
 
         /* SECTION GAUCHE : PAROLES */
@@ -89,7 +90,6 @@
 
         #avatar { border-radius: 50%; width: 50px; border: 2px solid var(--spotify-green); height: 50px; object-fit: cover; }
         
-        /* IMAGE DE L'ALBUM RÉDUITE */
         #track-art { 
             width: 150px; 
             height: 150px; 
@@ -109,10 +109,10 @@
         #track-title { font-size: 1.2rem; margin: 10px 0 2px 0; }
         #track-artist { color: var(--text-grey); font-size: 0.9rem; margin-top: 0; }
 
-        /* Style Eléments de Recherche */
+        /* Barre de recherche avec les deux boutons */
         .search-box {
             display: flex;
-            gap: 10px;
+            gap: 8px;
             margin-bottom: 10px;
         }
         .search-box input {
@@ -125,15 +125,35 @@
             outline: none;
         }
         .search-box input:focus { border-color: var(--spotify-green); }
+        
         .search-box button {
             background: var(--spotify-green);
             color: white;
             border: none;
             border-radius: 20px;
-            padding: 8px 15px;
+            padding: 8px 12px;
             cursor: pointer;
             font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
+        
+        #mic-btn {
+            background: #333;
+            transition: background 0.3s;
+        }
+        #mic-btn.recording {
+            background: #ef4444;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
         #search-results {
             max-height: 150px;
             overflow-y: auto;
@@ -159,6 +179,7 @@
             .lyric-line { font-size: 1.2rem; }
         }
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 </head>
 <body>
 
@@ -186,7 +207,8 @@
                 <p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 0 0 10px 0; text-align: left;">RECHERCHER</p>
                 <div class="search-box">
                     <input type="text" id="search-input" placeholder="Titre, artiste...">
-                    <button onclick="searchTrack()">🔍</button>
+                    <button onclick="searchTrack()" title="Rechercher par texte">🔍</button>
+                    <button id="mic-btn" onclick="toggleMicrophoneListen()" title="Écouter la musique">🎙️</button>
                 </div>
                 <div id="search-results"></div>
             </div>
@@ -213,6 +235,15 @@
         let currentToken = "";
         let lastTrackId = "";
         let currentLyrics = [];
+
+        // --- CONFIGURATION ACRCLOUD (À compléter avec vos identifiants) ---
+        const acrAccessKey = "e5c443d8f0f15902b0641c6dec6f8999";
+        const acrAccessSecret = "1xV0C2O2iYfuLqmfQURFbhdnhUxrtlztNnG6XxDz";
+        const acrHost = "identify-eu-west-1.acrcloud.com"; // Modifiez selon votre région ACRCloud
+
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let isRecording = false;
 
         // --- AUTHENTIFICATION ---
         const params = new URLSearchParams(window.location.search);
@@ -266,7 +297,137 @@
             }
         }
 
-        // --- FONCTIONNALITÉ RECHERCHE & LECTURE ---
+        // --- FONCTIONNALITÉ MICROPHONE & ACRCLOUD ---
+        async function toggleMicrophoneListen() {
+            const micBtn = document.getElementById('mic-btn');
+            const resultsContainer = document.getElementById('search-results');
+
+            if (isRecording) {
+                // Arrêt manuel ou fin de l'écoute
+                mediaRecorder.stop();
+                return;
+            }
+
+            if (acrAccessKey === "VOTRE_ACCESS_KEY_ACRCLOUD") {
+                alert("Veuillez d'abord configurer vos identifiants acrAccessKey et acrAccessSecret dans le script.");
+                return;
+            }
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                audioChunks = [];
+                mediaRecorder = new MediaRecorder(stream);
+
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstart = () => {
+                    isRecording = true;
+                    micBtn.classList.add('recording');
+                    micBtn.innerText = "🛑";
+                    resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Écoute en cours (8s)... Branchez votre son.</p>";
+                };
+
+                mediaRecorder.onstop = async () => {
+                    isRecording = false;
+                    micBtn.classList.remove('recording');
+                    micBtn.innerText = "🎙️";
+                    resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Analyse audio...</p>";
+
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
+                    
+                    // Fermer les pistes du micro pour relâcher le matériel
+                    stream.getTracks().forEach(track => track.stop());
+
+                    recognizeAudioWithACRCloud(audioBlob);
+                };
+
+                // Lance l'enregistrement
+                mediaRecorder.start();
+
+                // Arrête automatiquement après 8 secondes (durée idéale pour un échantillon d'identification)
+                setTimeout(() => {
+                    if (isRecording && mediaRecorder.state !== "inactive") {
+                        mediaRecorder.stop();
+                    }
+                }, 8000);
+
+            } catch (err) {
+                console.error("Accès microphone refusé ou impossible:", err);
+                resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Microphone inaccessible.</p>";
+            }
+        }
+
+        async function recognizeAudioWithACRCloud(blob) {
+            const resultsContainer = document.getElementById('search-results');
+            
+            // Préparation des paramètres de signature requis par ACRCloud
+            const currentTimestamp = Math.floor(Date.now() / 1000);
+            const stringToSign = [
+                'POST',
+                '/v1/identify',
+                acrAccessKey,
+                'audio',
+                '1',
+                currentTimestamp
+            ].join('\n');
+
+            // Génération de la signature HMAC-SHA1 via CryptoJS
+            const signature = CryptoJS.HmacSHA1(stringToSign, acrAccessSecret).toString(CryptoJS.enc.Base64);
+
+            // Construction du conteneur FormData (Multipart)
+            const formData = new FormData();
+            formData.append('sample', blob);
+            formData.append('access_key', acrAccessKey);
+            formData.append('data_type', 'audio');
+            formData.append('signature_version', '1');
+            formData.append('signature', signature);
+            formData.append('timestamp', currentTimestamp);
+
+            try {
+                const response = await fetch(`https://${acrHost}/v1/identify`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.status && result.status.code === 0 && result.metadata && result.metadata.music) {
+                    resultsContainer.innerHTML = "";
+                    
+                    // ACRCloud renvoie un tableau de pistes trouvées
+                    result.metadata.music.forEach(track => {
+                        const item = document.createElement('div');
+                        item.className = 'search-item';
+                        // ACRCloud ne fournit pas d'image par défaut, recherche directe possible ensuite
+                        item.innerHTML = `
+                            <div style="background:#222; width:30px; height:30px; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:12px;">🎵</div>
+                            <div>
+                                <strong style="display:block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${track.title}</strong>
+                                <span style="font-size: 0.8rem; color: var(--text-grey);">${track.artists[0].name}</span>
+                            </div>
+                        `;
+                        
+                        // En cliquant sur le résultat trouvé par le micro, on bascule le titre trouvé dans l'input de recherche textuelle
+                        // pour que l'utilisateur puisse lancer la commande Spotify correspondante si elle est dispo.
+                        item.onclick = () => {
+                            document.getElementById('search-input').value = `${track.title} ${track.artists[0].name}`;
+                            searchTrack();
+                        };
+                        resultsContainer.appendChild(item);
+                    });
+                } else {
+                    resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Aucune musique reconnue. Réessayez plus près de la source.</p>";
+                }
+
+            } catch (err) {
+                console.error("Erreur lors de la requête ACRCloud:", err);
+                resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur d'analyse réseau.</p>";
+            }
+        }
+
+        // --- FONCTIONNALITÉ RECHERCHE & LECTURE TEXTE ---
         async function searchTrack() {
             const query = document.getElementById('search-input').value;
             if (!query || !currentToken) return;
@@ -294,7 +455,7 @@
                         resultsContainer.appendChild(item);
                     });
                 } else {
-                    resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Aucun résultat</p>";
+                    resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Aucun résultat sur Spotify</p>";
                 }
             } catch (e) { console.error(e); }
         }
@@ -303,19 +464,15 @@
             try {
                 const response = await fetch('https://api.spotify.com/v1/me/player/play', {
                     method: 'PUT',
-                    headers: { 
-                        'Authorization': 'Bearer ' + currentToken,
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Authorization': 'Bearer ' + currentToken, 'Content-Type': 'application/json' },
                     body: JSON.stringify({ uris: [trackUri] })
                 });
-                
                 if (response.status === 204) {
                     document.getElementById('search-results').innerHTML = "";
                     document.getElementById('search-input').value = "";
                     setTimeout(updateNowPlaying, 600);
                 } else if (response.status === 404) {
-                    alert("Erreur : Aucun appareil d'écoute actif trouvé. Ouvrez Spotify sur votre téléphone ou PC.");
+                    alert("Erreur : Aucun appareil d'écoute actif trouvé. Ouvrez Spotify.");
                 }
             } catch (e) { console.error(e); }
         }
@@ -351,7 +508,6 @@
                 }
                 return null;
             }).filter(l => l && l.text !== "");
-            
             document.getElementById('lyrics-content').innerHTML = currentLyrics.map((l, i) => `<div id="line-${i}" class="lyric-line">${l.text}</div>`).join('');
         }
 
@@ -370,11 +526,11 @@
             });
         }
 
-        // --- CONTRÔLES ---
+        // --- CONTRÔLES SPOTIFY ---
         async function updateNowPlaying() {
             if (!currentToken) return;
             try {
-                const response = await fetch('https://api.spotify.com/v1/me/player', { headers: { 'Authorization': 'Bearer ' + currentToken } });
+                const response = await fetch('https://api.spotify.com/v1/me/player/currently-playing', { headers: { 'Authorization': 'Bearer ' + currentToken } });
                 if (response.status === 204 || response.status === 401) return;
                 const data = await response.json();
 
@@ -398,7 +554,7 @@
 
         async function togglePlay() {
             try {
-                const res = await fetch('https://api.spotify.com/v1/me/player', { headers: { 'Authorization': 'Bearer ' + currentToken } });
+                const res = await fetch('https://api.spotify.com/v1/me/player/currently-playing', { headers: { 'Authorization': 'Bearer ' + currentToken } });
                 if (res.status === 204) return alert("Lancez Spotify sur un appareil !");
                 const playback = await res.json();
                 const endpoint = playback.is_playing ? 'pause' : 'play';
