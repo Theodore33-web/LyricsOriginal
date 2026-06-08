@@ -263,19 +263,19 @@
             updateNowPlaying();
         }
 
-        // --- FONCTIONNALITÉ : CHARGER LES PLAYLISTS (CORRIGÉE) ---
+        // --- FONCTIONNALITÉ : CHARGER LES PLAYLISTS ---
         async function fetchMyPlaylists() {
             if (!currentToken) return alert("Veuillez vous connecter d'abord !");
             const resultsContainer = document.getElementById('search-results');
             resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Chargement de vos playlists...</p>";
 
             try {
-                const response = await fetch('https://api.spotify.com/v1/me/playlists?limit=10', {
+                const response = await fetch('https://api.spotify.com/v1/me/playlists', {
                     headers: { 'Authorization': 'Bearer ' + currentToken }
                 });
                 
                 if (!response.ok) {
-                    resultsContainer.innerHTML = `<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur Spotify (${response.status}). Déconnectez/reconnectez-vous.</p>`;
+                    resultsContainer.innerHTML = `<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur Spotify (${response.status}). Veuillez recharger l'accès.</p>`;
                     return;
                 }
 
@@ -303,7 +303,7 @@
                 }
             } catch (e) { 
                 console.error("Erreur fetchMyPlaylists:", e); 
-                resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur de connexion.</p>";
+                resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur réseau.</p>";
             }
         }
 
@@ -332,7 +332,6 @@
                     headers: { 'Authorization': 'Bearer ' + currentToken }
                 });
                 const data = await response.json();
-                const AntiquitiesContainer = document.getElementById('search-results');
                 const resultsContainer = document.getElementById('search-results');
                 resultsContainer.innerHTML = "";
 
@@ -425,7 +424,7 @@
         async function updateNowPlaying() {
             if (!currentToken) return;
             try {
-                const response = await fetch('https://api.spotify.com/v1/me/player', { headers: { 'Authorization': 'Bearer ' + currentToken } });
+                const response = await fetch('https://api.spotify.com/v1/me/player/currently-playing', { headers: { 'Authorization': 'Bearer ' + currentToken } });
                 if (response.status === 204) return;
                 const data = await response.json();
 
