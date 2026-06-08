@@ -621,19 +621,29 @@
             } catch (e) {}
         }
 
-        async function nextTrack() { 
-            try {
-                await fetch('https://api.spotify.com/v1/me/player/next', { method: 'POST', headers: { 'Authorization': 'Bearer ' + currentToken } }); 
-                setTimeout(updateNowPlaying, 500); 
-            } catch (e) { console.error(e); }
-        }
-        
-        async function previousTrack() { 
-            try {
-                await fetch('https://api.spotify.com/v1/me/player/previous', { method: 'POST', headers: { 'Authorization': 'Bearer ' + currentToken } }); 
-                setTimeout(updateNowPlaying, 500); 
-            } catch (e) { console.error(e); }
-        }
+       async function nextTrack() { 
+    try {
+        await fetch('https://api.spotify.com/v1/me/player/next', { 
+            method: 'POST', 
+            headers: { 'Authorization': 'Bearer ' + currentToken } 
+        }); 
+        setTimeout(updateNowPlaying, 500); 
+    } catch (e) {
+        console.error("Erreur piste suivante :", e);
+    }
+}
+
+async function previousTrack() { 
+    try {
+        await fetch('https://api.spotify.com/v1/me/player/previous', { 
+            method: 'POST', 
+            headers: { 'Authorization': 'Bearer ' + currentToken } 
+        }); 
+        setTimeout(updateNowPlaying, 500); 
+    } catch (e) {
+        console.error("Erreur piste précédente :", e);
+    }
+}
 
         function generateCodeVerifier(l) { let t = ''; let p = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'; for (let i = 0; i < l; i++) t += p.charAt(Math.floor(Math.random() * p.length)); return t; }
         async function generateCodeChallenge(v) { const d = await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(v)); return btoa(String.fromCharCode.apply(null, new Uint8Array(d))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
