@@ -610,39 +610,20 @@
             } catch (e) {}
         }
 
-        async function togglePlay() {
+          async function togglePlay() {
             try {
                 const res = await fetch('https://api.spotify.com/v1/me/player', { headers: { 'Authorization': 'Bearer ' + currentToken } });
-                if (res.status === 204) return alert("Activez d'abord votre lecteur Spotify.");
+                if (res.status === 204) return alert("Lancez Spotify sur un appareil !");
                 const playback = await res.json();
                 const endpoint = playback.is_playing ? 'pause' : 'play';
-                await fetch(`https://api.spotify.com/v1/me/player/${endpoint}`, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + currentToken } });
+                await fetch(`https://api.spotify.com/v1/me/player/$${endpoint}`, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + currentToken } });
                 setTimeout(updateNowPlaying, 500);
             } catch (e) {}
         }
 
-       async function nextTrack() { 
-    try {
-        await fetch('https://api.spotify.com/v1/me/player/next', { 
-            method: 'POST', 
-            headers: { 'Authorization': 'Bearer ' + currentToken } 
-        }); 
-        setTimeout(updateNowPlaying, 500); 
-    } catch (e) {
-        console.error("Erreur piste suivante :", e);
-    }
-}
+        async function nextTrack() { await fetch('https://api.spotify.com/v1/me/player/next', { method: 'POST', headers: { 'Authorization': 'Bearer ' + currentToken } }); setTimeout(updateNowPlaying, 500); }
+        async function previousTrack() { await fetch('https://api.spotify.com/v1/me/player/previous', { method: 'POST', headers: { 'Authorization': 'Bearer ' + currentToken } }); setTimeout(updateNowPlaying, 500); }
 
-async function previousTrack() { 
-    try {
-        await fetch('https://api.spotify.com/v1/me/player/previous', { 
-            method: 'POST', 
-            headers: { 'Authorization': 'Bearer ' + currentToken } 
-        }); 
-        setTimeout(updateNowPlaying, 500); 
-    } catch (e) {
-        console.error("Erreur piste précédente :", e);
-    }
 }
 
         function generateCodeVerifier(l) { let t = ''; let p = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'; for (let i = 0; i < l; i++) t += p.charAt(Math.floor(Math.random() * p.length)); return t; }
