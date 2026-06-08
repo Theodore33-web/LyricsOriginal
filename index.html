@@ -270,6 +270,7 @@
         let libraryItems = [];
         let displayedCount = 10;
 
+        // Jeton de démonstration AudD (Remplacez-le par le vôtre si nécessaire)
         const auddApiToken = "187ef3238849ff75583d237fa40dbb48"; 
 
         let mediaRecorder = null;
@@ -353,7 +354,7 @@
         }
 
         function renderLibrarySection() {
-            constresultsContainer = document.getElementById('search-results');
+            const resultsContainer = document.getElementById('search-results');
             resultsContainer.innerHTML = "";
 
             const titleHeader = document.createElement('p');
@@ -622,20 +623,14 @@
 
         async function nextTrack() { 
             try {
-                await fetch('https://api.spotify.com/v1/me/player/next', { 
-                    method: 'POST', 
-                    headers: { 'Authorization': 'Bearer ' + currentToken } 
-                }); 
+                await fetch('https://api.spotify.com/v1/me/player/next', { method: 'POST', headers: { 'Authorization': 'Bearer ' + currentToken } }); 
                 setTimeout(updateNowPlaying, 500); 
             } catch (e) { console.error(e); }
         }
-
+        
         async function previousTrack() { 
             try {
-                await fetch('https://api.spotify.com/v1/me/player/previous', { 
-                    method: 'POST', 
-                    headers: { 'Authorization': 'Bearer ' + currentToken } 
-                }); 
+                await fetch('https://api.spotify.com/v1/me/player/previous', { method: 'POST', headers: { 'Authorization': 'Bearer ' + currentToken } }); 
                 setTimeout(updateNowPlaying, 500); 
             } catch (e) { console.error(e); }
         }
