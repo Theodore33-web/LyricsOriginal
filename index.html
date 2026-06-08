@@ -40,7 +40,7 @@
             max-width: 1200px;
             gap: 20px;
             margin-top: 20px;
-            flex-direction: row; /* Côte à côte sur PC */
+            flex-direction: row;
         }
 
         /* SECTION GAUCHE : PAROLES */
@@ -89,7 +89,6 @@
 
         #avatar { border-radius: 50%; width: 50px; border: 2px solid var(--spotify-green); }
         
-        /* IMAGE DE L'ALBUM RÉDUITE */
         #track-art { 
             width: 150px; 
             height: 150px; 
@@ -109,7 +108,7 @@
         #track-title { font-size: 1.2rem; margin: 10px 0 2px 0; }
         #track-artist { color: var(--text-grey); font-size: 0.9rem; margin-top: 0; }
 
-        /* Style Eléments de Recherche */
+        /* Bloc Recherche & Bibliothèque */
         .search-box {
             display: flex;
             gap: 10px;
@@ -125,7 +124,7 @@
             outline: none;
         }
         .search-box input:focus { border-color: var(--spotify-green); }
-        .search-box button {
+        .search-box button, .lib-btn {
             background: var(--spotify-green);
             color: white;
             border: none;
@@ -134,12 +133,21 @@
             cursor: pointer;
             font-weight: bold;
         }
+        .lib-btn {
+            width: 100%;
+            background: #333;
+            margin-bottom: 12px;
+            font-size: 0.85rem;
+            transition: background 0.2s;
+        }
+        .lib-btn:hover { background: var(--spotify-green); }
+
         #search-results {
-            max-height: 150px;
+            max-height: 200px;
             overflow-y: auto;
             text-align: left;
         }
-        .search-item {
+        .search-item, .playlist-item {
             padding: 8px;
             cursor: pointer;
             border-radius: 8px;
@@ -148,8 +156,8 @@
             align-items: center;
             gap: 10px;
         }
-        .search-item:hover { background: #333; }
-        .search-item img { width: 30px; height: 30px; border-radius: 4px; }
+        .search-item:hover, .playlist-item:hover { background: #333; }
+        .search-item img, .playlist-item img { width: 35px; height: 35px; border-radius: 4px; object-fit: cover; }
 
         /* 📱 ADAPTATION MOBILE */
         @media (max-width: 768px) {
@@ -183,9 +191,10 @@
             </div>
 
             <div class="card">
-                <p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 0 0 10px 0; text-align: left;">RECHERCHER</p>
+                <button class="lib-btn" onclick="fetchMyPlaylists()">📚 Ma Bibliothèque (Playlists)</button>
+                
                 <div class="search-box">
-                    <input type="text" id="search-input" placeholder="Titre, artiste...">
+                    <input type="text" id="search-input" placeholder="Chercher un titre, artiste...">
                     <button onclick="searchTrack()">🔍</button>
                 </div>
                 <div id="search-results"></div>
@@ -229,7 +238,8 @@
             const verifier = generateCodeVerifier(128);
             const challenge = await generateCodeChallenge(verifier);
             localStorage.setItem("verifier", verifier);
-            const scope = "user-read-private user-read-email user-modify-playback-state user-read-playback-state";
+            // AJOUT DU SCOPE playlist-read-private ICI
+            const scope = "user-read-private user-read-email user-modify-playback-state user-read-playback-state playlist-read-private";
             const authUrl = new URL("https://accounts.spotify.com/authorize");
             const args = { response_type: 'code', client_id: clientId, scope: scope, redirect_uri: redirectUri, code_challenge_method: 'S256', code_challenge: challenge };
             authUrl.search = new URLSearchParams(args).toString();
@@ -254,7 +264,57 @@
             updateNowPlaying();
         }
 
-        // --- FONCTIONNALITÉ RECHERCHE & LECTURE ---
+        // --- FONCTIONNALITÉ : CHARGER LES PLAYLISTS ---
+        async function fetchMyPlaylists() {
+            if (!currentToken) return;
+            const resultsContainer = document.getElementById('search-results');
+            resultsContainer.innerHTML = "Chargement de vos playlists...";
+
+            try {
+                const response = await fetch('https://api.spotify.com/v1/me/playlists?limit=10', {
+                    headers: { 'Authorization': 'Bearer ' + currentToken }
+                });
+                const data = await response.json();
+                resultsContainer.innerHTML = "";
+
+                if (data.items && data.items.length > 0) {
+                    data.items.forEach(playlist => {
+                        const item = document.createElement('div');
+                        item.className = 'playlist-item';
+                        item.innerHTML = `
+                            <img src="${playlist.images[0]?.url || 'https://via.placeholder.com/35'}" alt="">
+                            <div>
+                                <strong style="display:block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${playlist.name}</strong>
+                                <span style="font-size: 0.75rem; color: var(--text-grey);">${playlist.tracks.total} titres</span>
+                            </div>
+                        `;
+                        // Clic pour lancer la playlist entière
+                        item.onclick = () => playContext(playlist.uri);
+                        resultsContainer.appendChild(item);
+                    });
+                } else {
+                    resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Aucune playlist trouvée</p>";
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        // Lancer un contexte entier (comme une playlist)
+        async function playContext(contextUri) {
+            try {
+                const response = await fetch('https://api.spotify.com/v1/me/player/play', {
+                    method: 'PUT',
+                    headers: { 'Authorization': 'Bearer ' + currentToken, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ context_uri: contextUri })
+                });
+                if (response.status === 204) {
+                    setTimeout(updateNowPlaying, 600);
+                } else if (response.status === 404) {
+                    alert("Ouvrez Spotify sur votre appareil pour lancer la playlist !");
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        // --- FONCTIONNALITÉ RECHERCHE ---
         async function searchTrack() {
             const query = document.getElementById('search-input').value;
             if (!query || !currentToken) return;
@@ -278,7 +338,6 @@
                                 <span style="font-size: 0.8rem; color: var(--text-grey);">${track.artists[0].name}</span>
                             </div>
                         `;
-                        // Clic pour lancer la musique
                         item.onclick = () => playTrack(track.uri);
                         resultsContainer.appendChild(item);
                     });
@@ -292,25 +351,17 @@
             try {
                 const response = await fetch('https://api.spotify.com/v1/me/player/play', {
                     method: 'PUT',
-                    headers: { 
-                        'Authorization': 'Bearer ' + currentToken,
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Authorization': 'Bearer ' + currentToken, 'Content-Type': 'application/json' },
                     body: JSON.stringify({ uris: [trackUri] })
                 });
-                
                 if (response.status === 204) {
-                    // Succès, on vide la recherche et on force le rafraîchissement
                     document.getElementById('search-results').innerHTML = "";
                     document.getElementById('search-input').value = "";
                     setTimeout(updateNowPlaying, 600);
-                } else if (response.status === 404) {
-                    alert("Erreur : Aucun appareil d'écoute actif trouvé. Ouvrez Spotify sur votre téléphone ou PC.");
                 }
             } catch (e) { console.error(e); }
         }
 
-        // Permet de valider la recherche en appuyant sur la touche "Entrée"
         document.getElementById('search-input')?.addEventListener('keypress', function (e) {
             if (e.key === 'Enter') searchTrack();
         });
@@ -407,3 +458,4 @@
     </script>
 </body>
 </html>
+
