@@ -238,7 +238,6 @@
             const verifier = generateCodeVerifier(128);
             const challenge = await generateCodeChallenge(verifier);
             localStorage.setItem("verifier", verifier);
-            // AJOUT DU SCOPE playlist-read-private ICI
             const scope = "user-read-private user-read-email user-modify-playback-state user-read-playback-state playlist-read-private";
             const authUrl = new URL("https://accounts.spotify.com/authorize");
             const args = { response_type: 'code', client_id: clientId, scope: scope, redirect_uri: redirectUri, code_challenge_method: 'S256', code_challenge: challenge };
@@ -264,41 +263,50 @@
             updateNowPlaying();
         }
 
-        // --- FONCTIONNALITÉ : CHARGER LES PLAYLISTS ---
+        // --- FONCTIONNALITÉ : CHARGER LES PLAYLISTS (CORRIGÉE) ---
         async function fetchMyPlaylists() {
-            if (!currentToken) return;
+            if (!currentToken) return alert("Veuillez vous connecter d'abord !");
             const resultsContainer = document.getElementById('search-results');
-            resultsContainer.innerHTML = "Chargement de vos playlists...";
+            resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Chargement de vos playlists...</p>";
 
             try {
                 const response = await fetch('https://api.spotify.com/v1/me/playlists?limit=10', {
                     headers: { 'Authorization': 'Bearer ' + currentToken }
                 });
+                
+                if (!response.ok) {
+                    resultsContainer.innerHTML = `<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur Spotify (${response.status}). Déconnectez/reconnectez-vous.</p>`;
+                    return;
+                }
+
                 const data = await response.json();
                 resultsContainer.innerHTML = "";
 
                 if (data.items && data.items.length > 0) {
                     data.items.forEach(playlist => {
+                        const imgUrl = playlist.images && playlist.images.length > 0 ? playlist.images[0].url : 'https://via.placeholder.com/35';
+                        
                         const item = document.createElement('div');
                         item.className = 'playlist-item';
                         item.innerHTML = `
-                            <img src="${playlist.images[0]?.url || 'https://via.placeholder.com/35'}" alt="">
+                            <img src="${imgUrl}" alt="">
                             <div>
                                 <strong style="display:block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${playlist.name}</strong>
                                 <span style="font-size: 0.75rem; color: var(--text-grey);">${playlist.tracks.total} titres</span>
                             </div>
                         `;
-                        // Clic pour lancer la playlist entière
                         item.onclick = () => playContext(playlist.uri);
                         resultsContainer.appendChild(item);
                     });
                 } else {
-                    resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Aucune playlist trouvée</p>";
+                    resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Aucune playlist trouvée dans votre bibliothèque.</p>";
                 }
-            } catch (e) { console.error(e); }
+            } catch (e) { 
+                console.error("Erreur fetchMyPlaylists:", e); 
+                resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur de connexion.</p>";
+            }
         }
 
-        // Lancer un contexte entier (comme une playlist)
         async function playContext(contextUri) {
             try {
                 const response = await fetch('https://api.spotify.com/v1/me/player/play', {
@@ -324,6 +332,7 @@
                     headers: { 'Authorization': 'Bearer ' + currentToken }
                 });
                 const data = await response.json();
+                const AntiquitiesContainer = document.getElementById('search-results');
                 const resultsContainer = document.getElementById('search-results');
                 resultsContainer.innerHTML = "";
 
@@ -458,4 +467,3 @@
     </script>
 </body>
 </html>
-
