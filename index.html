@@ -28,7 +28,6 @@
             min-height: 100vh;
             overflow-x: hidden;
             position: relative;
-            transition: padding 0.5s ease; /* Transition fluide pour le mode cinéma */
         }
 
         /* Arrière-plan animé ultra-visuel (Style Apple Music Aurora) */
@@ -71,23 +70,7 @@
             flex-direction: row;
             position: relative;
             z-index: 2;
-            transition: all 0.5s ease;
         }
-
-        /* --- CLASSE POUR LE MODE CINÉMA --- */
-        body.cinema-mode { padding: 0; }
-        body.cinema-mode .sidebar { display: none !important; }
-        body.cinema-mode .lyrics-section { 
-            flex: 1; 
-            height: 90vh; 
-            margin-top: 5vh;
-            background: transparent; 
-            border: none; 
-            box-shadow: none;
-            backdrop-filter: none;
-            -webkit-backdrop-filter: none;
-        }
-        body.cinema-mode .cinema-btn { color: var(--spotify-green); }
 
         .lyrics-section {
             flex: 2;
@@ -101,39 +84,19 @@
             text-align: center;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             border: 1px solid rgba(255, 255, 255, 0.08);
-            position: relative; /* Pour positionner le bouton plein écran */
         }
         .lyrics-section::-webkit-scrollbar { width: 0px; }
 
-        .cinema-btn {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: none;
-            border: none;
-            color: white;
-            font-size: 22px;
-            cursor: pointer;
-            z-index: 10;
-            transition: transform 0.2s, color 0.2s;
-            opacity: 0.6;
-        }
-        .cinema-btn:hover { transform: scale(1.1); color: var(--spotify-green); opacity: 1; }
-
-        /* --- AMÉLIORATION PAROLES : TRANSITION CROSSFADE FLUIDE --- */
         .lyric-line {
             font-size: 1.5rem;
-            margin: 20px 0;
+            margin: 15px 0;
             color: var(--text-grey);
-            transition: color 0.6s ease, transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.6s ease, filter 0.6s ease;
-            opacity: 0.2;
-            filter: blur(1px);
-            transform: scale(0.96);
+            transition: all 0.4s ease;
+            opacity: 0.3;
         }
         .lyric-line.active {
             color: #ffffff;
             opacity: 1;
-            filter: blur(0px);
             transform: scale(1.08);
             font-weight: bold;
             text-shadow: 0 0 20px rgba(255, 255, 255, 0.6);
@@ -177,34 +140,10 @@
         .controls button:hover { color: var(--spotify-green); }
         
         #track-title { font-size: 1.2rem; margin: 10px 0 2px 0; }
-        #track-artist { color: var(--text-grey); font-size: 0.9rem; margin-top: 0; }
-
-        /* --- STYLES DE LA BARRE DE PROGRESSION INTERACTIVE --- */
-        .progress-container {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 10px;
-            margin: 15px 5px 10px 5px;
-            font-size: 0.75rem;
-            color: var(--text-grey);
-        }
-        .progress-bar-bg {
-            flex: 1;
-            height: 5px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 3px;
-            cursor: pointer;
-            position: relative;
-        }
-        .progress-bar-fill {
-            height: 100%;
-            width: 0%;
-            background: var(--spotify-green);
-            border-radius: 3px;
-            transition: width 0.2s linear;
-        }
-        .progress-bar-bg:hover .progress-bar-fill { background: #1ed760; }
+        #track-artist { color: var(--text-grey); font-size: 0.9rem; margin-top: 0; margin-bottom: 5px; }
+        
+        /* Style du timer rajouté */
+        #track-timer { font-size: 0.85rem; color: var(--text-grey); font-family: monospace; margin-bottom: 15px; }
 
         .search-box {
             display: flex;
@@ -326,7 +265,6 @@
 
     <div id="dashboard">
         <div class="lyrics-section" id="lyrics-container">
-            <button class="cinema-btn" onclick="toggleCinemaMode()" title="Mode Karaoké Plein Écran">⛶</button>
             <div id="lyrics-content">Lancez une musique sur Spotify...</div>
         </div>
 
@@ -356,14 +294,8 @@
                 <h3 id="track-title">Aucune lecture</h3>
                 <p id="track-artist"></p>
                 
-                <div class="progress-container">
-                    <span id="time-current">0:00</span>
-                    <div class="progress-bar-bg" onclick="seekTrack(event)">
-                        <div class="progress-bar-fill" id="progress-fill"></div>
-                    </div>
-                    <span id="time-max">0:00</span>
-                </div>
-
+                <div id="track-timer">0:00 / 0:00</div>
+                
                 <div class="controls">
                     <button onclick="previousTrack()">⏮</button>
                     <button id="play-pause-btn" onclick="togglePlay()">▶️</button>
@@ -379,7 +311,6 @@
         let currentToken = "";
         let lastTrackId = "";
         let currentLyrics = [];
-        let trackDurationMs = 0; // Stockage global de la durée totale
 
         let libraryItems = [];
         let displayedCount = 10;
@@ -398,11 +329,6 @@
             handleCallback(code);
         } else {
             document.getElementById('login-btn').onclick = () => redirectToSpotify();
-        }
-
-        // Commutateur pour le mode cinéma
-        function toggleCinemaMode() {
-            document.body.classList.toggle('cinema-mode');
         }
 
         async function redirectToSpotify() {
@@ -440,7 +366,10 @@
                 document.getElementById('dashboard').style.display = 'flex';
                 document.getElementById('name').innerText = user.display_name;
                 document.getElementById('avatar').src = user.images && user.images.length > 0 ? user.images[0].url : "https://via.placeholder.com/50";
+                
+                // Rafraîchissement régulier toutes les secondes pour un timer précis
                 updateNowPlaying();
+                setInterval(updateNowPlaying, 1000);
             } catch (e) {
                 console.error("Impossible de récupérer le profil : ", e);
             }
@@ -611,7 +540,7 @@
             if (!query || !currentToken) return;
 
             try {
-                const response = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=5`, {
+                const response = await fetch(`https://api.spotify.com/v1/search?q=$${encodeURIComponent(query)}&type=track&limit=5`, {
                     headers: { 'Authorization': 'Bearer ' + currentToken }
                 });
                 const data = await response.json();
@@ -658,30 +587,6 @@
         document.getElementById('search-input')?.addEventListener('keypress', function (e) {
             if (e.key === 'Enter') searchTrack();
         });
-
-        // --- ENVOI DE LA COMMANDE SEEK (NAVIGATION DANS LA BARRE) ---
-        async function seekTrack(event) {
-            if (!currentToken || !trackDurationMs) return;
-            const rect = event.currentTarget.getBoundingClientRect();
-            const clickPositionRatio = (event.clientX - rect.left) / rect.width;
-            const targetPositionMs = Math.floor(clickPositionRatio * trackDurationMs);
-
-            try {
-                await fetch(`https://api.spotify.com/v1/me/player/currently-playing{targetPositionMs}`, {
-                    method: 'PUT',
-                    headers: { 'Authorization': 'Bearer ' + currentToken }
-                });
-                updateNowPlaying();
-            } catch (e) { console.error("Erreur de navigation :", e); }
-        }
-
-        // Convertit les millisecondes en format MM:SS
-        function formatTime(ms) {
-            const totalSeconds = Math.floor(ms / 1000);
-            const minutes = Math.floor(totalSeconds / 60);
-            const seconds = totalSeconds % 60;
-            return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-        }
 
         async function fetchLyrics(artist, title, album, duration) {
             try {
@@ -762,6 +667,15 @@
             };
         }
 
+        // Fonction d'aide pour convertir des millisecondes en format texte (ex: 3:45)
+        function formatTime(ms) {
+            if (isNaN(ms) || ms < 0) return "0:00";
+            const totalSeconds = Math.floor(ms / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+        }
+
         async function updateNowPlaying() {
             if (!currentToken) return;
             try {
@@ -770,17 +684,14 @@
                 const data = await response.json();
 
                 if (data && data.item) {
-                    trackDurationMs = data.item.duration_ms; // Sauvegarde de la durée totale
                     document.getElementById('track-title').innerText = data.item.name;
                     document.getElementById('track-artist').innerText = data.item.artists.map(a => a.name).join(", ");
                     
-                    // Mise à jour de la barre de progression visuelle et des timers
-                    document.getElementById('time-current').innerText = formatTime(data.progress_ms);
-                    document.getElementById('time-max').innerText = formatTime(trackDurationMs);
-                    const progressPercent = (data.progress_ms / trackDurationMs) * 100;
-                    document.getElementById('progress-fill').style.width = `${progressPercent}%`;
+                    // Mise à jour du timer textuel rajouté (ex: 1:23 / 3:45)
+                    document.getElementById('track-timer').innerText = `${formatTime(data.progress_ms)} / ${formatTime(data.item.duration_ms)}`;
 
                     const art = document.getElementById('track-art');
+                    
                     const oldSrc = art.src;
                     art.src = data.item.album.images && data.item.album.images.length > 0 ? data.item.album.images[0].url : ""; 
                     art.style.display = "block";
@@ -794,7 +705,7 @@
 
                     if (data.item.id !== lastTrackId) {
                         lastTrackId = data.item.id;
-                        fetchLyrics(data.item.artists[0].name, data.item.name, data.item.album.name, trackDurationMs / 1000);
+                        fetchLyrics(data.item.artists[0].name, data.item.name, data.item.album.name, data.item.duration_ms / 1000);
                     }
                 }
             } catch (e) {}
@@ -806,7 +717,7 @@
                 if (res.status === 204) return alert("Activez d'abord votre lecteur Spotify.");
                 const playback = await res.json();
                 const endpoint = playback.is_playing ? 'pause' : 'play';
-                await fetch(`https://api.spotify.com/v1/me/player/${endpoint}`, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + currentToken } });
+                await fetch(`https://api.spotify.com/v1/me/player/$${endpoint}`, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + currentToken } });
                 setTimeout(updateNowPlaying, 500);
             } catch (e) {}
         }
@@ -840,12 +751,6 @@
                 }
             } catch (e) { console.error(e); }
         }
-
-        function generateCodeVerifier(l) { let t = ''; let p = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'; for (let i = 0; i < l; i++) t += p.charAt(Math.floor(Math.random() * p.length)); return t; }
-        async function generateCodeChallenge(v) { const d = await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(v)); return btoa(String.fromCharCode.apply(null, new Uint8Array(d))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
-
-        // Boucle de rafraîchissement
-        setInterval(updateNowPlaying, 1000);
     </script>
 </body>
 </html>
