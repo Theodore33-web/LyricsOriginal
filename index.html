@@ -8,19 +8,17 @@
         :root {
             --spotify-green: #1DB954;
             --bg-black: #121212;
-            --card-grey: rgba(24, 24, 24, 0.85);
-            --light-grey: rgba(40, 40, 40, 0.85);
+            --card-grey: rgba(24, 24, 24, 0.75);
+            --light-grey: rgba(40, 40, 40, 0.75);
             --text-grey: #b3b3b3;
-            --gradient-color-1: #121212;
-            --gradient-color-2: #1a1a1a;
+            /* Couleurs de base avant lecture */
+            --gradient-color-1: #134e5e;
+            --gradient-color-2: #71b280;
         }
 
         body { 
             font-family: 'Segoe UI', sans-serif; 
-            /* Arrière-plan dégradé dynamique avec transition fluide */
-            background: linear-gradient(135deg, var(--gradient-color-1), var(--gradient-color-2), #121212);
-            background-size: 200% 200%;
-            animation: gradientMovement 15s ease infinite;
+            background-color: var(--bg-black);
             color: white; 
             margin: 0;
             padding: 20px;
@@ -28,14 +26,31 @@
             flex-direction: column;
             align-items: center;
             min-height: 100vh;
-            transition: background 1.5s ease;
+            overflow-x: hidden;
+            position: relative;
         }
 
-        /* Animation subtile du fond en arrière-plan */
-        @keyframes gradientMovement {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
+        /* Arrière-plan animé ultra-visuel (Style Apple Music Aurora) */
+        .background-aurora {
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            z-index: 1;
+            background: radial-gradient(circle at 30% 30%, var(--gradient-color-1) 0%, transparent 40%),
+                        radial-gradient(circle at 70% 60%, var(--gradient-color-2) 0%, transparent 45%),
+                        radial-gradient(circle at 50% 40%, #121212 0%, #121212 100%);
+            filter: blur(140px); /* Floute intensément les couleurs éclatantes */
+            animation: rotateAurora 20s linear infinite;
+            transition: all 2s ease-in-out;
+            pointer-events: none;
+        }
+
+        @keyframes rotateAurora {
+            0% { transform: rotate(0deg) scale(1); }
+            50% { transform: rotate(180deg) scale(1.1); }
+            100% { transform: rotate(360deg) scale(1); }
         }
 
         #login-section { text-align: center; margin-top: 100px; position: relative; z-index: 2; }
@@ -60,14 +75,15 @@
         .lyrics-section {
             flex: 2;
             background: var(--card-grey);
-            backdrop-filter: blur(10px);
+            backdrop-filter: blur(25px); /* Effet verre givré */
+            -webkit-backdrop-filter: blur(25px);
             padding: 30px;
             border-radius: 20px;
             height: 75vh;
             overflow-y: auto;
             text-align: center;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
         }
         .lyrics-section::-webkit-scrollbar { width: 0px; }
 
@@ -79,11 +95,11 @@
             opacity: 0.3;
         }
         .lyric-line.active {
-            color: var(--spotify-green);
+            color: #ffffff;
             opacity: 1;
-            transform: scale(1.1);
+            transform: scale(1.08);
             font-weight: bold;
-            text-shadow: 0 0 15px rgba(29, 185, 84, 0.4);
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.6);
         }
 
         .sidebar {
@@ -96,12 +112,13 @@
 
         .card {
             background: var(--light-grey);
-            backdrop-filter: blur(10px);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
             padding: 15px;
             border-radius: 20px;
             text-align: center;
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
         }
 
         #avatar { border-radius: 50%; width: 50px; border: 2px solid var(--spotify-green); height: 50px; object-fit: cover; }
@@ -234,6 +251,8 @@
     </style>
 </head>
 <body>
+
+    <div class="background-aurora" id="bg-aurora"></div>
 
     <div id="login-section">
         <h1 style="color: var(--spotify-green); font-size: 3rem; margin-bottom: 10px;">Lyrics Original</h1>
@@ -605,12 +624,11 @@
             });
         }
 
-        /* FONCTIONNALITÉ ARRIÈRE-PLAN DYNAMIQUE : Extrait les couleurs de la pochette */
+        /* NOUVEAU SYSTÈME DE COULEURS ÉCLATANTES */
         function updateDynamicBackground() {
             const img = document.getElementById('track-art');
             if (!img || img.style.display === "none" || !img.src) return;
 
-            // On crée une image temporaire en mémoire pour éviter les blocages de rendu asynchrones
             const tempImg = new Image();
             tempImg.crossOrigin = "Anonymous";
             tempImg.src = img.src;
@@ -619,42 +637,24 @@
                 try {
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
-                    canvas.width = 50; // Petite taille pour simplifier et moyenner les pixels
-                    canvas.height = 50;
+                    canvas.width = 10; 
+                    canvas.height = 10;
                     
-                    ctx.drawImage(tempImg, 0, 0, 50, 50);
+                    ctx.drawImage(tempImg, 0, 0, 10, 10);
                     const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
                     
-                    let r1 = 0, g1 = 0, b1 = 0;
-                    let r2 = 0, g2 = 0, b2 = 0;
-                    let count = imgData.length / 4;
+                    let r1 = imgData[0], g1 = imgData[1], b1 = imgData[2];
+                    let r2 = imgData[40], g2 = imgData[41], b2 = imgData[42];
 
-                    // Section supérieure gauche pour la couleur 1
-                    for (let i = 0; i < imgData.length / 2; i += 4) {
-                        r1 += imgData[i];
-                        g1 += imgData[i+1];
-                        b1 += imgData[i+2];
-                    }
-                    // Section inférieure droite pour la couleur 2
-                    for (let i = imgData.length / 2; i < imgData.length; i += 4) {
-                        r2 += imgData[i];
-                        g2 += imgData[i+1];
-                        b2 += imgData[i+2];
-                    }
+                    // Si les couleurs extraites sont trop sombres (ex: pochette noire), on applique un boost
+                    if ((r1 + g1 + b1) < 100) { r1 += 60; g1 += 40; b1 += 90; }
+                    if ((r2 + g2 + b2) < 100) { r2 += 90; g2 += 50; b2 += 40; }
 
-                    r1 = Math.floor((r1 / (count / 2)) * 0.4); // Assombri légèrement à 40% pour garantir la lisibilité
-                    g1 = Math.floor((g1 / (count / 2)) * 0.4);
-                    b1 = Math.floor((b1 / (count / 2)) * 0.4);
-
-                    r2 = Math.floor((r2 / (count / 2)) * 0.25); // Encore plus sombre pour le bas du dégradé (25%)
-                    g2 = Math.floor((g2 / (count / 2)) * 0.25);
-                    b2 = Math.floor((b2 / (count / 2)) * 0.25);
-
-                    // Application des variables CSS à l'élément racine (:root)
+                    // On injecte les couleurs vives dans l'aurora floutée
                     document.documentElement.style.setProperty('--gradient-color-1', `rgb(${r1}, ${g1}, ${b1})`);
                     document.documentElement.style.setProperty('--gradient-color-2', `rgb(${r2}, ${g2}, ${b2})`);
                 } catch (e) {
-                    console.error("Erreur d'analyse d'image pour l'arrière-plan :", e);
+                    console.error("Erreur d'analyse pour l'arrière-plan :", e);
                 }
             };
         }
@@ -678,7 +678,6 @@
 
                     highlightLyrics(data.progress_ms / 1000);
 
-                    // Si la pochette a changé, on recalcule le fond dynamique
                     if (art.src !== oldSrc) {
                         art.onload = () => updateDynamicBackground();
                     }
