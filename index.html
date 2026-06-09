@@ -690,20 +690,10 @@
             } catch (e) {}
         }
 
-         async function togglePlay() {
-    try {
-        // 1. On récupère l'état actuel pour savoir si on fait 'play' ou 'pause'
-        const res = await fetch('https://api.spotify.com/v1/me/player', { 
-            headers: { 'Authorization': 'Bearer ' + currentToken } 
-        });
-
-        if (res.status === 204) {
-            alert("Aucun appareil actif détecté. Lancez la musique sur Spotify d'abord !");
-            return;
         async function togglePlay() {
             try {
                 const res = await fetch('https://api.spotify.com/v1/me/player', { headers: { 'Authorization': 'Bearer ' + currentToken } });
-                if (res.status === 204) return alert("Lancez Spotify sur un appareil !");
+                if (res.status === 204) return alert("Activez d'abord votre lecteur Spotify.");
                 const playback = await res.json();
                 const endpoint = playback.is_playing ? 'pause' : 'play';
                 await fetch(`https://api.spotify.com/v1/me/player/${endpoint}`, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + currentToken } });
@@ -711,26 +701,35 @@
             } catch (e) {}
         }
 
-        const playback = await res.json();
-        const endpoint = playback.is_playing ? 'pause' : 'play';
-
-        // 2. On envoie l'ordre à Spotify (Correction de l'URL et du $)
-        await fetch(`https://api.spotify.com/v1/me/player/${endpoint}`, { 
-            method: 'PUT', 
-            headers: { 'Authorization': 'Bearer ' + currentToken } 
-        });
-
-        // 3. Petite pause pour laisser le temps à Spotify de changer d'état avant de rafraîchir
-        setTimeout(updateNowPlaying, 500);
-    } catch (error) {
-        console.error("Erreur togglePlay:", error);
-    }
-}
-
-        async function nextTrack() { await fetch('https://api.spotify.com/v1/me/player/next', { method: 'POST', headers: { 'Authorization': 'Bearer ' + currentToken } }); updateNowPlaying(); }
-        async function previousTrack() { await fetch('https://api.spotify.com/v1/me/player/previous', { method: 'POST', headers: { 'Authorization': 'Bearer ' + currentToken } }); updateNowPlaying(); }
-        async function nextTrack() { await fetch('https://api.spotify.com/v1/me/player/next', { method: 'POST', headers: { 'Authorization': 'Bearer ' + currentToken } }); setTimeout(updateNowPlaying, 500); }
-        async function previousTrack() { await fetch('https://api.spotify.com/v1/me/player/previous', { method: 'POST', headers: { 'Authorization': 'Bearer ' + currentToken } }); setTimeout(updateNowPlaying, 500); }
+        async function nextTrack() { 
+            if (!currentToken) return;
+            try {
+                const response = await fetch('https://api.spotify.com/v1/me/player/next', { 
+                    method: 'POST', 
+                    headers: { 'Authorization': 'Bearer ' + currentToken } 
+                }); 
+                if (response.status === 404) {
+                    alert("Aucun appareil actif trouvé. Lancez Spotify sur votre appareil.");
+                } else {
+                    setTimeout(updateNowPlaying, 600); 
+                }
+            } catch (e) { console.error(e); }
+        }
+        
+        async function previousTrack() { 
+            if (!currentToken) return;
+            try {
+                const response = await fetch('https://api.spotify.com/v1/me/player/previous', { 
+                    method: 'POST', 
+                    headers: { 'Authorization': 'Bearer ' + currentToken } 
+                }); 
+                if (response.status === 404) {
+                    alert("Aucun appareil actif trouvé. Lancez Spotify sur votre appareil.");
+                } else {
+                    setTimeout(updateNowPlaying, 600); 
+                }
+            } catch (e) { console.error(e); }
+        }
 
         function generateCodeVerifier(l) { let t = ''; let p = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'; for (let i = 0; i < l; i++) t += p.charAt(Math.floor(Math.random() * p.length)); return t; }
         async function generateCodeChallenge(v) { const d = await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(v)); return btoa(String.fromCharCode.apply(null, new Uint8Array(d))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
