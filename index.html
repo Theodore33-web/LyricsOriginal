@@ -8,23 +8,37 @@
         :root {
             --spotify-green: #1DB954;
             --bg-black: #121212;
-            --card-grey: #181818;
-            --light-grey: #282828;
+            --card-grey: rgba(24, 24, 24, 0.85);
+            --light-grey: rgba(40, 40, 40, 0.85);
             --text-grey: #b3b3b3;
+            --gradient-color-1: #121212;
+            --gradient-color-2: #1a1a1a;
         }
 
         body { 
             font-family: 'Segoe UI', sans-serif; 
-            background-color: var(--bg-black); 
+            /* Arrière-plan dégradé dynamique avec transition fluide */
+            background: linear-gradient(135deg, var(--gradient-color-1), var(--gradient-color-2), #121212);
+            background-size: 200% 200%;
+            animation: gradientMovement 15s ease infinite;
             color: white; 
             margin: 0;
             padding: 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
+            min-height: 100vh;
+            transition: background 1.5s ease;
         }
 
-        #login-section { text-align: center; margin-top: 100px; }
+        /* Animation subtile du fond en arrière-plan */
+        @keyframes gradientMovement {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        #login-section { text-align: center; margin-top: 100px; position: relative; z-index: 2; }
         #login-btn { 
             background-color: var(--spotify-green); color: white; border: none; 
             padding: 15px 40px; border-radius: 40px; font-weight: bold; 
@@ -39,17 +53,21 @@
             gap: 20px;
             margin-top: 20px;
             flex-direction: row;
+            position: relative;
+            z-index: 2;
         }
 
         .lyrics-section {
             flex: 2;
             background: var(--card-grey);
+            backdrop-filter: blur(10px);
             padding: 30px;
             border-radius: 20px;
             height: 75vh;
             overflow-y: auto;
             text-align: center;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255, 255, 255, 0.05);
         }
         .lyrics-section::-webkit-scrollbar { width: 0px; }
 
@@ -65,6 +83,7 @@
             opacity: 1;
             transform: scale(1.1);
             font-weight: bold;
+            text-shadow: 0 0 15px rgba(29, 185, 84, 0.4);
         }
 
         .sidebar {
@@ -77,10 +96,12 @@
 
         .card {
             background: var(--light-grey);
+            backdrop-filter: blur(10px);
             padding: 15px;
             border-radius: 20px;
             text-align: center;
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255, 255, 255, 0.05);
         }
 
         #avatar { border-radius: 50%; width: 50px; border: 2px solid var(--spotify-green); height: 50px; object-fit: cover; }
@@ -247,7 +268,7 @@
 
             <div class="card">
                 <p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 0;">LECTURE EN COURS</p>
-                <img id="track-art" src="" alt="" style="display:none;">
+                <img id="track-art" src="" alt="" style="display:none;" crossorigin="anonymous">
                 <h3 id="track-title">Aucune lecture</h3>
                 <p id="track-artist"></p>
                 
@@ -584,6 +605,60 @@
             });
         }
 
+        /* FONCTIONNALITÉ ARRIÈRE-PLAN DYNAMIQUE : Extrait les couleurs de la pochette */
+        function updateDynamicBackground() {
+            const img = document.getElementById('track-art');
+            if (!img || img.style.display === "none" || !img.src) return;
+
+            // On crée une image temporaire en mémoire pour éviter les blocages de rendu asynchrones
+            const tempImg = new Image();
+            tempImg.crossOrigin = "Anonymous";
+            tempImg.src = img.src;
+
+            tempImg.onload = function() {
+                try {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = 50; // Petite taille pour simplifier et moyenner les pixels
+                    canvas.height = 50;
+                    
+                    ctx.drawImage(tempImg, 0, 0, 50, 50);
+                    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+                    
+                    let r1 = 0, g1 = 0, b1 = 0;
+                    let r2 = 0, g2 = 0, b2 = 0;
+                    let count = imgData.length / 4;
+
+                    // Section supérieure gauche pour la couleur 1
+                    for (let i = 0; i < imgData.length / 2; i += 4) {
+                        r1 += imgData[i];
+                        g1 += imgData[i+1];
+                        b1 += imgData[i+2];
+                    }
+                    // Section inférieure droite pour la couleur 2
+                    for (let i = imgData.length / 2; i < imgData.length; i += 4) {
+                        r2 += imgData[i];
+                        g2 += imgData[i+1];
+                        b2 += imgData[i+2];
+                    }
+
+                    r1 = Math.floor((r1 / (count / 2)) * 0.4); // Assombri légèrement à 40% pour garantir la lisibilité
+                    g1 = Math.floor((g1 / (count / 2)) * 0.4);
+                    b1 = Math.floor((b1 / (count / 2)) * 0.4);
+
+                    r2 = Math.floor((r2 / (count / 2)) * 0.25); // Encore plus sombre pour le bas du dégradé (25%)
+                    g2 = Math.floor((g2 / (count / 2)) * 0.25);
+                    b2 = Math.floor((b2 / (count / 2)) * 0.25);
+
+                    // Application des variables CSS à l'élément racine (:root)
+                    document.documentElement.style.setProperty('--gradient-color-1', `rgb(${r1}, ${g1}, ${b1})`);
+                    document.documentElement.style.setProperty('--gradient-color-2', `rgb(${r2}, ${g2}, ${b2})`);
+                } catch (e) {
+                    console.error("Erreur d'analyse d'image pour l'arrière-plan :", e);
+                }
+            };
+        }
+
         async function updateNowPlaying() {
             if (!currentToken) return;
             try {
@@ -595,11 +670,18 @@
                     document.getElementById('track-title').innerText = data.item.name;
                     document.getElementById('track-artist').innerText = data.item.artists.map(a => a.name).join(", ");
                     const art = document.getElementById('track-art');
+                    
+                    const oldSrc = art.src;
                     art.src = data.item.album.images && data.item.album.images.length > 0 ? data.item.album.images[0].url : ""; 
                     art.style.display = "block";
                     document.getElementById('play-pause-btn').innerText = data.is_playing ? "⏸" : "▶️";
 
                     highlightLyrics(data.progress_ms / 1000);
+
+                    // Si la pochette a changé, on recalcule le fond dynamique
+                    if (art.src !== oldSrc) {
+                        art.onload = () => updateDynamicBackground();
+                    }
 
                     if (data.item.id !== lastTrackId) {
                         lastTrackId = data.item.id;
