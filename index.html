@@ -142,6 +142,32 @@
         #track-title { font-size: 1.2rem; margin: 10px 0 2px 0; }
         #track-artist { color: var(--text-grey); font-size: 0.9rem; margin-top: 0; }
 
+          /* --- STYLES DE LA BARRE DE PROGRESSION INTERACTIVE --- */
+        .progress-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin: 15px 5px 10px 5px;
+            font-size: 0.75rem;
+            color: var(--text-grey);
+        }
+        .progress-bar-bg {
+            flex: 1;
+            height: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            cursor: pointer;
+            position: relative;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--spotify-green);
+            border-radius: 3px;
+            transition: width 0.2s linear;
+        }
+        .progress-bar-bg:hover .progress-bar-fill { background: #1ed760; }
         .search-box {
             display: flex;
             gap: 6px;
@@ -290,7 +316,15 @@
                 <img id="track-art" src="" alt="" style="display:none;" crossorigin="anonymous">
                 <h3 id="track-title">Aucune lecture</h3>
                 <p id="track-artist"></p>
-                
+                 
+                <div class="progress-container">
+                    <span id="time-current">0:00</span>
+                    <div class="progress-bar-bg" onclick="seekTrack(event)">
+                        <div class="progress-bar-fill" id="progress-fill"></div>
+                    </div>
+                    <span id="time-max">0:00</span>
+                </div>
+
                 <div class="controls">
                     <button onclick="previousTrack()">⏮</button>
                     <button id="play-pause-btn" onclick="togglePlay()">▶️</button>
@@ -306,6 +340,7 @@
         let currentToken = "";
         let lastTrackId = "";
         let currentLyrics = [];
+          let trackDurationMs = 0; // Stockage global de la durée totale
 
         let libraryItems = [];
         let displayedCount = 10;
@@ -580,6 +615,32 @@
             if (e.key === 'Enter') searchTrack();
         });
 
+ // --- ENVOI DE LA COMMANDE SEEK (NAVIGATION DANS LA BARRE) ---
+        async function seekTrack(event) {
+            if (!currentToken || !trackDurationMs) return;
+            const rect = event.currentTarget.getBoundingClientRect();
+            const clickPositionRatio = (event.clientX - rect.left) / rect.width;
+            const targetPositionMs = Math.floor(clickPositionRatio * trackDurationMs);
+
+            try {
+                await fetch(`https://api.spotify.com/v1/me/player/seek?position_ms=${targetPositionMs}`, {
+    method: 'PUT',
+    headers: { 'Authorization': 'Bearer ' + currentToken }
+});
+                updateNowPlaying();
+            } catch (e) { console.error("Erreur de navigation :", e); }
+        }
+
+        // Convertit les millisecondes en format MM:SS
+        function formatTime(ms) {
+            const totalSeconds = Math.floor(ms / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+        }
+
+
+
         async function fetchLyrics(artist, title, album, duration) {
             try {
                 const url = `https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}&album_name=${encodeURIComponent(album)}&duration=${Math.round(duration)}`;
@@ -667,8 +728,16 @@
                 const data = await response.json();
 
                 if (data && data.item) {
+                      trackDurationMs = data.item.duration_ms; // Sauvegarde de la durée totale
                     document.getElementById('track-title').innerText = data.item.name;
                     document.getElementById('track-artist').innerText = data.item.artists.map(a => a.name).join(", ");
+                      
+                    // Mise à jour de la barre de progression visuelle et des timers
+                    document.getElementById('time-current').innerText = formatTime(data.progress_ms);
+                    document.getElementById('time-max').innerText = formatTime(trackDurationMs);
+                    const progressPercent = (data.progress_ms / trackDurationMs) * 100;
+                    document.getElementById('progress-fill').style.width = `${progressPercent}%`;
+
                     const art = document.getElementById('track-art');
                     
                     const oldSrc = art.src;
@@ -734,7 +803,11 @@
         function generateCodeVerifier(l) { let t = ''; let p = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'; for (let i = 0; i < l; i++) t += p.charAt(Math.floor(Math.random() * p.length)); return t; }
         async function generateCodeChallenge(v) { const d = await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(v)); return btoa(String.fromCharCode.apply(null, new Uint8Array(d))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
 
+           // Boucle de rafraîchissement
         setInterval(updateNowPlaying, 1000);
+
+       
+
     </script>
 </body>
 </html>
