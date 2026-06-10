@@ -649,10 +649,20 @@
                 
                 if (data.syncedLyrics) {
                     parseLyrics(data.syncedLyrics);
-                } else {
-                    document.getElementById('lyrics-content').innerText = data.plainLyrics || "Paroles synchronisées indisponibles.";
-                    currentLyrics = [];
-                }
+              } else if (data.plainLyrics) {
+    // On découpe le texte brut à chaque retour à la ligne
+    const plainLines = data.plainLyrics.split('\n');
+    
+    // On entoure chaque ligne avec le même style que les paroles synchro
+    document.getElementById('lyrics-content').innerHTML = plainLines
+        .map(line => `<div class="lyric-line" style="opacity: 1; transform: scale(1);">${line.trim()}</div>`)
+        .join('');
+        
+    currentLyrics = []; // On vide les synchros pour éviter les conflits
+} else {
+    document.getElementById('lyrics-content').innerHTML = `<div class="lyric-line" style="opacity: 1;">Paroles indisponibles.</div>`;
+    currentLyrics = [];
+}
             } catch (e) {
                 document.getElementById('lyrics-content').innerText = "Erreur de chargement des paroles.";
             }
