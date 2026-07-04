@@ -318,8 +318,9 @@
                     <button id="mic-btn" onclick="toggleMicrophoneListen()" title="Identifier via AudD">🎙️</button>
                     <button id="lib-toggle-btn" onclick="getUserLibrary()" title="Ouvrir ma bibliothèque (Likés)">📂</button>
                     <button id="record-drive-btn" onclick="startDriveRecording()" title="Enregistrer un audio pour Google Drive">📹</button>
+                <button id="profile-toggle-btn" onclick="toggleProfileCard()" title="Mon Profil">👤</button>
                 </div>
-
+                
 <div id="drive-record-zone" style="display: none; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 12px; margin-top: 10px; font-size: 0.85rem;">
     <p style="margin: 5px 0; color: var(--spotify-green); font-weight: bold;">Enregistrement Drive</p>
     <div id="record-timer" style="font-size: 1.1rem; font-weight: bold; margin: 5px 0;">00:00</div>
@@ -332,7 +333,16 @@
     </div>
     <p id="drive-status-msg" style="margin: 5px 0; font-size: 0.8rem; color: var(--text-grey);"></p>
 </div>
-            
+          
+<div id="profile-card-zone" style="display: none; background: rgba(255,255,255,0.05); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px); padding: 15px; border-radius: 12px; margin-top: 10px; border: 1px solid rgba(255, 255, 255, 0.08);">
+    <div style="display: flex; align-items: center; justify-content: center; gap: 15px;">
+        <img id="profile-card-avatar" src="https://via.placeholder.com/50" alt="Avatar" style="border-radius: 50%; width: 50px; height: 50px; border: 2px solid var(--spotify-green); object-fit: cover;">
+        <div style="text-align: left;">
+            <h4 id="profile-card-name" style="margin: 0;">Théo</h4>
+            <span style="color: var(--spotify-green); font-size: 11px; font-weight: bold;">PREMIUM</span>
+        </div>
+    </div>
+</div>
                 <div id="search-results"></div>
             </div>
 
@@ -425,6 +435,33 @@ window.onload = function() {
     gisInit();
 };
 
+        // Fonction pour afficher/masquer le profil
+function toggleProfileCard() {
+    const profileZone = document.getElementById('profile-card-zone');
+    
+    // 💡 1. Si d'autres zones d'affichage comme les résultats de recherche ou l'enregistreur Drive sont ouvertes, on peut les fermer ici
+    document.getElementById('search-results').innerHTML = ""; 
+    const driveZone = document.getElementById('drive-record-zone');
+    if (driveZone) driveZone.style.display = 'none';
+
+    // 💡 2. Logique de bascule (on/off)
+    if (profileZone.style.display === 'none') {
+        profileZone.style.display = 'block';
+        
+        // Optionnel : On récupère l'image de l'avatar réel de Spotify s'il est déjà chargé dans l'ancienne zone du haut
+        const currentAvatar = document.getElementById('avatar')?.src;
+        if (currentAvatar) {
+            document.getElementById('profile-card-avatar').src = currentAvatar;
+        }
+    } else {
+        profileZone.style.display = 'none';
+    }
+}
+
+// 💡 3. Pour que le profil se ferme automatiquement quand tu cliques sur un AUTRE bouton
+// Modifie tes fonctions existantes (searchTrack, getUserLibrary, startDriveRecording, getRecentlyPlayed) 
+// pour y ajouter cette ligne tout au début :
+// document.getElementById('profile-card-zone').style.display = 'none';
         
         async function redirectToSpotify() {
             const verifier = generateCodeVerifier(128);
@@ -468,6 +505,7 @@ window.onload = function() {
         }
 
         async function getUserLibrary() {
+            document.getElementById('profile-card-zone').style.display = 'none';
             if (!currentToken) return;
             const resultsContainer = document.getElementById('search-results');
             resultsContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement de la bibliothèque...</p>";
@@ -532,6 +570,7 @@ window.onload = function() {
         }
 // 1. Démarrer le micro et lancer le chronomètre en dessous
 async function startDriveRecording() {
+   document.getElementById('profile-card-zone').style.display = 'none';
     const statusMsg = document.getElementById('drive-status-msg');
     const recordZone = document.getElementById('drive-record-zone');
     const saveZone = document.getElementById('drive-save-zone');
@@ -637,6 +676,7 @@ async function executeActualUpload() {
     }
 }
         async function toggleMicrophoneListen() {
+            document.getElementById('profile-card-zone').style.display = 'none';
             const micBtn = document.getElementById('mic-btn');
             const resultsContainer = document.getElementById('search-results');
 
@@ -733,6 +773,7 @@ async function executeActualUpload() {
         }
 
         async function searchTrack() {
+            document.getElementById('profile-card-zone').style.display = 'none';
             const query = document.getElementById('search-input').value;
             if (!query || !currentToken) return;
 
