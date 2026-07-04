@@ -1,0 +1,14 @@
+:root {
+    --spotify-green: #1DB954;
+    --bg-black: #121212;
+    --card-grey: rgba(24, 24, 24, 0.75);
+    --light-grey: rgba(40, 40, 40, 0.75);
+    --text-grey: #b3b3b3;
+    /* Couleurs de base avant lecture */
+    --gradient-color-1: #134e5e;
+    --gradient-color-2: #71b280;
+}
+body { 
+    font-family: 'Segoe UI', sans-serif; 
+    background-color: var(--bg-black);
+    color: whi
