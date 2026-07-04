@@ -1,4 +1,4 @@
-        const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
+   const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
         let currentToken = "";
         let lastTrackId = "";
@@ -65,7 +65,6 @@
             gisInit();
         };
 
-        // Fonction pour afficher/masquer le profil
         function toggleProfileCard() {
             const profileZone = document.getElementById('profile-card-zone');
             document.getElementById('search-results').innerHTML = ""; 
@@ -113,7 +112,6 @@
                 
                 document.getElementById('dashboard').style.display = 'flex';
                 
-                // On attend une fraction de seconde pour que les éléments HTML soient prêts
                 setTimeout(() => {
                     if (document.getElementById('profile-card-name')) {
                         document.getElementById('profile-card-name').innerText = user.display_name || "Théo";
@@ -136,7 +134,7 @@
             resultsContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement de la bibliothèque...</p>";
             
             try {
-                const response = await fetch('https://api.spotify.com/v1/me/tracks?limit=50', {
+                const response = await fetch('https://api.spotify.com/v1/me/tracks', {
                     headers: { 'Authorization': 'Bearer ' + currentToken }
                 });
                 const data = await response.json();
@@ -404,8 +402,7 @@
             if (!query || !currentToken) return;
 
             try {
-                // 👍 CORRIGÉ : L'URL utilise désormais la syntaxe réglementaire ${...}
-                const response = await fetch(`http://googleusercontent.com/spotify.com/${encodeURIComponent(query)}&type=track&limit=5`, {
+                const response = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=5`, {
                     headers: { 'Authorization': 'Bearer ' + currentToken }
                 });
                 const data = await response.json();
@@ -460,16 +457,14 @@
             const targetPositionMs = Math.floor(clickPositionRatio * trackDurationMs);
 
             try {
-                // 👍 CORRIGÉ : L'URL utilise désormais la syntaxe réglementaire ${...}
-                await fetch(`http://googleusercontent.com/spotify.com/${targetPositionMs}`, {
+                await fetch(`https://api.spotify.com/v1/me/player/seek?position_ms=${targetPositionMs}`, {
                     method: 'PUT',
                     headers: { 'Authorization': 'Bearer ' + currentToken }
                 });
-                
                 setTimeout(updateNowPlaying, 300);
             } catch (e) { console.error("Erreur de navigation dans le morceau :", e); }
         }
-      
+
         function formatTime(ms) {
             const totalSeconds = Math.floor(ms / 1000);
             const minutes = Math.floor(totalSeconds / 60);
@@ -603,8 +598,7 @@
                 const playback = await res.json();
                 const endpoint = playback.is_playing ? 'pause' : 'play';
                 
-                // 👍 CORRIGÉ : L'URL utilise désormais la syntaxe réglementaire ${...}
-                await fetch(`http://googleusercontent.com/spotify.com/${endpoint}`, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + currentToken } });
+                await fetch(`https://api.spotify.com/v1/me/player/${endpoint}`, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + currentToken } });
                 setTimeout(updateNowPlaying, 500);
             } catch (e) { console.error(e); }
         }
@@ -652,7 +646,7 @@
             resultsContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement de l'historique...</p>";
 
             try {
-                const response = await fetch('https://api.spotify.com/v1/me/player/recently-played?limit=10', {
+                const response = await fetch('https://api.spotify.com/v1/me/player/recently-played', {
                     headers: { 'Authorization': 'Bearer ' + currentToken }
                 });
                 const data = await response.json();
@@ -672,13 +666,13 @@
         }
 
         function renderRecentPlayedSection() {
-            const resultsContainer = document.getElementById('search-results');
-            resultsContainer.innerHTML = "";
+            const GlassContainer = document.getElementById('search-results');
+            GlassContainer.innerHTML = "";
 
             const titleHeader = document.createElement('p');
             titleHeader.style = "color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;";
             titleHeader.innerText = "ÉCOUTES RÉCENTES";
-            resultsContainer.appendChild(titleHeader);
+            GlassContainer.appendChild(titleHeader);
 
             const itemsToDisplay = recentItems.slice(0, displayedRecentCount);
 
@@ -694,7 +688,7 @@
                     </div>
                 `;
                 item.onclick = () => { playTrack(track.uri); };
-                resultsContainer.appendChild(item);
+                GlassContainer.appendChild(item);
             });
 
             if (recentItems.length > displayedRecentCount) {
@@ -706,6 +700,6 @@
                     displayedRecentCount += 10; 
                     renderRecentPlayedSection(); 
                 };
-                resultsContainer.appendChild(moreBtn);
+                GlassContainer.appendChild(moreBtn);
             }
         }
