@@ -382,6 +382,7 @@ const API_KEY = "METS_ICI_TA_VRAIE_CLE_API_CONSOLLE_GOOGLE"; // Ex: AIzaSyD...
 const DRIVE_FOLDER_ID = "1pWabyYlPEyDuLTfdbLX1zPzfhWuXPJAt"; // L'identifiant du dossier cible
 const SCOPES = 'https://www.googleapis.com/auth/drive.file';
 
+        
 // Variables Enregistreur Google Drive
 let tokenClient;
 let gapiInited = false;
@@ -395,7 +396,7 @@ let finalAudioBlob = null;
         
         const params = new URLSearchParams(window.location.search);
         const code = params.get("code");
-
+const scope = "user-read-private user-read-email user-modify-playback-state user-read-playback-state user-library-read playlist-read-private user-read-recently-played";
         if (code) {
             document.getElementById('login-section').style.display = 'none';
             handleCallback(code);
