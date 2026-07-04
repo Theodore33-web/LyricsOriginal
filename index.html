@@ -382,7 +382,6 @@ const API_KEY = "METS_ICI_TA_VRAIE_CLE_API_CONSOLLE_GOOGLE"; // Ex: AIzaSyD...
 const DRIVE_FOLDER_ID = "1pWabyYlPEyDuLTfdbLX1zPzfhWuXPJAt"; // L'identifiant du dossier cible
 const SCOPES = 'https://www.googleapis.com/auth/drive.file';
 
-        
 // Variables Enregistreur Google Drive
 let tokenClient;
 let gapiInited = false;
@@ -396,7 +395,7 @@ let finalAudioBlob = null;
         
         const params = new URLSearchParams(window.location.search);
         const code = params.get("code");
-const scope = "user-read-private user-read-email user-modify-playback-state user-read-playback-state user-library-read playlist-read-private user-read-recently-played";
+
         if (code) {
             document.getElementById('login-section').style.display = 'none';
             handleCallback(code);
@@ -484,30 +483,19 @@ function toggleProfileCard() {
             }
         }
 
-     async function getUserData(token) {
-    currentToken = token;
-    try {
-        const response = await fetch('https://api.spotify.com/v1/me', { headers: { 'Authorization': 'Bearer ' + token } });
-        const user = await response.json();
-        
-        // On affiche le dashboard
-        document.getElementById('dashboard').style.display = 'flex';
-        
-        // ✍️ MODIFICATION : On injecte le nom dans ton nouveau profil caché
-        if (document.getElementById('profile-card-name')) {
-            document.getElementById('profile-card-name').innerText = user.display_name;
+        async function getUserData(token) {
+            currentToken = token;
+            try {
+                const response = await fetch('https://api.spotify.com/v1/me', { headers: { 'Authorization': 'Bearer ' + token } });
+                const user = await response.json();
+                document.getElementById('dashboard').style.display = 'flex';
+                document.getElementById('name').innerText = user.display_name;
+                document.getElementById('avatar').src = user.images && user.images.length > 0 ? user.images[0].url : "https://via.placeholder.com/50";
+                updateNowPlaying();
+            } catch (e) {
+                console.error("Impossible de récupérer le profil : ", e);
+            }
         }
-        
-        // 📷 MODIFICATION : On injecte la vraie photo dans ta nouvelle carte de profil
-        if (document.getElementById('profile-card-avatar')) {
-            document.getElementById('profile-card-avatar').src = user.images && user.images.length > 0 ? user.images[0].url : "https://via.placeholder.com/50";
-        }
-        
-        updateNowPlaying();
-    } catch (e) {
-        console.error("Impossible de récupérer le profil : ", e);
-    }
-}
 
         async function getUserLibrary() {
             document.getElementById('profile-card-zone').style.display = 'none';
@@ -1031,7 +1019,6 @@ async function executeActualUpload() {
 
            // Boucle de rafraîchissement
         setInterval(updateNowPlaying, 1000);
-        
 async function getRecentlyPlayed() {
     // 💡 Ferme automatiquement le profil de Théo quand on clique sur le livre
     document.getElementById('profile-card-zone').style.display = 'none'; 
@@ -1042,9 +1029,8 @@ async function getRecentlyPlayed() {
     resultsContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement de l'historique...</p>";
 
     try {
-     const response = await fetch('https://api.spotify.com/v1/me/player/recently-played?limit=10', {
-    headers: { 'Authorization': 'Bearer ' + currentToken }
-});
+        const response = await fetch('https://api.spotify.com/v1/me/player/recently-played?limit=10', {
+            headers: { 'Authorization': 'Bearer ' + currentToken }
         });
         const data = await response.json();
         resultsContainer.innerHTML = "";
@@ -1081,3 +1067,4 @@ async function getRecentlyPlayed() {
     </script>
 </body>
 </html>
+
