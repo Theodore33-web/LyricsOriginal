@@ -287,7 +287,7 @@
     <div class="background-aurora" id="bg-aurora"></div>
 
     <div id="login-section">
-        <h1 style="color: var(--spotify-green); font-size: 3rem; margin-bottom: 10px;">Lyrics Original V1.02</h1>
+        <h1 style="color: var(--spotify-green); font-size: 3rem; margin-bottom: 10px;">Lyrics Original</h1>
         <p style="color: var(--text-grey); margin-bottom: 30px;">Vos paroles synchronisées et votre bibliothèque réunies.</p>
         <button id="login-btn">Se connecter avec Spotify</button>
     </div>
@@ -561,7 +561,6 @@
             const recordZone = document.getElementById('drive-record-zone');
             const saveZone = document.getElementById('drive-save-zone');
             
-            // 🛑 LE CORRECTIF EST ICI : Si un ancien compteur tourne déjà, on l'arrête immédiatement
             if (driveTimerInterval) {
                 clearInterval(driveTimerInterval);
                 driveTimerInterval = null;
@@ -594,8 +593,8 @@
 
                 driveRecorder.onstop = () => {
                     clearInterval(driveTimerInterval);
-                    driveTimerInterval = null; // Sécurité additionnelle
-                    statusMsg.innerText = "Enregistrement stoppé. Choisissez un titre.";
+                    driveTimerInterval = null; 
+                    statusMsg.innerText = "Enregistrement stoppé. Choose un titre.";
                     finalAudioBlob = new Blob(driveAudioChunks, { type: 'audio/mp3' });
                     stream.getTracks().forEach(track => track.stop()); 
                     saveZone.style.display = 'block'; 
@@ -766,7 +765,7 @@
             if (!query || !currentToken) return;
 
             try {
-                // ⚡️ CORRIGÉ : Remplacement du 9 par $
+                // 🛠 FIX SYNTAXE : Remplacement de 9{...} par ${...}
                 const response = await fetch(`http://googleusercontent.com/spotify.com/${encodeURIComponent(query)}&type=track&limit=5`, {
                     headers: { 'Authorization': 'Bearer ' + currentToken }
                 });
@@ -822,7 +821,7 @@
             const targetPositionMs = Math.floor(clickPositionRatio * trackDurationMs);
 
             try {
-                // ⚡️ CORRIGÉ : Remplacement du 8 par $
+                // 🛠 FIX SYNTAXE : Remplacement de 8{...} par ${...}
                 await fetch(`http://googleusercontent.com/spotify.com/${targetPositionMs}`, {
                     method: 'PUT',
                     headers: { 'Authorization': 'Bearer ' + currentToken }
@@ -831,7 +830,7 @@
                 setTimeout(updateNowPlaying, 300);
             } catch (e) { console.error("Erreur de navigation dans le morceau :", e); }
         }
-
+      
         function formatTime(ms) {
             const totalSeconds = Math.floor(ms / 1000);
             const minutes = Math.floor(totalSeconds / 60);
@@ -965,7 +964,7 @@
                 const playback = await res.json();
                 const endpoint = playback.is_playing ? 'pause' : 'play';
                 
-                // ⚡️ CORRIGÉ : Remplacement du 4 par $
+                // 🛠 FIX SYNTAXE : Remplacement de 4{...} par ${...}
                 await fetch(`http://googleusercontent.com/spotify.com/${endpoint}`, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + currentToken } });
                 setTimeout(updateNowPlaying, 500);
             } catch (e) { console.error(e); }
