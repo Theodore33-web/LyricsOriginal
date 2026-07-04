@@ -172,40 +172,46 @@
             transition: width 0.2s linear;
         }
         .progress-bar-bg:hover .progress-bar-fill { background: #1ed760; }
-        .search-box {
-            display: flex;
-            gap: 6px;
-            margin-bottom: 10px;
-            align-items: center;
-        }
-        .search-box input {
-            flex: 1;
-            max-width: 150px;
-            background: #121212;
-            border: 1px solid #333;
-            border-radius: 20px;
-            padding: 8px 12px;
-            color: white;
-            outline: none;
-            font-size: 0.85rem;
-        }
-        .search-box input:focus { border-color: var(--spotify-green); }
-        
-        .search-box button {
-            background: var(--spotify-green);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 34px;
-            height: 34px;
-            cursor: pointer;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-        }
-        
+
+/* --- BARRE DE RECHERCHE COMPACTE ET ALIGNÉE À GAUCHE --- */
+.search-box {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 10px;
+    align-items: center;
+    max-width: 400px;
+    width: 100%;
+    margin-right: auto; /* 💡 Aligne la barre et pousse tout le reste à droite */
+}
+
+.search-box input {
+    flex: 1;
+    background: #121212;
+    border: 1px solid #333;
+    border-radius: 20px;
+    padding: 6px 12px; /* 💡 Hauteur légèrement réduite */
+    color: white;
+    outline: none;
+    font-size: 0.85rem;
+    min-width: 0; /* 💡 Empêche l'input d'écraser les boutons sur petit écran */
+}
+.search-box input:focus { border-color: var(--spotify-green); }
+
+.search-box button {
+    background: var(--spotify-green);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 28px;  /* 💡 Diamètre réduit de 34px à 28px */
+    height: 28px; /* 💡 Diamètre réduit de 34px à 28px */
+    cursor: pointer;
+    font-size: 0.85rem; /* 💡 Émojis ajustés pour la taille des boutons */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0; /* 💡 Force les boutons à rester parfaitement ronds */
+}
+ 
         #mic-btn {
             background: #333;
             transition: background 0.3s, transform 0.2s;
