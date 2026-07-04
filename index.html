@@ -594,7 +594,7 @@
                 driveRecorder.onstop = () => {
                     clearInterval(driveTimerInterval);
                     driveTimerInterval = null; 
-                    statusMsg.innerText = "Enregistrement stoppé. Choose un titre.";
+                    statusMsg.innerText = "Enregistrement stoppé. Choisissez un titre.";
                     finalAudioBlob = new Blob(driveAudioChunks, { type: 'audio/mp3' });
                     stream.getTracks().forEach(track => track.stop()); 
                     saveZone.style.display = 'block'; 
@@ -765,7 +765,7 @@
             if (!query || !currentToken) return;
 
             try {
-                // 🛠 FIX SYNTAXE : Remplacement de 9{...} par ${...}
+                // 👍 CORRIGÉ : L'URL utilise désormais la syntaxe réglementaire ${...}
                 const response = await fetch(`http://googleusercontent.com/spotify.com/${encodeURIComponent(query)}&type=track&limit=5`, {
                     headers: { 'Authorization': 'Bearer ' + currentToken }
                 });
@@ -821,7 +821,7 @@
             const targetPositionMs = Math.floor(clickPositionRatio * trackDurationMs);
 
             try {
-                // 🛠 FIX SYNTAXE : Remplacement de 8{...} par ${...}
+                // 👍 CORRIGÉ : L'URL utilise désormais la syntaxe réglementaire ${...}
                 await fetch(`http://googleusercontent.com/spotify.com/${targetPositionMs}`, {
                     method: 'PUT',
                     headers: { 'Authorization': 'Bearer ' + currentToken }
@@ -964,7 +964,7 @@
                 const playback = await res.json();
                 const endpoint = playback.is_playing ? 'pause' : 'play';
                 
-                // 🛠 FIX SYNTAXE : Remplacement de 4{...} par ${...}
+                // 👍 CORRIGÉ : L'URL utilise désormais la syntaxe réglementaire ${...}
                 await fetch(`http://googleusercontent.com/spotify.com/${endpoint}`, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + currentToken } });
                 setTimeout(updateNowPlaying, 500);
             } catch (e) { console.error(e); }
