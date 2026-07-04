@@ -1,5 +1,5 @@
 // Définition de la version actuelle de l'application
-const APP_VERSION = "v1.0.0"; 
+const APP_VERSION = "v1.0.1"; 
 
 // Fonction qui crée et affiche le badge de version en bas à droite
 function displayVersionBadge() {
