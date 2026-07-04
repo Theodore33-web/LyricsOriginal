@@ -554,12 +554,17 @@ let displayedRecentCount = 10; // 👈 AJOUTE CETTE LIGNE : Pour savoir combien 
                 resultsContainer.appendChild(moreBtn);
             }
         }
-
-        async function startDriveRecording() {
+async function startDriveRecording() {
             document.getElementById('profile-card-zone').style.display = 'none';
             const statusMsg = document.getElementById('drive-status-msg');
             const recordZone = document.getElementById('drive-record-zone');
             const saveZone = document.getElementById('drive-save-zone');
+            
+            // 🛑 LE CORRECTIF EST ICI : Si un ancien compteur tourne déjà, on l'arrête immédiatement
+            if (driveTimerInterval) {
+                clearInterval(driveTimerInterval);
+                driveTimerInterval = null;
+            }
             
             recordZone.style.display = 'block';
             saveZone.style.display = 'none';
@@ -588,6 +593,7 @@ let displayedRecentCount = 10; // 👈 AJOUTE CETTE LIGNE : Pour savoir combien 
 
                 driveRecorder.onstop = () => {
                     clearInterval(driveTimerInterval);
+                    driveTimerInterval = null; // Sécurité additionnelle
                     statusMsg.innerText = "Enregistrement stoppé. Choisissez un titre.";
                     finalAudioBlob = new Blob(driveAudioChunks, { type: 'audio/mp3' });
                     stream.getTracks().forEach(track => track.stop()); 
@@ -604,7 +610,6 @@ let displayedRecentCount = 10; // 👈 AJOUTE CETTE LIGNE : Pour savoir combien 
         function stopDriveRecording() {
             if (driveRecorder && driveRecorder.state !== "inactive") driveRecorder.stop();
         }
-
         function prepareUploadToDrive() {
             const inputName = document.getElementById('audio-filename').value.trim();
             const statusMsg = document.getElementById('drive-status-msg');
