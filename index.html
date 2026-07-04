@@ -813,19 +813,23 @@ async function startDriveRecording() {
         });
 
         async function seekTrack(event) {
-            if (!currentToken || !trackDurationMs) return;
-            const rect = event.currentTarget.getBoundingClientRect();
-            const clickPositionRatio = (event.clientX - rect.left) / rect.width;
-            const targetPositionMs = Math.floor(clickPositionRatio * trackDurationMs);
+    if (!currentToken || !trackDurationMs) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const clickPositionRatio = (event.clientX - rect.left) / rect.width;
+    const targetPositionMs = Math.floor(clickPositionRatio * trackDurationMs);
 
-            try {
-                await fetch(`https://api.spotify.com/v1/me/player/seek?position_ms=$${targetPositionMs}`, {
-                    method: 'PUT',
-                    headers: { 'Authorization': 'Bearer ' + currentToken }
-                });
-                updateNowPlaying();
-            } catch (e) { console.error("Erreur de navigation :", e); }
-        }
+    try {
+        // ⚡️ CORRIGÉ : Syntaxe correcte avec $ et paramètre officiel de l'API Spotify (position_ms)
+        await fetch(`https://api.spotify.com/v1/me/player/seek?position_ms=${targetPositionMs}`, {
+            method: 'PUT',
+            headers: { 'Authorization': 'Bearer ' + currentToken }
+        });
+        
+        // On force une mise à jour immédiate de l'affichage pour que la barre se déplace tout de suite
+        setTimeout(updateNowPlaying, 300);
+    } catch (e) { console.error("Erreur de navigation dans le morceau :", e); }
+}
+      
 
         function formatTime(ms) {
             const totalSeconds = Math.floor(ms / 1000);
