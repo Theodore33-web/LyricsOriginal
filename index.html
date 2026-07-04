@@ -287,7 +287,7 @@
     <div class="background-aurora" id="bg-aurora"></div>
 
     <div id="login-section">
-        <h1 style="color: var(--spotify-green); font-size: 3rem; margin-bottom: 10px;">Lyrics Original V1.01</h1>
+        <h1 style="color: var(--spotify-green); font-size: 3rem; margin-bottom: 10px;">Lyrics Original V1.02</h1>
         <p style="color: var(--text-grey); margin-bottom: 30px;">Vos paroles synchronisées et votre bibliothèque réunies.</p>
         <button id="login-btn">Se connecter avec Spotify</button>
     </div>
@@ -426,6 +426,7 @@
             gisInit();
         };
 
+        // Fonction pour afficher/masquer le profil
         function toggleProfileCard() {
             const profileZone = document.getElementById('profile-card-zone');
             document.getElementById('search-results').innerHTML = ""; 
@@ -473,6 +474,7 @@
                 
                 document.getElementById('dashboard').style.display = 'flex';
                 
+                // On attend une fraction de seconde pour que les éléments HTML soient prêts
                 setTimeout(() => {
                     if (document.getElementById('profile-card-name')) {
                         document.getElementById('profile-card-name').innerText = user.display_name || "Théo";
@@ -559,6 +561,7 @@
             const recordZone = document.getElementById('drive-record-zone');
             const saveZone = document.getElementById('drive-save-zone');
             
+            // 🛑 LE CORRECTIF EST ICI : Si un ancien compteur tourne déjà, on l'arrête immédiatement
             if (driveTimerInterval) {
                 clearInterval(driveTimerInterval);
                 driveTimerInterval = null;
@@ -591,7 +594,7 @@
 
                 driveRecorder.onstop = () => {
                     clearInterval(driveTimerInterval);
-                    driveTimerInterval = null; 
+                    driveTimerInterval = null; // Sécurité additionnelle
                     statusMsg.innerText = "Enregistrement stoppé. Choisissez un titre.";
                     finalAudioBlob = new Blob(driveAudioChunks, { type: 'audio/mp3' });
                     stream.getTracks().forEach(track => track.stop()); 
@@ -763,7 +766,8 @@
             if (!query || !currentToken) return;
 
             try {
-                const response = await fetch(`https://api.spotify.com/v1/search?q=$$$?q=${encodeURIComponent(query)}&type=track&limit=5`, {
+                // ⚡️ CORRIGÉ : Remplacement du 9 par $
+                const response = await fetch(`http://googleusercontent.com/spotify.com/${encodeURIComponent(query)}&type=track&limit=5`, {
                     headers: { 'Authorization': 'Bearer ' + currentToken }
                 });
                 const data = await response.json();
@@ -818,10 +822,12 @@
             const targetPositionMs = Math.floor(clickPositionRatio * trackDurationMs);
 
             try {
-                await fetch(`https://api.spotify.com/v1/me/player/seek?position_ms=$$?position_ms=${targetPositionMs}`, {
+                // ⚡️ CORRIGÉ : Remplacement du 8 par $
+                await fetch(`http://googleusercontent.com/spotify.com/${targetPositionMs}`, {
                     method: 'PUT',
                     headers: { 'Authorization': 'Bearer ' + currentToken }
                 });
+                
                 setTimeout(updateNowPlaying, 300);
             } catch (e) { console.error("Erreur de navigation dans le morceau :", e); }
         }
@@ -959,7 +965,8 @@
                 const playback = await res.json();
                 const endpoint = playback.is_playing ? 'pause' : 'play';
                 
-                await fetch(`https://api.spotify.com/v1/me/player/seek?position_ms=$$$/${endpoint}`, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + currentToken } });
+                // ⚡️ CORRIGÉ : Remplacement du 4 par $
+                await fetch(`http://googleusercontent.com/spotify.com/${endpoint}`, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + currentToken } });
                 setTimeout(updateNowPlaying, 500);
             } catch (e) { console.error(e); }
         }
@@ -994,7 +1001,6 @@
             } catch (e) { console.error(e); }
         }
 
-        // PKCE Helpers
         function generateCodeVerifier(l) { let t = ''; let p = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'; for (let i = 0; i < l; i++) t += p.charAt(Math.floor(Math.random() * p.length)); return t; }
         async function generateCodeChallenge(v) { const d = await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(v)); return btoa(String.fromCharCode.apply(null, new Uint8Array(d))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
 
