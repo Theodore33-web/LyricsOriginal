@@ -307,7 +307,22 @@
                     <button onclick="searchTrack()" title="Rechercher par texte">🔍</button>
                     <button id="mic-btn" onclick="toggleMicrophoneListen()" title="Identifier via AudD">🎙️</button>
                     <button id="lib-toggle-btn" onclick="getUserLibrary()" title="Ouvrir ma bibliothèque (Likés)">📂</button>
+                    <button id="record-drive-btn" onclick="startDriveRecording()" title="Enregistrer un audio pour Google Drive">📹</button>
                 </div>
+
+<div id="drive-record-zone" style="display: none; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 12px; margin-top: 10px; font-size: 0.85rem;">
+    <p style="margin: 5px 0; color: var(--spotify-green); font-weight: bold;">Enregistrement Drive</p>
+    <div id="record-timer" style="font-size: 1.1rem; font-weight: bold; margin: 5px 0;">00:00</div>
+    <div id="record-actions">
+        <button onclick="stopDriveRecording()" style="background: #ef4444; color: white; border: none; border-radius: 20px; padding: 5px 15px; cursor: pointer; font-weight: bold;">🛑 Stopper</button>
+    </div>
+    <div id="drive-save-zone" style="display: none; margin-top: 10px;">
+        <input type="text" id="audio-filename" placeholder="Nom de l'audio..." style="width: 80%; background: #121212; border: 1px solid #333; border-radius: 20px; padding: 6px 12px; color: white; margin-bottom: 8px;">
+        <button onclick="prepareUploadToDrive()" style="background: var(--spotify-green); color: white; border: none; border-radius: 20px; padding: 6px 15px; cursor: pointer; font-weight: bold; width: 85%;">💾 Sauvegarder sur Drive</button>
+    </div>
+    <p id="drive-status-msg" style="margin: 5px 0; font-size: 0.8rem; color: var(--text-grey);"></p>
+</div>
+            
                 <div id="search-results"></div>
             </div>
 
@@ -351,6 +366,22 @@
         let audioChunks = [];
         let isRecording = false;
 
+// Configuration avec tes identifiants intégrés
+const API_KEY = "443005295505-fs8f7rtj6hmh53ksv9ra1eenckf4vu6b.apps.googleusercontent.com";
+const CLIENT_ID = "443005295505-p17o76k2prnc4rvqen2ovrl3oehepknk.apps.googleusercontent.com";
+const SCOPES = 'https://www.googleapis.com/auth/drive.file';
+
+// Variables d'état pour Google Drive et l'enregistreur
+let tokenClient;
+let gapiInited = false;
+let gisiInited = false;
+let googleAccessToken = null;
+let driveRecorder = null;
+let driveAudioChunks = [];
+let driveTimerInterval = null;
+let driveSecondsElapsed = 0;
+let finalAudioBlob = null;
+        
         const params = new URLSearchParams(window.location.search);
         const code = params.get("code");
 
@@ -360,7 +391,33 @@
         } else {
             document.getElementById('login-btn').onclick = () => redirectToSpotify();
         }
+function gapiLoad() {
+    gapi.load('client', async () => {
+        await gapi.client.init({ apiKey: API_KEY, discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"] });
+        gapiInited = true;
+    });
+}
 
+function gisInit() {
+    tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: CLIENT_ID,
+        scope: SCOPES,
+        callback: (tokenResponse) => {
+            if (tokenResponse.error !== undefined) throw (tokenResponse);
+            googleAccessToken = tokenResponse.access_token;
+            executeActualUpload(); // Relance l'envoi une fois le jeton obtenu
+        },
+    });
+    gisiInited = true;
+}
+
+// À appeler dans ton window.onload existant
+window.onload = function() {
+    gapiLoad();
+    gisInit();
+};
+
+        
         async function redirectToSpotify() {
             const verifier = generateCodeVerifier(128);
             const challenge = await generateCodeChallenge(verifier);
@@ -465,7 +522,112 @@
                 resultsContainer.appendChild(moreBtn);
             }
         }
+// 1. Démarrer le micro et lancer le chronomètre en dessous
+async function startDriveRecording() {
+    const statusMsg = document.getElementById('drive-status-msg');
+    const recordZone = document.getElementById('drive-record-zone');
+    const saveZone = document.getElementById('drive-save-zone');
+    
+    recordZone.style.display = 'block';
+    saveZone.style.display = 'none';
+    statusMsg.innerText = "Initialisation du micro...";
+    driveAudioChunks = [];
+    driveSecondsElapsed = 0;
+    document.getElementById('record-timer').innerText = "00:00";
 
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        driveRecorder = new MediaRecorder(stream);
+
+        driveRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) driveAudioChunks.push(event.data);
+        };
+
+        driveRecorder.onstart = () => {
+            statusMsg.innerText = "Enregistrement en cours...";
+            // Met à jour l'affichage de la durée chaque seconde
+            driveTimerInterval = setInterval(() => {
+                driveSecondsElapsed++;
+                const mins = String(Math.floor(driveSecondsElapsed / 60)).padStart(2, '0');
+                const secs = String(driveSecondsElapsed % 60).padStart(2, '0');
+                document.getElementById('record-timer').innerText = `${mins}:${secs}`;
+            }, 1000);
+        };
+
+        driveRecorder.onstop = () => {
+            clearInterval(driveTimerInterval);
+            statusMsg.innerText = "Enregistrement stoppé. Choisissez un titre.";
+            finalAudioBlob = new Blob(driveAudioChunks, { type: 'audio/mp3' });
+            stream.getTracks().forEach(track => track.stop()); // Éteint le micro
+            saveZone.style.display = 'block'; // Affiche le champ titre et sauvegarde
+        };
+
+        driveRecorder.start();
+    } catch (err) {
+        statusMsg.style.color = '#ef4444';
+        statusMsg.innerText = "Microphone inaccessible.";
+    }
+}
+
+// 2. Arrêter la capture audio
+function stopDriveRecording() {
+    if (driveRecorder && driveRecorder.state !== "inactive") driveRecorder.stop();
+}
+
+// 3. Vérifier le titre et gérer l'authentification Pop-up de Google
+function prepareUploadToDrive() {
+    const inputName = document.getElementById('audio-filename').value.trim();
+    const statusMsg = document.getElementById('drive-status-msg');
+    
+    if (!inputName) { alert("Veuillez donner un titre !"); return; }
+    if (!finalAudioBlob) { alert("Aucun audio détecté."); return; }
+
+    statusMsg.style.color = 'var(--text-grey)';
+    statusMsg.innerText = "Authentification Google...";
+
+    // Si on n'a pas encore le Token, Google Ouvre son pop-up d'autorisation 2.0
+    if (googleAccessToken === null) {
+        tokenClient.requestAccessToken({ prompt: 'consent' });
+    } else {
+        executeActualUpload();
+    }
+}
+
+// 4. Envoi binaire (Multipart) final vers l'espace Google Drive
+async function executeActualUpload() {
+    const inputName = document.getElementById('audio-filename').value.trim();
+    const fileName = inputName.endsWith('.mp3') ? inputName : `${inputName}.mp3`;
+    const statusMsg = document.getElementById('drive-status-msg');
+
+    statusMsg.innerText = "Téléversement sur Google Drive...";
+
+    const metadata = { name: fileName, mimeType: 'audio/mp3' };
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+    form.append('file', finalAudioBlob);
+
+    try {
+        const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + googleAccessToken },
+            body: form
+        });
+
+        if (response.ok) {
+            statusMsg.style.color = 'var(--spotify-green)';
+            statusMsg.innerText = "Audio enregistré avec succès sur Google Drive !";
+            // Masque la zone après 3 secondes de succès
+            setTimeout(() => { document.getElementById('drive-record-zone').style.display = 'none'; }, 3000);
+        } else {
+            const errData = await response.json();
+            statusMsg.style.color = '#ef4444';
+            statusMsg.innerText = "Erreur Drive : " + (errData.error.message || "Échec");
+        }
+    } catch (error) {
+        statusMsg.style.color = '#ef4444';
+        statusMsg.innerText = "Erreur de connexion Google API.";
+    }
+}
         async function toggleMicrophoneListen() {
             const micBtn = document.getElementById('mic-btn');
             const resultsContainer = document.getElementById('search-results');
