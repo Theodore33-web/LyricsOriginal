@@ -371,7 +371,9 @@
         let mediaRecorder = null;
         let audioChunks = [];
         let isRecording = false;
-
+let recentItems = [];        // 👈 AJOUTE CETTE LIGNE : Pour stocker l'historique complet
+let displayedRecentCount = 10; // 👈 AJOUTE CETTE LIGNE : Pour savoir combien de titres récents afficher
+     
         // --- CONFIGURATION GOOGLE DRIVE API ---
         const CLIENT_ID = "443005295505-p17o76k2prnc4rvqen2ovrl3oehepknk.apps.googleusercontent.com";
         const API_KEY = "METS_ICI_TA_VRAIE_CLE_API_CONSOLLE_GOOGLE"; 
@@ -992,48 +994,74 @@
 
         setInterval(updateNowPlaying, 1000);
         
-        async function getRecentlyPlayed() {
-            document.getElementById('profile-card-zone').style.display = 'none'; 
-            if (!currentToken) return;
-            
-            const resultsContainer = document.getElementById('search-results');
-            resultsContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement de l'historique...</p>";
+       async function getRecentlyPlayed() {
+    document.getElementById('profile-card-zone').style.display = 'none'; 
+    if (!currentToken) return;
+    
+    const resultsContainer = document.getElementById('search-results');
+    resultsContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement de l'historique...</p>";
 
-            try {
-                const response = await fetch('https://api.spotify.com/v1/me/player/recently-played?limit=10', {
-                    headers: { 'Authorization': 'Bearer ' + currentToken }
-                });
-                const data = await response.json();
-                resultsContainer.innerHTML = "";
+    try {
+        const response = await fetch('https://api.spotify.com/v1/me/player/recently-played?limit=10', {
+            headers: { 'Authorization': 'Bearer ' + currentToken }
+        });
+        const data = await response.json();
+        resultsContainer.innerHTML = "";
 
-                const titleHeader = document.createElement('p');
-                titleHeader.style = "color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;";
-                titleHeader.innerText = "ÉCOUTES RÉCENTES";
-                resultsContainer.appendChild(titleHeader);
-
-                if (data.items && data.items.length > 0) {
-                    data.items.forEach((itemData) => {
-                        const track = itemData.track;
-                        const item = document.createElement('div');
-                        item.className = 'search-item';
-                        item.innerHTML = `
-                            <img src="${track.album.images && track.album.images.length > 2 ? track.album.images[2].url : 'https://via.placeholder.com/30'}" alt="">
-                            <div>
-                                <strong style="display:block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${track.name}</strong>
-                                <span style="font-size: 0.8rem; color: var(--text-grey);">${track.artists[0].name}</span>
-                            </div>
-                        `;
-                        item.onclick = () => { playTrack(track.uri); };
-                        resultsContainer.appendChild(item);
-                    });
-                } else {
-                    resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Aucun historique trouvé.</p>";
-                }
-            } catch (e) {
-                console.error(e);
-                resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur d'historique.</p>";
-            }
+        if (data.items && data.items.length > 0) {
+            recentItems = data.items; // On stocke l'historique reçu
+            displayedRecentCount = 10; // On réinitialise à 10 affichages maximum au départ
+            renderRecentPlayedSection(); // On appelle la fonction qui dessine le HTML
+        } else {
+            resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Aucun historique trouvé.</p>";
         }
+    } catch (e) {
+        console.error(e);
+        resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur d'historique.</p>";
+    }
+}
+
+// 📦 NOUVELLE FONCTION COMPAGNON : Gère l'affichage progressif et le bouton "Afficher plus"
+function renderRecentPlayedSection() {
+    const resultsContainer = document.getElementById('search-results');
+    resultsContainer.innerHTML = "";
+
+    const titleHeader = document.createElement('p');
+    titleHeader.style = "color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;";
+    titleHeader.innerText = "ÉCOUTES RÉCENTES";
+    resultsContainer.appendChild(titleHeader);
+
+    // On ne prend que les X premiers éléments (ex: 10 au début, puis 20, etc.)
+    const itemsToDisplay = recentItems.slice(0, displayedRecentCount);
+
+    itemsToDisplay.forEach((itemData) => {
+        const track = itemData.track;
+        const item = document.createElement('div');
+        item.className = 'search-item';
+        item.innerHTML = `
+            <img src="${track.album.images && track.album.images.length > 2 ? track.album.images[2].url : 'https://via.placeholder.com/30'}" alt="">
+            <div>
+                <strong style="display:block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${track.name}</strong>
+                <span style="font-size: 0.8rem; color: var(--text-grey);">${track.artists[0].name}</span>
+            </div>
+        `;
+        item.onclick = () => { playTrack(track.uri); };
+        resultsContainer.appendChild(item);
+    });
+
+    // Si Spotify nous a renvoyé plus de titres qu'on n'en affiche actuellement, on montre le bouton
+    if (recentItems.length > displayedRecentCount) {
+        const moreBtn = document.createElement('button');
+        moreBtn.className = 'lib-btn'; // Utilise le même style CSS vert que la bibliothèque
+        moreBtn.style.marginTop = '10px';
+        moreBtn.innerText = "➕ Afficher plus (+10)";
+        moreBtn.onclick = () => {
+            displayedRecentCount += 10; // Augmente la limite de 10
+            renderRecentPlayedSection(); // Redessine la liste mise à jour
+        };
+        resultsContainer.appendChild(moreBtn);
+    }
+}
     </script>
 </body>
 </html>
