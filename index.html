@@ -952,17 +952,18 @@ async function startDriveRecording() {
                 }
             } catch (e) {}
         }
-
-        async function togglePlay() {
-            try {
-                const res = await fetch('https://api.spotify.com/v1/me/player', { headers: { 'Authorization': 'Bearer ' + currentToken } });
-                if (res.status === 204) return alert("Activez d'abord votre lecteur Spotify.");
-                const playback = await res.json();
-                const endpoint = playback.is_playing ? 'pause' : 'play';
-                await fetch(`https://api.spotify.com/v1/me/player/$${endpoint}`, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + currentToken } });
-                setTimeout(updateNowPlaying, 500);
-            } catch (e) {}
-        }
+async function togglePlay() {
+    try {
+        const res = await fetch('https://api.spotify.com/v1/me/player', { headers: { 'Authorization': 'Bearer ' + currentToken } });
+        if (res.status === 204) return alert("Activez d'abord votre lecteur Spotify.");
+        const playback = await res.json();
+        const endpoint = playback.is_playing ? 'pause' : 'play';
+        
+        // ⚡️ CORRIGÉ : Ajout du $ avant {endpoint} pour que l'URL soit correcte
+        await fetch(`https://api.spotify.com/v1/me/player/$$${endpoint}`, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + currentToken } });
+        setTimeout(updateNowPlaying, 500);
+    } catch (e) { console.error(e); }
+}
 
         async function nextTrack() { 
             if (!currentToken) return;
