@@ -312,6 +312,7 @@
                     <button id="mic-btn" onclick="toggleMicrophoneListen()" title="Identifier via AudD">🎙️</button>
                     <button id="lib-toggle-btn" onclick="getUserLibrary()" title="Ouvrir ma bibliothèque (Likés)">📂</button>
                     <button id="record-drive-btn" onclick="startDriveRecording()" title="Enregistrer un audio pour Google Drive">📹</button>
+                    <button id="recent-toggle-btn" onclick="getRecentlyPlayed()" title="Écoutes récentes">📄</button>
                 <button id="profile-toggle-btn" onclick="toggleProfileCard()" title="Mon Profil">👤</button>
                 </div>
                 
@@ -1020,7 +1021,50 @@ async function executeActualUpload() {
 
            // Boucle de rafraîchissement
         setInterval(updateNowPlaying, 1000);
+async function getRecentlyPlayed() {
+    // 💡 Ferme automatiquement le profil de Théo quand on clique sur le livre
+    document.getElementById('profile-card-zone').style.display = 'none'; 
+    
+    if (!currentToken) return;
+    
+    const resultsContainer = document.getElementById('search-results');
+    resultsContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement de l'historique...</p>";
 
+    try {
+        const response = await fetch('https://api.spotify.com/v1/me/player/recently-played?limit=10', {
+            headers: { 'Authorization': 'Bearer ' + currentToken }
+        });
+        const data = await response.json();
+        resultsContainer.innerHTML = "";
+
+        const titleHeader = document.createElement('p');
+        titleHeader.style = "color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;";
+        titleHeader.innerText = "ÉCOUTES RÉCENTES";
+        resultsContainer.appendChild(titleHeader);
+
+        if (data.items && data.items.length > 0) {
+            data.items.forEach((itemData) => {
+                const track = itemData.track;
+                const item = document.createElement('div');
+                item.className = 'search-item';
+                item.innerHTML = `
+                    <img src="${track.album.images && track.album.images.length > 2 ? track.album.images[2].url : 'https://via.placeholder.com/30'}" alt="">
+                    <div>
+                        <strong style="display:block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${track.name}</strong>
+                        <span style="font-size: 0.8rem; color: var(--text-grey);">${track.artists[0].name}</span>
+                    </div>
+                `;
+                item.onclick = () => { playTrack([track.uri]); };
+                resultsContainer.appendChild(item);
+            });
+        } else {
+            resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Aucun historique trouvé.</p>";
+        }
+    } catch (e) {
+        console.error(e);
+        resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur d'historique.</p>";
+    }
+}
        
 
     </script>
