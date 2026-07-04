@@ -360,12 +360,9 @@
         let lastTrackId = "";
         let currentLyrics = [];
           let trackDurationMs = 0; // Stockage global de la durée totale
-
-        let libraryItems = [];
-        let displayedCount = 10;
-
+          let libraryItems = [];
+          let displayedCount = 10;
         const auddApiToken = "187ef3238849ff75583d237fa40dbb48"; 
-
         let mediaRecorder = null;
         let audioChunks = [];
         let isRecording = false;
@@ -375,18 +372,6 @@ const CLIENT_ID = "443005295505-p17o76k2prnc4rvqen2ovrl3oehepknk.apps.googleuser
 const API_KEY = "METS_ICI_TA_VRAIE_CLE_API_CONSOLLE_GOOGLE"; // Ex: AIzaSyD...
 const DRIVE_FOLDER_ID = "1pWabyYlPEyDuLTfdbLX1zPzfhWuXPJAt"; // L'identifiant du dossier cible
 const SCOPES = 'https://www.googleapis.com/auth/drive.file';
-
-// --- ETATS ET VARIABLES APPLI ---
-let currentToken = "";
-let lastTrackId = "";
-let currentLyrics = [];
-let trackDurationMs = 0; 
-let libraryItems = [];
-let displayedCount = 10;
-
-let mediaRecorder = null;
-let audioChunks = [];
-let isRecording = false;
 
 // Variables Enregistreur Google Drive
 let tokenClient;
