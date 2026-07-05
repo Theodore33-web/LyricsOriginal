@@ -33,7 +33,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
         
         const params = new URLSearchParams(window.location.search);
         const code = params.get("code");
-        const scope = "user-read-private user-read-email user-modify-playback-state user-read-playback-state user-library-read playlist-read-private user-read-recently-played  user-read-currently-playing";
+        const scope = "user-read-private user-read-email user-modify-playback-state user-read-playback-state user-library-read playlist-read-private user-read-recently-played user-read-currently-playing";
       
         if (code) {
             document.getElementById('login-section').style.display = 'none';
@@ -778,19 +778,47 @@ function highlightLyrics(currentTime) {
             }
         }
 // Fonction pour afficher/masquer la barre de volume
+// Fonction pour afficher/masquer la réglette du volume
 function toggleVolumeControl() {
-        document.getElementById('profile-card-zone').style.display = 'none';
-         document.getElementById('search-results').innerHTML = ""; 
-            document.getElementById('device-control-zone').style.display = 'none';
-            document.getElementById('volume-control-zone').style.display = 'none';
-        const volumeZone = document.getElementById('volume-control-zone');
+    // On ferme les autres panneaux pour éviter les superpositions
+    document.getElementById('profile-card-zone').style.display = 'none';
+    document.getElementById('device-control-zone').style.display = 'none';
+    document.getElementById('search-results').innerHTML = "";
+
+    const volumeZone = document.getElementById('volume-control-zone');
     if (volumeZone.style.display === 'none' || volumeZone.style.display === '') {
-        volumeZone.style.display = 'flex'; // On l'affiche proprement en Flexbox
+        volumeZone.style.display = 'flex';
     } else {
-        volumeZone.style.display = 'none'; // On la cache
+        volumeZone.style.display = 'none';
     }
 }
 
+// Fonction principale du volume liée à ton slider range
+async function changeVolume(value) {
+    const percentLabel = document.getElementById('volume-percent');
+    if (percentLabel) percentLabel.innerText = value + '%';
+    
+    if (!currentToken) return;
+
+    try {
+        const response = await fetch(`https://api.spotify.com/v1/me/player/volume?volume_percent=${value}`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': 'Bearer ' + currentToken
+            }
+        });
+
+        if (response.status === 403) {
+            console.warn("⚠️ Statut 403 : Spotify refuse le contrôle du volume sur cet appareil (ex: Web Player ou restrictions de compte).");
+        } else if (response.status === 404) {
+            console.warn("⚠️ Statut 404 : Aucun appareil actif trouvé pour modifier le volume.");
+        } else if (response.ok) {
+            console.log(`✅ Volume réglé sur ${value}%`);
+        }
+    } catch (error) {
+        console.error("Erreur lors du changement de volume :", error);
+    }
+}
 // Fonction pour modifier le volume (et mettre à jour le texte du pourcentage)
 async function changeVolume(value) {
     document.getElementById('volume-percent').innerText = value + '%';
