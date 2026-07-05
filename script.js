@@ -512,55 +512,58 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
             return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
         }
 
-        async function fetchLyrics(artist, title, album, duration) {
-            try {
-                const url = `https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}&album_name=${encodeURIComponent(album)}&duration=${Math.round(duration)}`;
-                const response = await fetch(url);
-                const data = await response.json();
-                
-                if (data.syncedLyrics) {
-                    parseLyrics(data.syncedLyrics);
-                } else if (data.plainLyrics) {
-                    const plainLines = data.plainLyrics.split('\n');
-                    document.getElementById('lyrics-content').innerHTML = plainLines
-                        .map(line => `<div class="lyric-line" style="opacity: 1; transform: scale(1);">${line.trim()}</div>`)
-                        .join('');
-                    currentLyrics = []; 
-                } else {
-                    document.getElementById('lyrics-content').innerHTML = `<div class="lyric-line" style="opacity: 1;">Paroles indisponibles.</div>`;
-                    currentLyrics = [];
-                }
-            } catch (e) {
-                document.getElementById('lyrics-content').innerText = "Erreur de chargement des paroles.";
+       async function fetchLyrics(artist, title, album, duration) {
+    try {
+        const url = `https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}&album_name=${encodeURIComponent(album)}&duration=${Math.round(duration)}`;
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        if (data.syncedLyrics) {
+            parseLyrics(data.syncedLyrics);
+        } else if (data.plainLyrics) {
+            const plainLines = data.plainLyrics.split('\n');
+            // ✅ CORRIGÉ : On retire le style inline pour éviter de casser la feuille de style (CSS)
+            // On ajoute une classe 'plain-active' pour que toutes les lignes soient visibles d'un coup
+            document.getElementById('lyrics-content').innerHTML = plainLines
+                .map(line => `<div class="lyric-line plain-active">${line.trim()}</div>`)
+                .join('');
+            currentLyrics = []; 
+        } else {
+            // ✅ CORRIGÉ : Idem ici, on évite le style inline brut
+            document.getElementById('lyrics-content').innerHTML = `<div class="lyric-line plain-active">Paroles indisponibles.</div>`;
+            currentLyrics = [];
+        }
+    } catch (e) {
+        document.getElementById('lyrics-content').innerText = "Erreur de chargement des paroles.";
+    }
+}
+
+function parseLyrics(lrc) {
+    const lines = lrc.split('\n');
+    currentLyrics = lines.map(line => {
+        const match = line.match(/\[(\d+):(\d+\.\d+)\](.*)/);
+        if (match) {
+            return { time: parseInt(match[1]) * 60 + parseFloat(match[2]), text: match[3].trim() };
+        }
+        return null;
+    }).filter(l => l && l.text !== "");
+    document.getElementById('lyrics-content').innerHTML = currentLyrics.map((l, i) => `<div id="line-${i}" class="lyric-line">${l.text}</div>`).join('');
+}
+
+function highlightLyrics(currentTime) {
+    currentLyrics.forEach((line, i) => {
+        const el = document.getElementById(`line-${i}`);
+        if (!el) return;
+        const next = currentLyrics[i+1];
+        if (currentTime >= line.time && (!next || currentTime < next.time)) {
+            if (!el.classList.contains('active')) {
+                document.querySelectorAll('.lyric-line').forEach(l => l.classList.remove('active'));
+                el.classList.add('active');
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
         }
-
-        function parseLyrics(lrc) {
-            const lines = lrc.split('\n');
-            currentLyrics = lines.map(line => {
-                const match = line.match(/\[(\d+):(\d+\.\d+)\](.*)/);
-                if (match) {
-                    return { time: parseInt(match[1]) * 60 + parseFloat(match[2]), text: match[3].trim() };
-                }
-                return null;
-            }).filter(l => l && l.text !== "");
-            document.getElementById('lyrics-content').innerHTML = currentLyrics.map((l, i) => `<div id="line-${i}" class="lyric-line">${l.text}</div>`).join('');
-        }
-
-        function highlightLyrics(currentTime) {
-            currentLyrics.forEach((line, i) => {
-                const el = document.getElementById(`line-${i}`);
-                if (!el) return;
-                const next = currentLyrics[i+1];
-                if (currentTime >= line.time && (!next || currentTime < next.time)) {
-                    if (!el.classList.contains('active')) {
-                        document.querySelectorAll('.lyric-line').forEach(l => l.classList.remove('active'));
-                        el.classList.add('active');
-                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }
-                }
-            });
-        }
+    });
+}
 
         function updateDynamicBackground() {
             const img = document.getElementById('track-art');
