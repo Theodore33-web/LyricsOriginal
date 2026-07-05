@@ -1,7 +1,6 @@
 
 
-
-const APP_VERSION = "v1.0.36";
+const APP_VERSION = "v1.0.37";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -929,14 +928,14 @@ async function checkIfTrackIsLiked(trackId) {
     if (!currentToken || !trackId) return;
 
     try {
-        // Correction : Utilisation de ${trackId} et du bon paramètre ?ids=
-        const response = await fetch(`https://api.spotify.com/v1/me/tracks/contains?ids=${trackId}`, {
+        // Utilisation du format standard ?ids=
+        const response = await fetch(`https://api.spotify.com/v1/me/tracks/contains?ids=$?ids=${trackId}`, {
             headers: { 'Authorization': 'Bearer ' + currentToken }
         });
         
         if (response.ok) {
             const isLikedArray = await response.json();
-            const isLiked = isLikedArray[0]; // Spotify renvoie un tableau [true] ou [false]
+            const isLiked = isLikedArray[0]; // L'API renvoie un tableau [true] ou [false]
             const likeBtn = document.getElementById('like-btn');
             if (likeBtn) {
                 likeBtn.innerText = isLiked ? "❤️" : "🤍";
@@ -950,7 +949,6 @@ async function checkIfTrackIsLiked(trackId) {
 
 // 2. FONCTION POUR AJOUTER OU SUPPRIMER DES FAVORIS AU CLIC
 async function toggleLikeCurrentTrack() {
-    // Note : Assure-toi que la variable globale lastTrackId contient bien l'ID actuel
     if (!currentToken || !lastTrackId) return;
 
     const likeBtn = document.getElementById('like-btn');
@@ -958,14 +956,14 @@ async function toggleLikeCurrentTrack() {
     const method = isCurrentlyLiked ? 'DELETE' : 'PUT';
 
     try {
-        // Correction : Syntaxe ${lastTrackId} et structure ?ids= conforme à l'API
-        const response = await fetch(`https://api.spotify.com/v1/me/tracks?ids=${lastTrackId}`, {
+        // Ajout du paramètre ids dans l'URL requis par l'API Spotify
+        const response = await fetch(`https://api.spotify.com/v1/me/tracks?ids=$?ids=${lastTrackId}`, {
             method: method,
             headers: { 
                 'Authorization': 'Bearer ' + currentToken,
                 'Content-Type': 'application/json'
             },
-            body: method === 'PUT' ? JSON.stringify({}) : null
+            body: method === 'PUT' ? JSON.stringify({}) : null // Corps vide requis pour le PUT
         });
 
         if (response.ok || response.status === 200 || response.status === 201) {
@@ -983,6 +981,3 @@ async function toggleLikeCurrentTrack() {
         console.error("Erreur lors du changement d'état du favori :", e);
     }
 }
-
-
-
