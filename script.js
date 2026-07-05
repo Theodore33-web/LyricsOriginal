@@ -1,7 +1,7 @@
 
 
 
-const APP_VERSION = "v1.0.11";
+const APP_VERSION = "v1.0.12";
 
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
@@ -409,7 +409,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
             if (!query || !currentToken) return;
 
             try {
-                const response = await fetch(`https://api.spotify.com/v1/search?q=$$${encodeURIComponent(query)}&type=track&limit=5`, {
+                const response = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=5`, {
                     headers: { 'Authorization': 'Bearer ' + currentToken }
                 });
                 const data = await response.json();
@@ -653,7 +653,7 @@ function highlightLyrics(currentTime) {
         const endpoint = playback.is_playing ? 'pause' : 'play';
         
         // 3. Envoi de la commande avec la syntaxe exacte acceptée par votre environnement
-        await fetch(`https://api.spotify.com/v1/me/player/$$${endpoint}`, { 
+        await fetch(`https://api.spotify.com/v1/me/player/${endpoint}`, { 
             method: 'PUT', 
             headers: { 'Authorization': 'Bearer ' + currentToken } 
         });
