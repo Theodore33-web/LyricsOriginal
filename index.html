@@ -49,11 +49,10 @@
     
     <span id="volume-percent" style="font-size: 0.8rem; color: var(--text-grey); width: 40px; flex-shrink: 0; text-align: right;">50%</span>
 </div>
-<div id="device-control-zone" style="display: none; margin-top: 8px; width: 100%; flex-direction: column; gap: 5px; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 12px; font-size: 0.85rem;">
-    <p style="margin: 0 0 5px 0; color: var(--spotify-green); font-weight: bold; text-align: left;">APPAREILS DISPONIBLES</p>
-    <select id="device-select" onchange="switchDevice(this.value)" style="width: 100%; background: #121212; border: 1px solid #333; border-radius: 20px; padding: 6px 12px; color: white; outline: none; cursor: pointer;">
-        <option value="">Chargement des appareils...</option>
-    </select>
+<div id="device-control-zone" style="display: none; margin-top: 12px; width: 100%; flex-direction: column; gap: 8px; box-sizing: border-box; padding: 0 5px;">
+    <p style="font-size: 0.8rem; color: var(--text-grey); margin: 0 0 4px 0; text-align: left;">Appareils disponibles :</p>
+    <div id="device-list-container" style="display: flex; flex-direction: column; gap: 6px; width: 100%;"></div>
+</div>
 </div>
         
     </div>
