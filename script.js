@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.0.40";
+const APP_VERSION = "v1.0.35";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -33,7 +33,6 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
         const params = new URLSearchParams(window.location.search);
         const code = params.get("code");
         const scope = "user-read-private user-read-email user-modify-playback-state user-read-playback-state user-library-read user-library-modify playlist-read-private user-read-recently-played user-read-currently-playing";
-      
         if (code) {
             document.getElementById('login-section').style.display = 'none';
             handleCallback(code);
@@ -640,6 +639,7 @@ function highlightLyrics(currentTime) {
                     if (data.item.id !== lastTrackId) {
                         lastTrackId = data.item.id;
                         fetchLyrics(data.item.artists[0].name, data.item.name, data.item.album.name, data.item.duration_ms / 1000);
+                        checkIfTrackIsLiked(data.item.id);
                     }
                 }
             } catch (e) {}
@@ -793,31 +793,6 @@ function toggleVolumeControl() {
 }
 
 // Fonction principale du volume liée à ton slider range
-async function changeVolume(value) {
-    const percentLabel = document.getElementById('volume-percent');
-    if (percentLabel) percentLabel.innerText = value + '%';
-    
-    if (!currentToken) return;
-
-    try {
-        const response = await fetch(`https://api.spotify.com/v1/me/player/volume?volume_percent=${value}`, {
-            method: 'PUT',
-            headers: {
-                'Authorization': 'Bearer ' + currentToken
-            }
-        });
-
-        if (response.status === 403) {
-            console.warn("⚠️ Statut 403 : Spotify refuse le contrôle du volume sur cet appareil (ex: Web Player ou restrictions de compte).");
-        } else if (response.status === 404) {
-            console.warn("⚠️ Statut 404 : Aucun appareil actif trouvé pour modifier le volume.");
-        } else if (response.ok) {
-            console.log(`✅ Volume réglé sur ${value}%`);
-        }
-    } catch (error) {
-        console.error("Erreur lors du changement de volume :", error);
-    }
-}
 // Fonction pour modifier le volume (et mettre à jour le texte du pourcentage)
 async function changeVolume(value) {
     document.getElementById('volume-percent').innerText = value + '%';
@@ -946,5 +921,63 @@ async function switchDevice(deviceId) {
 
     } catch (error) {
         console.error("Erreur lors du transfert :", error);
+    }
+}
+// 1. FONCTION POUR VÉRIFIER SI LE MORCEAU EST DÉJÀ LIKÉ
+async function checkIfTrackIsLiked(trackId) {
+    if (!currentToken || !trackId) return;
+
+    try {
+        // Utilisation du format standard ?ids=
+        const response = await fetch(`https://api.spotify.com/v1/me/tracks/contains?ids=$?ids=${trackId}`, {
+            headers: { 'Authorization': 'Bearer ' + currentToken }
+        });
+        
+        if (response.ok) {
+            const isLikedArray = await response.json();
+            const isLiked = isLikedArray[0]; // L'API renvoie un tableau [true] ou [false]
+            const likeBtn = document.getElementById('like-btn');
+            if (likeBtn) {
+                likeBtn.innerText = isLiked ? "❤️" : "🤍";
+                likeBtn.setAttribute('data-liked', isLiked);
+            }
+        }
+    } catch (e) {
+        console.error("Erreur lors de la vérification du favori :", e);
+    }
+}
+
+// 2. FONCTION POUR AJOUTER OU SUPPRIMER DES FAVORIS AU CLIC
+async function toggleLikeCurrentTrack() {
+    if (!currentToken || !lastTrackId) return;
+
+    const likeBtn = document.getElementById('like-btn');
+    const isCurrentlyLiked = likeBtn.getAttribute('data-liked') === 'true';
+    const method = isCurrentlyLiked ? 'DELETE' : 'PUT';
+
+    try {
+        // Ajout du paramètre ids dans l'URL requis par l'API Spotify
+        const response = await fetch(`https://api.spotify.com/v1/me/tracks?ids=$?ids=${lastTrackId}`, {
+            method: method,
+            headers: { 
+                'Authorization': 'Bearer ' + currentToken,
+                'Content-Type': 'application/json'
+            },
+            body: method === 'PUT' ? JSON.stringify({}) : null // Corps vide requis pour le PUT
+        });
+
+        if (response.ok || response.status === 200 || response.status === 201) {
+            const newLikedState = !isCurrentlyLiked;
+            likeBtn.innerText = newLikedState ? "❤️" : "🤍";
+            likeBtn.setAttribute('data-liked', newLikedState);
+            
+            if (document.getElementById('search-results').innerHTML.includes("VOS TITRES LIKÉS")) {
+                getUserLibrary();
+            }
+        } else {
+            console.error("Réponse API Spotify incorrecte :", response.status);
+        }
+    } catch (e) {
+        console.error("Erreur lors du changement d'état du favori :", e);
     }
 }
