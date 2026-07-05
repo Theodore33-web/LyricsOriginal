@@ -269,3 +269,7 @@
             .lyrics-section { height: 50vh; padding: 20px; }
             .lyric-line { font-size: 1.2rem; }
         }
+.lyric-line.plain-active {
+    opacity: 1 !important;
+    transform: scale(1) !important;
+}
