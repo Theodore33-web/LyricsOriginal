@@ -42,10 +42,12 @@
     <button id="device-toggle-btn" onclick="toggleDeviceSelector()" title="Changer d'appareil">📱</button>
 </div>
 
-<div id="volume-control-zone" style="display: none; margin-top: 8px; width: 100%; align-items: center; gap: 10px; justify-content: center;">
-    <span style="font-size: 0.8rem; color: var(--text-grey);">🔈</span>
-    <input type="range" id="volume-slider" min="0" max="100" value="50" oninput="changeVolume(this.value)" style="flex: 1; accent-color: var(--spotify-green); cursor: pointer; height: 4px;">
-    <span id="volume-percent" style="font-size: 0.8rem; color: var(--text-grey); min-width: 30px;">50%</span>
+<div id="volume-control-zone" style="display: none; margin-top: 12px; width: 100%; align-items: center; justify-content: space-between; box-sizing: border-box; padding: 0 5px;">
+    <span style="font-size: 0.9rem; color: var(--text-grey); width: 25px; flex-shrink: 0; text-align: left;">🔊</span>
+    
+    <input type="range" id="volume-slider" min="0" max="100" value="50" oninput="changeVolume(this.value)" style="flex: 1; accent-color: var(--spotify-green); cursor: pointer; height: 4px; min-width: 0; margin: 0 10px;">
+    
+    <span id="volume-percent" style="font-size: 0.8rem; color: var(--text-grey); width: 40px; flex-shrink: 0; text-align: right;">50%</span>
 </div>
 
 <div id="device-control-zone" style="display: none; margin-top: 8px; width: 100%; flex-direction: column; gap: 5px; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 12px; font-size: 0.85rem;">
