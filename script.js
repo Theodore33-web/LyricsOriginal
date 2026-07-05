@@ -1,7 +1,7 @@
 
 
 
-const APP_VERSION = "v1.0.31";
+const APP_VERSION = "v1.0.32";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -908,12 +908,19 @@ async function switchDevice(deviceId) {
             },
             body: JSON.stringify({ device_ids: [deviceId], play: true })
         });
-        console.log("✅ Appareil modifié avec succès !");
+        
+        console.log("✅ Lecture transférée avec succès !");
+
+        // 🔄 Rafraîchissement automatique de la liste après 500ms
+        // Le petit délai laisse le temps à Spotify d'enregistrer le changement
+        setTimeout(async () => {
+            await fetchAvailableDevices();
+        }, 500);
+
     } catch (error) {
-        console.error("Erreur lors du transfert de lecture :", error);
+        console.error("Erreur lors du transfert :", error);
     }
 }
-
 
 
 
