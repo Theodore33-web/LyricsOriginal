@@ -1,7 +1,7 @@
 
 
 
-const APP_VERSION = "v1.0.29";
+const APP_VERSION = "v1.0.30";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -793,14 +793,19 @@ function toggleVolumeControl() {
 
 // Fonction pour modifier le volume (et mettre à jour le texte du pourcentage)
 async function changeVolume(value) {
-    const accessToken = localStorage.getItem("91d4165085fd4ed3bd281f16667d64bc") || localStorage.getItem("token") || localStorage.getItem("accessToken");
-        document.getElementById('volume-percent').innerText = value + '%';
+    document.getElementById('volume-percent').innerText = value + '%';
     
+    // 🔍 On vérifie si currentToken existe bien avant de lancer la requête
+    if (!currentToken) {
+        console.error("Aucun jeton de connexion (currentToken) trouvé.");
+        return;
+    }
+
     try {
         const response = await fetch(`https://api.spotify.com/v1/me/player/volume?volume_percent=${value}`, {
             method: 'PUT',
             headers: {
-                'Authorization': `Bearer ${accessToken}`,
+                'Authorization': 'Bearer ' + currentToken, // ✅ Utilisation du bon token
                 'Content-Type': 'application/json'
             }
         });
@@ -808,18 +813,12 @@ async function changeVolume(value) {
         if (response.ok) {
             console.log("✅ Volume modifié avec succès à :", value);
         } else {
-            console.error("❌ Erreur API Spotify. Code statut :", response.status);
-            if (response.status === 403) {
-                console.error("-> Raison probable : Tu n'as pas le compte Premium OU le scope 'user-modify-playback-state' n'est pas validé.");
-            } else if (response.status === 404) {
-                console.error("-> Raison probable : Aucun appareil actif. Lance une musique sur Spotify d'abord !");
-            }
+            console.error("❌ Erreur API Spotify (Statut):", response.status);
         }
     } catch (error) {
         console.error("🚨 Erreur réseau ou JS :", error);
     }
 }
-
 
 // 1. Liaison avec l'ID du bouton (comme demandé pour le profil)
 const deviceBtn = document.getElementById('device-toggle-btn');
@@ -827,13 +826,14 @@ const deviceBtn = document.getElementById('device-toggle-btn');
 // 2. Afficher/Masquer la zone et charger les appareils
 
 async function toggleDeviceSelector() {
-document.getElementById('profile-card-zone').style.display = 'none'; 
-document.getElementById('volume-control-zone').style.display = 'none';
+    // On cache le volume et le profil
+    document.getElementById('volume-control-zone').style.display = 'none';
+    document.getElementById('profile-card-zone').style.display = 'none';
+
     const deviceZone = document.getElementById('device-control-zone');
-    const accessToken = localStorage.getItem("91d4165085fd4ed3bd281f16667d64bc") || localStorage.getItem("token") || localStorage.getItem("accessToken");
     if (deviceZone.style.display === 'none' || deviceZone.style.display === '') {
         deviceZone.style.display = 'flex';
-        await fetchAvailableDevices(); // On appelle Spotify pour lister les appareils
+        await fetchAvailableDevices(); // Appel de la fonction de récupération
     } else {
         deviceZone.style.display = 'none';
     }
@@ -841,32 +841,26 @@ document.getElementById('volume-control-zone').style.display = 'none';
 
 // 3. Récupérer les appareils depuis Spotify
 async function fetchAvailableDevices() {
-        const accessToken = localStorage.getItem("91d4165085fd4ed3bd281f16667d64bc") || localStorage.getItem("token") || localStorage.getItem("accessToken");
-        const select = document.getElementById('device-select');
+    const select = document.getElementById('device-select');
     if (!select) return;
+    if (!currentToken) return; // ✅ Sécurité si pas connecté
 
     try {
-        // Appelle l'API officielle de Spotify pour lister les appareils
         const response = await fetch('https://api.spotify.com/v1/me/player/devices', {
             headers: { 
-                'Authorization': `Bearer ${accessToken}` // Vérifie que ta variable s'appelle bien accessToken
+                'Authorization': 'Bearer ' + currentToken // ✅ Utilisation du bon token
             }
         });
         
-        if (!response.ok) {
-            throw new Error(`Erreur Spotify: ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`Erreur Spotify: ${response.status}`);
 
         const data = await response.json();
-        console.log("Appareils reçus :", data); // Permet de voir ce que Spotify renvoie dans la console de ton navigateur
-
-        select.innerHTML = ''; // On vide le menu avant de le remplir
+        select.innerHTML = ''; 
 
         if (data.devices && data.devices.length > 0) {
             data.devices.forEach(device => {
                 const option = document.createElement('option');
                 option.value = device.id;
-                // Affiche le nom de l'appareil et ajoute un badge s'il est déjà actif
                 option.text = device.name + (device.is_active ? ' (Actif) 🎧' : '');
                 option.selected = device.is_active;
                 select.appendChild(option);
@@ -875,14 +869,27 @@ async function fetchAvailableDevices() {
             select.innerHTML = '<option value="">Aucun appareil actif trouvé</option>';
         }
     } catch (error) {
-        console.error("Erreur lors de la récupération des appareils :", error);
+        console.error("Erreur appareils :", error);
         select.innerHTML = '<option value="">Erreur de chargement</option>';
     }
 }
+async function switchDevice(deviceId) {
+    if (!deviceId || !currentToken) return;
 
-
-
-
+    try {
+        await fetch('https://api.spotify.com/v1/me/player', {
+            method: 'PUT',
+            headers: {
+                'Authorization': 'Bearer ' + currentToken,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ device_ids: [deviceId], play: true })
+        });
+        console.log("✅ Appareil modifié avec succès !");
+    } catch (error) {
+        console.error("Erreur lors du transfert de lecture :", error);
+    }
+}
 
 
 
