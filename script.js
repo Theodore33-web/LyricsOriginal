@@ -1,7 +1,7 @@
 
 
 
-const APP_VERSION = "v1.0.22";
+const APP_VERSION = "v1.0.23";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -73,6 +73,8 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
         function toggleProfileCard() {
             const profileZone = document.getElementById('profile-card-zone');
             document.getElementById('search-results').innerHTML = ""; 
+            document.getElementById('device-control-zone').style.display = 'none';
+            document.getElementById('volume-control-zone').style.display = 'none';
             const driveZone = document.getElementById('drive-record-zone');
             if (driveZone) driveZone.style.display = 'none';
 
@@ -780,6 +782,9 @@ function highlightLyrics(currentTime) {
 // Fonction pour afficher/masquer la barre de volume
 function toggleVolumeControl() {
         document.getElementById('profile-card-zone').style.display = 'none';
+         document.getElementById('search-results').innerHTML = ""; 
+            document.getElementById('device-control-zone').style.display = 'none';
+            document.getElementById('volume-control-zone').style.display = 'none';
         const volumeZone = document.getElementById('volume-control-zone');
     if (volumeZone.style.display === 'none' || volumeZone.style.display === '') {
         volumeZone.style.display = 'flex'; // On l'affiche proprement en Flexbox
@@ -813,7 +818,8 @@ const deviceBtn = document.getElementById('device-toggle-btn');
 
 // 2. Afficher/Masquer la zone et charger les appareils
 async function toggleDeviceSelector() {
-document.getElementById('profile-card-zone').style.display = 'none';
+document.getElementById('profile-card-zone').style.display = 'none'; 
+document.getElementById('volume-control-zone').style.display = 'none';
     const deviceZone = document.getElementById('device-control-zone');
     
     if (deviceZone.style.display === 'none' || deviceZone.style.display === '') {
