@@ -1,7 +1,7 @@
 
 
 
-const APP_VERSION = "v1.0.24";
+const APP_VERSION = "v1.0.25";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -19,10 +19,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
         let displayedRecentCount = 10; 
      
         // --- CONFIGURATION GOOGLE DRIVE API ---
-        const CLIENT_ID = "443005295505-p17o76k2prnc4rvqen2ovrl3oehepknk.apps.googleusercontent.com";
-        const API_KEY = "AIzaSyAyieHkwA5MfAWc-RsRAIqeCglsvHMy7os"; 
-        const DRIVE_FOLDER_ID = "1pWabyYlPEyDuLTfdbLX1zPzfhWuXPJAt"; 
-        const SCOPES = 'https://www.googleapis.com/auth/drive.file';
+    
 
         let tokenClient;
         let gapiInited = false;
@@ -89,8 +86,9 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
             const verifier = generateCodeVerifier(128);
             const challenge = await generateCodeChallenge(verifier);
             localStorage.setItem("verifier", verifier);
-
-            const scope = 'user-read-playback-state user-modify-playback-state user-read-currently-playing'
+// Vérifie que 'user-read-playback-state' est bien présent aux côtés du volume
+const MonScope = 'user-read-playback-state user-modify-playback-state user-read-currently-playing';
+          
             const authUrl = new URL("https://accounts.spotify.com/authorize");
             const args = { response_type: 'code', client_id: clientId, scope: scope, redirect_uri: redirectUri, code_challenge_method: 'S256', code_challenge: challenge };
             authUrl.search = new URLSearchParams(args).toString();
