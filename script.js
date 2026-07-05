@@ -1,7 +1,7 @@
 
 
 
-const APP_VERSION = "v1.0.23";
+const APP_VERSION = "v1.0.24";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -89,6 +89,8 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
             const verifier = generateCodeVerifier(128);
             const challenge = await generateCodeChallenge(verifier);
             localStorage.setItem("verifier", verifier);
+
+            const scope = 'user-read-playback-state user-modify-playback-state user-read-currently-playing'
             const authUrl = new URL("https://accounts.spotify.com/authorize");
             const args = { response_type: 'code', client_id: clientId, scope: scope, redirect_uri: redirectUri, code_challenge_method: 'S256', code_challenge: challenge };
             authUrl.search = new URLSearchParams(args).toString();
@@ -795,23 +797,31 @@ function toggleVolumeControl() {
 
 // Fonction pour modifier le volume (et mettre à jour le texte du pourcentage)
 async function changeVolume(value) {
-    // 1. Met à jour l'affichage du texte en temps réel (ex: 50%)
+    // 1. Mise à jour de l'affichage texte
     document.getElementById('volume-percent').innerText = value + '%';
     
-    // 2. Envoi de la valeur réelle à l'API Spotify
+    // 2. Envoi de l'ordre à Spotify
     try {
-        // L'URL correcte de l'API Spotify pour le volume requiert ?volume_percent=
-        await fetch(`https://api.spotify.com/v1/me/player/volume?volume_percent=${value}`, {
+        const response = await fetch(`https://api.spotify.com/v1/me/player/volume?volume_percent=${value}`, {
             method: 'PUT',
             headers: {
-                'Authorization': `Bearer ${accessToken}`, // Utilise bien ton token Spotify actif
+                'Authorization': `Bearer ${accessToken}`, // Utilise ta variable contenant le Token Spotify
                 'Content-Type': 'application/json'
             }
         });
+
+        if (response.status === 403) {
+            console.error("Erreur 403 : Pense à vérifier que tu as bien ajouté le scope 'user-modify-playback-state' et que tu es Premium.");
+        } else if (response.status === 404) {
+            console.error("Erreur 404 : Aucun appareil actif détecté. Lance une musique sur ton téléphone d'abord !");
+        }
     } catch (error) {
-        console.error("Erreur réelle lors du réglage du volume Spotify:", error);
+        console.error("Erreur lors du changement de volume :", error);
     }
 }
+
+
+
 
 // 1. Liaison avec l'ID du bouton (comme demandé pour le profil)
 const deviceBtn = document.getElementById('device-toggle-btn');
