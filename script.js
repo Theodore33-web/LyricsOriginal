@@ -1,7 +1,7 @@
 
 
 
-const APP_VERSION = "v1.0.20";
+const APP_VERSION = "v1.0.21";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -806,3 +806,78 @@ async function changeVolume(value) {
         console.error("Erreur lors du réglage du volume Spotify:", error);
     }
 }
+
+// 1. Liaison avec l'ID du bouton (comme demandé pour le profil)
+const deviceBtn = document.getElementById('device-toggle-btn');
+
+// 2. Afficher/Masquer la zone et charger les appareils
+async function toggleDeviceSelector() {
+document.getElementById('profile-card-zone').style.display = 'none';
+    const deviceZone = document.getElementById('device-control-zone');
+    
+    if (deviceZone.style.display === 'none' || deviceZone.style.display === '') {
+        deviceZone.style.display = 'flex';
+        await fetchAvailableDevices(); // On appelle Spotify pour lister les appareils
+    } else {
+        deviceZone.style.display = 'none';
+    }
+}
+
+// 3. Récupérer les appareils depuis Spotify
+async function fetchAvailableDevices() {
+    const select = document.getElementById('device-select');
+    try {
+        const response = await fetch('https://api.spotify.com/v1/me/player/devices', {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+        const data = await response.json();
+        
+        select.innerHTML = ''; // On vide le menu
+        
+        if (data.devices && data.devices.length > 0) {
+            data.devices.forEach(device => {
+                const option = document.createElement('option');
+                option.value = device.id;
+                // On affiche le nom de l'appareil (ex: "iPhone de Théo [Actif]")
+                option.text = device.name + (device.is_active ? ' (Actif) 🎧' : '');
+                option.selected = device.is_active;
+                select.appendChild(option);
+            });
+        } else {
+            select.innerHTML = '<option value="">Aucun appareil détecté</option>';
+        }
+    } catch (error) {
+        console.error("Erreur appareils:", error);
+        select.innerHTML = '<option value="">Erreur de chargement</option>';
+    }
+}
+
+// 4. Switcher le lecteur vers l'appareil choisi
+async function switchDevice(deviceId) {
+    if (!deviceId) return;
+    try {
+        await fetch('https://api.spotify.com/v1/me/player', {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ device_ids: [deviceId], play: true }) // Le true force la reprise de la lecture sur le nouvel appareil
+        });
+    } catch (error) {
+        console.error("Erreur lors du switch d'appareil:", error);
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
