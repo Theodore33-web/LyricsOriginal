@@ -1,7 +1,7 @@
 
 
 
-const APP_VERSION = "v1.0.26";
+const APP_VERSION = "v1.0.27";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -795,30 +795,31 @@ function toggleVolumeControl() {
 
 // Fonction pour modifier le volume (et mettre à jour le texte du pourcentage)
 async function changeVolume(value) {
-    // 1. Mise à jour de l'affichage texte
     document.getElementById('volume-percent').innerText = value + '%';
     
-    // 2. Envoi de l'ordre à Spotify
     try {
         const response = await fetch(`https://api.spotify.com/v1/me/player/volume?volume_percent=${value}`, {
             method: 'PUT',
             headers: {
-                'Authorization': `Bearer ${accessToken}`, // Utilise ta variable contenant le Token Spotify
+                'Authorization': `Bearer ${accessToken}`,
                 'Content-Type': 'application/json'
             }
         });
 
-        if (response.status === 403) {
-            console.error("Erreur 403 : Pense à vérifier que tu as bien ajouté le scope 'user-modify-playback-state' et que tu es Premium.");
-        } else if (response.status === 404) {
-            console.error("Erreur 404 : Aucun appareil actif détecté. Lance une musique sur ton téléphone d'abord !");
+        if (response.ok) {
+            console.log("✅ Volume modifié avec succès à :", value);
+        } else {
+            console.error("❌ Erreur API Spotify. Code statut :", response.status);
+            if (response.status === 403) {
+                console.error("-> Raison probable : Tu n'as pas le compte Premium OU le scope 'user-modify-playback-state' n'est pas validé.");
+            } else if (response.status === 404) {
+                console.error("-> Raison probable : Aucun appareil actif. Lance une musique sur Spotify d'abord !");
+            }
         }
     } catch (error) {
-        console.error("Erreur lors du changement de volume :", error);
+        console.error("🚨 Erreur réseau ou JS :", error);
     }
 }
-
-
 
 
 // 1. Liaison avec l'ID du bouton (comme demandé pour le profil)
