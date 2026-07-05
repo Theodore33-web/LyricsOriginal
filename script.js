@@ -1,7 +1,7 @@
 
 
 
-const APP_VERSION = "v1.0.19";
+const APP_VERSION = "v1.0.20";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -777,3 +777,32 @@ function highlightLyrics(currentTime) {
                 resultsContainer.appendChild(moreBtn);
             }
         }
+// Fonction pour afficher/masquer la barre de volume
+function toggleVolumeControl() {
+        document.getElementById('profile-card-zone').style.display = 'none';
+        const volumeZone = document.getElementById('volume-control-zone');
+    if (volumeZone.style.display === 'none' || volumeZone.style.display === '') {
+        volumeZone.style.display = 'flex'; // On l'affiche proprement en Flexbox
+    } else {
+        volumeZone.style.display = 'none'; // On la cache
+    }
+}
+
+// Fonction pour modifier le volume (et mettre à jour le texte du pourcentage)
+async function changeVolume(value) {
+    // 1. Met à jour l'affichage du texte (ex: 50%)
+    document.getElementById('volume-percent').innerText = value + '%';
+    
+    // 2. Envoi de l'ordre à l'API de Spotify
+    try {
+        // On suppose que tu as déjà une fonction ou un token d'accès stocké (ex: accessToken)
+        await fetch(`https://api.spotify.com/v1/me/player/volume?volume_percent=${value}`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${accessToken}` // Remplace par ta variable de token Spotify
+            }
+        });
+    } catch (error) {
+        console.error("Erreur lors du réglage du volume Spotify:", error);
+    }
+}
