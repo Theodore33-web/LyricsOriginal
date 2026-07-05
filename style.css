@@ -273,25 +273,4 @@
     opacity: 1 !important;
     transform: scale(1) !important;
 }
-/* 1. On dit au dashboard d'aligner ses enfants (paroles et sidebar) */
-#dashboard {
-    align-items: flex-start;
-}
 
-/* 2. On change l'ordre de la zone de paroles pour la pousser à droite */
-.lyrics-section {
-    order: 2; 
-}
-
-/* 3. On change l'ordre de la sidebar pour la pousser à gauche */
-.sidebar {
-    order: 1;
-}
-
-/* 4. À l'intérieur de la sidebar, on inverse l'ordre des deux cartes */
-.sidebar .card:first-child {
-    order: 2; /* Explorer & Rechercher passe en bas (donc au centre de l'écran global) */
-}
-.sidebar .card:last-child {
-    order: 1; /* Lecture en cours passe en haut (donc à gauche de l'écran global) */
-}
