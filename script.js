@@ -1,7 +1,7 @@
 
 
 
-const APP_VERSION = "v1.0.21";
+const APP_VERSION = "v1.0.22";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -790,20 +790,21 @@ function toggleVolumeControl() {
 
 // Fonction pour modifier le volume (et mettre à jour le texte du pourcentage)
 async function changeVolume(value) {
-    // 1. Met à jour l'affichage du texte (ex: 50%)
+    // 1. Met à jour l'affichage du texte en temps réel (ex: 50%)
     document.getElementById('volume-percent').innerText = value + '%';
     
-    // 2. Envoi de l'ordre à l'API de Spotify
+    // 2. Envoi de la valeur réelle à l'API Spotify
     try {
-        // On suppose que tu as déjà une fonction ou un token d'accès stocké (ex: accessToken)
+        // L'URL correcte de l'API Spotify pour le volume requiert ?volume_percent=
         await fetch(`https://api.spotify.com/v1/me/player/volume?volume_percent=${value}`, {
             method: 'PUT',
             headers: {
-                'Authorization': `Bearer ${accessToken}` // Remplace par ta variable de token Spotify
+                'Authorization': `Bearer ${accessToken}`, // Utilise bien ton token Spotify actif
+                'Content-Type': 'application/json'
             }
         });
     } catch (error) {
-        console.error("Erreur lors du réglage du volume Spotify:", error);
+        console.error("Erreur réelle lors du réglage du volume Spotify:", error);
     }
 }
 
