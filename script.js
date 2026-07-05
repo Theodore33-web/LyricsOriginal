@@ -1,7 +1,7 @@
 
 
 
-const APP_VERSION = "v1.0.33";
+const APP_VERSION = "v1.0.34";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -641,6 +641,7 @@ function highlightLyrics(currentTime) {
                     if (data.item.id !== lastTrackId) {
                         lastTrackId = data.item.id;
                         fetchLyrics(data.item.artists[0].name, data.item.name, data.item.album.name, data.item.duration_ms / 1000);
+                        checkIfTrackIsLiked(data.item.id);
                     }
                 }
             } catch (e) {}
@@ -949,7 +950,64 @@ async function switchDevice(deviceId) {
         console.error("Erreur lors du transfert :", error);
     }
 }
+// 1. FONCTION POUR VÉRIFIER SI LE MORCEAU EST DÉJÀ LIKÉ
+async function checkIfTrackIsLiked(trackId) {
+    if (!currentToken || !trackId) return;
 
+    try {
+        // L'API Spotify permet de vérifier si un ID est sauvegardé
+        const response = await fetch(`https://api.spotify.com/v1/me/tracks/contains?ids=${trackId}`, {
+            headers: { 'Authorization': 'Bearer ' + currentToken }
+        });
+        
+        if (response.ok) {
+            const [isLiked] = await response.json();
+            const likeBtn = document.getElementById('like-btn');
+            if (likeBtn) {
+                // Si liké : cœur rouge, sinon : cœur vide
+                likeBtn.innerText = isLiked ? "❤️" : "🤍";
+                likeBtn.setAttribute('data-liked', isLiked);
+            }
+        }
+    } catch (e) {
+        console.error("Erreur lors de la vérification du favori :", e);
+    }
+}
+
+// 2. FONCTION POUR AJOUTER OU SUPPRIMER DES FAVORIS AU CLIC
+async function toggleLikeCurrentTrack() {
+    if (!currentToken || !lastTrackId) return;
+
+    const likeBtn = document.getElementById('like-btn');
+    const isCurrentlyLiked = likeBtn.getAttribute('data-liked') === 'true';
+    
+    // Si déjà liké, on fait un DELETE (retirer), sinon un PUT (ajouter)
+    const method = isCurrentlyLiked ? 'DELETE' : 'PUT';
+
+    try {
+        const response = await fetch(`https://api.spotify.com/v1/me/tracks?ids=${lastTrackId}`, {
+            method: method,
+            headers: { 
+                'Authorization': 'Bearer ' + currentToken,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (response.ok) {
+            // On inverse l'état visuel immédiatement
+            const newLikedState = !isCurrentlyLiked;
+            likeBtn.innerText = newLikedState ? "❤️" : "🤍";
+            likeBtn.setAttribute('data-liked', newLikedState);
+            
+            // Optionnel : si le panneau des titres likés est ouvert, on le rafraîchit
+            if (document.getElementById('search-results').innerHTML.includes("VOS TITRES LIKÉS")) {
+                getUserLibrary();
+            }
+        }
+    } catch (e) {
+        console.error("Erreur lors du changement d'état du favori :", e);
+    }
+}
 
 
 
