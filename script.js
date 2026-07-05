@@ -1,7 +1,7 @@
 
 
 
-const APP_VERSION = "v1.0.27";
+const APP_VERSION = "v1.0.28";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -33,8 +33,8 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
         
         const params = new URLSearchParams(window.location.search);
         const code = params.get("code");
-        const scope = "user-read-private user-read-email user-modify-playback-state user-read-playback-state user-library-read playlist-read-private user-read-recently-played";
-        
+        const scope = "user-read-private user-read-email user-modify-playback-state user-read-playback-state user-library-read playlist-read-private user-read-recently-played  user-read-currently-playing";
+      
         if (code) {
             document.getElementById('login-section').style.display = 'none';
             handleCallback(code);
@@ -86,9 +86,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
             const verifier = generateCodeVerifier(128);
             const challenge = await generateCodeChallenge(verifier);
             localStorage.setItem("verifier", verifier);
-// Vérifie que 'user-read-playback-state' est bien présent aux côtés du volume
-const MonScope = 'user-read-playback-state user-modify-playback-state user-read-currently-playing';
-          
+
             const authUrl = new URL("https://accounts.spotify.com/authorize");
             const args = { response_type: 'code', client_id: clientId, scope: scope, redirect_uri: redirectUri, code_challenge_method: 'S256', code_challenge: challenge };
             authUrl.search = new URLSearchParams(args).toString();
@@ -795,7 +793,8 @@ function toggleVolumeControl() {
 
 // Fonction pour modifier le volume (et mettre à jour le texte du pourcentage)
 async function changeVolume(value) {
-    document.getElementById('volume-percent').innerText = value + '%';
+    const accessToken = localStorage.getItem("91d4165085fd4ed3bd281f16667d64bc") || localStorage.getItem("token") || localStorage.getItem("accessToken");
+        document.getElementById('volume-percent').innerText = value + '%';
     
     try {
         const response = await fetch(`https://api.spotify.com/v1/me/player/volume?volume_percent=${value}`, {
