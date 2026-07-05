@@ -1,8 +1,7 @@
 
 
 
-const APP_VERSION = "v1.0.13";
-
+const APP_VERSION = "v1.0.14";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -523,17 +522,21 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
         } else if (data.plainLyrics) {
             const plainLines = data.plainLyrics.split('\n');
             
-            // ✅ CORRIGÉ : On ajoute l'en-tête vert avant de lister les paroles brutes
-            const titleHtml = `<p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;">PAROLES</p>`;
-            const linesHtml = plainLines.map(line => `<div class="lyric-line plain-active">${line.trim()}</div>`).join('');
+            // On crée le titre en vert avec le même style que tes autres sections
+            const titleHeader = `<p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;">PAROLES</p>`;
             
-            document.getElementById('lyrics-content').innerHTML = titleHtml + linesHtml;
+            // ✅ STRUCTURE CONSERVÉE : On garde STRICTEMENT tes divs d'origine avec ton style inline d'origine
+            const linesHtml = plainLines
+                .map(line => `<div class="lyric-line" style="opacity: 1; transform: scale(1);">${line.trim()}</div>`)
+                .join('');
+                
+            document.getElementById('lyrics-content').innerHTML = titleHeader + linesHtml;
             currentLyrics = []; 
         } else {
-            // ✅ CORRIGÉ : On ajoute l'en-tête même si elles sont indisponibles pour garder le style
+            // ✅ STRUCTURE CONSERVÉE : On garde ton style inline ici aussi avec le titre vert devant
             document.getElementById('lyrics-content').innerHTML = `
                 <p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;">PAROLES</p>
-                <div class="lyric-line plain-active">Paroles indisponibles.</div>
+                <div class="lyric-line" style="opacity: 1;">Paroles indisponibles.</div>
             `;
             currentLyrics = [];
         }
@@ -552,12 +555,13 @@ function parseLyrics(lrc) {
         return null;
     }).filter(l => l && l.text !== "");
     
-    // ✅ CORRIGÉ : On ajoute l'en-tête vert pour les paroles synchronisées (qui défilent)
-    const titleHtml = `<p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;">PAROLES EN SYNCHRO</p>`;
+    // On ajoute aussi le titre en vert pour le mode synchronisé
+    const titleHeader = `<p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;">PAROLES</p>`;
     const linesHtml = currentLyrics.map((l, i) => `<div id="line-${i}" class="lyric-line">${l.text}</div>`).join('');
     
-    document.getElementById('lyrics-content').innerHTML = titleHtml + linesHtml;
+    document.getElementById('lyrics-content').innerHTML = titleHeader + linesHtml;
 }
+
 function highlightLyrics(currentTime) {
     currentLyrics.forEach((line, i) => {
         const el = document.getElementById(`line-${i}`);
