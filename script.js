@@ -21,7 +21,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
      
         // --- CONFIGURATION GOOGLE DRIVE API ---
         const CLIENT_ID = "443005295505-p17o76k2prnc4rvqen2ovrl3oehepknk.apps.googleusercontent.com";
-        const API_KEY = "METS_ICI_TA_VRAIE_CLE_API_CONSOLLE_GOOGLE"; 
+        const API_KEY = "AIzaSyAyieHkwA5MfAWc-RsRAIqeCglsvHMy7os"; 
         const DRIVE_FOLDER_ID = "1pWabyYlPEyDuLTfdbLX1zPzfhWuXPJAt"; 
         const SCOPES = 'https://www.googleapis.com/auth/drive.file';
 
