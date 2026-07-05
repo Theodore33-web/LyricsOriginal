@@ -1,7 +1,7 @@
 
 
 
-const APP_VERSION = "v1.0.10";
+const APP_VERSION = "v1.0.11";
 
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
