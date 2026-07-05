@@ -1,7 +1,7 @@
 
 
 
-const APP_VERSION = "v1.0.14";
+const APP_VERSION = "v1.0.15";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -511,7 +511,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
             return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
         }
 
-  async function fetchLyrics(artist, title, album, duration) {
+       async function fetchLyrics(artist, title, album, duration) {
     try {
         const url = `https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}&album_name=${encodeURIComponent(album)}&duration=${Math.round(duration)}`;
         const response = await fetch(url);
@@ -521,23 +521,15 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
             parseLyrics(data.syncedLyrics);
         } else if (data.plainLyrics) {
             const plainLines = data.plainLyrics.split('\n');
-            
-            // On crée le titre en vert avec le même style que tes autres sections
-            const titleHeader = `<p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;">PAROLES</p>`;
-            
-            // ✅ STRUCTURE CONSERVÉE : On garde STRICTEMENT tes divs d'origine avec ton style inline d'origine
-            const linesHtml = plainLines
-                .map(line => `<div class="lyric-line" style="opacity: 1; transform: scale(1);">${line.trim()}</div>`)
+            // ✅ CORRIGÉ : On retire le style inline pour éviter de casser la feuille de style (CSS)
+            // On ajoute une classe 'plain-active' pour que toutes les lignes soient visibles d'un coup
+            document.getElementById('lyrics-content').innerHTML = plainLines
+                .map(line => `<div class="lyric-line plain-active">${line.trim()}</div>`)
                 .join('');
-                
-            document.getElementById('lyrics-content').innerHTML = titleHeader + linesHtml;
             currentLyrics = []; 
         } else {
-            // ✅ STRUCTURE CONSERVÉE : On garde ton style inline ici aussi avec le titre vert devant
-            document.getElementById('lyrics-content').innerHTML = `
-                <p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;">PAROLES</p>
-                <div class="lyric-line" style="opacity: 1;">Paroles indisponibles.</div>
-            `;
+            // ✅ CORRIGÉ : Idem ici, on évite le style inline brut
+            document.getElementById('lyrics-content').innerHTML = `<div class="lyric-line plain-active">Paroles indisponibles.</div>`;
             currentLyrics = [];
         }
     } catch (e) {
@@ -554,12 +546,7 @@ function parseLyrics(lrc) {
         }
         return null;
     }).filter(l => l && l.text !== "");
-    
-    // On ajoute aussi le titre en vert pour le mode synchronisé
-    const titleHeader = `<p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;">PAROLES</p>`;
-    const linesHtml = currentLyrics.map((l, i) => `<div id="line-${i}" class="lyric-line">${l.text}</div>`).join('');
-    
-    document.getElementById('lyrics-content').innerHTML = titleHeader + linesHtml;
+    document.getElementById('lyrics-content').innerHTML = currentLyrics.map((l, i) => `<div id="line-${i}" class="lyric-line">${l.text}</div>`).join('');
 }
 
 function highlightLyrics(currentTime) {
