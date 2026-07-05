@@ -1,6 +1,4 @@
-
-
-const APP_VERSION = "v1.0.35";
+const APP_VERSION = "v1.0.34";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -32,7 +30,8 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
         
         const params = new URLSearchParams(window.location.search);
         const code = params.get("code");
-        const scope = "user-read-private user-read-email user-modify-playback-state user-read-playback-state user-library-read user-library-modify playlist-read-private user-read-recently-played user-read-currently-playing";
+        const scope = "user-read-private user-read-email user-modify-playback-state user-read-playback-state user-library-read playlist-read-private user-read-recently-played user-read-currently-playing";
+      
         if (code) {
             document.getElementById('login-section').style.display = 'none';
             handleCallback(code);
@@ -793,6 +792,31 @@ function toggleVolumeControl() {
 }
 
 // Fonction principale du volume liée à ton slider range
+async function changeVolume(value) {
+    const percentLabel = document.getElementById('volume-percent');
+    if (percentLabel) percentLabel.innerText = value + '%';
+    
+    if (!currentToken) return;
+
+    try {
+        const response = await fetch(`https://api.spotify.com/v1/me/player/volume?volume_percent=${value}`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': 'Bearer ' + currentToken
+            }
+        });
+
+        if (response.status === 403) {
+            console.warn("⚠️ Statut 403 : Spotify refuse le contrôle du volume sur cet appareil (ex: Web Player ou restrictions de compte).");
+        } else if (response.status === 404) {
+            console.warn("⚠️ Statut 404 : Aucun appareil actif trouvé pour modifier le volume.");
+        } else if (response.ok) {
+            console.log(`✅ Volume réglé sur ${value}%`);
+        }
+    } catch (error) {
+        console.error("Erreur lors du changement de volume :", error);
+    }
+}
 // Fonction pour modifier le volume (et mettre à jour le texte du pourcentage)
 async function changeVolume(value) {
     document.getElementById('volume-percent').innerText = value + '%';
@@ -928,16 +952,16 @@ async function checkIfTrackIsLiked(trackId) {
     if (!currentToken || !trackId) return;
 
     try {
-        // Utilisation du format standard ?ids=
-        const response = await fetch(`https://api.spotify.com/v1/me/tracks/contains?ids=$?ids=${trackId}`, {
+        // L'API Spotify permet de vérifier si un ID est sauvegardé
+        const response = await fetch(`https://api.spotify.com/v1/me/tracks/contains?ids=${trackId}`, {
             headers: { 'Authorization': 'Bearer ' + currentToken }
         });
         
         if (response.ok) {
-            const isLikedArray = await response.json();
-            const isLiked = isLikedArray[0]; // L'API renvoie un tableau [true] ou [false]
+            const [isLiked] = await response.json();
             const likeBtn = document.getElementById('like-btn');
             if (likeBtn) {
+                // Si liké : cœur rouge, sinon : cœur vide
                 likeBtn.innerText = isLiked ? "❤️" : "🤍";
                 likeBtn.setAttribute('data-liked', isLiked);
             }
@@ -953,29 +977,29 @@ async function toggleLikeCurrentTrack() {
 
     const likeBtn = document.getElementById('like-btn');
     const isCurrentlyLiked = likeBtn.getAttribute('data-liked') === 'true';
+    
+    // Si déjà liké, on fait un DELETE (retirer), sinon un PUT (ajouter)
     const method = isCurrentlyLiked ? 'DELETE' : 'PUT';
 
     try {
-        // Ajout du paramètre ids dans l'URL requis par l'API Spotify
-        const response = await fetch(`https://api.spotify.com/v1/me/tracks?ids=$?ids=${lastTrackId}`, {
+        const response = await fetch(`https://api.spotify.com/v1/me/tracks?ids=${lastTrackId}`, {
             method: method,
             headers: { 
                 'Authorization': 'Bearer ' + currentToken,
                 'Content-Type': 'application/json'
-            },
-            body: method === 'PUT' ? JSON.stringify({}) : null // Corps vide requis pour le PUT
+            }
         });
 
-        if (response.ok || response.status === 200 || response.status === 201) {
+        if (response.ok) {
+            // On inverse l'état visuel immédiatement
             const newLikedState = !isCurrentlyLiked;
             likeBtn.innerText = newLikedState ? "❤️" : "🤍";
             likeBtn.setAttribute('data-liked', newLikedState);
             
+            // Optionnel : si le panneau des titres likés est ouvert, on le rafraîchit
             if (document.getElementById('search-results').innerHTML.includes("VOS TITRES LIKÉS")) {
                 getUserLibrary();
             }
-        } else {
-            console.error("Réponse API Spotify incorrecte :", response.status);
         }
     } catch (e) {
         console.error("Erreur lors du changement d'état du favori :", e);
