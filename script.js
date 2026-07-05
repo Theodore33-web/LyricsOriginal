@@ -1,7 +1,7 @@
 
 
 
-const APP_VERSION = "v1.0.28";
+const APP_VERSION = "v1.0.29";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -825,11 +825,12 @@ async function changeVolume(value) {
 const deviceBtn = document.getElementById('device-toggle-btn');
 
 // 2. Afficher/Masquer la zone et charger les appareils
+
 async function toggleDeviceSelector() {
 document.getElementById('profile-card-zone').style.display = 'none'; 
 document.getElementById('volume-control-zone').style.display = 'none';
     const deviceZone = document.getElementById('device-control-zone');
-    
+    const accessToken = localStorage.getItem("91d4165085fd4ed3bd281f16667d64bc") || localStorage.getItem("token") || localStorage.getItem("accessToken");
     if (deviceZone.style.display === 'none' || deviceZone.style.display === '') {
         deviceZone.style.display = 'flex';
         await fetchAvailableDevices(); // On appelle Spotify pour lister les appareils
@@ -840,7 +841,8 @@ document.getElementById('volume-control-zone').style.display = 'none';
 
 // 3. Récupérer les appareils depuis Spotify
 async function fetchAvailableDevices() {
-    const select = document.getElementById('device-select');
+        const accessToken = localStorage.getItem("91d4165085fd4ed3bd281f16667d64bc") || localStorage.getItem("token") || localStorage.getItem("accessToken");
+        const select = document.getElementById('device-select');
     if (!select) return;
 
     try {
