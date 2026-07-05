@@ -625,18 +625,37 @@
             } catch (e) {}
         }
 
-        async function togglePlay() {
-            try {
-                const res = await fetch('https://api.spotify.com/v1/me/player', { headers: { 'Authorization': 'Bearer ' + currentToken } });
-                if (res.status === 204) return alert("Activez d'abord votre lecteur Spotify.");
-                const playback = await res.json();
-                const endpoint = playback.is_playing ? 'pause' : 'play';
-                
-                await fetch(`https://api.spotify.com/v1/me/player/$$${endpoint}`, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + currentToken } });
-                setTimeout(updateNowPlaying, 500);
-            } catch (e) { console.error(e); }
-        }
+     async function togglePlay() {
+    if (!currentToken) return;
 
+    try {
+        // 1. On demande l'état actuel du lecteur
+        const res = await fetch('https://api.spotify.com/v1/me/player', { 
+            headers: { 'Authorization': 'Bearer ' + currentToken } 
+        });
+        
+        if (res.status === 204) {
+            return alert("Activez d'abord votre lecteur Spotify.");
+        }
+        
+        const playback = await res.json();
+        
+        // 2. Si 'is_playing' est vrai, on veut faire 'pause'. Sinon, on veut faire 'play'.
+        const endpoint = playback.is_playing ? 'pause' : 'play';
+        
+        // 3. Envoi de la commande avec la syntaxe exacte acceptée par votre environnement
+        await fetch(`https://api.spotify.com/v1/me/player/$$${endpoint}`, { 
+            method: 'PUT', 
+            headers: { 'Authorization': 'Bearer ' + currentToken } 
+        });
+        
+        // Rafraîchit l'affichage du bouton (▶️ ou ⏸) juste après
+        setTimeout(updateNowPlaying, 500);
+        
+    } catch (e) { 
+        console.error("Erreur Play/Pause :", e); 
+    }
+}
         async function nextTrack() { 
             if (!currentToken) return;
             try {
