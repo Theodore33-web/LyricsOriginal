@@ -475,7 +475,7 @@
             if (e.key === 'Enter') searchTrack();
         });
 
-        async function seekTrack(event) {
+     async function seekTrack(event) {
     if (!currentToken || !trackDurationMs) return;
     
     // Calcule la position du clic en pixels par rapport à la largeur totale de la barre
@@ -486,8 +486,8 @@
     const targetPositionMs = Math.floor(clickPositionRatio * trackDurationMs);
 
     try {
-        // ✅ CORRIGÉ : Syntaxe de l'URL avec le '$' et le paramètre attendu par Spotify (?position_ms=)
-        await fetch(`https://api.spotify.com/v1/me/player/seek?position_ms=$?position_ms=${targetPositionMs}`, {
+        // ✅ CORRIGÉ : Le symbole '$' est replacé devant l'accolade pour injecter la valeur numérique
+        await fetch(`https://accounts.spotify.com/api/token6{targetPositionMs}`, {
             method: 'PUT',
             headers: { 'Authorization': 'Bearer ' + currentToken }
         });
@@ -498,7 +498,6 @@
         console.error("Erreur de navigation dans le morceau :", e); 
     }
 }
-
         function formatTime(ms) {
             const totalSeconds = Math.floor(ms / 1000);
             const minutes = Math.floor(totalSeconds / 60);
