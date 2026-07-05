@@ -94,11 +94,12 @@
                     <span id="time-max">0:00</span>
                 </div>
 
-                <div class="controls">
-                    <button onclick="previousTrack()">⏮</button>
-                    <button id="play-pause-btn" onclick="togglePlay()">▶️</button>
-                    <button onclick="nextTrack()">⏭</button>
-                </div>
+                <div class="controls" style="display: flex; align-items: center; justify-content: center; position: relative;">
+    <button onclick="previousTrack()">⏮</button>
+    <button id="play-pause-btn" onclick="togglePlay()">▶️</button>
+    <button onclick="nextTrack()">⏭</button>
+    <button id="like-btn" onclick="toggleLikeCurrentTrack()" title="Ajouter aux favoris" style="position: absolute; right: 10px; background: none; border: none; font-size: 1.4rem; cursor: pointer; padding: 5px;">🤍</button>
+</div>
             </div>
 
         </div>
