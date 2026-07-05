@@ -1,7 +1,7 @@
 
 
 
-const APP_VERSION = "v1.0.12";
+const APP_VERSION = "v1.0.13";
 
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
@@ -512,7 +512,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
             return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
         }
 
-       async function fetchLyrics(artist, title, album, duration) {
+  async function fetchLyrics(artist, title, album, duration) {
     try {
         const url = `https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}&album_name=${encodeURIComponent(album)}&duration=${Math.round(duration)}`;
         const response = await fetch(url);
@@ -522,15 +522,19 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
             parseLyrics(data.syncedLyrics);
         } else if (data.plainLyrics) {
             const plainLines = data.plainLyrics.split('\n');
-            // ✅ CORRIGÉ : On retire le style inline pour éviter de casser la feuille de style (CSS)
-            // On ajoute une classe 'plain-active' pour que toutes les lignes soient visibles d'un coup
-            document.getElementById('lyrics-content').innerHTML = plainLines
-                .map(line => `<div class="lyric-line plain-active">${line.trim()}</div>`)
-                .join('');
+            
+            // ✅ CORRIGÉ : On ajoute l'en-tête vert avant de lister les paroles brutes
+            const titleHtml = `<p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;">PAROLES</p>`;
+            const linesHtml = plainLines.map(line => `<div class="lyric-line plain-active">${line.trim()}</div>`).join('');
+            
+            document.getElementById('lyrics-content').innerHTML = titleHtml + linesHtml;
             currentLyrics = []; 
         } else {
-            // ✅ CORRIGÉ : Idem ici, on évite le style inline brut
-            document.getElementById('lyrics-content').innerHTML = `<div class="lyric-line plain-active">Paroles indisponibles.</div>`;
+            // ✅ CORRIGÉ : On ajoute l'en-tête même si elles sont indisponibles pour garder le style
+            document.getElementById('lyrics-content').innerHTML = `
+                <p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;">PAROLES</p>
+                <div class="lyric-line plain-active">Paroles indisponibles.</div>
+            `;
             currentLyrics = [];
         }
     } catch (e) {
@@ -547,9 +551,13 @@ function parseLyrics(lrc) {
         }
         return null;
     }).filter(l => l && l.text !== "");
-    document.getElementById('lyrics-content').innerHTML = currentLyrics.map((l, i) => `<div id="line-${i}" class="lyric-line">${l.text}</div>`).join('');
+    
+    // ✅ CORRIGÉ : On ajoute l'en-tête vert pour les paroles synchronisées (qui défilent)
+    const titleHtml = `<p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;">PAROLES EN SYNCHRO</p>`;
+    const linesHtml = currentLyrics.map((l, i) => `<div id="line-${i}" class="lyric-line">${l.text}</div>`).join('');
+    
+    document.getElementById('lyrics-content').innerHTML = titleHtml + linesHtml;
 }
-
 function highlightLyrics(currentTime) {
     currentLyrics.forEach((line, i) => {
         const el = document.getElementById(`line-${i}`);
