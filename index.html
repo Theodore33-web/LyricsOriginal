@@ -22,42 +22,51 @@
         </div>
     
         <div class="sidebar">   
-            <div class="card">
-                <p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 0 0 10px 0; text-align: left;">EXPLORER & RECHERCHER</p>
-                <div class="search-box">
-                    <input type="text" id="search-input" placeholder="Titre, artiste...">
-                    <button onclick="searchTrack()" title="Rechercher par texte">🔍</button>
-                    <button id="mic-btn" onclick="toggleMicrophoneListen()" title="Identifier via AudD">🎙️</button>
-                    <button id="lib-toggle-btn" onclick="getUserLibrary()" title="Ouvrir ma bibliothèque (Likés)">📂</button>
-                    <button id="record-drive-btn" onclick="startDriveRecording()" title="Enregistrer un audio pour Google Drive">📹</button>
-                    <button id="recent-toggle-btn" onclick="getRecentlyPlayed()" title="Écoutes récentes">📄</button>
-                    <button id="profile-toggle-btn" onclick="toggleProfileCard()" title="Mon Profil">👤</button>
-                </div>
-                
-                <div id="drive-record-zone" style="display: none; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 12px; margin-top: 10px; font-size: 0.85rem;">
-                    <p style="margin: 5px 0; color: var(--spotify-green); font-weight: bold;">Enregistrement Drive</p>
-                    <div id="record-timer" style="font-size: 1.1rem; font-weight: bold; margin: 5px 0;">00:00</div>
-                    <div id="record-actions">
-                        <button onclick="stopDriveRecording()" style="background: #ef4444; color: white; border: none; border-radius: 20px; padding: 5px 15px; cursor: pointer; font-weight: bold;">🛑 Stopper</button>
-                    </div>
-                    <div id="drive-save-zone" style="display: none; margin-top: 10px;">
-                        <input type="text" id="audio-filename" placeholder="Nom de l'audio..." style="width: 80%; background: #121212; border: 1px solid #333; border-radius: 20px; padding: 6px 12px; color: white; margin-bottom: 8px;">
-                        <button onclick="prepareUploadToDrive()" style="background: var(--spotify-green); color: white; border: none; border-radius: 20px; padding: 6px 15px; cursor: pointer; font-weight: bold; width: 85%;">💾 Sauvegarder sur Drive</button>
-                    </div>
-                    <p id="drive-status-msg" style="margin: 5px 0; font-size: 0.8rem; color: var(--text-grey);"></p>
-                </div>
-          
-                <div id="profile-card-zone" style="display: none; background: rgba(255,255,255,0.05); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px); padding: 15px; border-radius: 12px; margin-top: 10px; border: 1px solid rgba(255, 255, 255, 0.08);">
-                    <div style="display: flex; align-items: center; justify-content: center; gap: 15px;">
-                        <img id="profile-card-avatar" src="https://via.placeholder.com/50" alt="Avatar" style="border-radius: 50%; width: 50px; height: 50px; border: 2px solid var(--spotify-green); object-fit: cover;">
-                        <div style="text-align: left;">
-                            <h4 id="profile-card-name" style="margin: 0;">Théo</h4>
-                            <span style="color: var(--spotify-green); font-size: 11px; font-weight: bold;">PREMIUM</span>
-                        </div>
-                    </div>
-                </div>
-                <div id="search-results"></div>
+       <div class="card">
+    <p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 0 0 10px 0; text-align: left;">EXPLORER & RECHERCHER</p>
+    
+    <div class="search-box" style="display: flex; flex-direction: column; gap: 8px; max-width: 400px; width: 100%;">
+        
+        <div style="display: flex; width: 100%; gap: 6px;">
+            <input type="text" id="search-input" placeholder="Titre, artiste..." style="flex: 1;">
+            <button onclick="searchTrack()" title="Rechercher par texte">🔍</button>
+        </div>
+        
+        <div style="display: flex; flex-wrap: wrap; gap: 6px; width: 100%;">
+            <button id="mic-btn" onclick="toggleMicrophoneListen()" title="Identifier via AudD">🎙️</button>
+            <button id="lib-toggle-btn" onclick="getUserLibrary()" title="Ouvrir ma bibliothèque (Likés)">📂</button>
+            <button id="record-drive-btn" onclick="startDriveRecording()" title="Enregistrer un audio pour Google Drive">📹</button>
+            <button id="recent-toggle-btn" onclick="getRecentlyPlayed()" title="Écoutes récentes">📄</button>
+            <button id="profile-toggle-btn" onclick="toggleProfileCard()" title="Mon Profil">👤</button>
+            <button id="volume-btn" onclick="toggleVolumeControl()" title="Régler le volume">🔊</button>
+        </div>
+        
+    </div>
+    
+    <div id="drive-record-zone" style="display: none; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 12px; margin-top: 10px; font-size: 0.85rem;">
+        <p style="margin: 5px 0; color: var(--spotify-green); font-weight: bold;">Enregistrement Drive</p>
+        <div id="record-timer" style="font-size: 1.1rem; font-weight: bold; margin: 5px 0;">00:00</div>
+        <div id="record-actions">
+            <button onclick="stopDriveRecording()" style="background: #ef4444; color: white; border: none; border-radius: 20px; padding: 5px 15px; cursor: pointer; font-weight: bold;">🛑 Stopper</button>
+        </div>
+        <div id="drive-save-zone" style="display: none; margin-top: 10px;">
+            <input type="text" id="audio-filename" placeholder="Nom de l'audio..." style="width: 80%; background: #121212; border: 1px solid #333; border-radius: 20px; padding: 6px 12px; color: white; margin-bottom: 8px;">
+            <button onclick="prepareUploadToDrive()" style="background: var(--spotify-green); color: white; border: none; border-radius: 20px; padding: 6px 15px; cursor: pointer; font-weight: bold; width: 85%;">💾 Sauvegarder sur Drive</button>
+        </div>
+        <p id="drive-status-msg" style="margin: 5px 0; font-size: 0.8rem; color: var(--text-grey);"></p>
+    </div>
+
+    <div id="profile-card-zone" style="display: none; background: rgba(255,255,255,0.05); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px); padding: 15px; border-radius: 12px; margin-top: 10px; border: 1px solid rgba(255, 255, 255, 0.08);">
+        <div style="display: flex; align-items: center; justify-content: center; gap: 15px;">
+            <img id="profile-card-avatar" src="https://via.placeholder.com/50" alt="Avatar" style="border-radius: 50%; width: 50px; height: 50px; border: 2px solid var(--spotify-green); object-fit: cover;">
+            <div style="text-align: left;">
+                <h4 id="profile-card-name" style="margin: 0;">Théo</h4>
+                <span style="color: var(--spotify-green); font-size: 11px; font-weight: bold;">PREMIUM</span>
             </div>
+        </div>
+    </div>
+    <div id="search-results"></div>
+</div>
 
             <div class="card">
                 <p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 0;">LECTURE EN COURS</p>
