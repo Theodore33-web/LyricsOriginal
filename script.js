@@ -794,31 +794,6 @@ function toggleVolumeControl() {
 }
 
 // Fonction principale du volume liée à ton slider range
-async function changeVolume(value) {
-    const percentLabel = document.getElementById('volume-percent');
-    if (percentLabel) percentLabel.innerText = value + '%';
-    
-    if (!currentToken) return;
-
-    try {
-        const response = await fetch(`https://api.spotify.com/v1/me/player/volume?volume_percent=${value}`, {
-            method: 'PUT',
-            headers: {
-                'Authorization': 'Bearer ' + currentToken
-            }
-        });
-
-        if (response.status === 403) {
-            console.warn("⚠️ Statut 403 : Spotify refuse le contrôle du volume sur cet appareil (ex: Web Player ou restrictions de compte).");
-        } else if (response.status === 404) {
-            console.warn("⚠️ Statut 404 : Aucun appareil actif trouvé pour modifier le volume.");
-        } else if (response.ok) {
-            console.log(`✅ Volume réglé sur ${value}%`);
-        }
-    } catch (error) {
-        console.error("Erreur lors du changement de volume :", error);
-    }
-}
 // Fonction pour modifier le volume (et mettre à jour le texte du pourcentage)
 async function changeVolume(value) {
     document.getElementById('volume-percent').innerText = value + '%';
