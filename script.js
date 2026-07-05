@@ -1,4 +1,4 @@
-nst clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
+        const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
         let currentToken = "";
         let lastTrackId = "";
@@ -709,3 +709,4 @@ nst clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 resultsContainer.appendChild(moreBtn);
             }
         }
+
