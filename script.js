@@ -1,7 +1,7 @@
 
 
 
-const APP_VERSION = "v1.0.30";
+const APP_VERSION = "v1.0.31";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -840,37 +840,60 @@ async function toggleDeviceSelector() {
 }
 
 // 3. Récupérer les appareils depuis Spotify
-async function fetchAvailableDevices() {
+  async function fetchAvailableDevices() {
     const select = document.getElementById('device-select');
-    if (!select) return;
-    if (!currentToken) return; // ✅ Sécurité si pas connecté
+          const container = document.getElementById('device-list-container');
+    if (!container) return;
+    if (!currentToken) return;
 
     try {
         const response = await fetch('https://api.spotify.com/v1/me/player/devices', {
             headers: { 
-                'Authorization': 'Bearer ' + currentToken // ✅ Utilisation du bon token
+                'Authorization': 'Bearer ' + currentToken
             }
         });
         
         if (!response.ok) throw new Error(`Erreur Spotify: ${response.status}`);
 
         const data = await response.json();
-        select.innerHTML = ''; 
+        container.innerHTML = ''; // On vide la liste précédente
 
         if (data.devices && data.devices.length > 0) {
             data.devices.forEach(device => {
-                const option = document.createElement('option');
-                option.value = device.id;
-                option.text = device.name + (device.is_active ? ' (Actif) 🎧' : '');
-                option.selected = device.is_active;
-                select.appendChild(option);
+                // Création d'un bouton pour chaque appareil
+                const deviceButton = document.createElement('button');
+                
+                // Style du bouton (adapter le design à ta charte Spotify)
+                deviceButton.style.width = '100%';
+                deviceButton.style.padding = '10px 12px';
+                deviceButton.style.background = device.is_active ? 'rgba(29, 185, 84, 0.2)' : '#282828';
+                deviceButton.style.color = device.is_active ? '#1db954' : '#ffffff';
+                deviceButton.style.border = device.is_active ? '1px solid #1db954' : 'none';
+                deviceButton.style.borderRadius = '8px';
+                deviceButton.style.textAlign = 'left';
+                deviceButton.style.fontSize = '0.9rem';
+                deviceButton.style.cursor = 'pointer';
+                deviceButton.style.display = 'flex';
+                deviceButton.style.justifyContent = 'space-between';
+                deviceButton.style.alignItems = 'center';
+
+                // Contenu : Nom de l'appareil + icône s'il est actif
+                deviceButton.innerHTML = `
+                    <span>📱 ${device.name}</span>
+                    ${device.is_active ? '<span style="font-size: 0.8rem;">● Actif</span>' : ''}
+                `;
+
+                // Événement : au clic, on bascule la lecture sur cet appareil !
+                deviceButton.onclick = () => switchDevice(device.id);
+
+                container.appendChild(deviceButton);
             });
         } else {
-            select.innerHTML = '<option value="">Aucun appareil actif trouvé</option>';
+            container.innerHTML = '<p style="font-size: 0.8rem; color: var(--text-grey); text-align: center; margin: 5px 0;">Aucun appareil actif trouvé. Lance Spotify sur ton téléphone !</p>';
         }
     } catch (error) {
         console.error("Erreur appareils :", error);
-        select.innerHTML = '<option value="">Erreur de chargement</option>';
+        container.innerHTML = '<p style="font-size: 0.8rem; color: #ff5555; text-align: center;">Erreur de chargement</p>';
     }
 }
 async function switchDevice(deviceId) {
