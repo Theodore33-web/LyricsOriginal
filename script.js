@@ -1,7 +1,7 @@
 
 
 
-const APP_VERSION = "v1.0.25";
+const APP_VERSION = "v1.0.26";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -841,49 +841,42 @@ document.getElementById('volume-control-zone').style.display = 'none';
 // 3. Récupérer les appareils depuis Spotify
 async function fetchAvailableDevices() {
     const select = document.getElementById('device-select');
+    if (!select) return;
+
     try {
+        // Appelle l'API officielle de Spotify pour lister les appareils
         const response = await fetch('https://api.spotify.com/v1/me/player/devices', {
-            headers: { 'Authorization': `Bearer ${accessToken}` }
+            headers: { 
+                'Authorization': `Bearer ${accessToken}` // Vérifie que ta variable s'appelle bien accessToken
+            }
         });
+        
+        if (!response.ok) {
+            throw new Error(`Erreur Spotify: ${response.status}`);
+        }
+
         const data = await response.json();
-        
-        select.innerHTML = ''; // On vide le menu
-        
+        console.log("Appareils reçus :", data); // Permet de voir ce que Spotify renvoie dans la console de ton navigateur
+
+        select.innerHTML = ''; // On vide le menu avant de le remplir
+
         if (data.devices && data.devices.length > 0) {
             data.devices.forEach(device => {
                 const option = document.createElement('option');
                 option.value = device.id;
-                // On affiche le nom de l'appareil (ex: "iPhone de Théo [Actif]")
+                // Affiche le nom de l'appareil et ajoute un badge s'il est déjà actif
                 option.text = device.name + (device.is_active ? ' (Actif) 🎧' : '');
                 option.selected = device.is_active;
                 select.appendChild(option);
             });
         } else {
-            select.innerHTML = '<option value="">Aucun appareil détecté</option>';
+            select.innerHTML = '<option value="">Aucun appareil actif trouvé</option>';
         }
     } catch (error) {
-        console.error("Erreur appareils:", error);
+        console.error("Erreur lors de la récupération des appareils :", error);
         select.innerHTML = '<option value="">Erreur de chargement</option>';
     }
 }
-
-// 4. Switcher le lecteur vers l'appareil choisi
-async function switchDevice(deviceId) {
-    if (!deviceId) return;
-    try {
-        await fetch('https://api.spotify.com/v1/me/player', {
-            method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ device_ids: [deviceId], play: true }) // Le true force la reprise de la lecture sur le nouvel appareil
-        });
-    } catch (error) {
-        console.error("Erreur lors du switch d'appareil:", error);
-    }
-}
-
 
 
 
