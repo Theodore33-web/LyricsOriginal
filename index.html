@@ -1,1 +1,307 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Test "J'aime" Spotify (avec auth PKCE)</title>
+<style>
+  body { font-family: system-ui, -apple-system, Roboto, Arial; padding: 18px; background:#0f1113; color:#eee; }
+  label { display:block; margin:8px 0 4px; color:#ccc; }
+  input[type="text"], textarea { width:100%; padding:8px; border-radius:6px; border:1px solid #333; background:#121212; color:#eee; }
+  button { margin-top:8px; padding:10px 14px; border-radius:8px; border:none; cursor:pointer; background:#1db954; color:#051; font-weight:600; }
+  #likeBtn { font-size:22px; padding:8px 12px; background:#222; color:#fff; border:1px solid #444; }
+  #log { margin-top:12px; background:#070707; padding:10px; border-radius:6px; height:220px; overflow:auto; font-family:monospace; font-size:13px; color:#9fd; }
+  .row { display:flex; gap:10px; align-items:center; margin-top:8px; }
+  .small { font-size:0.9rem; color:#9aa; }
+  .muted { color:#888; font-size:0.9rem; }
+</style>
+</head>
+<body>
+  <h2>Test bouton "J'aime" (Spotify) — avec authentification PKCE</h2>
 
+  <p class="muted">Client ID utilisé : <code id="clientIdDisplay"></code></p>
+
+  <div id="authZone">
+    <div class="row">
+      <button id="loginBtn">Se connecter avec Spotify</button>
+      <button id="logoutBtn" style="background:#444;color:#fff">Se déconnecter</button>
+      <div style="margin-left:auto">
+        <span id="authStatus" class="small">Statut : non connecté</span>
+      </div>
+    </div>
+    <p class="muted">Si tu ne veux pas gérer l'auth manuellement, clique sur "Se connecter avec Spotify".</p>
+  </div>
+
+  <label>Track ID (ex: 78FNSZkI1968KTtyf2s315):</label>
+  <input id="trackInput" type="text" placeholder="ID du morceau (track id)" />
+
+  <div class="row">
+    <button id="checkBtn">Vérifier (est liké ?)</button>
+    <button id="toggleBtn">Basculer like (PUT / DELETE)</button>
+    <button id="whoamiBtn">Vérifier token (/me)</button>
+    <div style="margin-left:auto">
+      <button id="resetBtn" style="background:#444;color:#fff">Reset</button>
+    </div>
+  </div>
+
+  <div class="row" style="margin-top:12px;">
+    <button id="likeBtn">🤍</button>
+    <div class="small" id="statusText">Statut : inactif</div>
+  </div>
+
+  <div id="log"></div>
+
+<script>
+/* ====== CONFIG ====== */
+const CLIENT_ID = '91d4165085fd4ed3bd281f16667d64bc'; // fourni
+const REDIRECT_URI = window.location.origin + window.location.pathname;
+const SCOPE = 'user-read-private user-read-email user-modify-playback-state user-read-playback-state user-library-read user-library-modify playlist-read-private user-read-recently-played user-read-currently-playing';
+const AUTH_ENDPOINT = 'https://accounts.spotify.com/authorize';
+const TOKEN_ENDPOINT = 'https://accounts.spotify.com/api/token';
+
+document.getElementById('clientIdDisplay').innerText = CLIENT_ID;
+
+/* ====== UTIL ====== */
+function log(...args) {
+  const time = new Date().toLocaleTimeString();
+  const out = `[${time}] ` + args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
+  const logEl = document.getElementById('log');
+  logEl.innerText = out + '\n' + logEl.innerText;
+  console.log(...args);
+}
+
+function base64UrlEncode(buffer) {
+  // buffer: ArrayBuffer
+  let str = String.fromCharCode.apply(null, new Uint8Array(buffer));
+  return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+async function generateCodeChallenge(verifier) {
+  const data = new TextEncoder().encode(verifier);
+  const digest = await window.crypto.subtle.digest('SHA-256', data);
+  return base64UrlEncode(digest);
+}
+
+function generateCodeVerifier() {
+  const array = new Uint8Array(96);
+  window.crypto.getRandomValues(array);
+  return Array.from(array).map(b => ('0' + (b & 0xff).toString(16)).slice(-2)).join('');
+}
+
+/* ====== AUTH HELPERS ====== */
+function buildAuthUrl() {
+  const verifier = generateCodeVerifier();
+  localStorage.setItem('pkce_verifier', verifier);
+  return (async () => {
+    const challenge = await generateCodeChallenge(verifier);
+    const params = new URLSearchParams({
+      response_type: 'code',
+      client_id: CLIENT_ID,
+      scope: SCOPE,
+      redirect_uri: REDIRECT_URI,
+      code_challenge_method: 'S256',
+      code_challenge: challenge,
+      show_dialog: 'true'
+    });
+    return AUTH_ENDPOINT + '?' + params.toString();
+  })();
+}
+
+async function redirectToSpotifyAuth() {
+  const url = await buildAuthUrl();
+  window.location.href = url;
+}
+
+async function handleAuthorizationCallback() {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
+  const error = params.get('error');
+  if (error) {
+    log('Auth error in callback:', error);
+    return;
+  }
+  if (!code) return;
+  log('Authorization code présent. Échange pour token...');
+  const verifier = localStorage.getItem('pkce_verifier');
+  if (!verifier) {
+    log('Aucun verifier PKCE trouvé dans localStorage.');
+    return;
+  }
+
+  // échange code -> token
+  const body = new URLSearchParams({
+    grant_type: 'authorization_code',
+    code: code,
+    redirect_uri: REDIRECT_URI,
+    client_id: CLIENT_ID,
+    code_verifier: verifier
+  });
+
+  try {
+    const resp = await fetch(TOKEN_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString()
+    });
+    const data = await resp.json();
+    log('Réponse token:', data);
+    if (data.access_token) {
+      localStorage.setItem('spotify_access_token', data.access_token);
+      if (data.scope) localStorage.setItem('spotify_scopes', data.scope);
+      // clear code from url for cleanliness
+      window.history.replaceState({}, document.title, REDIRECT_URI);
+      updateAuthUI();
+    } else {
+      log('Échec échange token', data);
+    }
+  } catch (err) {
+    log('Erreur échange token', err);
+  }
+}
+
+/* ====== AUTH UI ====== */
+function getToken() { return localStorage.getItem('spotify_access_token'); }
+function clearToken() {
+  localStorage.removeItem('spotify_access_token');
+  localStorage.removeItem('spotify_scopes');
+  localStorage.removeItem('pkce_verifier');
+  updateAuthUI();
+}
+
+function updateAuthUI() {
+  const token = getToken();
+  const status = document.getElementById('authStatus');
+  if (token) {
+    status.innerText = 'Statut : connecté';
+    status.style.color = '#8f8';
+  } else {
+    status.innerText = 'Statut : non connecté';
+    status.style.color = '#f88';
+  }
+  log('Scopes (stockés):', localStorage.getItem('spotify_scopes') || '(aucun)');
+}
+
+/* ====== SPOTIFY ACTIONS (check/toggle/whoami) ====== */
+async function whoami() {
+  const token = getToken();
+  if (!token) { alert('Connecte-toi d\'abord'); return; }
+  try {
+    const r = await fetch('https://api.spotify.com/v1/me', { headers: { Authorization: 'Bearer ' + token }});
+    const txt = await r.text();
+    log('/me ->', r.status, txt);
+    if (r.ok) {
+      document.getElementById('statusText').innerText = 'Statut : token valide (GET /me ok)';
+    } else {
+      document.getElementById('statusText').innerText = 'Statut : /me -> ' + r.status;
+      if (r.status === 401) { alert('Token invalide/expiré. Reconnecte-toi.'); }
+    }
+  } catch (err) {
+    log('whoami error', err);
+  }
+}
+
+async function checkIfTrackIsLiked() {
+  const token = getToken();
+  const trackId = document.getElementById('trackInput').value.trim();
+  if (!token) { alert('Connecte-toi d\'abord'); return; }
+  if (!trackId) { alert('Saisis un track id'); return; }
+
+  document.getElementById('statusText').innerText = 'Statut : vérification...';
+  try {
+    const r = await fetch(`https://api.spotify.com/v1/me/tracks/contains?ids=${encodeURIComponent(trackId)}`, {
+      headers: { Authorization: 'Bearer ' + token }
+    });
+    const text = await r.text();
+    log('GET contains ->', r.status, text);
+    if (!r.ok) {
+      if (r.status === 401) document.getElementById('statusText').innerText = 'Statut : token invalide/expiré (401)';
+      else if (r.status === 403) document.getElementById('statusText').innerText = 'Statut : accès refusé (403)';
+      else document.getElementById('statusText').innerText = 'Statut : erreur ' + r.status;
+      return;
+    }
+    const arr = JSON.parse(text);
+    const isLiked = !!arr[0];
+    const likeBtn = document.getElementById('likeBtn');
+    likeBtn.innerText = isLiked ? '❤️' : '🤍';
+    likeBtn.dataset.liked = String(isLiked);
+    document.getElementById('statusText').innerText = 'Statut : ' + (isLiked ? 'Déjà liké' : 'Pas liké');
+    log('isLiked =', isLiked);
+  } catch (err) {
+    log('Erreur checkIfTrackIsLiked', err);
+  }
+}
+
+async function toggleLike() {
+  const token = getToken();
+  const trackId = document.getElementById('trackInput').value.trim();
+  if (!token) { alert('Connecte-toi d\'abord'); return; }
+  if (!trackId) { alert('Saisis un track id'); return; }
+
+  const likeBtn = document.getElementById('likeBtn');
+  const currently = likeBtn.dataset.liked === 'true';
+  const method = currently ? 'DELETE' : 'PUT';
+  document.getElementById('statusText').innerText = `Statut : envoi ${method}...`;
+
+  try {
+    const r = await fetch(`https://api.spotify.com/v1/me/tracks?ids=${encodeURIComponent(trackId)}`, {
+      method,
+      headers: { Authorization: 'Bearer ' + token }
+    });
+    const body = await r.text();
+    log(`${method} /me/tracks ->`, r.status, body || '(no body)');
+    if (!r.ok) {
+      if (r.status === 401) {
+        alert('401 token invalide/expiré — reconnecte-toi.');
+        return;
+      }
+      if (r.status === 403) {
+        const scopes = localStorage.getItem('spotify_scopes') || '';
+        if (!scopes.includes('user-library-modify')) {
+          if (confirm('Permission user-library-modify manquante. Reconnecter pour donner l’accès ?')) {
+            await redirectToSpotifyAuth();
+          }
+          return;
+        } else {
+          alert('403 Forbidden — le token semble avoir le scope, vérifie que tu es connecté au bon compte et réessaie.');
+          return;
+        }
+      }
+      document.getElementById('statusText').innerText = 'Statut : erreur ' + r.status;
+      return;
+    }
+    const newState = !currently;
+    likeBtn.innerText = newState ? '❤️' : '🤍';
+    likeBtn.dataset.liked = String(newState);
+    document.getElementById('statusText').innerText = 'Statut : ' + (newState ? 'Liké' : 'Non liké');
+    await checkIfTrackIsLiked();
+  } catch (err) {
+    log('Erreur toggleLike', err);
+  }
+}
+
+/* ====== UI wiring ====== */
+document.getElementById('loginBtn').addEventListener('click', () => { redirectToSpotifyAuth(); });
+document.getElementById('logoutBtn').addEventListener('click', () => { clearToken(); });
+document.getElementById('whoamiBtn').addEventListener('click', whoami);
+document.getElementById('checkBtn').addEventListener('click', checkIfTrackIsLiked);
+document.getElementById('toggleBtn').addEventListener('click', toggleLike);
+document.getElementById('resetBtn').addEventListener('click', () => {
+  document.getElementById('trackInput').value = '';
+  document.getElementById('likeBtn').innerText = '🤍';
+  delete document.getElementById('likeBtn').dataset.liked;
+  document.getElementById('statusText').innerText = 'Statut : inactif';
+  log('UI reset');
+});
+document.getElementById('likeBtn').addEventListener('click', () => toggleLike());
+
+/* ====== On load ====== */
+updateAuthUI();
+handleAuthorizationCallback();
+
+if (window.location.protocol === 'file:') {
+  log('Attention: le flow OAuth nécessite un redirect URI enregistré. Evite d\'ouvrir ce fichier via file:// — utilise un serveur local ou hébergement correspondant au redirect URI enregistré.');
+}
+  const APP_VERSION = "v1.0.66";
+</script>
+</body>
+</html>
