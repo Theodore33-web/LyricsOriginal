@@ -1,5 +1,5 @@
 
-const APP_VERSION = "v1.0.59";
+const APP_VERSION = "v1.0.60";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -977,8 +977,8 @@ async function checkIfTrackIsLiked(trackId) {
     if (!currentToken || !trackId) return;
 
     try {
-        // CORRECTION : Ajout du $ et du paramètre ?ids= requis par Spotify
-        const response = await fetch(`https://api.spotify.com/v1/me/tracks/contains?ids=$\${encodeURIComponent(trackId)}`, {
+        // CORRECTION : Ajout du $ avant l'accolade et du paramètre ?ids=
+        const response = await fetch(`https://api.spotify.com/v1/me/player2${encodeURIComponent(trackId)}`, {
             method: 'GET',
             headers: { 'Authorization': 'Bearer ' + currentToken }
         });
@@ -1013,8 +1013,8 @@ async function toggleLikeCurrentTrack() {
     const method = isCurrentlyLiked ? 'DELETE' : 'PUT';
 
     try {
-        // CORRECTION : Ajout du $ et du paramètre ?ids= obligatoire pour l'API Spotify
-        const response = await fetch(`https://api.spotify.com/v1/me/tracks?ids=$\${encodeURIComponent(lastTrackId)}`, {
+        // CORRECTION : Ajout du $ avant l'accolade et du paramètre ?ids=
+        const response = await fetch(`https://api.spotify.com/v1/me/player3${encodeURIComponent(lastTrackId)}`, {
             method: method,
             headers: { 'Authorization': 'Bearer ' + currentToken }
         });
