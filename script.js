@@ -1,145 +1,225 @@
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
+import com.sun.net.httpserver.HttpServer;
+import java.awt.Desktop;
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
+import java.net.InetSocketAddress;
+import java.net.URI;
 import java.net.URL;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 
-public class SpotifyLikeTest {
+public class SpotifyLikeAuthTest {
 
-    // TO-DO : Colle ton token d'accès Spotify actuel ici (sans le mot "Bearer ")
-    private static final String ACCESS_TOKEN = "91d4165085fd4ed3bd281f16667d64bc";
+    // TO-DO : Remplace par les identifiants de ton application Spotify Dashboard
+    private static final String CLIENT_ID = "91d4165085fd4ed3bd281f16667d64bc";
+    private static final String REDIRECT_URI = "http://localhost:8080/callback";
+    private static final int PORT = 8080;
+
+    private static String accessToken = "";
+    private static HttpServer server;
 
     public static void main(String[] args) {
-        if (ACCESS_TOKEN.equals("VOTRE_TOKEN_ACCESS_ICI")) {
-            System.out.println("❌ Veuillez d'abord insérer un token d'accès Spotify valide.");
-            return;
-        }
-
         try {
-            System.out.println("🎵 1. Récupération de la musique en cours d'écoute...");
+            // 1. Démarrer un serveur HTTP local temporaire pour intercepter le code de connexion
+            startLocalServer();
+
+            // 2. Ouvrir le navigateur pour se connecter à Spotify
+            openSpotifyLoginWindow();
+
+            System.out.println("⏳ En attente de ta connexion dans le navigateur...");
+            
+            // Boucle d'attente jusqu'à obtention du token
+            while (accessToken.isEmpty()) {
+                Thread.sleep(500);
+            }
+
+            // Arrêt du serveur de connexion devenu inutile
+            server.stop(0);
+            System.out.println("\n✅ Connexion réussie ! Token récupéré.");
+
+            // 3. Lancement du test du bouton Cœur
+            System.out.println("\n🎵 1. Récupération de la musique en cours d'écoute...");
             String trackId = getCurrentlyPlayingTrack();
 
             if (trackId == null) {
-                System.out.println("🛑 Aucune musique en cours d'écoute ou appareil inactif.");
+                System.out.println("🛑 Aucune musique en cours d'écoute. Lance un morceau sur Spotify !");
                 return;
             }
 
-            System.out.println("\n🔍 2. Vérification de l'état du cœur (titre liké ?)...");
+            System.out.println("\n🔍 2. Vérification de l'état actuel du morceau (liké ?)...");
             boolean isLiked = checkIfTrackIsLiked(trackId);
-            System.out.println("Résultat : " + (isLiked ? "❤️ Le morceau est déjà liké !" : "🤍 Le morceau n'est pas liké."));
+            System.out.println("Résultat : " + (isLiked ? "❤️ Déjà dans tes favoris !" : "🤍 Pas encore liké."));
 
-            System.out.println("\n⚡ 3. Inversion de l'état (Action de cliquer sur le cœur)...");
+            System.out.println("\n⚡ 3. Simulation du clic sur le cœur (Inversion de l'état)...");
             toggleLikeTrack(trackId, isLiked);
 
-            System.out.println("\n🔄 4. Nouvelle vérification pour confirmer le changement...");
+            System.out.println("\n🔄 4. Vérification finale...");
             isLiked = checkIfTrackIsLiked(trackId);
-            System.out.println("Nouvel état : " + (isLiked ? "❤️ Ajouté aux favoris !" : "🤍 Supprimé des favoris !"));
+            System.out.println("Nouvel état sur ton compte Spotify : " + (isLiked ? "❤️ Ajouté !" : "🤍 Supprimé !"));
 
         } catch (Exception e) {
-            System.err.println("🚨 Une erreur est survenue : " + e.getMessage());
+            System.err.println("🚨 Erreur : " + e.getMessage());
             e.printStackTrace();
         }
     }
 
-    /**
-     * Récupère la musique actuellement lue et affiche son nom
-     * Retourne l'identifiant (ID) du morceau Spotify
-     */
+    // --- ENVOI VERS LE NAVIGATEUR POUR CONNEXION ---
+    private static void openSpotifyLoginWindow() throws Exception {
+        String scopes = "user-read-currently-playing user-library-read user-library-modify";
+        String authUrl = "https://accounts.spotify.com/authorize"
+                + "?response_type=code"
+                + "&client_id=" + CLIENT_ID
+                + "&scope=" + URLEncoder.encode(scopes, StandardCharsets.UTF_8.name())
+                + "&redirect_uri=" + URLEncoder.encode(REDIRECT_URI, StandardCharsets.UTF_8.name());
+
+        System.out.println("🌍 Ouverture de la page de connexion Spotify...");
+        if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
+            Desktop.getDesktop().browse(new URI(authUrl));
+        } else {
+            System.out.println("👉 Copie et colle ce lien dans ton navigateur s'il ne s'ouvre pas automatiquement :\n" + authUrl);
+        }
+    }
+
+    // --- MINI SERVEUR WEB LOCAL (INTERCEPTION DU CODE CORRECTION LIKÉ) ---
+    private static void startLocalServer() throws IOException {
+        server = HttpServer.create(new InetSocketAddress(PORT), 0);
+        server.createContext("/callback", new HttpHandler() {
+            @Override
+            public void handle(HttpExchange exchange) throws IOException {
+                String query = exchange.getRequestURI().getQuery();
+                String code = "";
+                if (query != null && query.contains("code=")) {
+                    code = query.split("code=")[1].split("&")[0];
+                }
+
+                String responseText = "<h1>Connexion reussie !</h1><p>Tu peux fermer cette page et retourner sur ta console Java.</p>";
+                exchange.sendResponseHeaders(200, responseText.length());
+                try (OutputStream os = exchange.getResponseBody()) {
+                    os.write(responseText.getBytes());
+                }
+
+                if (!code.isEmpty()) {
+                    try {
+                        // Échange du code temporaire contre le Token définitif
+                        accessToken = exchangeCodeForToken(code);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        });
+        server.start();
+    }
+
+    // --- ÉCHANGE DU CODE CONTRE LE TOKEN SÉCURISÉ ---
+    private static String exchangeCodeForToken(String code) throws Exception {
+        URL url = new URL("https://accounts.spotify.com/api/token");
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("POST");
+        conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+        conn.setDoOutput(true);
+
+        String data = "grant_type=authorization_code"
+                + "&code=" + code
+                + "&redirect_uri=" + URLEncoder.encode(REDIRECT_URI, StandardCharsets.UTF_8.name())
+                + "&client_id=" + CLIENT_ID;
+
+        // Note : Si ton application requiert un Client Secret, tu peux ajouter le header d'Authorization Basic,
+        // mais pour ce flux minimaliste avec Client ID seul, cela suffit si l'app est configurée ainsi.
+        try (OutputStream os = conn.getOutputStream()) {
+            os.write(data.getBytes(StandardCharsets.UTF_8));
+        }
+
+        BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+        StringBuilder res = new StringBuilder();
+        String line;
+        while ((line = in.readLine()) != null) res.append(line);
+        in.close();
+
+        return extractJsonValue(res.toString(), "\"access_token\"");
+    }
+
+    // --- LOGIQUE CORE : LIRE LA MUSIQUE EN COURS ---
     private static String getCurrentlyPlayingTrack() throws Exception {
         URL url = new URL("https://api.spotify.com/v1/me/player/currently-playing");
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("GET");
-        conn.setRequestProperty("Authorization", "Bearer " + ACCESS_TOKEN);
+        conn.setRequestProperty("Authorization", "Bearer " + accessToken);
 
-        int responseCode = conn.getResponseCode();
-        if (responseCode == 204) return null; // Rien ne joue
+        int code = conn.getResponseCode();
+        if (code == 204) return null;
 
-        if (responseCode == 200) {
-            BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-            String inputLine;
-            StringBuilder response = new StringBuilder();
-            while ((inputLine = in.readLine()) != null) {
-                response.append(inputLine);
-            }
+        if (code == 200) {
+            BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+            StringBuilder res = new StringBuilder();
+            String line;
+            while ((line = in.readLine()) != null) res.append(line);
             in.close();
 
-            String json = response.toString();
-            
-            // Extraction basique et minimale sans bibliothèque JSON externe
-            String trackName = extractJsonValue(json, "\"name\"");
-            String artistName = extractJsonValue(json, "\"name\""); // Simplifié pour le premier trouvé
-            String trackId = extractJsonValue(json, "\"id\"");
-
-            System.out.println("👉 Musique détectée : " + trackName);
-            return trackId;
-        } else {
-            throw new RuntimeException("Échec de la requête (Code HTTP: " + responseCode + "). Token expiré ?");
+            String json = res.toString();
+            System.out.println("👉 Musique actuelle : " + extractJsonValue(json, "\"name\""));
+            return extractJsonValue(json, "\"id\"");
         }
+        return null;
     }
 
-    /**
-     * Vérifie si l'ID d'un morceau est présent dans la bibliothèque de l'utilisateur
-     */
+    // --- LOGIQUE CORE : VÉRIFIER LE LIKE (CŒUR) ---
     private static boolean checkIfTrackIsLiked(String trackId) throws Exception {
         URL url = new URL("https://api.spotify.com/v1/me/tracks/contains?ids=" + trackId);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("GET");
-        conn.setRequestProperty("Authorization", "Bearer " + ACCESS_TOKEN);
+        conn.setRequestProperty("Authorization", "Bearer " + accessToken);
 
         if (conn.getResponseCode() == 200) {
             BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
             String line = in.readLine();
             in.close();
-            // L'API renvoie un tableau de booléens sous la forme [true] ou [false]
             return line != null && line.contains("true");
         }
         return false;
     }
 
-    /**
-     * Ajoute (PUT) ou Supprime (DELETE) le morceau des favoris
-     */
+    // --- LOGIQUE CORE : CASSER OU METTRE LE COEUR (PUT / DELETE) ---
     private static void toggleLikeTrack(String trackId, boolean isCurrentlyLiked) throws Exception {
         String method = isCurrentlyLiked ? "DELETE" : "PUT";
         URL url = new URL("https://api.spotify.com/v1/me/tracks?ids=" + trackId);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod(method);
-        conn.setRequestProperty("Authorization", "Bearer " + ACCESS_TOKEN);
+        conn.setRequestProperty("Authorization", "Bearer " + accessToken);
         conn.setRequestProperty("Content-Type", "application/json");
-        
+
         if (method.equals("PUT")) {
             conn.setDoOutput(true);
             try (OutputStream os = conn.getOutputStream()) {
-                os.write("{}".getBytes()); // Un body vide ou un objet JSON vide est requis pour le PUT
+                os.write("{}".getBytes());
                 os.flush();
             }
         }
 
-        int responseCode = conn.getResponseCode();
-        if (responseCode == 200 || responseCode == 201) {
-            System.out.println("✅ Requête " + method + " traitée avec succès par Spotify.");
+        int code = conn.getResponseCode();
+        if (code == 200 || code == 201) {
+            System.out.println("✅ Action (" + method + ") appliquee avec succes sur ton compte Spotify !");
         } else {
-            System.out.println("❌ Erreur lors de la modification du favori. Code HTTP : " + responseCode);
+            System.out.println("❌ Échec de la modification. Erreur HTTP : " + code);
         }
     }
 
-    /**
-     * Utilitaire de découpage de chaîne de texte minimaliste pour extraire une valeur d'un JSON
-     */
+    // --- EXTRACTION PARSEUR MINI-JSON ---
     private static String extractJsonValue(String json, String key) {
         try {
             int index = json.indexOf(key);
             if (index == -1) return "Inconnu";
             int valueStart = json.indexOf(":", index) + 1;
-            while (json.charAt(valueStart) == ' ' || json.charAt(valueStart) == '"') {
-                valueStart++;
-            }
+            while (json.charAt(valueStart) == ' ' || json.charAt(valueStart) == '"') valueStart++;
             int valueEnd = valueStart;
-            char delimiter = json.contains("\"") ? '"' : ',';
-            while (json.charAt(valueEnd) != delimiter && json.charAt(valueEnd) != ',' && json.charAt(valueEnd) != '}') {
-                valueEnd++;
-            }
-            return json.substring(valueStart, valueEnd).trim().replace("\"", "");
+            while (json.charAt(valueEnd) != '"' && json.charAt(valueEnd) != ',' && json.charAt(valueEnd) != ']' && json.charAt(valueEnd) != '}') valueEnd++;
+            return json.substring(valueStart, valueEnd).trim();
         } catch (Exception e) {
             return "Inconnu";
         }
