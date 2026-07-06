@@ -1,5 +1,5 @@
 
-const APP_VERSION = "v1.0.47";
+const APP_VERSION = "v1.0.48";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -646,7 +646,6 @@ async function updateNowPlaying() {
             highlightLyrics((progressMs) / 1000);
 
             if (art && art.onload && art.src) {
-                // si la source a changé, on met à jour l'arrière-plan quand l'image est chargée
                 const oldSrc = art.getAttribute('data-old-src') || "";
                 if (art.src !== oldSrc) {
                     art.setAttribute('data-old-src', art.src);
@@ -654,13 +653,14 @@ async function updateNowPlaying() {
                 }
             }
 
+            // C'EST ICI : Si le morceau a changé, on vérifie immédiatement s'il est liké
             if (data.item.id && data.item.id !== lastTrackId) {
                 lastTrackId = data.item.id;
                 const artistName = data.item.artists && data.item.artists[0] ? data.item.artists[0].name : "";
                 const albumName = data.item.album ? data.item.album.name : "";
                 fetchLyrics(artistName, data.item.name || "", albumName, (data.item.duration_ms || 0) / 1000);
 
-                // mise à jour du statut "like" du bouton (pas besoin d'attendre)
+                // ✅ Appel de la fonction de vérification avec le bon ID de morceau
                 checkIfTrackIsLiked(data.item.id);
             }
         }
