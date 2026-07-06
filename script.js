@@ -1,5 +1,5 @@
 
-const APP_VERSION = "v1.0.41";
+const APP_VERSION = "v1.0.42";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -606,43 +606,7 @@ function highlightLyrics(currentTime) {
             };
         }
 
-        async function updateNowPlaying() {
-            if (!currentToken) return;
-            try {
-                const response = await fetch('https://api.spotify.com/v1/me/player', { headers: { 'Authorization': 'Bearer ' + currentToken } });
-                if (response.status === 204 || response.status === 401) return;
-                const data = await response.json();
-
-                if (data && data.item) {
-                    trackDurationMs = data.item.duration_ms; 
-                    document.getElementById('track-title').innerText = data.item.name;
-                    document.getElementById('track-artist').innerText = data.item.artists.map(a => a.name).join(", ");
-                      
-                    document.getElementById('time-current').innerText = formatTime(data.progress_ms);
-                    document.getElementById('time-max').innerText = formatTime(trackDurationMs);
-                    const progressPercent = (data.progress_ms / trackDurationMs) * 100;
-                    document.getElementById('progress-fill').style.width = `${progressPercent}%`;
-
-                    const art = document.getElementById('track-art');
-                    const oldSrc = art.src;
-                    art.src = data.item.album.images && data.item.album.images.length > 0 ? data.item.album.images[0].url : ""; 
-                    art.style.display = "block";
-                    document.getElementById('play-pause-btn').innerText = data.is_playing ? "⏸" : "▶️";
-
-                    highlightLyrics(data.progress_ms / 1000);
-
-                    if (art.src !== oldSrc) {
-                        art.onload = () => updateDynamicBackground();
-                    }
-
-                    if (data.item.id !== lastTrackId) {
-                        lastTrackId = data.item.id;
-                        fetchLyrics(data.item.artists[0].name, data.item.name, data.item.album.name, data.item.duration_ms / 1000);
-                        checkIfTrackIsLiked(data.item.id);
-                    }
-                }
-            } catch (e) {}
-        }
+     
 
      async function togglePlay() {
     if (!currentToken) return;
@@ -945,63 +909,5 @@ async function switchDevice(deviceId) {
 
     } catch (error) {
         console.error("Erreur lors du transfert :", error);
-    }
-}
-// 1. FONCTION POUR VÉRIFIER SI LE MORCEAU EST DÉJÀ LIKÉ
-async function checkIfTrackIsLiked(trackId) {
-    if (!currentToken || !trackId) return;
-
-    try {
-        // CORRECTION : Utilisation de l'endpoint officiel de vérification des favoris de Spotify avec ?ids=
-        const response = await fetch(`https://api.spotify.com/v1/me/tracks/contains?ids=${trackId}`, {
-            headers: { 'Authorization': 'Bearer ' + currentToken }
-        });
-        
-        if (response.ok) {
-            const isLikedArray = await response.json();
-            const isLiked = isLikedArray[0]; // L'API renvoie un tableau de booléens [true] ou [false]
-            const likeBtn = document.getElementById('like-btn');
-            if (likeBtn) {
-                likeBtn.innerText = isLiked ? "❤️" : "🤍";
-                likeBtn.setAttribute('data-liked', isLiked);
-            }
-        }
-    } catch (e) {
-        console.error("Erreur lors de la vérification du favori :", e);
-    }
-}
-
-// 2. FONCTION POUR AJOUTER OU SUPPRIMER DES FAVORIS AU CLIC
-async function toggleLikeCurrentTrack() {
-    if (!currentToken || !lastTrackId) return;
-
-    const likeBtn = document.getElementById('like-btn');
-    const isCurrentlyLiked = likeBtn.getAttribute('data-liked') === 'true';
-    const method = isCurrentlyLiked ? 'DELETE' : 'PUT';
-
-    try {
-        // CORRECTION : Utilisation de l'endpoint officiel pour modifier la bibliothèque avec ?ids=
-        const response = await fetch(`https://api.spotify.com/v1/me/tracks?ids=${lastTrackId}`, {
-            method: method,
-            headers: { 
-                'Authorization': 'Bearer ' + currentToken,
-                'Content-Type': 'application/json'
-            },
-            body: method === 'PUT' ? JSON.stringify({}) : null // Corps vide ou JSON vide requis pour le PUT
-        });
-
-        if (response.ok || response.status === 200 || response.status === 201) {
-            const newLikedState = !isCurrentlyLiked;
-            likeBtn.innerText = newLikedState ? "❤️" : "🤍";
-            likeBtn.setAttribute('data-liked', newLikedState);
-            
-            if (document.getElementById('search-results').innerHTML.includes("VOS TITRES LIKÉS")) {
-                getUserLibrary();
-            }
-        } else {
-            console.error("Réponse API Spotify incorrecte :", response.status);
-        }
-    } catch (e) {
-        console.error("Erreur lors du changement d'état du favori :", e);
     }
 }
