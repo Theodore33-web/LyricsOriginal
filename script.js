@@ -1,5 +1,5 @@
 
-const APP_VERSION = "v1.0.53";
+const APP_VERSION = "v1.0.54";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -1007,10 +1007,13 @@ async function toggleLikeCurrentTrack() {
     const method = isCurrentlyLiked ? 'DELETE' : 'PUT';
 
     try {
-        // CORRECTION : Ajout du $ avant l'accolade -> ${ ... }
-        const response = await fetch(`https://api.spotify.com/v1/me/tracks/contains?ids=$$7${encodeURIComponent(lastTrackId)}`, {
+        const response = await fetch(`https://api.spotify.com/v1/me/tracks?ids=$`, {
             method: method,
-            headers: { 'Authorization': 'Bearer ' + currentToken }
+            headers: { 
+                'Authorization': 'Bearer ' + currentToken,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ ids: [lastTrackId] }) // L'ID envoyé dans le corps
         });
 
         if (!response.ok) {
