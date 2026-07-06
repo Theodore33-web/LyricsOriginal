@@ -1,5 +1,5 @@
 
-const APP_VERSION = "v1.0.52";
+const APP_VERSION = "v1.0.53";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -976,8 +976,8 @@ async function checkIfTrackIsLiked(trackId) {
     if (!currentToken || !trackId) return;
 
     try {
-        // CORRECTION : Ajout du $ pour la variable dans l'URL
-        const response = await fetch(`https://api.spotify.com/v1/me/tracks/contains?ids=$${encodeURIComponent(trackId)}`, {
+        // CORRECTION : Ajout du $ avant l'accolade -> ${ ... }
+        const response = await fetch(`https://api.spotify.com/v1/me/tracks/contains?ids=$$6${encodeURIComponent(trackId)}`, {
             method: 'GET',
             headers: { 'Authorization': 'Bearer ' + currentToken }
         });
@@ -988,7 +988,7 @@ async function checkIfTrackIsLiked(trackId) {
         }
 
         const isLikedArray = await response.json();
-        const isLiked = !!isLikedArray[0]; // Sécurise le booléen (true ou false)
+        const isLiked = !!isLikedArray[0]; 
         const likeBtn = document.getElementById('like-btn');
         if (likeBtn) {
             likeBtn.innerText = isLiked ? "❤️" : "🤍";
@@ -998,8 +998,6 @@ async function checkIfTrackIsLiked(trackId) {
         console.error("Erreur lors de la vérification du favori :", e);
     }
 }
-
-// 2. FONCTION DE MODIFICATION (PUT / DELETE) VIA LE BOUTON
 async function toggleLikeCurrentTrack() {
     if (!currentToken || !lastTrackId) return;
 
@@ -1009,13 +1007,10 @@ async function toggleLikeCurrentTrack() {
     const method = isCurrentlyLiked ? 'DELETE' : 'PUT';
 
     try {
-        const response = await fetch(`https://api.spotify.com/v1/me/tracks?ids=$`, {
+        // CORRECTION : Ajout du $ avant l'accolade -> ${ ... }
+        const response = await fetch(`https://api.spotify.com/v1/me/tracks/contains?ids=$$7${encodeURIComponent(lastTrackId)}`, {
             method: method,
-            headers: { 
-                'Authorization': 'Bearer ' + currentToken,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ ids: [lastTrackId] }) // L'ID envoyé dans le corps
+            headers: { 'Authorization': 'Bearer ' + currentToken }
         });
 
         if (!response.ok) {
