@@ -1,5 +1,5 @@
 
-const APP_VERSION = "v1.0.44";
+const APP_VERSION = "v1.0.45";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -971,77 +971,68 @@ async function switchDevice(deviceId) {
         console.error("Erreur lors du transfert :", error);
     }
 }
-// Vérifie si une piste est déjà likée et met à jour le bouton like (retourne true/false/null)
+// 1. FONCTION DE VÉRIFICATION DE L'ÉTAT DU FAVORIS (AVEC LE GET OFFICIEL)
 async function checkIfTrackIsLiked(trackId) {
-    if (!currentToken || !trackId) return null;
+    if (!currentToken || !trackId) return;
+
     try {
-        const resp = await fetch(`https://api.spotify.com/v1/me/tracks/contains?ids=${encodeURIComponent(trackId)}`, {
+        // GET explicite pour vérifier si le titre est déjà dans les favoris
+        const response = await fetch(`https://api.spotify.com/v1/me/tracks/contains?ids=${encodeURIComponent(trackId)}`, {
+            method: 'GET',
             headers: { 'Authorization': 'Bearer ' + currentToken }
         });
-
-        if (!resp.ok) {
-            const text = await resp.text();
-            console.error('checkIfTrackIsLiked: HTTP', resp.status, text);
-            return null;
+        
+        if (!response.ok) {
+            console.error('checkIfTrackIsLiked: HTTP', response.status, await response.text());
+            return;
         }
 
-        const arr = await resp.json();
-        const isLiked = !!arr[0];
-
+        const isLikedArray = await response.json();
+        const isLiked = !!isLikedArray[0]; // Extraction sécurisée du premier booléen du tableau
+        
         const likeBtn = document.getElementById('like-btn');
         if (likeBtn) {
-            likeBtn.innerText = isLiked ? '❤️' : '🤍';
+            likeBtn.innerText = isLiked ? "❤️" : "🤍";
             likeBtn.setAttribute('data-liked', String(isLiked));
         }
-
-        return isLiked;
-    } catch (err) {
-        console.error('Erreur lors de la vérification du favori :', err);
-        return null;
+    } catch (e) {
+        console.error("Erreur lors de la vérification du favori :", e);
     }
 }
 
-// Bascule l'état "like" pour la piste courante (PUT pour ajouter, DELETE pour retirer)
-// Renvoie le nouvel état (true/false) ou null en cas d'erreur
+// 2. FONCTION DE MODIFICATION (SANS CORPS JSON POUR LE PUT / DELETE)
 async function toggleLikeCurrentTrack() {
-    if (!currentToken || !lastTrackId) return null;
+    if (!currentToken || !lastTrackId) return;
 
     const likeBtn = document.getElementById('like-btn');
-    if (!likeBtn) return null;
-
+    if (!likeBtn) return;
     const isCurrentlyLiked = likeBtn.getAttribute('data-liked') === 'true';
     const method = isCurrentlyLiked ? 'DELETE' : 'PUT';
-    const url = `https://api.spotify.com/v1/me/tracks?ids=${encodeURIComponent(lastTrackId)}`;
 
     try {
-        const resp = await fetch(url, {
-            method,
-            headers: { 'Authorization': 'Bearer ' + currentToken }
-            // NOTE: Spotify expects no body for these endpoints
+        // Envoi sans corps ni en-tête Content-Type superflus
+        const response = await fetch(`https://api.spotify.com/v1/me/tracks?ids=${encodeURIComponent(lastTrackId)}`, {
+            method: method,
+            headers: { 
+                'Authorization': 'Bearer ' + currentToken
+            }
         });
 
-        if (!resp.ok) {
-            const text = await resp.text();
-            console.error('toggleLikeCurrentTrack: HTTP', resp.status, text);
-            // Si 401/403, token/permissions probablement en cause
-            if (resp.status === 401) console.warn('Token invalide ou expiré.');
-            if (resp.status === 403) console.warn('Scope manquant : assurez-vous d\'avoir user-library-modify.');
-            return null;
+        if (!response.ok) {
+            console.error('toggleLikeCurrentTrack: HTTP', response.status, await response.text());
+            return;
         }
 
-        const newState = !isCurrentlyLiked;
-        likeBtn.innerText = newState ? '❤️' : '🤍';
-        likeBtn.setAttribute('data-liked', String(newState));
-
-        // Si la liste affichée est la bibliothèque, la rafraîchir
+        const newLikedState = !isCurrentlyLiked;
+        likeBtn.innerText = newLikedState ? "❤️" : "🤍";
+        likeBtn.setAttribute('data-liked', String(newLikedState));
+        
+        // Rafraîchissement dynamique si la section des titres likés est actuellement ouverte
         const sr = document.getElementById('search-results');
-        if (sr && sr.innerHTML.includes('VOS TITRES LIKÉS')) {
+        if (sr && sr.innerHTML.includes("VOS TITRES LIKÉS")) {
             getUserLibrary();
         }
-
-        return newState;
-    } catch (err) {
-        console.error('Erreur lors du changement d\'état du favori :', err);
-        return null;
+    } catch (e) {
+        console.error("Erreur lors du changement d'état du favori :", e);
     }
 }
