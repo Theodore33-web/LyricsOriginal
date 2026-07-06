@@ -1,5 +1,5 @@
 
-const APP_VERSION = "v1.0.63";
+const APP_VERSION = "v1.0.64";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -79,32 +79,44 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
             }
         }
         
-        async function redirectToSpotify() {
-            const verifier = generateCodeVerifier(128);
-            const challenge = await generateCodeChallenge(verifier);
-            localStorage.setItem("verifier", verifier);
+      async function redirectToSpotify() {
+    const verifier = generateCodeVerifier(128);
+    const challenge = await generateCodeChallenge(verifier);
+    localStorage.setItem("verifier", verifier);
 
-            const authUrl = new URL("https://accounts.spotify.com/authorize");
-            const args = { response_type: 'code', client_id: clientId, scope: scope, redirect_uri: redirectUri, code_challenge_method: 'S256', code_challenge: challenge };
-            authUrl.search = new URLSearchParams(args).toString();
-            window.location.href = authUrl.toString();
-        }
+    const authUrl = new URL("https://accounts.spotify.com/authorize");
+    const args = {
+        response_type: 'code',
+        client_id: clientId,
+        scope: scope,
+        redirect_uri: redirectUri,
+        code_challenge_method: 'S256',
+        code_challenge: challenge,
+        show_dialog: 'true'   // <-- force la demande de consentement
+    };
+    authUrl.search = new URLSearchParams(args).toString();
+    window.location.href = authUrl.toString();
+}
 
         async function handleCallback(code) {
-            const verifier = localStorage.getItem("verifier");
-            const body = new URLSearchParams({ client_id: clientId, grant_type: 'authorization_code', code: code, redirect_uri: redirectUri, code_verifier: verifier });
-            
-            try {
-                const response = await fetch('https://accounts.spotify.com/api/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body });
-                const data = await response.json();
-                if (data.access_token) {
-                    window.history.replaceState({}, document.title, window.location.pathname);
-                    getUserData(data.access_token);
-                }
-            } catch (e) {
-                console.error("Erreur d'authentification : ", e);
-            }
+    const verifier = localStorage.getItem("verifier");
+    const body = new URLSearchParams({ client_id: clientId, grant_type: 'authorization_code', code: code, redirect_uri: redirectUri, code_verifier: verifier });
+
+    try {
+        const response = await fetch('https://accounts.spotify.com/api/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body });
+        const data = await response.json();
+        console.log('token response:', data);            // <-- regarde data.scope ici
+        if (data.access_token) {
+            // stocke pour debug / usage ultérieur
+            currentToken = data.access_token;
+            if (data.scope) localStorage.setItem('spotify_scopes', data.scope);
+            window.history.replaceState({}, document.title, window.location.pathname);
+            getUserData(data.access_token);
         }
+    } catch (e) {
+        console.error("Erreur d'authentification : ", e);
+    }
+}
 
         async function getUserData(token) {
             currentToken = token;
