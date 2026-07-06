@@ -1,5 +1,5 @@
 
-const APP_VERSION = "v1.0.51";
+const APP_VERSION = "v1.0.52";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -1009,10 +1009,13 @@ async function toggleLikeCurrentTrack() {
     const method = isCurrentlyLiked ? 'DELETE' : 'PUT';
 
     try {
-        // AJOUT DE ?ids= avant l'identifiant du morceau
-        const response = await fetch(`https://accounts.spotify.com/api/token3{encodeURIComponent(lastTrackId)}`, {
+        const response = await fetch(`https://api.spotify.com/v1/me/tracks?ids=$`, {
             method: method,
-            headers: { 'Authorization': 'Bearer ' + currentToken }
+            headers: { 
+                'Authorization': 'Bearer ' + currentToken,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ ids: [lastTrackId] }) // L'ID envoyé dans le corps
         });
 
         if (!response.ok) {
