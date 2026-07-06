@@ -112,23 +112,24 @@ async function redirectToSpotifyAuth() {
   window.location.href = url;
 }
 
+// Remplace ta fonction handleAuthorizationCallback par celle-ci pour debug
 async function handleAuthorizationCallback() {
   const params = new URLSearchParams(window.location.search);
   const code = params.get('code');
   const error = params.get('error');
   if (error) {
-    log('Auth error in callback:', error);
+    console.error('Auth callback error param:', error);
     return;
   }
   if (!code) return;
-  log('Authorization code présent. Échange pour token...');
+
+  console.log('Authorization code reçu :', code);
   const verifier = localStorage.getItem('pkce_verifier');
   if (!verifier) {
-    log('Aucun verifier PKCE trouvé dans localStorage.');
+    console.error('Aucun pkce_verifier trouvé dans localStorage.');
     return;
   }
 
-  // échange code -> token
   const body = new URLSearchParams({
     grant_type: 'authorization_code',
     code: code,
@@ -138,27 +139,45 @@ async function handleAuthorizationCallback() {
   });
 
   try {
+    // On logge la tentative réseau avant
+    console.log('Envoi POST token ->', TOKEN_ENDPOINT, body.toString());
+
     const resp = await fetch(TOKEN_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: body.toString()
     });
-    const data = await resp.json();
-    log('Réponse token:', data);
-    if (data.access_token) {
-      localStorage.setItem('spotify_access_token', data.access_token);
-      if (data.scope) localStorage.setItem('spotify_scopes', data.scope);
-      // clear code from url for cleanliness
-      window.history.replaceState({}, document.title, REDIRECT_URI);
-      updateAuthUI();
+
+    console.log('Réponse /api/token status =', resp.status, resp.statusText);
+
+    // Si la réponse n'est pas ok, on logge le corps (important)
+    const text = await resp.text();
+    try { 
+      const json = JSON.parse(text);
+      console.log('/api/token body (JSON):', json);
+    } catch (e) {
+      console.log('/api/token body (texte):', text);
+    }
+
+    // si succès, parse et stocke
+    if (resp.ok) {
+      const data = JSON.parse(text);
+      console.log('Token response parsed:', data);
+      if (data.access_token) {
+        localStorage.setItem('spotify_access_token', data.access_token);
+        if (data.scope) localStorage.setItem('spotify_scopes', data.scope);
+        window.history.replaceState({}, document.title, REDIRECT_URI);
+        updateAuthUI();
+      } else {
+        console.error('Aucun access_token dans la réponse:', data);
+      }
     } else {
-      log('Échec échange token', data);
+      console.error('Échec échange token, voir body ci‑dessus.');
     }
   } catch (err) {
-    log('Erreur échange token', err);
+    console.error('Erreur fetch /api/token (network/CORS?) :', err);
   }
 }
-
 /* ====== AUTH UI ====== */
 function getToken() { return localStorage.getItem('spotify_access_token'); }
 function clearToken() {
