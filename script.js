@@ -1,5 +1,5 @@
 
-const APP_VERSION = "v1.0.54";
+const APP_VERSION = "v1.0.55";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -999,7 +999,10 @@ async function checkIfTrackIsLiked(trackId) {
     }
 }
 async function toggleLikeCurrentTrack() {
-    if (!currentToken || !lastTrackId) return;
+    if (!currentToken || !lastTrackId) {
+        console.error("Impossible de liker : Token ou ID de morceau manquant.");
+        return;
+    }
 
     const likeBtn = document.getElementById('like-btn');
     if (!likeBtn) return;
@@ -1007,13 +1010,12 @@ async function toggleLikeCurrentTrack() {
     const method = isCurrentlyLiked ? 'DELETE' : 'PUT';
 
     try {
-        const response = await fetch(`https://api.spotify.com/v1/me/tracks?ids=$`, {
+        // CORRECTION : Ajout de ?ids=${...} avec les backticks (accents graves ` `)
+        const response = await fetch(`https://api.spotify.com/v1/me/tracks/contains?ids=$$9${encodeURIComponent(lastTrackId)}`, {
             method: method,
             headers: { 
-                'Authorization': 'Bearer ' + currentToken,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ ids: [lastTrackId] }) // L'ID envoyé dans le corps
+                'Authorization': 'Bearer ' + currentToken
+            }
         });
 
         if (!response.ok) {
@@ -1021,6 +1023,7 @@ async function toggleLikeCurrentTrack() {
             return;
         }
 
+        // Si la requête réussit (Spotify renvoie un statut 200), on change l'icône
         const newLikedState = !isCurrentlyLiked;
         likeBtn.innerText = newLikedState ? "❤️" : "🤍";
         likeBtn.setAttribute('data-liked', String(newLikedState));
