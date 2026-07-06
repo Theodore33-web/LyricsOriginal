@@ -1,5 +1,5 @@
 
-const APP_VERSION = "v1.0.49";
+const APP_VERSION = "v1.0.50";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -971,35 +971,6 @@ async function switchDevice(deviceId) {
         console.error("Erreur lors du transfert :", error);
     }
 }
-// 1. FONCTION DE VÉRIFICATION DE L'ÉTAT DU LIKE (GET)
-async function checkIfTrackIsLiked(trackId) {
-    if (!currentToken || !trackId) return;
-
-    try {
-        // CORRECTION : Ajout du $ pour la variable dans l'URL
-        const response = await fetch(`https://api.spotify.com/v1/me/tracks/contains?ids=$${encodeURIComponent(trackId)}`, {
-            method: 'GET',
-            headers: { 'Authorization': 'Bearer ' + currentToken }
-        });
-        
-        if (!response.ok) {
-            console.error('checkIfTrackIsLiked: HTTP', response.status, await response.text());
-            return;
-        }
-
-        const isLikedArray = await response.json();
-        const isLiked = !!isLikedArray[0]; // Sécurise le booléen (true ou false)
-        const likeBtn = document.getElementById('like-btn');
-        if (likeBtn) {
-            likeBtn.innerText = isLiked ? "❤️" : "🤍";
-            likeBtn.setAttribute('data-liked', String(isLiked));
-        }
-    } catch (e) {
-        console.error("Erreur lors de la vérification du favori :", e);
-    }
-}
-
-// 2. FONCTION DE MODIFICATION (PUT / DELETE) VIA LE BOUTON
 async function toggleLikeCurrentTrack() {
     if (!currentToken || !lastTrackId) return;
 
@@ -1009,8 +980,8 @@ async function toggleLikeCurrentTrack() {
     const method = isCurrentlyLiked ? 'DELETE' : 'PUT';
 
     try {
-        // CORRECTION : Ajout du $ pour la variable dans l'URL
-        const response = await fetch(`https://api.spotify.com/v1/me/tracks?ids=$${encodeURIComponent(lastTrackId)}`, {
+        // AJOUT DE ?ids= avant l'identifiant du morceau
+        const response = await fetch(`https://accounts.spotify.com/api/token3{encodeURIComponent(lastTrackId)}`, {
             method: method,
             headers: { 'Authorization': 'Bearer ' + currentToken }
         });
@@ -1024,7 +995,6 @@ async function toggleLikeCurrentTrack() {
         likeBtn.innerText = newLikedState ? "❤️" : "🤍";
         likeBtn.setAttribute('data-liked', String(newLikedState));
         
-        // Si l'utilisateur est sur l'onglet de sa bibliothèque, on la rafraîchit
         const sr = document.getElementById('search-results');
         if (sr && sr.innerHTML.includes("VOS TITRES LIKÉS")) {
             getUserLibrary();
@@ -1033,4 +1003,3 @@ async function toggleLikeCurrentTrack() {
         console.error("Erreur lors du changement d'état du favori :", e);
     }
 }
-// L'accolade en trop qui coupait le code a été supprimée ici !
