@@ -73,3 +73,66 @@ async function toggleLikeCurrentTrack() {
         return null;
     }
 }
+async function updateNowPlaying() {
+    if (!currentToken) return;
+    try {
+        const response = await fetch('https://api.spotify.com/v1/me/player', {
+            headers: { 'Authorization': 'Bearer ' + currentToken }
+        });
+        if (response.status === 204 || response.status === 401) return;
+        const data = await response.json();
+
+        if (data && data.item) {
+            trackDurationMs = data.item.duration_ms || 0;
+
+            const titleEl = document.getElementById('track-title');
+            const artistEl = document.getElementById('track-artist');
+            const timeCurrentEl = document.getElementById('time-current');
+            const timeMaxEl = document.getElementById('time-max');
+            const progressFill = document.getElementById('progress-fill');
+            const art = document.getElementById('track-art');
+            const playBtn = document.getElementById('play-pause-btn');
+
+            if (titleEl) titleEl.innerText = data.item.name || '';
+            if (artistEl) artistEl.innerText = (data.item.artists || []).map(a => a.name).join(", ");
+
+            const progressMs = data.progress_ms || 0;
+            if (timeCurrentEl) timeCurrentEl.innerText = formatTime(progressMs);
+            if (timeMaxEl) timeMaxEl.innerText = formatTime(trackDurationMs);
+
+            const progressPercent = trackDurationMs ? (progressMs / trackDurationMs) * 100 : 0;
+            if (progressFill) progressFill.style.width = `${progressPercent}%`;
+
+            if (art) {
+                const oldSrc = art.src || "";
+                art.src = (data.item.album && data.item.album.images && data.item.album.images.length > 0) ? data.item.album.images[0].url : "";
+                art.style.display = art.src ? "block" : "none";
+            }
+
+            if (playBtn) playBtn.innerText = data.is_playing ? "⏸" : "▶️";
+
+            highlightLyrics((progressMs) / 1000);
+
+            if (art && art.onload && art.src) {
+                // si la source a changé, on met à jour l'arrière-plan quand l'image est chargée
+                const oldSrc = art.getAttribute('data-old-src') || "";
+                if (art.src !== oldSrc) {
+                    art.setAttribute('data-old-src', art.src);
+                    art.onload = () => updateDynamicBackground();
+                }
+            }
+
+            if (data.item.id && data.item.id !== lastTrackId) {
+                lastTrackId = data.item.id;
+                const artistName = data.item.artists && data.item.artists[0] ? data.item.artists[0].name : "";
+                const albumName = data.item.album ? data.item.album.name : "";
+                fetchLyrics(artistName, data.item.name || "", albumName, (data.item.duration_ms || 0) / 1000);
+
+                // mise à jour du statut "like" du bouton (pas besoin d'attendre)
+                checkIfTrackIsLiked(data.item.id);
+            }
+        }
+    } catch (e) {
+        console.error("updateNowPlaying error:", e);
+    }
+}
