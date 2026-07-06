@@ -301,6 +301,7 @@ handleAuthorizationCallback();
 if (window.location.protocol === 'file:') {
   log('Attention: le flow OAuth nécessite un redirect URI enregistré. Evite d\'ouvrir ce fichier via file:// — utilise un serveur local ou hébergement correspondant au redirect URI enregistré.');
 }
+  const APP_VERSION = "v1.0.66";
 </script>
 </body>
 </html>
