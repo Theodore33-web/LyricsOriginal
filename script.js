@@ -1,5 +1,5 @@
 
-const APP_VERSION = "v1.0.58";
+const APP_VERSION = "v1.0.59";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -972,12 +972,13 @@ async function switchDevice(deviceId) {
     }
 }
 // 1. FONCTION DE VÉRIFICATION DE L'ÉTAT DU LIKE (GET)
+// 1. FONCTION DE VÉRIFICATION DE L'ÉTAT (GET)
 async function checkIfTrackIsLiked(trackId) {
     if (!currentToken || !trackId) return;
 
     try {
-        // CORRECTION : Syntaxe `${...}` valide avec les backticks et paramètre de requête Spotify ?ids=
-        const response = await fetch(`https://api.spotify.com/v1/me/tracks/contains?ids=${encodeURIComponent(trackId)}`, {
+        // CORRECTION : Ajout du $ et du paramètre ?ids= requis par Spotify
+        const response = await fetch(`https://api.spotify.com/v1/me/tracks/contains?ids=$\${encodeURIComponent(trackId)}`, {
             method: 'GET',
             headers: { 'Authorization': 'Bearer ' + currentToken }
         });
@@ -988,18 +989,18 @@ async function checkIfTrackIsLiked(trackId) {
         }
 
         const isLikedArray = await response.json();
-        const isLiked = !!isLikedArray[0]; // Sécurise la valeur en vrai/faux
+        const isLiked = !!isLikedArray[0]; 
         const likeBtn = document.getElementById('like-btn');
         if (likeBtn) {
             likeBtn.innerText = isLiked ? "❤️" : "🤍";
             likeBtn.setAttribute('data-liked', String(isLiked));
         }
     } catch (e) {
-        console.error("Erreur lors du vérification du favori :", e);
+        console.error("Erreur lors de la vérification du favori :", e);
     }
 }
 
-// 2. FONCTION DE MODIFICATION (PUT / DELETE) SANS CORPS JSON
+// 2. FONCTION DE MODIFICATION (PUT / DELETE)
 async function toggleLikeCurrentTrack() {
     if (!currentToken || !lastTrackId) {
         console.error("Impossible de modifier le favori : Token ou ID manquant.");
@@ -1012,8 +1013,8 @@ async function toggleLikeCurrentTrack() {
     const method = isCurrentlyLiked ? 'DELETE' : 'PUT';
 
     try {
-        // CORRECTION : Syntaxe `${...}` valide avec les backticks et paramètre obligatoire ?ids=
-        const response = await fetch(`https://api.spotify.com/v1/me/tracks?ids=${encodeURIComponent(lastTrackId)}`, {
+        // CORRECTION : Ajout du $ et du paramètre ?ids= obligatoire pour l'API Spotify
+        const response = await fetch(`https://api.spotify.com/v1/me/tracks?ids=$\${encodeURIComponent(lastTrackId)}`, {
             method: method,
             headers: { 'Authorization': 'Bearer ' + currentToken }
         });
