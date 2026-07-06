@@ -1,5 +1,5 @@
 
-const APP_VERSION = "v1.0.62";
+const APP_VERSION = "v1.0.63";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -971,67 +971,56 @@ async function switchDevice(deviceId) {
         console.error("Erreur lors du transfert :", error);
     }
 }
-// 1. FONCTION DE VÉRIFICATION DE L'ÉTAT DU LIKE (GET)
 async function checkIfTrackIsLiked(trackId) {
-    if (!currentToken || !trackId) return;
-
-    try {
-        // CORRECTION : Avec le symbole $ devant l'accolade !
-        const response = await fetch(`https://api.spotify.com/v1/me/tracks/contains?ids=${encodeURIComponent(trackId)}`, {
-            method: 'GET',
-            headers: { 'Authorization': 'Bearer ' + currentToken }
-        });
-        
-        if (!response.ok) {
-            console.error('checkIfTrackIsLiked: HTTP', response.status, await response.text());
-            return;
-        }
-
-        const isLikedArray = await response.json();
-        const isLiked = !!isLikedArray[0]; 
-        const likeBtn = document.getElementById('like-btn');
-        if (likeBtn) {
-            likeBtn.innerText = isLiked ? "❤️" : "🤍";
-            likeBtn.setAttribute('data-liked', String(isLiked));
-        }
-    } catch (e) {
-        console.error("Erreur lors de la vérification du favori :", e);
+  console.log('checkIfTrackIsLiked', { trackId, tokenPresent: !!currentToken });
+  if (!currentToken || !trackId) return;
+  try {
+    const resp = await fetch(`https://api.spotify.com/v1/me/tracks/contains?ids=${encodeURIComponent(trackId)}`, {
+      method: 'GET',
+      headers: { Authorization: 'Bearer ' + currentToken }
+    });
+    if (!resp.ok) {
+      const t = await resp.text();
+      console.error('checkIfTrackIsLiked HTTP', resp.status, t);
+      if (resp.status === 401) { console.warn('401 token expiré'); }
+      return;
     }
+    const arr = await resp.json();
+    const isLiked = !!arr[0];
+    const likeBtn = document.getElementById('like-btn');
+    if (likeBtn) { likeBtn.innerText = isLiked ? '❤️' : '🤍'; likeBtn.setAttribute('data-liked', String(isLiked)); }
+  } catch (err) { console.error('checkIfTrackIsLiked error', err); }
 }
 
-// 2. FONCTION DE MODIFICATION (PUT / DELETE)
 async function toggleLikeCurrentTrack() {
-    if (!currentToken || !lastTrackId) {
-        console.error("Impossible de modifier le favori : Token ou ID manquant.");
+  console.log('toggleLikeCurrentTrack', { lastTrackId, tokenPresent: !!currentToken });
+  if (!currentToken || !lastTrackId) {
+    console.error('token ou lastTrackId manquant'); return;
+  }
+  const likeBtn = document.getElementById('like-btn');
+  if (!likeBtn) return;
+  const isCurrentlyLiked = likeBtn.getAttribute('data-liked') === 'true';
+  const method = isCurrentlyLiked ? 'DELETE' : 'PUT';
+  try {
+    const resp = await fetch(`https://api.spotify.com/v1/me/tracks?ids=${encodeURIComponent(lastTrackId)}`, {
+      method,
+      headers: { Authorization: 'Bearer ' + currentToken }
+    });
+    const bodyText = await resp.text();
+    console.log('toggleLike HTTP', resp.status, bodyText);
+    if (!resp.ok) {
+      if (resp.status === 401) { alert('Session expirée, veuillez vous reconnecter'); redirectToSpotify(); return; }
+      if (resp.status === 403) {
+        if (confirm('Permission manquante (user-library-modify). Voulez-vous vous reconnecter pour donner l’accès ?')) redirectToSpotify();
         return;
+      }
+      console.error('Erreur toggleLike', resp.status, bodyText);
+      return;
     }
-
-    const likeBtn = document.getElementById('like-btn');
-    if (!likeBtn) return;
-    const isCurrentlyLiked = likeBtn.getAttribute('data-liked') === 'true';
-    const method = isCurrentlyLiked ? 'DELETE' : 'PUT';
-
-    try {
-        // CORRECTION : Avec le symbole $ devant l'accolade !
-        const response = await fetch(`https://api.spotify.com/v1/me/tracks?ids=${encodeURIComponent(lastTrackId)}`, {
-            method: method,
-            headers: { 'Authorization': 'Bearer ' + currentToken }
-        });
-
-        if (!response.ok) {
-            console.error('toggleLikeCurrentTrack: HTTP', response.status, await response.text());
-            return;
-        }
-
-        const newLikedState = !isCurrentlyLiked;
-        likeBtn.innerText = newLikedState ? "❤️" : "🤍";
-        likeBtn.setAttribute('data-liked', String(newLikedState));
-        
-        const sr = document.getElementById('search-results');
-        if (sr && sr.innerHTML.includes("VOS TITRES LIKÉS")) {
-            getUserLibrary();
-        }
-    } catch (e) {
-        console.error("Erreur lors du changement d'état du favori :", e);
-    }
+    const newState = !isCurrentlyLiked;
+    likeBtn.innerText = newState ? '❤️' : '🤍';
+    likeBtn.setAttribute('data-liked', String(newState));
+    const sr = document.getElementById('search-results');
+    if (sr && sr.innerHTML.includes('VOS TITRES LIKÉS')) getUserLibrary();
+  } catch (err) { console.error('toggleLike error', err); }
 }
