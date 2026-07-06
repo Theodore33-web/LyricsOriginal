@@ -1,5 +1,5 @@
 
-const APP_VERSION = "v1.0.45";
+const APP_VERSION = "v1.0.46";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -971,12 +971,12 @@ async function switchDevice(deviceId) {
         console.error("Erreur lors du transfert :", error);
     }
 }
-// 1. FONCTION DE VÉRIFICATION DE L'ÉTAT DU FAVORIS (AVEC LE GET OFFICIEL)
+// 1. FONCTION DE VÉRIFICATION DE L'ÉTAT (AVEC LE REQUÊTAGE GET EXPLICITE)
 async function checkIfTrackIsLiked(trackId) {
     if (!currentToken || !trackId) return;
 
     try {
-        // GET explicite pour vérifier si le titre est déjà dans les favoris
+        // CORRECTION : méthode GET explicite et correction de la syntaxe ${...}
         const response = await fetch(`https://api.spotify.com/v1/me/tracks/contains?ids=${encodeURIComponent(trackId)}`, {
             method: 'GET',
             headers: { 'Authorization': 'Bearer ' + currentToken }
@@ -988,8 +988,7 @@ async function checkIfTrackIsLiked(trackId) {
         }
 
         const isLikedArray = await response.json();
-        const isLiked = !!isLikedArray[0]; // Extraction sécurisée du premier booléen du tableau
-        
+        const isLiked = !!isLikedArray[0]; // Sécurise le booléen
         const likeBtn = document.getElementById('like-btn');
         if (likeBtn) {
             likeBtn.innerText = isLiked ? "❤️" : "🤍";
@@ -1000,7 +999,7 @@ async function checkIfTrackIsLiked(trackId) {
     }
 }
 
-// 2. FONCTION DE MODIFICATION (SANS CORPS JSON POUR LE PUT / DELETE)
+// 2. FONCTION DE MODIFICATION SANS CORPS JSON (PUT / DELETE)
 async function toggleLikeCurrentTrack() {
     if (!currentToken || !lastTrackId) return;
 
@@ -1010,12 +1009,10 @@ async function toggleLikeCurrentTrack() {
     const method = isCurrentlyLiked ? 'DELETE' : 'PUT';
 
     try {
-        // Envoi sans corps ni en-tête Content-Type superflus
+        // CORRECTION : Syntaxe ${...} + aucun body ni Content-Type pour PUT/DELETE ici
         const response = await fetch(`https://api.spotify.com/v1/me/tracks?ids=${encodeURIComponent(lastTrackId)}`, {
             method: method,
-            headers: { 
-                'Authorization': 'Bearer ' + currentToken
-            }
+            headers: { 'Authorization': 'Bearer ' + currentToken }
         });
 
         if (!response.ok) {
@@ -1027,7 +1024,6 @@ async function toggleLikeCurrentTrack() {
         likeBtn.innerText = newLikedState ? "❤️" : "🤍";
         likeBtn.setAttribute('data-liked', String(newLikedState));
         
-        // Rafraîchissement dynamique si la section des titres likés est actuellement ouverte
         const sr = document.getElementById('search-results');
         if (sr && sr.innerHTML.includes("VOS TITRES LIKÉS")) {
             getUserLibrary();
