@@ -1,96 +1,34 @@
 <!doctype html>
-<html lang="fr">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Test login Spotify minimal</title>
-<style>
-  body{font-family:system-ui,Arial;padding:20px;background:#111;color:#eee}
-  pre{background:#0b0b0b;padding:10px;border-radius:6px;overflow:auto}
-  button{padding:10px 14px;border-radius:6px;border:none;background:#1db954;color:#051;cursor:pointer}
-  a.debug{color:#9fd}
-</style>
-</head>
+<html>
+<head><meta charset="utf-8"><title>Spotify auth test (simple)</title></head>
 <body>
-  <h2>Test connexion Spotify (minimal)</h2>
-  <p>Client ID : <strong id="clientIdDisplay"></strong></p>
-
-  <p>Redirect URI calculée (doit être enregistrée telle quelle dans Spotify Dashboard) :</p>
-  <pre id="redirectUri"></pre>
-
-  <p>URL d'autorisation construite :</p>
-  <pre id="authUrl"></pre>
-
-  <div style="margin-top:12px;">
-    <!-- onclick inline pour éviter dépendance au binding JS -->
-    <button onclick="startAuth()">Ouvrir la page d'autorisation Spotify</button>
-    <button onclick="openAuthInNewTab()">Ouvrir dans un nouvel onglet</button>
-  </div>
-
-  <p style="margin-top:12px">Si rien ne s'ouvre, copie l'URL affichée ci‑dessous et colle-la dans la barre d'adresse du navigateur (ENTER).</p>
-
-  <h3>Console de debug :</h3>
-  <pre id="log"></pre>
+  <h3>Test simple d'autorisation Spotify</h3>
+  <p>Client ID: <strong>91d4165085fd4ed3bd281f16667d64bc</strong></p>
+  <p>Redirect URI calculée (copier exactement dans le Dashboard Spotify) :</p>
+  <pre id="redirect"></pre>
+  <p>Si le lien ne s'ouvre pas, copie l'URL ci‑dessous et colle la dans la barre d'adresse.</p>
+  <p><a id="authLink" href="#" target="_self">Lien d'autorisation Spotify (cliquez ici)</a></p>
+  <p id="note" style="color:darkred"></p>
 
 <script>
 const CLIENT_ID = '91d4165085fd4ed3bd281f16667d64bc';
-const REDIRECT_URI = window.location.origin + window.location.pathname;
+const REDIRECT = window.location.origin + window.location.pathname;
 const SCOPE = 'user-read-private user-read-email user-library-read user-library-modify';
-const AUTH_ENDPOINT = 'https://accounts.spotify.com/authorize';
+const AUTH = 'https://accounts.spotify.com/authorize';
+document.getElementById('redirect').innerText = REDIRECT;
 
-document.getElementById('clientIdDisplay').innerText = CLIENT_ID;
-document.getElementById('redirectUri').innerText = REDIRECT_URI;
-
-function buildAuthUrl() {
-  const params = new URLSearchParams({
-    response_type: 'token', // implicit: plus simple pour test
-    client_id: CLIENT_ID,
-    scope: SCOPE,
-    redirect_uri: REDIRECT_URI,
-    show_dialog: 'true'
-  });
-  return AUTH_ENDPOINT + '?' + params.toString();
-}
-
-function log(...args) {
-  const el = document.getElementById('log');
-  const time = new Date().toLocaleTimeString();
-  el.innerText = `[${time}] ` + args.map(a => (typeof a === 'object' ? JSON.stringify(a) : a)).join(' ') + '\n' + el.innerText;
-  console.log(...args);
-}
-
-const authUrl = buildAuthUrl();
-document.getElementById('authUrl').innerText = authUrl;
-
-function startAuth() {
-  try {
-    log('startAuth -> redirecting to authorization URL (same tab)');
-    window.location.assign(authUrl);
-  } catch (e) {
-    log('Erreur startAuth', e);
-    alert('Erreur JS : regarde la console (F12).');
-  }
-}
-
-function openAuthInNewTab() {
-  try {
-    log('openAuthInNewTab -> opening auth URL in new tab');
-    const w = window.open(authUrl, '_blank');
-    if (!w) {
-      log('window.open blocked (popup blocker). Demande à l\'utilisateur d\'autoriser popups ou copie l\'URL manuellement.');
-      alert('Popup bloquée : copie l\'URL et colle dans la barre d\'adresse.');
-    }
-  } catch (e) {
-    log('Erreur openAuthInNewTab', e);
-  }
-}
-
-// test quick: expose functions in console
-window.testAuthUrl = () => authUrl;
-window.startAuth = startAuth;
-window.openAuthInNewTab = openAuthInNewTab;
-
-log('Page prête. Vérifie : 1) la redirect URI ci-dessus est enregistrée dans Spotify Dashboard; 2) la page est servie via http(s), pas file://; 3) si popup bloquée, utilise le bouton "Ouvrir dans un nouvel onglet" ou colle l\'URL manuellement.');
+const params = new URLSearchParams({
+  response_type: 'token',
+  client_id: CLIENT_ID,
+  scope: SCOPE,
+  redirect_uri: REDIRECT,
+  show_dialog: 'true'
+});
+const url = AUTH + '?' + params.toString();
+const a = document.getElementById('authLink');
+a.href = url;
+a.innerText = url;
+document.getElementById('note').innerText = 'Si tu n\'as pas ajouté EXACTEMENT ce redirect URI dans ton app Spotify, tu obtiendras une erreur "redirect_uri_mismatch".';
 </script>
 </body>
 </html>
