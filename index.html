@@ -1,272 +1,111 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Test "J'aime" Spotify — Auth client-only</title>
-  <style>
-    body { font-family: system-ui, -apple-system, Roboto, Arial; padding: 18px; background:#0f1113; color:#eee; }
-    label { display:block; margin:8px 0 4px; color:#ccc; }
-    input[type="text"] { width:100%; padding:8px; border-radius:6px; border:1px solid #333; background:#121212; color:#eee; }
-    button { margin-top:8px; padding:10px 14px; border-radius:8px; border:none; cursor:pointer; background:#1db954; color:#051; font-weight:600; }
-    #likeBtn { font-size:22px; padding:8px 12px; background:#222; color:#fff; border:1px solid #444; }
-    #log { margin-top:12px; background:#070707; padding:10px; border-radius:6px; height:220px; overflow:auto; font-family:monospace; font-size:13px; color:#9fd; }
-    .row { display:flex; gap:10px; align-items:center; margin-top:8px; }
-    .small { font-size:0.9rem; color:#9aa; }
-    .muted { color:#888; font-size:0.9rem; }
-    .note { color:#fbb; font-size:0.9rem; margin-top:8px; }
-    pre { background:#0b0b0b;padding:8px;border-radius:6px;overflow:auto }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lyrics Original</title>
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://apis.google.com/js/api.js" async defer></script>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h2>Test bouton "J'aime" (client-only, implicit)</h2>
+    <div class="background-aurora" id="bg-aurora"></div>
+    
+    <div id="login-section">
+        <h1 style="color: var(--spotify-green); font-size: 3rem; margin-bottom: 10px;">Lyrics Original</h1>
+        <p style="color: var(--text-grey); margin-bottom: 30px;">Vos paroles synchronisées et votre bibliothèque réunies.</p>
+        <button id="login-btn">Se connecter avec Spotify</button>
+    </div>
 
-  <p class="muted">Client ID utilisé : <code id="clientIdDisplay"></code></p>
+    <div id="dashboard">
+        <div class="lyrics-section" id="lyrics-container">
+            <div id="lyrics-content">Lancez une musique sur Spotify...</div>
+        </div>
+    
+        <div class="sidebar">   
+            
+            <div class="card">
+                <p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 0 0 10px 0; text-align: center;">EXPLORER & RECHERCHER</p>
+                
+                <div class="search-box" style="display: flex; flex-direction: column; gap: 8px; max-width: 400px; width: 100%;">
+                    
+                    <div style="display: flex; width: 100%; gap: 6px;">
+                        <input type="text" id="search-input" placeholder="Titre, artiste..." style="flex: 1;">
+                        <button onclick="searchTrack()" title="Rechercher par texte">🔍</button>
+                    </div>
 
-  <div class="row">
-    <button id="loginBtn">Se connecter à Spotify</button>
-    <button id="logoutBtn" style="background:#444;color:#fff">Se déconnecter</button>
-    <span style="margin-left:auto" id="authStatus" class="small">Statut : non connecté</span>
-  </div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 6px; width: 100%;">
+                        <button id="mic-btn" onclick="toggleMicrophoneListen()" title="Identifier via AudD">🎙️</button>
+                        <button id="lib-toggle-btn" onclick="getUserLibrary()" title="Ouvrir ma bibliothèque (Likés)">📂</button>
+                        <button id="record-drive-btn" onclick="startDriveRecording()" title="Enregistrer un audio pour Google Drive">📹</button>
+                        <button id="recent-toggle-btn" onclick="getRecentlyPlayed()" title="Écoutes récentes">📄</button>
+                        <button id="profile-toggle-btn" onclick="toggleProfileCard()" title="Mon Profil">👤</button>
+                        <button id="device-toggle-btn" onclick="toggleDeviceSelector()" title="Changer d'appareil">📱</button>
+                    </div>
 
-  <p class="muted">IMPORTANT : Enregistre EXACTEMENT l'URL affichée ci‑dessous comme Redirect URI dans ton application Spotify (Dashboard).</p>
-  <label>Redirect URI attendu :</label>
-  <pre id="redirectUriDisplay"></pre>
+                    <div id="volume-control-zone" style="display: none; margin-top: 12px; width: 100%; align-items: center; justify-content: space-between; box-sizing: border-box; padding: 0 5px;">
+                        <span style="font-size: 0.9rem; color: var(--text-grey); width: 25px; flex-shrink: 0; text-align: left;">🔊</span>
+                        <input type="range" id="volume-slider" min="0" max="100" value="50" oninput="changeVolume(this.value)" style="flex: 1; accent-color: var(--spotify-green); cursor: pointer; height: 4px; min-width: 0; margin: 0 10px;">
+                        <span id="volume-percent" style="font-size: 0.8rem; color: var(--text-grey); width: 40px; flex-shrink: 0; text-align: right;">50%</span>
+                    </div>
 
-  <label>Track ID (ex. 78FNSZkI1968KTtyf2s315) :</label>
-  <input id="trackInput" type="text" placeholder="ID du morceau (track id)" />
+                    <div id="device-control-zone" style="display: none; margin-top: 12px; width: 100%; flex-direction: column; gap: 8px; box-sizing: border-box; padding: 0 5px;">
+                        <p style="font-size: 0.8rem; color: var(--text-grey); margin: 0 0 4px 0; text-align: left;">Appareils disponibles :</p>
+                        <div id="device-list-container" style="display: flex; flex-direction: column; gap: 6px; width: 100%;"></div>
+                    </div>
+                </div>
+                
+                <div id="drive-record-zone" style="display: none; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 12px; margin-top: 10px; font-size: 0.85rem;">
+                    <p style="margin: 5px 0; color: var(--spotify-green); font-weight: bold;">Enregistrement Drive</p>
+                    <div id="record-timer" style="font-size: 1.1rem; font-weight: bold; margin: 5px 0;">00:00</div>
+                    <div id="record-actions">
+                        <button onclick="stopDriveRecording()" style="background: #ef4444; color: white; border: none; border-radius: 20px; padding: 5px 15px; cursor: pointer; font-weight: bold;">🛑 Stopper</button>
+                    </div>
+                    <div id="drive-save-zone" style="display: none; margin-top: 10px;">
+                        <input type="text" id="audio-filename" placeholder="Nom de l'audio..." style="width: 80%; background: #121212; border: 1px solid #333; border-radius: 20px; padding: 6px 12px; color: white; margin-bottom: 8px;">
+                        <button onclick="prepareUploadToDrive()" style="background: var(--spotify-green); color: white; border: none; border-radius: 20px; padding: 6px 15px; cursor: pointer; font-weight: bold; width: 85%;">💾 Sauvegarder sur Drive</button>
+                    </div>
+                    <p id="drive-status-msg" style="margin: 5px 0; font-size: 0.8rem; color: var(--text-grey);"></p>
+                </div>
 
-  <div class="row">
-    <button id="checkBtn">Vérifier (est liké ?)</button>
-    <button id="toggleBtn">Basculer like (PUT/DELETE)</button>
-    <button id="whoamiBtn">Vérifier token (/me)</button>
-    <div style="margin-left:auto"><button id="resetBtn" style="background:#666">Reset</button></div>
-  </div>
+                <div id="profile-card-zone" style="display: none; background: rgba(255,255,255,0.05); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px); padding: 15px; border-radius: 12px; margin-top: 10px; border: 1px solid rgba(255, 255, 255, 0.08);">
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 15px;">
+                        <img id="profile-card-avatar" src="https://via.placeholder.com/50" alt="Avatar" style="border-radius: 50%; width: 50px; height: 50px; border: 2px solid var(--spotify-green); object-fit: cover;">
+                        <div style="text-align: left;">
+                            <h4 id="profile-card-name" style="margin: 0;">Théo</h4>
+                            <span style="color: var(--spotify-green); font-size: 11px; font-weight: bold;">PREMIUM</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="search-results"></div>
+            </div> <div class="card">
+                <p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 0;">LECTURE EN COURS</p>
+                <img id="track-art" src="" alt="" style="display:none;" crossorigin="anonymous">
+                <h3 id="track-title">Aucune lecture</h3>
+                <p id="track-artist"></p>
+                 
+                <div class="progress-container">
+                    <span id="time-current">0:00</span>
+                    <div class="progress-bar-bg" onclick="seekTrack(event)">
+                        <div class="progress-bar-fill" id="progress-fill"></div>
+                    </div>
+                    <span id="time-max">0:00</span>
+                </div>
 
-  <div class="row" style="margin-top:12px">
-    <button id="likeBtn">🤍</button>
-    <div id="statusText" class="small">Statut : inactif</div>
-  </div>
+                <div class="controls" style="display: flex; align-items: center; justify-content: center; position: relative;">
+    <button onclick="previousTrack()">⏮</button>
+    <button id="play-pause-btn" onclick="togglePlay()">▶️</button>
+    <button onclick="nextTrack()">⏭</button>
+    <button id="like-btn" onclick="toggleLikeCurrentTrack()" title="Ajouter aux favoris" style="position: absolute; right: 10px; background: none; border: none; font-size: 1.4rem; cursor: pointer; padding: 5px;">🤍</button>
+</div>
+            </div>
 
-  <div id="log"></div>
-
-<script>
-/*
-  Single-file client-only Spotify auth (Implicit Grant) + "like" test
-  - Register the REDIRECT_URI shown on this page in your Spotify app settings (Dashboard).
-  - Serve this file via HTTP(S) (e.g. python -m http.server 5500). Do NOT open via file://
-  - Security: implicit grant exposes access_token in URL fragment; OK for quick tests but not for production.
-*/
-
-const CLIENT_ID = '91d4165085fd4ed3bd281f16667d64bc'; // your client id
-const REDIRECT_URI = window.location.origin + window.location.pathname; // must be registered in Dashboard
-const SCOPE = 'user-read-private user-read-email user-modify-playback-state user-read-playback-state user-library-read user-library-modify playlist-read-private user-read-recently-played user-read-currently-playing';
-const AUTH_ENDPOINT = 'https://accounts.spotify.com/authorize';
-
-document.getElementById('clientIdDisplay').innerText = CLIENT_ID;
-document.getElementById('redirectUriDisplay').innerText = REDIRECT_URI;
-
-/* Logging helper */
-function log(...args) {
-  const time = new Date().toLocaleTimeString();
-  const out = `[${time}] ` + args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
-  const el = document.getElementById('log');
-  el.innerText = out + '\n' + el.innerText;
-  console.log(...args);
-}
-
-/* Auth helpers (implicit) */
-function buildImplicitAuthUrl() {
-  const params = new URLSearchParams({
-    response_type: 'token',
-    client_id: CLIENT_ID,
-    scope: SCOPE,
-    redirect_uri: REDIRECT_URI,
-    show_dialog: 'true'
-  });
-  return AUTH_ENDPOINT + '?' + params.toString();
-}
-
-function startImplicitAuth() {
-  try {
-    const url = buildImplicitAuthUrl();
-    // navigate in same tab to avoid popup blockers
-    window.location.assign(url);
-  } catch (e) {
-    log('Erreur lors de la redirection vers Spotify:', e);
-    alert('Erreur JS lors de l’ouverture de la page d’authentification. Regarde la console.');
-  }
-}
-
-function parseHashForToken() {
-  // Parses fragment: #access_token=...&token_type=Bearer&expires_in=3600&scope=...
-  if (!window.location.hash) return null;
-  const hash = window.location.hash.substring(1);
-  const params = new URLSearchParams(hash);
-  const access_token = params.get('access_token');
-  const expires_in = params.get('expires_in');
-  const scope = params.get('scope');
-  if (!access_token) return null;
-  return { access_token, expires_in: Number(expires_in || 0), scope };
-}
-
-function storeToken(obj) {
-  const now = Date.now();
-  const expiry = now + (obj.expires_in || 3600) * 1000;
-  localStorage.setItem('spotify_access_token', obj.access_token);
-  localStorage.setItem('spotify_token_expiry', String(expiry));
-  if (obj.scope) localStorage.setItem('spotify_scopes', obj.scope);
-  log('Token stocké. Scopes:', obj.scope);
-}
-
-function clearToken() {
-  localStorage.removeItem('spotify_access_token');
-  localStorage.removeItem('spotify_token_expiry');
-  localStorage.removeItem('spotify_scopes');
-  updateAuthUI();
-  log('Token supprimé.');
-}
-
-function getToken() {
-  const token = localStorage.getItem('spotify_access_token');
-  const expiry = Number(localStorage.getItem('spotify_token_expiry') || 0);
-  if (!token || Date.now() > expiry) {
-    clearToken();
-    return null;
-  }
-  return token;
-}
-
-function updateAuthUI() {
-  const token = getToken();
-  const status = document.getElementById('authStatus');
-  if (token) {
-    status.innerText = 'Statut : connecté';
-    status.style.color = '#8f8';
-  } else {
-    status.innerText = 'Statut : non connecté';
-    status.style.color = '#f88';
-  }
-  log('Scopes stockés:', localStorage.getItem('spotify_scopes') || '(aucun)');
-}
-
-/* API wrapper */
-async function apiFetch(path, opts = {}) {
-  const token = getToken();
-  if (!token) throw new Error('No access token. Connecte-toi d\'abord.');
-  const headers = Object.assign({}, opts.headers || {}, { Authorization: 'Bearer ' + token });
-  const response = await fetch('https://api.spotify.com' + path, Object.assign({}, opts, { headers }));
-  return response;
-}
-
-/* Actions */
-async function whoami() {
-  try {
-    const r = await apiFetch('/v1/me');
-    const txt = await r.text();
-    log('/me ->', r.status, txt);
-    document.getElementById('statusText').innerText = r.ok ? 'Statut : token valide (GET /me ok)' : 'Statut : /me -> ' + r.status;
-    if (r.status === 401) { alert('Token invalide/expiré. Reconnecte-toi.'); clearToken(); updateAuthUI(); }
-  } catch (e) {
-    log('whoami error', e);
-    alert('Erreur réseau ou token absent.');
-  }
-}
-
-async function checkIfTrackIsLiked() {
-  const trackId = document.getElementById('trackInput').value.trim();
-  if (!trackId) { alert('Saisis un track id'); return; }
-  try {
-    const r = await apiFetch(`/v1/me/tracks/contains?ids=${encodeURIComponent(trackId)}`);
-    const text = await r.text();
-    log('GET contains ->', r.status, text);
-    if (!r.ok) {
-      document.getElementById('statusText').innerText = 'Statut : erreur ' + r.status;
-      if (r.status === 403) {
-        alert('403 Forbidden — scope manquant (user-library-modify) ou compte incorrect. Vérifie le scope et reconnecte-toi.');
-      }
-      return;
-    }
-    const arr = JSON.parse(text);
-    const isLiked = !!arr[0];
-    const likeBtn = document.getElementById('likeBtn');
-    likeBtn.innerText = isLiked ? '❤️' : '🤍';
-    likeBtn.dataset.liked = String(isLiked);
-    document.getElementById('statusText').innerText = 'Statut : ' + (isLiked ? 'Déjà liké' : 'Pas liké');
-    log('isLiked =', isLiked);
-  } catch (err) {
-    log('checkIfTrackIsLiked error', err);
-    alert('Erreur réseau / token invalide.');
-  }
-}
-
-async function toggleLike() {
-  const trackId = document.getElementById('trackInput').value.trim();
-  if (!trackId) { alert('Saisis un track id'); return; }
-  const likeBtn = document.getElementById('likeBtn');
-  const currently = likeBtn.dataset.liked === 'true';
-  const method = currently ? 'DELETE' : 'PUT';
-  document.getElementById('statusText').innerText = `Statut : envoi ${method}...`;
-  try {
-    const r = await apiFetch(`/v1/me/tracks?ids=${encodeURIComponent(trackId)}`, { method });
-    const body = await r.text();
-    log(`${method} /me/tracks ->`, r.status, body || '(no body)');
-    if (!r.ok) {
-      if (r.status === 401) { alert('401 token invalide/expiré — reconnecte-toi.'); clearToken(); updateAuthUI(); return; }
-      if (r.status === 403) {
-        const scopes = localStorage.getItem('spotify_scopes') || '';
-        if (!scopes.includes('user-library-modify')) {
-          if (confirm('Permission user-library-modify manquante. Reconnecter pour donner l’accès ?')) startImplicitAuth();
-        } else {
-          alert('403 Forbidden — le token semble avoir le scope mais l’accès est refusé (vérifie compte).');
-        }
-        return;
-      }
-      document.getElementById('statusText').innerText = 'Statut : erreur ' + r.status;
-      return;
-    }
-    const newState = !currently;
-    likeBtn.innerText = newState ? '❤️' : '🤍';
-    likeBtn.dataset.liked = String(newState);
-    document.getElementById('statusText').innerText = 'Statut : ' + (newState ? 'Liké' : 'Non liké');
-    await checkIfTrackIsLiked();
-  } catch (err) {
-    log('toggleLike error', err);
-    alert('Erreur réseau / token absent.');
-  }
-}
-
-/* UI wiring */
-document.getElementById('loginBtn').addEventListener('click', startImplicitAuth);
-document.getElementById('logoutBtn').addEventListener('click', () => { clearToken(); updateAuthUI(); });
-document.getElementById('whoamiBtn').addEventListener('click', whoami);
-document.getElementById('checkBtn').addEventListener('click', checkIfTrackIsLiked);
-document.getElementById('toggleBtn').addEventListener('click', toggleLike);
-document.getElementById('resetBtn').addEventListener('click', () => {
-  document.getElementById('trackInput').value = '';
-  document.getElementById('likeBtn').innerText = '🤍';
-  delete document.getElementById('likeBtn').dataset.liked;
-  document.getElementById('statusText').innerText = 'Statut : inactif';
-  log('UI reset');
-});
-document.getElementById('likeBtn').addEventListener('click', toggleLike);
-
-/* On load: parse token if present in URL fragment */
-(function init() {
-  try {
-    const tokenObj = parseHashForToken();
-    if (tokenObj) {
-      storeToken(tokenObj);
-      // remove fragment for cleanliness
-      window.history.replaceState({}, document.title, REDIRECT_URI);
-    }
-    updateAuthUI();
-    // optional: auto-fill sample track for convenience
-    // document.getElementById('trackInput').value = '78FNSZkI1968KTtyf2s315';
-  } catch (e) {
-    log('Init error', e);
-  }
-})();
-</script>
+        </div>
+    </div>
+    <script src="app.js"></script>
+    <script src="version.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
