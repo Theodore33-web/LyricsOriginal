@@ -1,5 +1,5 @@
 
-const APP_VERSION = "v1.0.73";
+const APP_VERSION = "v1.0.74";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -1021,24 +1021,6 @@ async function toggleLikeCurrentTrack() {
     } catch (e) {
         console.error("Erreur lors du changement d'état du favori :", e);
     }
-}
-// --- VARIABLES GLOBALES POUR LA GESTION DES PLAYLISTS ---
-let playlistOffset = 0;
-let tracksOffset = 0;
-let currentSelectedPlaylistId = null;
-const LIMIT = 10;
-
-// Fonction principale déclenchée par le bouton 🎵
-async function togglePlaylistsView() {
-    // Réinitialisation des offsets
-    playlistOffset = 0;
-    currentSelectedPlaylistId = null;
-    
-    const container = document.getElementById('playlist-container');
-    if (!container) return;
-    
-    container.innerHTML = "<h3>Mes Playlists</h3><div id='playlist-list'></div>";
-    await loadMorePlaylists();
 }
 
 // --- VARIABLES GLOBALES POUR LA GESTION DES PLAYLISTS ---
