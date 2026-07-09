@@ -153,24 +153,25 @@
         statusText.textContent = "Erreur de chargement des playlists.";
     }
 }
-        async function fetchPlaylistTracks(playlistId, token) {
-            statusText.textContent = "Chargement des titres...";
-            try {
-                // CORRECTION DOCUMENTATION : Remplacement de /tracks par /items
-                const response = await fetch(`https://api.spotify.com/v1/me/library/contains{playlistId}/items`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const data = await response.json();
-                
-                // On passe le tableau d'éléments à la fonction d'affichage
-                displayTracks(data.items);
-                statusText.textContent = "Titres chargés.";
-            } catch (error) {
-                console.error("Erreur titres:", error);
-                statusText.textContent = "Erreur de chargement des titres.";
-            }
-        }
-
+     async function fetchPlaylistTracks(playlistId, token) {
+    statusText.textContent = "Chargement des titres...";
+    try {
+        // CORRECTION : Suppression du chiffre parasite devant l'accolade
+        // Utilisation du nouvel endpoint officiel : /playlists/{id}/items
+        const response = await fetch(`https://api.spotify.com/v1/me/library/contains{playlistId}/items`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        const data = await response.json();
+        
+        // On envoie le tableau d'éléments mis à jour à la fonction d'affichage
+        displayTracks(data.items);
+        statusText.textContent = "Titres chargés avec succès.";
+    } catch (error) {
+        console.error("Erreur titres:", error);
+        statusText.textContent = "Erreur de chargement des titres.";
+    }
+}
         // --- AFFICHAGE DOM ---
        function displayPlaylists(playlists, token) {
     const container = document.getElementById('playlists');
