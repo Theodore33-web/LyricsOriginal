@@ -1,176 +1,420 @@
 
 
-
-const APP_VERSION = "v1.0.93";
+const APP_VERSION = "v1.0.94";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
-        const redirectUri = window.location.origin + window.location.pathname;
-        let currentToken = "";
-        let lastTrackId = "";
-        let currentLyrics = [];
-        let trackDurationMs = 0; 
-        let libraryItems = [];
-        let displayedCount = 10;
-        const auddApiToken = "187ef3238849ff75583d237fa40dbb48"; 
-        let mediaRecorder = null;
-        let audioChunks = [];
-        let isRecording = false;
-        let recentItems = [];        
-        let displayedRecentCount = 10; 
-     
-        // --- CONFIGURATION GOOGLE DRIVE API ---
+const redirectUri = window.location.origin + window.location.pathname;
+let currentToken = "";
+let lastTrackId = "";
+let currentLyrics = [];
+let trackDurationMs = 0; 
+let libraryItems = [];
+let displayedCount = 10;
+const auddApiToken = "187ef3238849ff75583d237fa40dbb48"; 
+let mediaRecorder = null;
+let audioChunks = [];
+let isRecording = false;
+let recentItems = [];        
+let displayedRecentCount = 10; 
+
+// --- CONFIGURATION GOOGLE DRIVE API ---
+let tokenClient;
+let gapiInited = false;
+let gisiInited = false;
+let googleAccessToken = null;
+let driveRecorder = null;
+let driveAudioChunks = [];
+let driveTimerInterval = null;
+let driveSecondsElapsed = 0;
+let finalAudioBlob = null;
+
+const params = new URLSearchParams(window.location.search);
+const code = params.get("code");
+const scope = "user-read-private user-read-email user-modify-playback-state user-read-playback-state user-library-read user-library-modify playlist-read-private user-read-recently-played user-read-currently-playing";
+if (code) {
+    document.getElementById('login-section').style.display = 'none';
+    handleCallback(code);
+} else {
+    const loginBtn = document.getElementById('login-btn');
+    if (loginBtn) loginBtn.onclick = () => redirectToSpotify();
+}
+
+function gapiLoad() {
+    gapi.load('client', async () => {
+        await gapi.client.init({ apiKey: API_KEY, discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"] });
+        gapiInited = true;
+    });
+}
+
+function gisInit() {
+    tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: CLIENT_ID,
+        scope: SCOPES,
+        callback: (tokenResponse) => {
+            if (tokenResponse.error !== undefined) throw (tokenResponse);
+            googleAccessToken = tokenResponse.access_token;
+            executeActualUpload(); 
+        },
+    });
+    gisiInited = true;
+}
+
+window.onload = function() {
+    gapiLoad();
+    gisInit();
+};
+
+function toggleProfileCard() {
+    const profileZone = document.getElementById('profile-card-zone');
+    document.getElementById('search-results').innerHTML = ""; 
+    document.getElementById('device-control-zone').style.display = 'none';
+    document.getElementById('volume-control-zone').style.display = 'none';
+    const driveZone = document.getElementById('drive-record-zone');
+    if (driveZone) driveZone.style.display = 'none';
+
+    if (profileZone.style.display === 'none') {
+        profileZone.style.display = 'block';
+    } else {
+        profileZone.style.display = 'none';
+    }
+}
+
+async function redirectToSpotify() {
+    const verifier = generateCodeVerifier(128);
+    const challenge = await generateCodeChallenge(verifier);
+    localStorage.setItem("verifier", verifier);
+
+    const authUrl = new URL("https://accounts.spotify.com/authorize");
+    const args = { response_type: 'code', client_id: clientId, scope: scope, redirect_uri: redirectUri, code_challenge_method: 'S256', code_challenge: challenge };
+    authUrl.search = new URLSearchParams(args).toString();
+    window.location.href = authUrl.toString();
+}
+
+async function handleCallback(code) {
+    const verifier = localStorage.getItem("verifier");
+    const body = new URLSearchParams({ client_id: clientId, grant_type: 'authorization_code', code: code, redirect_uri: redirectUri, code_verifier: verifier });
     
+    try {
+        const response = await fetch('https://accounts.spotify.com/api/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body });
+        const data = await response.json();
+        if (data.access_token) {
+            window.history.replaceState({}, document.title, window.location.pathname);
+            getUserData(data.access_token);
+        }
+    } catch (e) {
+        console.error("Erreur d'authentification : ", e);
+    }
+}
 
-        let tokenClient;
-        let gapiInited = false;
-        let gisiInited = false;
-        let googleAccessToken = null;
-        let driveRecorder = null;
-        let driveAudioChunks = [];
-        let driveTimerInterval = null;
-        let driveSecondsElapsed = 0;
-        let finalAudioBlob = null;
+async function getUserData(token) {
+    currentToken = token;
+    try {
+        const response = await fetch('https://api.spotify.com/v1/me', { headers: { 'Authorization': 'Bearer ' + token } });
+        const user = await response.json();
         
-        const params = new URLSearchParams(window.location.search);
-        const code = params.get("code");
-        const scope = "user-read-private user-read-email user-modify-playback-state user-read-playback-state user-library-read user-library-modify playlist-read-private user-read-recently-played user-read-currently-playing";
-        if (code) {
-            document.getElementById('login-section').style.display = 'none';
-            handleCallback(code);
+        document.getElementById('dashboard').style.display = 'flex';
+        
+        setTimeout(() => {
+            if (document.getElementById('profile-card-name')) {
+                document.getElementById('profile-card-name').innerText = user.display_name || "Théo";
+            }
+            if (document.getElementById('profile-card-avatar')) {
+                document.getElementById('profile-card-avatar').src = user.images && user.images.length > 0 ? user.images[0].url : "https://via.placeholder.com/50";
+            }
+        }, 100);
+        
+        updateNowPlaying();
+    } catch (e) {
+        console.error("Impossible de récupérer le profil : ", e);
+    }
+}
+
+async function getUserLibrary() {
+    document.getElementById('profile-card-zone').style.display = 'none';
+    if (!currentToken) return;
+    const resultsContainer = document.getElementById('search-results');
+    resultsContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement de la bibliothèque...</p>";
+    
+    try {
+        const response = await fetch('https://api.spotify.com/v1/me/tracks?limit=50', {
+            headers: { 'Authorization': 'Bearer ' + currentToken }
+        });
+        const data = await response.json();
+        resultsContainer.innerHTML = "";
+
+        if (data.items && data.items.length > 0) {
+            libraryItems = data.items;
+            displayedCount = 10; 
+            renderLibrarySection();
         } else {
-            document.getElementById('login-btn').onclick = () => redirectToSpotify();
+            resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Aucun morceau favori trouvé.</p>";
         }
+    } catch (e) { 
+        console.error(e); 
+        resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur lors du chargement de la bibliothèque.</p>";
+    }
+}
 
-        function gapiLoad() {
-            gapi.load('client', async () => {
-                await gapi.client.init({ apiKey: API_KEY, discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"] });
-                gapiInited = true;
-            });
-        }
+function renderLibrarySection() {
+    const resultsContainer = document.getElementById('search-results');
+    resultsContainer.innerHTML = "";
 
-        function gisInit() {
-            tokenClient = google.accounts.oauth2.initTokenClient({
-                client_id: CLIENT_ID,
-                scope: SCOPES,
-                callback: (tokenResponse) => {
-                    if (tokenResponse.error !== undefined) throw (tokenResponse);
-                    googleAccessToken = tokenResponse.access_token;
-                    executeActualUpload(); 
-                },
-            });
-            gisiInited = true;
-        }
+    const titleHeader = document.createElement('p');
+    titleHeader.style = "color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;";
+    titleHeader.innerText = "VOS TITRES LIKÉS";
+    resultsContainer.appendChild(titleHeader);
 
-        window.onload = function() {
-            gapiLoad();
-            gisInit();
+    const itemsToDisplay = libraryItems.slice(0, displayedCount);
+    const allUris = libraryItems.map(obj => obj.track.uri);
+
+    itemsToDisplay.forEach((obj, index) => {
+        const track = obj.track;
+        const item = document.createElement('div');
+        item.className = 'search-item';
+        item.innerHTML = `
+            <img src="${track.album.images && track.album.images.length > 2 ? track.album.images[2].url : 'https://via.placeholder.com/30'}" alt="">
+            <div>
+                <strong style="display:block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${track.name}</strong>
+                <span style="font-size: 0.8rem; color: var(--text-grey);">${track.artists[0].name}</span>
+            </div>
+        `;
+        item.onclick = () => playTrackList(allUris, index);
+        resultsContainer.appendChild(item);
+    });
+
+    if (libraryItems.length > displayedCount) {
+        const moreBtn = document.createElement('button');
+        moreBtn.className = 'lib-btn';
+        moreBtn.style.marginTop = '10px';
+        moreBtn.innerText = "➕ Afficher plus (+10)";
+        moreBtn.onclick = () => {
+            displayedCount += 10;
+            renderLibrarySection();
+        };
+        resultsContainer.appendChild(moreBtn);
+    }
+}
+
+async function startDriveRecording() {
+    document.getElementById('profile-card-zone').style.display = 'none';
+    const statusMsg = document.getElementById('drive-status-msg');
+    const recordZone = document.getElementById('drive-record-zone');
+    const saveZone = document.getElementById('drive-save-zone');
+    
+    if (driveTimerInterval) {
+        clearInterval(driveTimerInterval);
+        driveTimerInterval = null;
+    }
+    
+    recordZone.style.display = 'block';
+    saveZone.style.display = 'none';
+    statusMsg.innerText = "Initialisation du micro...";
+    driveAudioChunks = [];
+    driveSecondsElapsed = 0;
+    document.getElementById('record-timer').innerText = "00:00";
+
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        driveRecorder = new MediaRecorder(stream);
+
+        driveRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) driveAudioChunks.push(event.data);
         };
 
-        function toggleProfileCard() {
-            const profileZone = document.getElementById('profile-card-zone');
-            document.getElementById('search-results').innerHTML = ""; 
-            document.getElementById('device-control-zone').style.display = 'none';
-            document.getElementById('volume-control-zone').style.display = 'none';
-            const driveZone = document.getElementById('drive-record-zone');
-            if (driveZone) driveZone.style.display = 'none';
+        driveRecorder.onstart = () => {
+            statusMsg.innerText = "Enregistrement en cours...";
+            driveTimerInterval = setInterval(() => {
+                driveSecondsElapsed++;
+                const mins = String(Math.floor(driveSecondsElapsed / 60)).padStart(2, '0');
+                const secs = String(driveSecondsElapsed % 60).padStart(2, '0');
+                document.getElementById('record-timer').innerText = `${mins}:${secs}`;
+            }, 1000);
+        };
 
-            if (profileZone.style.display === 'none') {
-                profileZone.style.display = 'block';
+        driveRecorder.onstop = () => {
+            clearInterval(driveTimerInterval);
+            driveTimerInterval = null; 
+            statusMsg.innerText = "Enregistrement stoppé. Choisissez un titre.";
+            finalAudioBlob = new Blob(driveAudioChunks, { type: 'audio/mp3' });
+            stream.getTracks().forEach(track => track.stop()); 
+            saveZone.style.display = 'block'; 
+        };
+
+        driveRecorder.start();
+    } catch (err) {
+        statusMsg.style.color = '#ef4444';
+        statusMsg.innerText = "Microphone inaccessible.";
+    }
+}
+
+function stopDriveRecording() {
+    if (driveRecorder && driveRecorder.state !== "inactive") driveRecorder.stop();
+}
+
+function prepareUploadToDrive() {
+    const inputName = document.getElementById('audio-filename').value.trim();
+    const statusMsg = document.getElementById('drive-status-msg');
+    
+    if (!inputName) { alert("Veuillez donner un titre !"); return; }
+    if (!finalAudioBlob) { alert("Aucun audio détecté."); return; }
+
+    statusMsg.style.color = 'var(--text-grey)';
+    statusMsg.innerText = "Authentification Google...";
+
+    if (googleAccessToken === null) {
+        tokenClient.requestAccessToken({ prompt: 'consent' });
+    } else {
+        executeActualUpload();
+    }
+}
+
+async function executeActualUpload() {
+    const inputName = document.getElementById('audio-filename').value.trim();
+    const fileName = inputName.endsWith('.mp3') ? inputName : `${inputName}.mp3`;
+    const statusMsg = document.getElementById('drive-status-msg');
+
+    statusMsg.innerText = "Téléversement sur Google Drive...";
+
+    const metadata = { name: fileName, mimeType: 'audio/mp3' };
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+    form.append('file', finalAudioBlob);
+
+    try {
+        const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + googleAccessToken },
+            body: form
+        });
+
+        if (response.ok) {
+            statusMsg.style.color = 'var(--spotify-green)';
+            statusMsg.innerText = "Audio enregistré avec succès sur Google Drive !";
+            setTimeout(() => { document.getElementById('drive-record-zone').style.display = 'none'; }, 3000);
+        } else {
+            const errData = await response.json();
+            statusMsg.style.color = '#ef4444';
+            statusMsg.innerText = "Erreur Drive : " + (errData.error.message || "Échec");
+        }
+    } catch (error) {
+        statusMsg.style.color = '#ef4444';
+        statusMsg.innerText = "Erreur de connexion Google API.";
+    }
+}
+
+async function toggleMicrophoneListen() {
+    document.getElementById('profile-card-zone').style.display = 'none';
+    const micBtn = document.getElementById('mic-btn');
+    const resultsContainer = document.getElementById('search-results');
+
+    if (isRecording) {
+        if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
+        return;
+    }
+
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        audioChunks = [];
+        mediaRecorder = new MediaRecorder(stream);
+
+        mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) audioChunks.push(event.data);
+        };
+
+        mediaRecorder.onstart = () => {
+            isRecording = true;
+            micBtn.classList.add('recording');
+            micBtn.innerText = "🛑";
+            resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>AudD vous écoute (10s)...</p>";
+        };
+
+        mediaRecorder.onstop = async () => {
+            isRecording = false;
+            micBtn.classList.remove('recording');
+            micBtn.innerText = "🎙️";
+            resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Analyse de l'empreinte audio...</p>";
+
+            const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
+            stream.getTracks().forEach(track => track.stop());
+
+            if (audioBlob.size > 1000) {
+                recognizeAudioWithAudD(audioBlob);
             } else {
-                profileZone.style.display = 'none';
+                resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur : Enregistrement vide.</p>";
             }
-        }
-        
-        async function redirectToSpotify() {
-            const verifier = generateCodeVerifier(128);
-            const challenge = await generateCodeChallenge(verifier);
-            localStorage.setItem("verifier", verifier);
+        };
 
-            const authUrl = new URL("https://accounts.spotify.com/authorize");
-            const args = { response_type: 'code', client_id: clientId, scope: scope, redirect_uri: redirectUri, code_challenge_method: 'S256', code_challenge: challenge };
-            authUrl.search = new URLSearchParams(args).toString();
-            window.location.href = authUrl.toString();
-        }
+        mediaRecorder.start();
+        setTimeout(() => {
+            if (isRecording && mediaRecorder.state !== "inactive") mediaRecorder.stop();
+        }, 10000);
 
-        async function handleCallback(code) {
-            const verifier = localStorage.getItem("verifier");
-            const body = new URLSearchParams({ client_id: clientId, grant_type: 'authorization_code', code: code, redirect_uri: redirectUri, code_verifier: verifier });
+    } catch (err) {
+        resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Microphone inaccessible (HTTPS requis).</p>";
+    }
+}
+
+async function recognizeAudioWithAudD(blob) {
+    const GlassContainer = document.getElementById('search-results');
+    const formData = new FormData();
+    formData.append('file', blob);
+    formData.append('api_token', auddApiToken);
+    formData.append('return', 'spotify');
+
+    try {
+        const response = await fetch('https://api.audd.io/', { method: 'POST', body: formData });
+        const result = await response.json();
+
+        if (result.status === "success" && result.result) {
+            GlassContainer.innerHTML = "";
+            const track = result.result;
+            let spotifyUri = track.spotify && track.spotify.id ? `spotify:track:${track.spotify.id}` : null;
+
+            const item = document.createElement('div');
+            item.className = 'search-item';
+            const coverImg = (track.spotify && track.spotify.album && track.spotify.album.images.length > 0) ? track.spotify.album.images[2].url : "https://via.placeholder.com/30";
+
+            item.innerHTML = `
+                <img src="${coverImg}" alt="">
+                <div>
+                    <strong style="display:block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${track.title}</strong>
+                    <span style="font-size: 0.8rem; color: var(--text-grey);">${track.artist}</span>
+                </div>
+            `;
             
-            try {
-                const response = await fetch('https://accounts.spotify.com/api/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body });
-                const data = await response.json();
-                if (data.access_token) {
-                    window.history.replaceState({}, document.title, window.location.pathname);
-                    getUserData(data.access_token);
-                }
-            } catch (e) {
-                console.error("Erreur d'authentification : ", e);
-            }
-        }
-
-        async function getUserData(token) {
-            currentToken = token;
-            try {
-                const response = await fetch('https://api.spotify.com/v1/me', { headers: { 'Authorization': 'Bearer ' + token } });
-                const user = await response.json();
-                
-                document.getElementById('dashboard').style.display = 'flex';
-                
-                setTimeout(() => {
-                    if (document.getElementById('profile-card-name')) {
-                        document.getElementById('profile-card-name').innerText = user.display_name || "Théo";
-                    }
-                    if (document.getElementById('profile-card-avatar')) {
-                        document.getElementById('profile-card-avatar').src = user.images && user.images.length > 0 ? user.images[0].url : "https://via.placeholder.com/50";
-                    }
-                }, 100);
-                
-                updateNowPlaying();
-            } catch (e) {
-                console.error("Impossible de récupérer le profil : ", e);
-            }
-        }
-
-        async function getUserLibrary() {
-            document.getElementById('profile-card-zone').style.display = 'none';
-            if (!currentToken) return;
-            const resultsContainer = document.getElementById('search-results');
-            resultsContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement de la bibliothèque...</p>";
-            
-            try {
-                const response = await fetch('https://api.spotify.com/v1/me/tracks?limit=50', {
-                    headers: { 'Authorization': 'Bearer ' + currentToken }
-                });
-                const data = await response.json();
-                resultsContainer.innerHTML = "";
-
-                if (data.items && data.items.length > 0) {
-                    libraryItems = data.items;
-                    displayedCount = 10; 
-                    renderLibrarySection();
+            item.onclick = () => {
+                if (spotifyUri) {
+                    playTrack(spotifyUri);
                 } else {
-                    resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Aucun morceau favori trouvé.</p>";
+                    document.getElementById('search-input').value = `${track.title} ${track.artist}`;
+                    searchTrack();
                 }
-            } catch (e) { 
-                console.error(e); 
-                resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur lors du chargement de la bibliothèque.</p>";
-            }
+            };
+            GlassContainer.appendChild(item);
+        } else {
+            GlassContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Aucune correspondance trouvée par AudD.</p>";
         }
+    } catch (err) {
+        GlassContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Échec de communication avec AudD.</p>";
+    }
+}
 
-        function renderLibrarySection() {
-            const resultsContainer = document.getElementById('search-results');
-            resultsContainer.innerHTML = "";
+async function searchTrack() {
+    document.getElementById('profile-card-zone').style.display = 'none';
+    const query = document.getElementById('search-input').value;
+    if (!query || !currentToken) return;
 
-            const titleHeader = document.createElement('p');
-            titleHeader.style = "color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;";
-            titleHeader.innerText = "VOS TITRES LIKÉS";
-            resultsContainer.appendChild(titleHeader);
+    try {
+        // CORRECTION : Syntaxe propre sans template string défaillante
+        const response = await fetch('https://api.spotify.com/v1/search?q=$' + encodeURIComponent(query) + '&type=track&limit=5', {
+            headers: { 'Authorization': 'Bearer ' + currentToken }
+        });
+        const data = await response.json();
+        const resultsContainer = document.getElementById('search-results');
+        resultsContainer.innerHTML = "";
 
-            const itemsToDisplay = libraryItems.slice(0, displayedCount);
-            const allUris = libraryItems.map(obj => obj.track.uri);
-
-            itemsToDisplay.forEach((obj, index) => {
-                const track = obj.track;
+        if (data.tracks && data.tracks.items.length > 0) {
+            data.tracks.items.forEach(track => {
                 const item = document.createElement('div');
                 item.className = 'search-item';
                 item.innerHTML = `
@@ -180,335 +424,88 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                         <span style="font-size: 0.8rem; color: var(--text-grey);">${track.artists[0].name}</span>
                     </div>
                 `;
-                item.onclick = () => playTrackList(allUris, index);
+                item.onclick = () => playTrack(track.uri);
                 resultsContainer.appendChild(item);
             });
-
-            if (libraryItems.length > displayedCount) {
-                const moreBtn = document.createElement('button');
-                moreBtn.className = 'lib-btn';
-                moreBtn.style.marginTop = '10px';
-                moreBtn.innerText = "➕ Afficher plus (+10)";
-                moreBtn.onclick = () => {
-                    displayedCount += 10;
-                    renderLibrarySection();
-                };
-                resultsContainer.appendChild(moreBtn);
-            }
+        } else {
+            resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Aucun résultat sur Spotify.</p>";
         }
+    } catch (e) { console.error(e); }
+}
 
-        async function startDriveRecording() {
-            document.getElementById('profile-card-zone').style.display = 'none';
-            const statusMsg = document.getElementById('drive-status-msg');
-            const recordZone = document.getElementById('drive-record-zone');
-            const saveZone = document.getElementById('drive-save-zone');
-            
-            if (driveTimerInterval) {
-                clearInterval(driveTimerInterval);
-                driveTimerInterval = null;
-            }
-            
-            recordZone.style.display = 'block';
-            saveZone.style.display = 'none';
-            statusMsg.innerText = "Initialisation du micro...";
-            driveAudioChunks = [];
-            driveSecondsElapsed = 0;
-            document.getElementById('record-timer').innerText = "00:00";
-
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                driveRecorder = new MediaRecorder(stream);
-
-                driveRecorder.ondataavailable = (event) => {
-                    if (event.data.size > 0) driveAudioChunks.push(event.data);
-                };
-
-                driveRecorder.onstart = () => {
-                    statusMsg.innerText = "Enregistrement en cours...";
-                    driveTimerInterval = setInterval(() => {
-                        driveSecondsElapsed++;
-                        const mins = String(Math.floor(driveSecondsElapsed / 60)).padStart(2, '0');
-                        const secs = String(driveSecondsElapsed % 60).padStart(2, '0');
-                        document.getElementById('record-timer').innerText = `${mins}:${secs}`;
-                    }, 1000);
-                };
-
-                driveRecorder.onstop = () => {
-                    clearInterval(driveTimerInterval);
-                    driveTimerInterval = null; 
-                    statusMsg.innerText = "Enregistrement stoppé. Choisissez un titre.";
-                    finalAudioBlob = new Blob(driveAudioChunks, { type: 'audio/mp3' });
-                    stream.getTracks().forEach(track => track.stop()); 
-                    saveZone.style.display = 'block'; 
-                };
-
-                driveRecorder.start();
-            } catch (err) {
-                statusMsg.style.color = '#ef4444';
-                statusMsg.innerText = "Microphone inaccessible.";
-            }
-        }
-
-        function stopDriveRecording() {
-            if (driveRecorder && driveRecorder.state !== "inactive") driveRecorder.stop();
-        }
-
-        function prepareUploadToDrive() {
-            const inputName = document.getElementById('audio-filename').value.trim();
-            const statusMsg = document.getElementById('drive-status-msg');
-            
-            if (!inputName) { alert("Veuillez donner un titre !"); return; }
-            if (!finalAudioBlob) { alert("Aucun audio détecté."); return; }
-
-            statusMsg.style.color = 'var(--text-grey)';
-            statusMsg.innerText = "Authentification Google...";
-
-            if (googleAccessToken === null) {
-                tokenClient.requestAccessToken({ prompt: 'consent' });
-            } else {
-                executeActualUpload();
-            }
-        }
-
-        async function executeActualUpload() {
-            const inputName = document.getElementById('audio-filename').value.trim();
-            const fileName = inputName.endsWith('.mp3') ? inputName : `${inputName}.mp3`;
-            const statusMsg = document.getElementById('drive-status-msg');
-
-            statusMsg.innerText = "Téléversement sur Google Drive...";
-
-            const metadata = { name: fileName, mimeType: 'audio/mp3' };
-            const form = new FormData();
-            form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-            form.append('file', finalAudioBlob);
-
-            try {
-                const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-                    method: 'POST',
-                    headers: { 'Authorization': 'Bearer ' + googleAccessToken },
-                    body: form
-                });
-
-                if (response.ok) {
-                    statusMsg.style.color = 'var(--spotify-green)';
-                    statusMsg.innerText = "Audio enregistré avec succès sur Google Drive !";
-                    setTimeout(() => { document.getElementById('drive-record-zone').style.display = 'none'; }, 3000);
-                } else {
-                    const errData = await response.json();
-                    statusMsg.style.color = '#ef4444';
-                    statusMsg.innerText = "Erreur Drive : " + (errData.error.message || "Échec");
-                }
-            } catch (error) {
-                statusMsg.style.color = '#ef4444';
-                statusMsg.innerText = "Erreur de connexion Google API.";
-            }
-        }
-
-        async function toggleMicrophoneListen() {
-            document.getElementById('profile-card-zone').style.display = 'none';
-            const micBtn = document.getElementById('mic-btn');
-            const resultsContainer = document.getElementById('search-results');
-
-            if (isRecording) {
-                if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
-                return;
-            }
-
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                audioChunks = [];
-                mediaRecorder = new MediaRecorder(stream);
-
-                mediaRecorder.ondataavailable = (event) => {
-                    if (event.data.size > 0) audioChunks.push(event.data);
-                };
-
-                mediaRecorder.onstart = () => {
-                    isRecording = true;
-                    micBtn.classList.add('recording');
-                    micBtn.innerText = "🛑";
-                    resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>AudD vous écoute (10s)...</p>";
-                };
-
-                mediaRecorder.onstop = async () => {
-                    isRecording = false;
-                    micBtn.classList.remove('recording');
-                    micBtn.innerText = "🎙️";
-                    resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Analyse de l'empreinte audio...</p>";
-
-                    const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
-                    stream.getTracks().forEach(track => track.stop());
-
-                    if (audioBlob.size > 1000) {
-                        recognizeAudioWithAudD(audioBlob);
-                    } else {
-                        resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur : Enregistrement vide.</p>";
-                    }
-                };
-
-                mediaRecorder.start();
-                setTimeout(() => {
-                    if (isRecording && mediaRecorder.state !== "inactive") mediaRecorder.stop();
-                }, 10000);
-
-            } catch (err) {
-                resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Microphone inaccessible (HTTPS requis).</p>";
-            }
-        }
-
-        async function recognizeAudioWithAudD(blob) {
-            const GlassContainer = document.getElementById('search-results');
-            const formData = new FormData();
-            formData.append('file', blob);
-            formData.append('api_token', auddApiToken);
-            formData.append('return', 'spotify');
-
-            try {
-                const response = await fetch('https://api.audd.io/', { method: 'POST', body: formData });
-                const result = await response.json();
-
-                if (result.status === "success" && result.result) {
-                    GlassContainer.innerHTML = "";
-                    const track = result.result;
-                    let spotifyUri = track.spotify && track.spotify.id ? `spotify:track:${track.spotify.id}` : null;
-
-                    const item = document.createElement('div');
-                    item.className = 'search-item';
-                    const coverImg = (track.spotify && track.spotify.album && track.spotify.album.images.length > 0) ? track.spotify.album.images[2].url : "https://via.placeholder.com/30";
-
-                    item.innerHTML = `
-                        <img src="${coverImg}" alt="">
-                        <div>
-                            <strong style="display:block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${track.title}</strong>
-                            <span style="font-size: 0.8rem; color: var(--text-grey);">${track.artist}</span>
-                        </div>
-                    `;
-                    
-                    item.onclick = () => {
-                        if (spotifyUri) {
-                            playTrack(spotifyUri);
-                        } else {
-                            document.getElementById('search-input').value = `${track.title} ${track.artist}`;
-                            searchTrack();
-                        }
-                    };
-                    GlassContainer.appendChild(item);
-                } else {
-                    GlassContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Aucune correspondance trouvée par AudD.</p>";
-                }
-            } catch (err) {
-                GlassContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Échec de communication avec AudD.</p>";
-            }
-        }
-
-        async function searchTrack() {
-            document.getElementById('profile-card-zone').style.display = 'none';
-            const query = document.getElementById('search-input').value;
-            if (!query || !currentToken) return;
-
-            try {
-                const response = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=5`, {
-                    headers: { 'Authorization': 'Bearer ' + currentToken }
-                });
-                const data = await response.json();
-                const resultsContainer = document.getElementById('search-results');
-                resultsContainer.innerHTML = "";
-
-                if (data.tracks && data.tracks.items.length > 0) {
-                    data.tracks.items.forEach(track => {
-                        const item = document.createElement('div');
-                        item.className = 'search-item';
-                        item.innerHTML = `
-                            <img src="${track.album.images && track.album.images.length > 2 ? track.album.images[2].url : 'https://via.placeholder.com/30'}" alt="">
-                            <div>
-                                <strong style="display:block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${track.name}</strong>
-                                <span style="font-size: 0.8rem; color: var(--text-grey);">${track.artists[0].name}</span>
-                            </div>
-                        `;
-                        item.onclick = () => playTrack(track.uri);
-                        resultsContainer.appendChild(item);
-                    });
-                } else {
-                    resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Aucun résultat sur Spotify.</p>";
-                }
-            } catch (e) { console.error(e); }
-        }
-
-        async function playTrack(trackUri) {
-            try {
-                const response = await fetch('https://api.spotify.com/v1/me/player/play', {
-                    method: 'PUT',
-                    headers: { 'Authorization': 'Bearer ' + currentToken, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ uris: [trackUri] })
-                });
-                if (response.status === 204) {
-                    document.getElementById('search-results').innerHTML = "";
-                    document.getElementById('search-input').value = "";
-                    setTimeout(updateNowPlaying, 600);
-                } else if (response.status === 404) {
-                    alert("Ouvrez Spotify et lancez une lecture sur l'un de vos appareils.");
-                }
-            } catch (e) { console.error(e); }
-        }
-
-        async function playTrackList(urisArray, startIndex = 0) {
-            if (!currentToken || urisArray.length === 0) return;
-            try {
-                const response = await fetch('https://api.spotify.com/v1/me/player/play', {
-                    method: 'PUT',
-                    headers: { 
-                        'Authorization': 'Bearer ' + currentToken, 
-                        'Content-Type': 'application/json' 
-                    },
-                    body: JSON.stringify({ 
-                        uris: urisArray,
-                        offset: { position: startIndex } 
-                    })
-                });
-                if (response.status === 204) {
-                    document.getElementById('search-results').innerHTML = "";
-                    document.getElementById('search-input').value = "";
-                    setTimeout(updateNowPlaying, 600);
-                } else if (response.status === 404) {
-                    alert("Ouvrez Spotify et lancez une lecture sur l'un de vos appareils.");
-                }
-            } catch (e) { console.error(e); }
-        }
-
-        document.getElementById('search-input')?.addEventListener('keypress', function (e) {
-            if (e.key === 'Enter') searchTrack();
+async function playTrack(trackUri) {
+    try {
+        const response = await fetch('https://api.spotify.com/v1/me/player/play', {
+            method: 'PUT',
+            headers: { 'Authorization': 'Bearer ' + currentToken, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ uris: [trackUri] })
         });
+        if (response.status === 204) {
+            document.getElementById('search-results').innerHTML = "";
+            const searchInput = document.getElementById('search-input');
+            if (searchInput) searchInput.value = "";
+            setTimeout(updateNowPlaying, 600);
+        } else if (response.status === 404) {
+            alert("Ouvrez Spotify et lancez une lecture sur l'un de vos appareils.");
+        }
+    } catch (e) { console.error(e); }
+}
 
-   async function seekTrack(event) {
+async function playTrackList(urisArray, startIndex = 0) {
+    if (!currentToken || urisArray.length === 0) return;
+    try {
+        const response = await fetch('https://api.spotify.com/v1/me/player/play', {
+            method: 'PUT',
+            headers: { 
+                'Authorization': 'Bearer ' + currentToken, 
+                'Content-Type': 'application/json' 
+            },
+            body: JSON.stringify({ 
+                uris: urisArray,
+                offset: { position: startIndex } 
+            })
+        });
+        if (response.status === 204) {
+            document.getElementById('search-results').innerHTML = "";
+            const searchInput = document.getElementById('search-input');
+            if (searchInput) searchInput.value = "";
+            setTimeout(updateNowPlaying, 600);
+        } else if (response.status === 404) {
+            alert("Ouvrez Spotify et lancez une lecture sur l'un de vos appareils.");
+        }
+    } catch (e) { console.error(e); }
+}
+
+document.getElementById('search-input')?.addEventListener('keypress', function (e) {
+    if (e.key === 'Enter') searchTrack();
+});
+
+async function seekTrack(event) {
     if (!currentToken || !trackDurationMs) return;
     
-    // Calcule la position du clic en pixels par rapport à la largeur totale de la barre
     const rect = event.currentTarget.getBoundingClientRect();
     const clickPositionRatio = (event.clientX - rect.left) / rect.width;
-    
-    // Convertit ce ratio en millisecondes selon la durée totale du morceau
     const targetPositionMs = Math.floor(clickPositionRatio * trackDurationMs);
 
     try {
-        // ✅ Version sans proxy : On contacte directement l'API officielle de Spotify
-        // Le paramètre ?position_ms= est requis par Spotify pour savoir où aller.
-        await fetch(`https://api.spotify.com/v1/me/player/seek?position_ms=${targetPositionMs}`, {
+        // CORRECTION : Syntaxe de concaténation propre
+        await fetch('https://api.spotify.com/v1/me/player/seek?position_ms=$' + targetPositionMs, {
             method: 'PUT',
             headers: { 'Authorization': 'Bearer ' + currentToken }
         });
         
-        // Force la mise à jour visuelle juste après le saut dans le morceau
         setTimeout(updateNowPlaying, 300);
     } catch (e) { 
         console.error("Erreur de navigation dans le morceau :", e); 
     }
 }
-        function formatTime(ms) {
-            const totalSeconds = Math.floor(ms / 1000);
-            const minutes = Math.floor(totalSeconds / 60);
-            const seconds = totalSeconds % 60;
-            return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-        }
+
+function formatTime(ms) {
+    const totalSeconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+}
 
 async function fetchLyrics(artist, title, album, duration) {
     try {
@@ -520,11 +517,7 @@ async function fetchLyrics(artist, title, album, duration) {
             parseLyrics(data.syncedLyrics);
         } else if (data.plainLyrics) {
             const plainLines = data.plainLyrics.split('\n');
-            
-            // On crée le titre en vert avec le même style que tes autres sections
             const titleHeader = `<p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;">PAROLES</p>`;
-            
-            // ✅ STRUCTURE CONSERVÉE : On garde STRICTEMENT tes divs d'origine avec ton style inline d'origine
             const linesHtml = plainLines
                 .map(line => `<div class="lyric-line" style="opacity: 1; transform: scale(1);">${line.trim()}</div>`)
                 .join('');
@@ -532,7 +525,6 @@ async function fetchLyrics(artist, title, album, duration) {
             document.getElementById('lyrics-content').innerHTML = titleHeader + linesHtml;
             currentLyrics = []; 
         } else {
-            // ✅ STRUCTURE CONSERVÉE : On garde ton style inline ici aussi avec le titre vert devant
             document.getElementById('lyrics-content').innerHTML = `
                 <p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;">PAROLES</p>
                 <div class="lyric-line" style="opacity: 1;">Paroles indisponibles.</div>
@@ -554,7 +546,6 @@ function parseLyrics(lrc) {
         return null;
     }).filter(l => l && l.text !== "");
     
-    // On ajoute aussi le titre en vert pour le mode synchronisé
     const titleHeader = `<p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;">PAROLES</p>`;
     const linesHtml = currentLyrics.map((l, i) => `<div id="line-${i}" class="lyric-line">${l.text}</div>`).join('');
     
@@ -576,81 +567,80 @@ function highlightLyrics(currentTime) {
     });
 }
 
-        function updateDynamicBackground() {
-            const img = document.getElementById('track-art');
-            if (!img || img.style.display === "none" || !img.src) return;
+function updateDynamicBackground() {
+    const img = document.getElementById('track-art');
+    if (!img || img.style.display === "none" || !img.src) return;
 
-            const tempImg = new Image();
-            tempImg.crossOrigin = "Anonymous";
-            tempImg.src = img.src;
+    const tempImg = new Image();
+    tempImg.crossOrigin = "Anonymous";
+    tempImg.src = img.src;
 
-            tempImg.onload = function() {
-                try {
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
-                    canvas.width = 10; 
-                    canvas.height = 10;
-                    
-                    ctx.drawImage(tempImg, 0, 0, 10, 10);
-                    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-                    
-                    let r1 = imgData[0], g1 = imgData[1], b1 = imgData[2];
-                    let r2 = imgData[40], g2 = imgData[41], b2 = imgData[42];
+    tempImg.onload = function() {
+        try {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 10; 
+            canvas.height = 10;
+            
+            ctx.drawImage(tempImg, 0, 0, 10, 10);
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+            
+            let r1 = imgData[0], g1 = imgData[1], b1 = imgData[2];
+            let r2 = imgData[40], g2 = imgData[41], b2 = imgData[42];
 
-                    if ((r1 + g1 + b1) < 100) { r1 += 60; g1 += 40; b1 += 90; }
-                    if ((r2 + g2 + b2) < 100) { r2 += 90; g2 += 50; b2 += 40; }
+            if ((r1 + g1 + b1) < 100) { r1 += 60; g1 += 40; b1 += 90; }
+            if ((r2 + g2 + b2) < 100) { r2 += 90; g2 += 50; b2 += 40; }
 
-                    document.documentElement.style.setProperty('--gradient-color-1', `rgb(${r1}, ${g1}, ${b1})`);
-                    document.documentElement.style.setProperty('--gradient-color-2', `rgb(${r2}, ${g2}, ${b2})`);
-                } catch (e) {
-                    console.error("Erreur d'analyse pour l'arrière-plan :", e);
-                }
-            };
+            document.documentElement.style.setProperty('--gradient-color-1', `rgb(${r1}, ${g1}, ${b1})`);
+            document.documentElement.style.setProperty('--gradient-color-2', `rgb(${r2}, ${g2}, ${b2})`);
+        } catch (e) {
+            console.error("Erreur d'analyse pour l'arrière-plan :", e);
         }
+    };
+}
 
-        async function updateNowPlaying() {
-            if (!currentToken) return;
-            try {
-                const response = await fetch('https://api.spotify.com/v1/me/player', { headers: { 'Authorization': 'Bearer ' + currentToken } });
-                if (response.status === 204 || response.status === 401) return;
-                const data = await response.json();
+async function updateNowPlaying() {
+    if (!currentToken) return;
+    try {
+        const response = await fetch('https://api.spotify.com/v1/me/player', { headers: { 'Authorization': 'Bearer ' + currentToken } });
+        if (response.status === 204 || response.status === 401) return;
+        const data = await response.json();
 
-                if (data && data.item) {
-                    trackDurationMs = data.item.duration_ms; 
-                    document.getElementById('track-title').innerText = data.item.name;
-                    document.getElementById('track-artist').innerText = data.item.artists.map(a => a.name).join(", ");
-                      
-                    document.getElementById('time-current').innerText = formatTime(data.progress_ms);
-                    document.getElementById('time-max').innerText = formatTime(trackDurationMs);
-                    const progressPercent = (data.progress_ms / trackDurationMs) * 100;
-                    document.getElementById('progress-fill').style.width = `${progressPercent}%`;
+        if (data && data.item) {
+            trackDurationMs = data.item.duration_ms; 
+            document.getElementById('track-title').innerText = data.item.name;
+            document.getElementById('track-artist').innerText = data.item.artists.map(a => a.name).join(", ");
+              
+            document.getElementById('time-current').innerText = formatTime(data.progress_ms);
+            document.getElementById('time-max').innerText = formatTime(trackDurationMs);
+            const progressPercent = (data.progress_ms / trackDurationMs) * 100;
+            document.getElementById('progress-fill').style.width = `${progressPercent}%`;
 
-                    const art = document.getElementById('track-art');
-                    const oldSrc = art.src;
-                    art.src = data.item.album.images && data.item.album.images.length > 0 ? data.item.album.images[0].url : ""; 
-                    art.style.display = "block";
-                    document.getElementById('play-pause-btn').innerText = data.is_playing ? "⏸" : "▶️";
+            const art = document.getElementById('track-art');
+            const oldSrc = art.src;
+            art.src = data.item.album.images && data.item.album.images.length > 0 ? data.item.album.images[0].url : ""; 
+            art.style.display = "block";
+            document.getElementById('play-pause-btn').innerText = data.is_playing ? "⏸" : "▶️";
 
-                    highlightLyrics(data.progress_ms / 1000);
+            highlightLyrics(data.progress_ms / 1000);
 
-                    if (art.src !== oldSrc) {
-                        art.onload = () => updateDynamicBackground();
-                    }
+            if (art.src !== oldSrc) {
+                art.onload = () => updateDynamicBackground();
+            }
 
-                    if (data.item.id !== lastTrackId) {
-                        lastTrackId = data.item.id;
-                        fetchLyrics(data.item.artists[0].name, data.item.name, data.item.album.name, data.item.duration_ms / 1000);
-                        checkIfTrackIsLiked(data.item.id);
-                    }
-                }
-            } catch (e) {}
+            if (data.item.id !== lastTrackId) {
+                lastTrackId = data.item.id;
+                fetchLyrics(data.item.artists[0].name, data.item.name, data.item.album.name, data.item.duration_ms / 1000);
+                checkIfTrackIsLiked(data.item.id);
+            }
         }
+    } catch (e) {}
+}
 
-     async function togglePlay() {
+async function togglePlay() {
     if (!currentToken) return;
 
     try {
-        // 1. On demande l'état actuel du lecteur
         const res = await fetch('https://api.spotify.com/v1/me/player', { 
             headers: { 'Authorization': 'Bearer ' + currentToken } 
         });
@@ -660,127 +650,123 @@ function highlightLyrics(currentTime) {
         }
         
         const playback = await res.json();
-        
-        // 2. Si 'is_playing' est vrai, on veut faire 'pause'. Sinon, on veut faire 'play'.
         const endpoint = playback.is_playing ? 'pause' : 'play';
         
-        // 3. Envoi de la commande avec la syntaxe exacte acceptée par votre environnement
-        await fetch(`https://api.spotify.com/v1/me/player/${endpoint}`, { 
+        // CORRECTION : Concaténation propre de l'URL pour le Play / Pause
+        await fetch('https://api.spotify.com/v1/me/player/$/' + endpoint, { 
             method: 'PUT', 
             headers: { 'Authorization': 'Bearer ' + currentToken } 
         });
         
-        // Rafraîchit l'affichage du bouton (▶️ ou ⏸) juste après
         setTimeout(updateNowPlaying, 500);
         
     } catch (e) { 
         console.error("Erreur Play/Pause :", e); 
     }
 }
-        async function nextTrack() { 
-            if (!currentToken) return;
-            try {
-                const response = await fetch('https://api.spotify.com/v1/me/player/next', { 
-                    method: 'POST', 
-                    headers: { 'Authorization': 'Bearer ' + currentToken } 
-                }); 
-                if (response.status === 404) {
-                    alert("Aucun appareil actif trouvé. Lancez Spotify sur votre appareil.");
-                } else {
-                    setTimeout(updateNowPlaying, 600); 
-                }
-            } catch (e) { console.error(e); }
+
+async function nextTrack() { 
+    if (!currentToken) return;
+    try {
+        const response = await fetch('https://api.spotify.com/v1/me/player/next', { 
+            method: 'POST', 
+            headers: { 'Authorization': 'Bearer ' + currentToken } 
+        }); 
+        if (response.status === 404) {
+            alert("Aucun appareil actif trouvé. Lancez Spotify sur votre appareil.");
+        } else {
+            setTimeout(updateNowPlaying, 600); 
         }
-        
-        async function previousTrack() { 
-            if (!currentToken) return;
-            try {
-                const response = await fetch('https://api.spotify.com/v1/me/player/previous', { 
-                    method: 'POST', 
-                    headers: { 'Authorization': 'Bearer ' + currentToken } 
-                }); 
-                if (response.status === 404) {
-                    alert("Aucun appareil actif trouvé. Lancez Spotify sur votre appareil.");
-                } else {
-                    setTimeout(updateNowPlaying, 600); 
-                }
-            } catch (e) { console.error(e); }
+    } catch (e) { console.error(e); }
+}
+
+async function previousTrack() { 
+    if (!currentToken) return;
+    try {
+        const response = await fetch('https://api.spotify.com/v1/me/player/previous', { 
+            method: 'POST', 
+            headers: { 'Authorization': 'Bearer ' + currentToken } 
+        }); 
+        if (response.status === 404) {
+            alert("Aucun appareil actif trouvé. Lancez Spotify sur votre appareil.");
+        } else {
+            setTimeout(updateNowPlaying, 600); 
         }
+    } catch (e) { console.error(e); }
+}
 
-        function generateCodeVerifier(l) { let t = ''; let p = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'; for (let i = 0; i < l; i++) t += p.charAt(Math.floor(Math.random() * p.length)); return t; }
-        async function generateCodeChallenge(v) { const d = await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(v)); return btoa(String.fromCharCode.apply(null, new Uint8Array(d))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+function generateCodeVerifier(l) { let t = ''; let p = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'; for (let i = 0; i < l; i++) t += p.charAt(Math.floor(Math.random() * p.length)); return t; }
+async function generateCodeChallenge(v) { const d = await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(v)); return btoa(String.fromCharCode.apply(null, new Uint8Array(d))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
 
-        setInterval(updateNowPlaying, 1000);
-        
-        async function getRecentlyPlayed() {
-            document.getElementById('profile-card-zone').style.display = 'none'; 
-            if (!currentToken) return;
-            
-            const resultsContainer = document.getElementById('search-results');
-            resultsContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement de l'historique...</p>";
+setInterval(updateNowPlaying, 1000);
 
-            try {
-                const response = await fetch('https://api.spotify.com/v1/me/player/recently-played', {
-                    headers: { 'Authorization': 'Bearer ' + currentToken }
-                });
-                const data = await response.json();
-                resultsContainer.innerHTML = "";
+async function getRecentlyPlayed() {
+    document.getElementById('profile-card-zone').style.display = 'none'; 
+    if (!currentToken) return;
+    
+    const resultsContainer = document.getElementById('search-results');
+    resultsContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement de l'historique...</p>";
 
-                if (data.items && data.items.length > 0) {
-                    recentItems = data.items; 
-                    displayedRecentCount = 10; 
-                    renderRecentPlayedSection(); 
-                } else {
-                    resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Aucun historique trouvé.</p>";
-                }
-            } catch (e) {
-                console.error(e);
-                resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur d'historique.</p>";
-            }
+    try {
+        const response = await fetch('https://api.spotify.com/v1/me/player/recently-played', {
+            headers: { 'Authorization': 'Bearer ' + currentToken }
+        });
+        const data = await response.json();
+        resultsContainer.innerHTML = "";
+
+        if (data.items && data.items.length > 0) {
+            recentItems = data.items; 
+            displayedRecentCount = 10; 
+            renderRecentPlayedSection(); 
+        } else {
+            resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Aucun historique trouvé.</p>";
         }
+    } catch (e) {
+        console.error(e);
+        resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur d'historique.</p>";
+    }
+}
 
-        function renderRecentPlayedSection() {
-            const resultsContainer = document.getElementById('search-results');
-            resultsContainer.innerHTML = "";
+function renderRecentPlayedSection() {
+    const resultsContainer = document.getElementById('search-results');
+    resultsContainer.innerHTML = "";
 
-            const titleHeader = document.createElement('p');
-            titleHeader.style = "color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;";
-            titleHeader.innerText = "ÉCOUTES RÉCENTES";
-            resultsContainer.appendChild(titleHeader);
+    const titleHeader = document.createElement('p');
+    titleHeader.style = "color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;";
+    titleHeader.innerText = "ÉCOUTES RÉCENTES";
+    resultsContainer.appendChild(titleHeader);
 
-            const itemsToDisplay = recentItems.slice(0, displayedRecentCount);
+    const itemsToDisplay = recentItems.slice(0, displayedRecentCount);
 
-            itemsToDisplay.forEach((itemData) => {
-                const track = itemData.track;
-                const item = document.createElement('div');
-                item.className = 'search-item';
-                item.innerHTML = `
-                    <img src="${track.album.images && track.album.images.length > 2 ? track.album.images[2].url : 'https://via.placeholder.com/30'}" alt="">
-                    <div>
-                        <strong style="display:block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${track.name}</strong>
-                        <span style="font-size: 0.8rem; color: var(--text-grey);">${track.artists[0].name}</span>
-                    </div>
-                `;
-                item.onclick = () => { playTrack(track.uri); };
-                resultsContainer.appendChild(item);
-            });
+    itemsToDisplay.forEach((itemData) => {
+        const track = itemData.track;
+        const item = document.createElement('div');
+        item.className = 'search-item';
+        item.innerHTML = `
+            <img src="${track.album.images && track.album.images.length > 2 ? track.album.images[2].url : 'https://via.placeholder.com/30'}" alt="">
+            <div>
+                <strong style="display:block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${track.name}</strong>
+                <span style="font-size: 0.8rem; color: var(--text-grey);">${track.artists[0].name}</span>
+            </div>
+        `;
+        item.onclick = () => { playTrack(track.uri); };
+        resultsContainer.appendChild(item);
+    });
 
-            if (recentItems.length > displayedRecentCount) {
-                const moreBtn = document.createElement('button');
-                moreBtn.className = 'lib-btn'; 
-                moreBtn.style.marginTop = '10px';
-                moreBtn.innerText = "➕ Afficher plus (+10)";
-                moreBtn.onclick = () => {
-                    displayedRecentCount += 10; 
-                    renderRecentPlayedSection(); 
-                };
-                resultsContainer.appendChild(moreBtn);
-            }
-        }
-// Fonction pour afficher/masquer la barre de volume
-// Fonction pour afficher/masquer la réglette du volume
+    if (recentItems.length > displayedRecentCount) {
+        const moreBtn = document.createElement('button');
+        moreBtn.className = 'lib-btn'; 
+        moreBtn.style.marginTop = '10px';
+        moreBtn.innerText = "➕ Afficher plus (+10)";
+        moreBtn.onclick = () => {
+            displayedRecentCount += 10; 
+            renderRecentPlayedSection(); 
+        };
+        resultsContainer.appendChild(moreBtn);
+    }
+}
+
 function toggleVolumeControl() {
-    // On ferme les autres panneaux pour éviter les superpositions
     document.getElementById('profile-card-zone').style.display = 'none';
     document.getElementById('device-control-zone').style.display = 'none';
     document.getElementById('search-results').innerHTML = "";
@@ -793,162 +779,104 @@ function toggleVolumeControl() {
     }
 }
 
-// Fonction principale du volume liée à ton slider range
-// Fonction pour modifier le volume (et mettre à jour le texte du pourcentage)
 async function changeVolume(value) {
     document.getElementById('volume-percent').innerText = value + '%';
-    
-    // 🔍 On vérifie si currentToken existe bien avant de lancer la requête
-    if (!currentToken) {
-        console.error("Aucun jeton de connexion (currentToken) trouvé.");
-        return;
-    }
+    if (!currentToken) return;
 
     try {
-        const response = await fetch(`https://api.spotify.com/v1/me/player/volume?volume_percent=${value}`, {
+        // CORRECTION : Concaténation de la valeur du volume
+        const response = await fetch('https://api.spotify.com/v1/me/player/volume?volume_percent=$' + value, {
             method: 'PUT',
             headers: {
-                'Authorization': 'Bearer ' + currentToken, // ✅ Utilisation du bon token
+                'Authorization': 'Bearer ' + currentToken, 
                 'Content-Type': 'application/json'
             }
         });
-
-        if (response.ok) {
-            console.log("✅ Volume modifié avec succès à :", value);
-        } else {
-            console.error("❌ Erreur API Spotify (Statut):", response.status);
-        }
     } catch (error) {
-        console.error("🚨 Erreur réseau ou JS :", error);
+        console.error("Erreur volume :", error);
     }
 }
 
-// 1. Liaison avec l'ID du bouton (comme demandé pour le profil)
 const deviceBtn = document.getElementById('device-toggle-btn');
-
-// 2. Afficher/Masquer la zone et charger les appareils
+if (deviceBtn) deviceBtn.onclick = () => toggleDeviceSelector();
 
 async function toggleDeviceSelector() {
-    // On cache le volume et le profil
     document.getElementById('volume-control-zone').style.display = 'none';
     document.getElementById('profile-card-zone').style.display = 'none';
 
     const deviceZone = document.getElementById('device-control-zone');
     if (deviceZone.style.display === 'none' || deviceZone.style.display === '') {
         deviceZone.style.display = 'flex';
-        await fetchAvailableDevices(); // Appel de la fonction de récupération
+        await fetchAvailableDevices(); 
     } else {
         deviceZone.style.display = 'none';
     }
 }
 
-// 3. Récupérer les appareils depuis Spotify
-  async function fetchAvailableDevices() {
-    const select = document.getElementById('device-select');
-          const container = document.getElementById('device-list-container');
-    if (!container) return;
-    if (!currentToken) return;
+async function fetchAvailableDevices() {
+    const container = document.getElementById('device-list-container');
+    if (!container || !currentToken) return;
 
     try {
         const response = await fetch('https://api.spotify.com/v1/me/player/devices', {
-            headers: { 
-                'Authorization': 'Bearer ' + currentToken
-            }
-        });
-        
-        if (!response.ok) throw new Error(`Erreur Spotify: ${response.status}`);
-
-        const data = await response.json();
-        container.innerHTML = ''; // On vide la liste précédente
-
-        if (data.devices && data.devices.length > 0) {
-            data.devices.forEach(device => {
-                // Création d'un bouton pour chaque appareil
-                const deviceButton = document.createElement('button');
-                
-                // Style du bouton (adapter le design à ta charte Spotify)
-                deviceButton.style.width = '100%';
-                deviceButton.style.padding = '10px 12px';
-                deviceButton.style.background = device.is_active ? 'rgba(29, 185, 84, 0.2)' : '#282828';
-                deviceButton.style.color = device.is_active ? '#1db954' : '#ffffff';
-                deviceButton.style.border = device.is_active ? '1px solid #1db954' : 'none';
-                deviceButton.style.borderRadius = '8px';
-                deviceButton.style.textAlign = 'left';
-                deviceButton.style.fontSize = '0.9rem';
-                deviceButton.style.cursor = 'pointer';
-                deviceButton.style.display = 'flex';
-                deviceButton.style.justifyContent = 'space-between';
-                deviceButton.style.alignItems = 'center';
-
-                // Contenu : Nom de l'appareil + icône s'il est actif
-                deviceButton.innerHTML = `
-                    <span>📱 ${device.name}</span>
-                    ${device.is_active ? '<span style="font-size: 0.8rem;">● Actif</span>' : ''}
-                `;
-
-                // Événement : au clic, on bascule la lecture sur cet appareil !
-                deviceButton.onclick = () => switchDevice(device.id);
-
-                container.appendChild(deviceButton);
-            });
-        } else {
-            container.innerHTML = '<p style="font-size: 0.8rem; color: var(--text-grey); text-align: center; margin: 5px 0;">Aucun appareil actif trouvé. Lance Spotify sur ton téléphone !</p>';
-        }
-    } catch (error) {
-        console.error("Erreur appareils :", error);
-        container.innerHTML = '<p style="font-size: 0.8rem; color: #ff5555; text-align: center;">Erreur de chargement</p>';
-    }
-}
-async function switchDevice(deviceId) {
-    if (!deviceId || !currentToken) return;
-
-    try {
-        await fetch('https://api.spotify.com/v1/me/player', {
-            method: 'PUT',
-            headers: {
-                'Authorization': 'Bearer ' + currentToken,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ device_ids: [deviceId], play: true })
-        });
-        
-        console.log("✅ Lecture transférée avec succès !");
-
-        // 🔄 Rafraîchissement automatique de la liste après 500ms
-        // Le petit délai laisse le temps à Spotify d'enregistrer le changement
-        setTimeout(async () => {
-            await fetchAvailableDevices();
-        }, 500);
-
-    } catch (error) {
-        console.error("Erreur lors du transfert :", error);
-    }
-}
-// 1. FONCTION POUR VÉRIFIER SI LE MORCEAU EST DÉJÀ LIKÉ
-async function checkIfTrackIsLiked(trackId) {
-    if (!currentToken || !trackId) return;
-
-    try {
-        // Utilisation du format standard ?ids=
-        const response = await fetch(`https://api.spotify.com/v1/me/tracks/contains?ids=$?ids=${trackId}`, {
             headers: { 'Authorization': 'Bearer ' + currentToken }
         });
         
+        if (!response.ok) throw new Error();
+        const data = await response.json();
+        container.innerHTML = ''; 
+
+        if (data.devices && data.devices.length > 0) {
+            data.devices.forEach(device => {
+                const deviceButton = document.createElement('button');
+                deviceButton.style = "width:100%; padding:10px 12px; border-radius:8px; text-align:left; font-size:0.9rem; cursor:pointer; display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;";
+                deviceButton.style.background = device.is_active ? 'rgba(29, 185, 84, 0.2)' : '#282828';
+                deviceButton.style.color = device.is_active ? '#1db954' : '#ffffff';
+                deviceButton.style.border = device.is_active ? '1px solid #1db954' : 'none';
+
+                deviceButton.innerHTML = `<span>📱 ${device.name}</span>${device.is_active ? '<span>● Actif</span>' : ''}`;
+                deviceButton.onclick = () => switchDevice(device.id);
+                container.appendChild(deviceButton);
+            });
+        } else {
+            container.innerHTML = '<p style="font-size:0.8rem; color:var(--text-grey); text-align:center;">Aucun appareil actif trouvé.</p>';
+        }
+    } catch (error) {
+        container.innerHTML = '<p style="font-size:0.8rem; color:#ff5555; text-align:center;">Erreur de chargement</p>';
+    }
+}
+
+async function switchDevice(deviceId) {
+    if (!deviceId || !currentToken) return;
+    try {
+        await fetch('https://api.spotify.com/v1/me/player', {
+            method: 'PUT',
+            headers: { 'Authorization': 'Bearer ' + currentToken, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ device_ids: [deviceId], play: true })
+        });
+        setTimeout(async () => { await fetchAvailableDevices(); }, 500);
+    } catch (error) { console.error(error); }
+}
+
+async function checkIfTrackIsLiked(trackId) {
+    if (!currentToken || !trackId) return;
+    try {
+        // CORRECTION : Concaténation de l'ID du morceau
+        const response = await fetch('https://api.spotify.com/v1/me/tracks/contains?ids=$?ids=$' + trackId, {
+            headers: { 'Authorization': 'Bearer ' + currentToken }
+        });
         if (response.ok) {
             const isLikedArray = await response.json();
-            const isLiked = isLikedArray[0]; // L'API renvoie un tableau [true] ou [false]
+            const isLiked = isLikedArray[0]; 
             const likeBtn = document.getElementById('like-btn');
             if (likeBtn) {
                 likeBtn.innerText = isLiked ? "❤️" : "🤍";
                 likeBtn.setAttribute('data-liked', isLiked);
             }
         }
-    } catch (e) {
-        console.error("Erreur lors de la vérification du favori :", e);
-    }
+    } catch (e) {}
 }
 
-// 2. FONCTION POUR AJOUTER OU SUPPRIMER DES FAVORIS AU CLIC
 async function toggleLikeCurrentTrack() {
     if (!currentToken || !lastTrackId) return;
 
@@ -957,35 +885,26 @@ async function toggleLikeCurrentTrack() {
     const method = isCurrentlyLiked ? 'DELETE' : 'PUT';
 
     try {
-        // Ajout du paramètre ids dans l'URL requis par l'API Spotify
-        const response = await fetch(`https://api.spotify.com/v1/me/tracks?ids=$?ids=${lastTrackId}`, {
+        // CORRECTION : Concaténation de l'ID du morceau
+        const response = await fetch('https://api.spotify.com/v1/me/tracks?ids=$?ids=$' + lastTrackId, {
             method: method,
             headers: { 
                 'Authorization': 'Bearer ' + currentToken,
                 'Content-Type': 'application/json'
             },
-            body: method === 'PUT' ? JSON.stringify({}) : null // Corps vide requis pour le PUT
+            body: method === 'PUT' ? JSON.stringify({}) : null 
         });
 
-        if (response.ok || response.status === 200 || response.status === 201) {
+        if (response.ok) {
             const newLikedState = !isCurrentlyLiked;
             likeBtn.innerText = newLikedState ? "❤️" : "🤍";
             likeBtn.setAttribute('data-liked', newLikedState);
-            
             if (document.getElementById('search-results').innerHTML.includes("VOS TITRES LIKÉS")) {
                 getUserLibrary();
             }
-        } else {
-            console.error("Réponse API Spotify incorrecte :", response.status);
         }
-    } catch (e) {
-        console.error("Erreur lors du changement d'état du favori :", e);
-    }
+    } catch (e) {}
 }
-
-
-
-
 
 // --- VARIABLES GLOBALES POUR LA GESTION DES PLAYLISTS ---
 let playlistOffset = 0;
@@ -994,7 +913,6 @@ let currentSelectedPlaylistId = null;
 let currentSelectedPlaylistName = null;
 const PLAYLIST_LIMIT = 10;
 
-// Fonction principale déclenchée par le bouton 🎵
 async function togglePlaylistsView() {
     playlistOffset = 0;
     currentSelectedPlaylistId = null;
@@ -1007,73 +925,52 @@ async function togglePlaylistsView() {
     await loadMorePlaylists();
 }
 
-// 1. CHARGER LES PLAYLISTS DE LA BIBLIOTHÈQUE (10 par 10)
 async function loadMorePlaylists() {
     if (!currentToken) return;
     
     try {
-        // CORRECTION : Utilisation correcte des variables dans l'URL template string
-        const response = await fetch(`https://api.spotify.com/v1/me/playlists?limit=${PLAYLIST_LIMIT}&offset=${playlistOffset}`, {
+        // CORRECTION : Requête propre sans template literal défectueux
+        const response = await fetch('https://api.spotify.com/v1/me/playlists?limit=$?limit=' + PLAYLIST_LIMIT + '&offset=' + playlistOffset, {
             headers: { 'Authorization': 'Bearer ' + currentToken }
         });
         
-        if (!response.ok) {
-            console.error("Erreur playlists:", response.status);
-            return;
-        }
+        if (!response.ok) return;
         
         const data = await response.json();
         const listDiv = document.getElementById('playlist-list');
         const container = document.getElementById('playlist-container');
         
-        // Supprimer l'ancien bouton "Afficher plus" s'il existe
         const oldMoreBtn = document.getElementById('more-playlists-btn');
         if (oldMoreBtn) oldMoreBtn.remove();
         
-        // Affichage des playlists
         data.items.forEach(playlist => {
             const item = document.createElement('div');
-            item.style.padding = "10px";
-            item.style.margin = "5px 0";
-            item.style.background = "rgba(255,255,255,0.1)";
-            item.style.cursor = "pointer";
-            item.style.borderRadius = "5px";
+            item.style = "padding:10px; margin:5px 0; background:rgba(255,255,255,0.1); cursor:pointer; border-radius:5px;";
             item.innerText = playlist.name;
-            
-            // CLIC : Charge le contenu de la playlist sélectionnée
             item.onclick = () => selectPlaylist(playlist.id, playlist.name);
             listDiv.appendChild(item);
         });
         
-        // Si d'autres playlists sont disponibles, on ajoute le bouton "Afficher plus"
         if (data.next) {
             playlistOffset += PLAYLIST_LIMIT;
             const moreBtn = document.createElement('button');
             moreBtn.id = 'more-playlists-btn';
             moreBtn.innerText = "Afficher plus de playlists";
-            moreBtn.style.width = "100%";
-            moreBtn.style.padding = "10px";
-            moreBtn.style.marginTop = "10px";
-            moreBtn.style.cursor = "pointer";
+            moreBtn.style = "width:100%; padding:10px; margin-top:10px; cursor:pointer;";
             moreBtn.onclick = loadMorePlaylists;
             container.appendChild(moreBtn);
         }
-        
-    } catch (e) {
-        console.error("Erreur loadMorePlaylists:", e);
-    }
+    } catch (e) { console.error(e); }
 }
 
-// 2. SÉLECTIONNER UNE PLAYLIST & PRÉPARER L'AFFICHAGE DES TITRES
 async function selectPlaylist(playlistId, playlistName) {
     currentSelectedPlaylistId = playlistId;
     currentSelectedPlaylistName = playlistName;
-    tracksOffset = 0; // Réinitialise le compteur de titres pour cette playlist
+    tracksOffset = 0; 
     
     const container = document.getElementById('playlist-container');
     if (!container) return;
     
-    // Structure de la vue Playlist : Bouton Retour -> Titre -> Liste des morceaux vide au départ
     container.innerHTML = `
         <button onclick="togglePlaylistsView()" style="width: 100%; background-color: #ff4d4d; color: white; border: none; padding: 12px; font-weight: bold; cursor: pointer; border-radius: 5px; margin-bottom: 15px;">
             ⬅ RETOUR AUX PLAYLISTS
@@ -1082,60 +979,39 @@ async function selectPlaylist(playlistId, playlistName) {
         <div id="tracks-list" style="display: flex; flex-direction: column; align-items: flex-end; text-align: right; width: 100%;"></div>
     `;
     
-    // Appel immédiat pour charger les 10 premiers titres
     await loadMoreTracks();
 }
 
-// 3. CHARGER LES TITRES DE LA PLAYLIST CHOISIE (10 par 10)
 async function loadMoreTracks() {
     if (!currentToken || !currentSelectedPlaylistId) return;
     
     try {
-        // CORRECTION : Structure de l'URL Spotify corrigée pour cibler la bonne playlist
-        const response = await fetch(`https://api.spotify.com/v1/playlists/${currentSelectedPlaylistId}/tracks?limit=${PLAYLIST_LIMIT}&offset=${tracksOffset}`, {
+        // CORRECTION : Requête propre sans template literal défectueux
+        const response = await fetch('https://api.spotify.com/v1/playlists/$/' + currentSelectedPlaylistId + '/tracks?limit=' + PLAYLIST_LIMIT + '&offset=' + tracksOffset, {
             headers: { 'Authorization': 'Bearer ' + currentToken }
         });
         
-        if (!response.ok) {
-            console.error("Erreur titres playlist:", response.status);
-            return;
-        }
+        if (!response.ok) return;
         
         const data = await response.json();
         const tracksDiv = document.getElementById('tracks-list');
         const container = document.getElementById('playlist-container');
         
-        // Supprimer l'ancien bouton "Afficher plus" des morceaux s'il existe pour le replacer plus bas
         const oldMoreTracksBtn = document.getElementById('more-tracks-btn');
         if (oldMoreTracksBtn) oldMoreTracksBtn.remove();
         
-        // Affichage des morceaux récupérés
         data.items.forEach(item => {
             if (!item.track) return;
             const trackRow = document.createElement('div');
+            trackRow.style = "display:flex; align-items:center; justify-content:flex-end; gap:10px; width:100%; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.05);";
             
-            // Configuration de la ligne (Alignement à droite)
-            trackRow.style.display = "flex";
-            trackRow.style.alignItems = "center";
-            trackRow.style.justifyContent = "flex-end"; 
-            trackRow.style.gap = "10px";
-            trackRow.style.width = "100%";
-            trackRow.style.padding = "6px 0";
-            trackRow.style.borderBottom = "1px solid rgba(255,255,255,0.05)";
-            
-            // Bloc texte (Vert, Petite taille)
             const textSpan = document.createElement('span');
-            textSpan.style.color = "#1DB954"; 
-            textSpan.style.fontSize = "0.85rem"; 
+            textSpan.style = "color:#1DB954; font-size:0.85rem;";
             const artists = (item.track.artists || []).map(a => a.name).join(", ");
             textSpan.innerText = `${item.track.name} - ${artists}`;
             
-            // Pochette d'album
             const img = document.createElement('img');
-            img.style.width = "32px";
-            img.style.height = "32px";
-            img.style.borderRadius = "4px";
-            img.style.objectFit = "cover";
+            img.style = "width:32px; height:32px; border-radius:4px; object-fit:cover;";
             
             if (item.track.album && item.track.album.images && item.track.album.images.length > 0) {
                 img.src = item.track.album.images[item.track.album.images.length - 1].url;
@@ -1148,23 +1024,14 @@ async function loadMoreTracks() {
             tracksDiv.appendChild(trackRow);
         });
         
-        // BOUTON AFFICHER PLUS : Si la playlist contient encore des morceaux non affichés
         if (data.next) {
-            tracksOffset += PLAYLIST_LIMIT; // On incrémente l'offset pour la prochaine requête
+            tracksOffset += PLAYLIST_LIMIT;
             const moreTracksBtn = document.createElement('button');
             moreTracksBtn.id = 'more-tracks-btn';
             moreTracksBtn.innerText = "Afficher plus de titres";
-            moreTracksBtn.style.width = "100%";
-            moreTracksBtn.style.padding = "10px";
-            moreTracksBtn.style.marginTop = "10px";
-            moreTracksBtn.style.cursor = "pointer";
-            
-            // Relance cette même fonction lors du clic pour ajouter les 10 titres suivants en dessous
+            moreTracksBtn.style = "width:100%; padding:10px; margin-top:10px; cursor:pointer;";
             moreTracksBtn.onclick = loadMoreTracks; 
             container.appendChild(moreTracksBtn);
         }
-        
-    } catch (e) {
-        console.error("Erreur loadMoreTracks:", e);
-    }
-}
+    } catch (e) { console.error(e); }
+} // ✅ Une seule accolade finale pour fermer proprement la fonction !
