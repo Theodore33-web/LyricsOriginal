@@ -1,7 +1,7 @@
 
 
 
-const APP_VERSION = "v1.0.96";
+const APP_VERSION = "v1.0.97";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -925,22 +925,23 @@ async function switchDevice(deviceId) {
     }
 }
 // 1. FONCTION POUR VÉRIFIER SI LE MORCEAU EST DÉJÀ LIKÉ
+// 1. FONCTION DE VÉRIFICATION AUTOMATIQUE
 async function checkIfTrackIsLiked(trackId) {
     if (!currentToken || !trackId) return;
 
     try {
-        // ✅ CORRECTION : Utilisation des backticks (accents graves) pour injecter le trackId
+        // ✅ CORRECTION : Utilisation des accents graves (backticks) pour injecter la variable trackId
         const response = await fetch(`https://api.spotify.com/v1/me/tracks/contains?ids=$?ids=$${trackId}`, {
             headers: { 'Authorization': 'Bearer ' + currentToken }
         });
         
         if (response.ok) {
             const isLikedArray = await response.json();
-            const isLiked = isLikedArray[0]; 
+            const isLiked = isLikedArray[0]; // Renvoie true ou false
             const likeBtn = document.getElementById('like-btn');
             if (likeBtn) {
                 likeBtn.innerText = isLiked ? "❤️" : "🤍";
-                likeBtn.setAttribute('data-liked', String(isLiked)); // Devient "true" ou "false"
+                likeBtn.setAttribute('data-liked', String(isLiked)); // Crée dynamiquement l'attribut en "true" ou "false"
             }
         }
     } catch (e) {
@@ -948,35 +949,37 @@ async function checkIfTrackIsLiked(trackId) {
     }
 }
 
-// 2. FONCTION POUR AJOUTER OU SUPPRIMER DES FAVORIS AU CLIC
+// 2. FONCTION DE CLIC SUR LE BOUTON
 async function toggleLikeCurrentTrack() {
     if (!currentToken || !lastTrackId) return;
 
     const likeBtn = document.getElementById('like-btn');
     if (!likeBtn) return;
     
-    // ✅ CORRECTION : Si data-liked n'existe pas encore (null), on considère que c'est false
+    // ✅ CORRECTION : Si l'attribut n'existe pas encore dans ton HTML, likedAttribute vaudra null.
+    // La condition (likedAttribute === 'true') renverra false, ce qui est parfait pour le premier clic !
     const likedAttribute = likeBtn.getAttribute('data-liked');
     const isCurrentlyLiked = likedAttribute === 'true';
     
     const method = isCurrentlyLiked ? 'DELETE' : 'PUT';
 
     try {
-        // ✅ CORRECTION : Utilisation des backticks (accents graves) pour injecter le lastTrackId
+        // ✅ CORRECTION : Utilisation des accents graves (backticks) pour injecter la variable lastTrackId
         const response = await fetch(`https://api.spotify.com/v1/me/tracks?ids=$?ids=$${lastTrackId}`, {
             method: method,
             headers: { 
                 'Authorization': 'Bearer ' + currentToken,
                 'Content-Type': 'application/json'
             },
-            body: method === 'PUT' ? JSON.stringify({}) : null 
+            body: method === 'PUT' ? JSON.stringify({}) : null
         });
 
         if (response.ok || response.status === 200 || response.status === 201) {
             const newLikedState = !isCurrentlyLiked;
             likeBtn.innerText = newLikedState ? "❤️" : "🤍";
-            likeBtn.setAttribute('data-liked', String(newLikedState)); // On l'enregistre pour le prochain clic
+            likeBtn.setAttribute('data-liked', String(newLikedState)); // Enregistre l'état ("true" ou "false") pour le prochain clic
             
+            // Si la liste des titres likés est ouverte, on la rafraîchit
             if (document.getElementById('search-results').innerHTML.includes("VOS TITRES LIKÉS")) {
                 getUserLibrary();
             }
