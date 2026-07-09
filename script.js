@@ -1,7 +1,7 @@
 
 
 
-const APP_VERSION = "v1.0.90";
+const APP_VERSION = "v1.0.91";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -986,18 +986,19 @@ async function toggleLikeCurrentTrack() {
 
 
 
+
 // --- VARIABLES GLOBALES POUR LA GESTION DES PLAYLISTS ---
 let playlistOffset = 0;
 let tracksOffset = 0;
 let currentSelectedPlaylistId = null;
-let currentSelectedPlaylistName = null; // 👈 Stocke le nom de la playlist active
+let currentSelectedPlaylistName = null;
 const PLAYLIST_LIMIT = 10;
 
 // Fonction principale déclenchée par le bouton 🎵
 async function togglePlaylistsView() {
     playlistOffset = 0;
     currentSelectedPlaylistId = null;
-    currentSelectedPlaylistName = null; // Réinitialisation
+    currentSelectedPlaylistName = null;
     
     const container = document.getElementById('playlist-container');
     if (!container) return;
@@ -1065,13 +1066,13 @@ async function loadMorePlaylists() {
 // 2. SÉLECTIONNER UNE PLAYLIST & AFFICHAGE DES TITRES EN VERT À DROITE
 async function selectPlaylist(playlistId, playlistName) {
     currentSelectedPlaylistId = playlistId;
-    currentSelectedPlaylistName = playlistName; // 👈 Sauvegarde du titre dans la variable globale
+    currentSelectedPlaylistName = playlistName;
     tracksOffset = 0;
     
     const container = document.getElementById('playlist-container');
     if (!container) return;
     
-    // Structure : Bouton retour Rouge -> Nom de la playlist -> Liste des titres positionnée à droite en vert et petite taille
+    // Structure : Bouton retour Rouge -> Nom de la playlist -> Liste des titres
     container.innerHTML = `
         <button onclick="togglePlaylistsView()" style="width: 100%; background-color: #ff4d4d; color: white; border: none; padding: 12px; font-weight: bold; cursor: pointer; border-radius: 5px; margin-bottom: 15px;">
             ⬅ RETOUR AUX PLAYLISTS
@@ -1110,15 +1111,40 @@ async function loadMoreTracks() {
             if (!item.track) return;
             const trackRow = document.createElement('div');
             
-            // --- STYLISATION DU TITRE (Vert, Petite taille, Côté droit) ---
-            trackRow.style.color = "#1DB954"; // Vert Spotify
-            trackRow.style.fontSize = "0.85rem"; // Petite taille
-            trackRow.style.padding = "6px 0";
+            // --- CONFIGURATION DU CONTENEUR DE LA LIGNE ---
+            trackRow.style.display = "flex";
+            trackRow.style.alignItems = "center";
+            trackRow.style.justifyContent = "flex-end"; // Aligné à droite selon ta structure
+            trackRow.style.gap = "10px";
             trackRow.style.width = "100%";
+            trackRow.style.padding = "6px 0";
             trackRow.style.borderBottom = "1px solid rgba(255,255,255,0.05)";
             
+            // --- BLOC TEXTE (Vert, Petite taille) ---
+            const textSpan = document.createElement('span');
+            textSpan.style.color = "#1DB954"; 
+            textSpan.style.fontSize = "0.85rem"; 
             const artists = (item.track.artists || []).map(a => a.name).join(", ");
-            trackRow.innerText = `${item.track.name} - ${artists}`;
+            textSpan.innerText = `${item.track.name} - ${artists}`;
+            
+            // --- GESTION DE LA POCHETTE D'ALBUM ---
+            const img = document.createElement('img');
+            img.style.width = "32px";
+            img.style.height = "32px";
+            img.style.borderRadius = "4px";
+            img.style.objectFit = "cover";
+            
+            // Utilise la dernière image du tableau (souvent la plus petite/légère) ou un placeholder si absent
+            if (item.track.album && item.track.album.images && item.track.album.images.length > 0) {
+                // images[images.length - 1] récupère la version miniature (souvent 64x64 ou 160x160)
+                img.src = item.track.album.images[item.track.album.images.length - 1].url;
+            } else {
+                img.src = "https://via.placeholder.com/32?text=🎵"; // Image de secours
+            }
+            
+            // Ajout des éléments (Texte d'abord, puis Image pour garder l'alignement à droite)
+            trackRow.appendChild(textSpan);
+            trackRow.appendChild(img);
             
             tracksDiv.appendChild(trackRow);
         });
