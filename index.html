@@ -158,7 +158,7 @@
     try {
         // CORRECTION : Suppression du chiffre parasite devant l'accolade
         // Utilisation du nouvel endpoint officiel : /playlists/{id}/items
-        const response = await fetch(`https://api.spotify.com/v1/me/library/contains{playlistId}/items`, {
+        const response = await fetch(`https://api.spotify.com/v1/me/library/contains/playlists/{id}/items`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         
