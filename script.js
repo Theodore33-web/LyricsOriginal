@@ -1,5 +1,5 @@
 
-const APP_VERSION = "v1.0.74";
+const APP_VERSION = "v1.0.75";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -1022,7 +1022,6 @@ async function toggleLikeCurrentTrack() {
         console.error("Erreur lors du changement d'état du favori :", e);
     }
 }
-
 // --- VARIABLES GLOBALES POUR LA GESTION DES PLAYLISTS ---
 let playlistOffset = 0;
 let tracksOffset = 0;
@@ -1034,14 +1033,23 @@ async function togglePlaylistsView() {
     playlistOffset = 0;
     currentSelectedPlaylistId = null;
     
-    const container = document.getElementById('playlist-container');
-    if (!container) return;
+    const sr = document.getElementById('search-results');
+    if (!sr) return;
     
-    container.innerHTML = "<h3>Mes Playlists</h3><div id='playlist-list'></div>";
+    // Même structure d'en-tête et conteneur de défilement que getUserLibrary()
+    sr.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h2 style="margin: 0; font-size: 1.2rem; letter-spacing: 1px; color: #fff;">MES PLAYLISTS</h2>
+        </div>
+        <div id="playlist-scroll-container" style="max-height: 400px; overflow-y: auto; padding-right: 5px;">
+            <div id="playlist-list" style="display: flex; flex-direction: column; gap: 10px;"></div>
+        </div>
+    `;
+    
     await loadMorePlaylists();
 }
 
-// 1. CHARGER LES PLAYLISTS DE LA BIBLIOTHÈQUE (10 par 10)
+// 1. CHARGER LES PLAYLISTS DE LA BIBLIOTHÈQUE
 async function loadMorePlaylists() {
     if (!currentToken) return;
     
@@ -1057,28 +1065,47 @@ async function loadMorePlaylists() {
         
         const data = await response.json();
         const listDiv = document.getElementById('playlist-list');
-        const container = document.getElementById('playlist-container');
+        const scrollContainer = document.getElementById('playlist-scroll-container');
+        if (!listDiv || !scrollContainer) return;
         
         // Supprimer l'ancien bouton "Afficher plus" s'il existe
         const oldMoreBtn = document.getElementById('more-playlists-btn');
         if (oldMoreBtn) oldMoreBtn.remove();
         
-        // Affichage des playlists
+        // Affichage des playlists avec le même style visuel que les titres de la bibliothèque
         data.items.forEach(playlist => {
             const item = document.createElement('div');
+            item.style.display = "flex";
+            item.style.alignItems = "center";
+            item.style.gap = "15px";
             item.style.padding = "10px";
-            item.style.margin = "5px 0";
-            item.style.background = "rgba(255,255,255,0.1)";
+            item.style.background = "rgba(255, 255, 255, 0.05)";
+            item.style.borderRadius = "8px";
             item.style.cursor = "pointer";
-            item.style.borderRadius = "5px";
-            item.innerText = playlist.name;
+            item.style.transition = "background 0.2s";
             
-            // Clic sur une playlist pour charger ses morceaux
+            item.onmouseenter = () => item.style.background = "rgba(255, 255, 255, 0.1)";
+            item.onmouseleave = () => item.style.background = "rgba(255, 255, 255, 0.05)";
+            
+            // Image de la playlist ou icône par défaut si vide
+            const imgUrl = (playlist.images && playlist.images.length > 0) ? playlist.images[0].url : "";
+            const imgHtml = imgUrl 
+                ? `<img src="${imgUrl}" style="width: 45px; height: 45px; border-radius: 4px; object-fit: cover;">`
+                : `<div style="width: 45px; height: 45px; background: #282828; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">🎵</div>`;
+            
+            item.innerHTML = `
+                ${imgHtml}
+                <div style="flex: 1; min-width: 0;">
+                    <div style="font-weight: bold; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.95rem;">${playlist.name}</div>
+                    <div style="font-size: 0.8rem; color: #b3b3b3; margin-top: 3px;">${playlist.tracks.total} titres</div>
+                </div>
+            `;
+            
             item.onclick = () => selectPlaylist(playlist.id, playlist.name);
             listDiv.appendChild(item);
         });
         
-        // Si d'autres playlists sont disponibles, on ajoute le bouton "Afficher plus"
+        // Bouton "Afficher plus" identique au style de ta bibliothèque
         if (data.next) {
             playlistOffset += PLAYLIST_LIMIT;
             const moreBtn = document.createElement('button');
@@ -1087,9 +1114,15 @@ async function loadMorePlaylists() {
             moreBtn.style.width = "100%";
             moreBtn.style.padding = "10px";
             moreBtn.style.marginTop = "10px";
+            moreBtn.style.background = "rgba(255,255,255,0.1)";
+            moreBtn.style.color = "#fff";
+            moreBtn.style.border = "none";
+            moreBtn.style.borderRadius = "20px";
             moreBtn.style.cursor = "pointer";
+            moreBtn.style.fontWeight = "bold";
+            moreBtn.style.fontSize = "0.85rem";
             moreBtn.onclick = loadMorePlaylists;
-            container.appendChild(moreBtn);
+            scrollContainer.appendChild(moreBtn);
         }
         
     } catch (e) {
@@ -1097,27 +1130,31 @@ async function loadMorePlaylists() {
     }
 }
 
-// 2. SÉLECTIONNER UNE PLAYLIST & AFFICHAGE DES TITRES EN VERT À DROITE
+// 2. SÉLECTIONNER UNE PLAYLIST & AFFICHAGE DES TITRES
 async function selectPlaylist(playlistId, playlistName) {
     currentSelectedPlaylistId = playlistId;
     tracksOffset = 0;
     
-    const container = document.getElementById('playlist-container');
-    if (!container) return;
+    const sr = document.getElementById('search-results');
+    if (!sr) return;
     
-    // Structure : Bouton retour Rouge -> Nom de la playlist -> Liste des titres positionnée à droite en vert et petite taille
-    container.innerHTML = `
-        <button onclick="togglePlaylistsView()" style="width: 100%; background-color: #ff4d4d; color: white; border: none; padding: 12px; font-weight: bold; cursor: pointer; border-radius: 5px; margin-bottom: 15px;">
+    // Même structure : Bouton Retour plein écran en rouge -> Titre -> Conteneur de défilement
+    sr.innerHTML = `
+        <button onclick="togglePlaylistsView()" style="width: 100%; background-color: #e91429; color: white; border: none; padding: 10px; font-weight: bold; cursor: pointer; border-radius: 20px; margin-bottom: 15px; font-size: 0.85rem; letter-spacing: 1px;">
             ⬅ RETOUR AUX PLAYLISTS
         </button>
-        <h3>${playlistName}</h3>
-        <div id="tracks-list" style="display: flex; flex-direction: column; align-items: flex-end; text-align: right; width: 100%;"></div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h2 style="margin: 0; font-size: 1.1rem; letter-spacing: 1px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">${playlistName.toUpperCase()}</h2>
+        </div>
+        <div id="tracks-scroll-container" style="max-height: 400px; overflow-y: auto; padding-right: 5px;">
+            <div id="tracks-list" style="display: flex; flex-direction: column; gap: 10px;"></div>
+        </div>
     `;
     
     await loadMoreTracks();
 }
 
-// 3. CHARGER LES TITRES DE LA PLAYLIST CHOISIE (10 par 10)
+// 3. CHARGER LES TITRES DE LA PLAYLIST CHOISIE
 async function loadMoreTracks() {
     if (!currentToken || !currentSelectedPlaylistId) return;
     
@@ -1133,31 +1170,49 @@ async function loadMoreTracks() {
         
         const data = await response.json();
         const tracksDiv = document.getElementById('tracks-list');
-        const container = document.getElementById('playlist-container');
+        const scrollContainer = document.getElementById('tracks-scroll-container');
+        if (!tracksDiv || !scrollContainer) return;
         
         // Supprimer l'ancien bouton "Afficher plus" des morceaux s'il existe
         const oldMoreTracksBtn = document.getElementById('more-tracks-btn');
         if (oldMoreTracksBtn) oldMoreTracksBtn.remove();
         
-        // Affichage des morceaux
+        // Affichage des morceaux (Vert Spotify, petite taille, aligné à droite, même structure de cellule)
         data.items.forEach(item => {
             if (!item.track) return;
             const trackRow = document.createElement('div');
-            
-            // --- STYLISATION DU TITRE (Vert, Petite taille, Côté droit) ---
-            trackRow.style.color = "#1DB954"; // Vert Spotify
-            trackRow.style.fontSize = "0.85rem"; // Petite taille
-            trackRow.style.padding = "6px 0";
+            trackRow.style.display = "flex";
+            trackRow.style.flexDirection = "column";
+            trackRow.style.alignItems = "flex-end"; // Aligné sur le côté droit
+            trackRow.style.padding = "8px 10px";
+            trackRow.style.background = "rgba(255, 255, 255, 0.02)";
+            trackRow.style.borderRadius = "6px";
+            trackRow.style.textAlign = "right";
             trackRow.style.width = "100%";
-            trackRow.style.borderBottom = "1px solid rgba(255,255,255,0.05)";
+            trackRow.style.boxSizing = "border-box";
             
             const artists = (item.track.artists || []).map(a => a.name).join(", ");
-            trackRow.innerText = `${item.track.name} - ${artists}`;
+            
+            // Applique le Vert Spotify, petite taille (0.85rem) comme demandé
+            trackRow.innerHTML = `
+                <div style="font-weight: bold; color: #1DB954; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;">${item.track.name}</div>
+                <div style="font-size: 0.75rem; color: #b3b3b3; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;">${artists}</div>
+            `;
+            
+            // Optionnel : permet de jouer le morceau si on clique dessus comme dans ta bibliothèque
+            trackRow.style.cursor = "pointer";
+            trackRow.onclick = () => {
+                if (typeof playTrack === "function") {
+                    playTrack(item.track.id);
+                } else if (typeof playTrackInYourApp === "function") {
+                    playTrackInYourApp(item.track.id);
+                }
+            };
             
             tracksDiv.appendChild(trackRow);
         });
         
-        // Si la playlist contient encore des morceaux, on remet le bouton "Afficher plus"
+        // Bouton "Afficher plus" des morceaux au même format
         if (data.next) {
             tracksOffset += PLAYLIST_LIMIT;
             const moreTracksBtn = document.createElement('button');
@@ -1166,9 +1221,15 @@ async function loadMoreTracks() {
             moreTracksBtn.style.width = "100%";
             moreTracksBtn.style.padding = "10px";
             moreTracksBtn.style.marginTop = "10px";
+            moreTracksBtn.style.background = "rgba(255,255,255,0.1)";
+            moreTracksBtn.style.color = "#fff";
+            moreTracksBtn.style.border = "none";
+            moreTracksBtn.style.borderRadius = "20px";
             moreTracksBtn.style.cursor = "pointer";
+            moreTracksBtn.style.fontWeight = "bold";
+            moreTracksBtn.style.fontSize = "0.85rem";
             moreTracksBtn.onclick = loadMoreTracks;
-            container.appendChild(moreTracksBtn);
+            scrollContainer.appendChild(moreTracksBtn);
         }
         
     } catch (e) {
