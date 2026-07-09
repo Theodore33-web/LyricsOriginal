@@ -1,7 +1,7 @@
 
 
 
-const APP_VERSION = "v1.0.76";
+const APP_VERSION = "v1.0.77";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -1010,12 +1010,18 @@ async function loadMorePlaylists() {
     if (!currentToken) return;
     
     try {
-        const response = await fetch(`https://api.spotify.com/v1/me/playlists?limit=${PLAYLIST_LIMIT}&offset=${playlistOffset}`, {
+        // CORRECTION : Ajout du ? avant limit= et utilisation correcte des variables
+        const response = await fetch(`https://api.spotify.com/v1/me/playlists?limit=$?limit=${PLAYLIST_LIMIT}&offset=${playlistOffset}`, {
             headers: { 'Authorization': 'Bearer ' + currentToken }
         });
         
         if (!response.ok) {
-            console.error("Erreur playlists:", response.status);
+            // Regarde ce message dans ta console (F12) si ça ne charge toujours pas !
+            console.error("Erreur API Spotify Playlists:", response.status, await response.text());
+            const resultsContainer = document.getElementById('search-results');
+            if (resultsContainer) {
+                resultsContainer.innerHTML += `<p style='color:red; font-size:0.8rem; margin:5px;'>Erreur Spotify (${response.status}). Vérifie tes permissions.</p>`;
+            }
             return;
         }
         
@@ -1025,10 +1031,9 @@ async function loadMorePlaylists() {
             renderPlaylistsSection(data.next);
         }
     } catch (e) {
-        console.error("Erreur loadMorePlaylists:", e);
+        console.error("Erreur réseau loadMorePlaylists:", e);
     }
 }
-
 // Rendu graphique des Playlists (Identique à renderLibrarySection)
 function renderPlaylistsSection(hasNext) {
     const resultsContainer = document.getElementById('search-results');
