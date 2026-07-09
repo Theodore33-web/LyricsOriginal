@@ -139,21 +139,20 @@
         }
 
         // --- RÉCUPÉRATION DES DONNÉES ---
-        async function fetchPlaylists(token) {
-            statusText.textContent = "Chargement des playlists...";
-            try {
-                // Utilisation directe de /me/playlists pour l'utilisateur actuel
-                const response = await fetch('https://api.spotify.com/v1/me/playlists', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const data = await response.json();
-                displayPlaylists(data.items, token);
-                statusText.textContent = "Connecté à Spotify.";
-            } catch (error) {
-                statusText.textContent = "Erreur de chargement des playlists.";
-            }
-        }
-
+       async function fetchPlaylists(token) {
+    statusText.textContent = "Chargement des playlists...";
+    try {
+        const response = await fetch('https://api.spotify.com/v1/me/playlists', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        // data.items contient déjà les images de couverture de chaque playlist !
+        displayPlaylists(data.items, token);
+        statusText.textContent = "Connecté à Spotify.";
+    } catch (error) {
+        statusText.textContent = "Erreur de chargement des playlists.";
+    }
+}
         async function fetchPlaylistTracks(playlistId, token) {
             statusText.textContent = "Chargement des titres...";
             try {
@@ -173,23 +172,44 @@
         }
 
         // --- AFFICHAGE DOM ---
-        function displayPlaylists(playlists, token) {
-            const container = document.getElementById('playlists');
-            container.innerHTML = '';
-            if (!playlists || playlists.length === 0) {
-                container.innerHTML = '<li>Aucune playlist trouvée</li>';
-                return;
+       function displayPlaylists(playlists, token) {
+    const container = document.getElementById('playlists');
+    container.innerHTML = '';
+    
+    if (!playlists || playlists.length === 0) {
+        container.innerHTML = '<li>Aucune playlist trouvée</li>';
+        return;
+    }
+    
+    playlists.forEach(pl => {
+        if (pl) {
+            const li = document.createElement('li');
+            li.style.display = 'flex';
+            li.style.alignItems = 'center';
+            li.style.gap = '15px';
+
+            // Récupération de l'image de la playlist (fournie directement dans l'objet)
+            if (pl.images && pl.images.length > 0) {
+                const img = document.createElement('img');
+                img.src = pl.images[0].url; // Utilise le lien de l'image
+                img.alt = "Couverture Playlist";
+                img.style.width = '40px';
+                img.style.height = '40px';
+                img.style.borderRadius = '4px';
+                img.style.objectFit = 'cover';
+                li.appendChild(img);
             }
-            playlists.forEach(pl => {
-                if (pl) {
-                    const li = document.createElement('li');
-                    li.textContent = pl.name;
-                    // Appel au clic sur la playlist
-                    li.addEventListener('click', () => fetchPlaylistTracks(pl.id, token));
-                    container.appendChild(li);
-                }
-            });
+
+            // Nom de la playlist
+            const textNode = document.createElement('span');
+            textNode.textContent = pl.name;
+            
+            li.appendChild(textNode);
+            li.addEventListener('click', () => fetchPlaylistTracks(pl.id, token));
+            container.appendChild(li);
         }
+    });
+}
 
         function displayTracks(items) {
             const container = document.getElementById('tracks');
