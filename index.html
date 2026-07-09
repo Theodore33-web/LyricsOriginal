@@ -1,4 +1,4 @@
-<<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -61,11 +61,11 @@
 
     <div class="container">
         <div class="panel">
-            <h2>Mes Albums / Playlists</h2>
+            <h2>Mes Playlists</h2>
             <ul id="playlists"></ul>
         </div>
         <div class="panel">
-            <h2>Titres de l'Album</h2>
+            <h2>Titres de la Playlist</h2>
             <ul id="tracks"></ul>
         </div>
     </div>
@@ -73,7 +73,7 @@
     <script>
         const clientId = '91d4165085fd4ed3bd281f16667d64bc';
         const redirectUri = 'https://theodore33-web.github.io/LyricsOriginal/';
-        const scope = 'playlist-read-private playlist-read-collaborative user-library-read';
+        const scope = 'playlist-read-private playlist-read-collaborative';
 
         const loginBtn = document.getElementById('login-btn');
         const statusText = document.getElementById('status-text');
@@ -139,10 +139,10 @@
         }
 
         // --- RÉCUPÉRATION DES DONNÉES ---
-        // Cette fonction récupère vos playlists (qui contiennent souvent des albums sauvegardés ou vos listes)
         async function fetchPlaylists(token) {
-            statusText.textContent = "Chargement des éléments...";
+            statusText.textContent = "Chargement des playlists...";
             try {
+                // Utilisation directe de /me/playlists pour l'utilisateur actuel
                 const response = await fetch('https://api.spotify.com/v1/me/playlists', {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
@@ -150,24 +150,24 @@
                 displayPlaylists(data.items, token);
                 statusText.textContent = "Connecté à Spotify.";
             } catch (error) {
-                statusText.textContent = "Erreur de chargement.";
+                statusText.textContent = "Erreur de chargement des playlists.";
             }
         }
 
-        // NOUVELLE URL : Accède directement au contenu de l'ALBUM cliqué
-        async function fetchAlbumTracks(albumId, token) {
-            statusText.textContent = "Chargement des titres de l'album...";
+        async function fetchPlaylistTracks(playlistId, token) {
+            statusText.textContent = "Chargement des titres...";
             try {
-                const response = await fetch(`https://api.spotify.com/v1/albums/${albumId}/tracks`, {
+                // CORRECTION DOCUMENTATION : Remplacement de /tracks par /items
+                const response = await fetch(`https://api.spotify.com/v1/me/library/contains{playlistId}/items`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await response.json();
                 
-                // L'API Album de Spotify renvoie directement les pistes dans data.items
-                displayTracks(data.items, albumId, token);
+                // On passe le tableau d'éléments à la fonction d'affichage
+                displayTracks(data.items);
                 statusText.textContent = "Titres chargés.";
             } catch (error) {
-                console.error("Erreur album:", error);
+                console.error("Erreur titres:", error);
                 statusText.textContent = "Erreur de chargement des titres.";
             }
         }
@@ -177,52 +177,43 @@
             const container = document.getElementById('playlists');
             container.innerHTML = '';
             if (!playlists || playlists.length === 0) {
-                container.innerHTML = '<li>Aucun élément trouvé</li>';
+                container.innerHTML = '<li>Aucune playlist trouvée</li>';
                 return;
             }
             playlists.forEach(pl => {
                 if (pl) {
                     const li = document.createElement('li');
                     li.textContent = pl.name;
-                    
-                    // CORRECTION : Au clic, on appelle la fonction fetchAlbumTracks avec l'ID de l'album
-                    li.addEventListener('click', () => fetchAlbumTracks(pl.id, token));
-                    
+                    // Appel au clic sur la playlist
+                    li.addEventListener('click', () => fetchPlaylistTracks(pl.id, token));
                     container.appendChild(li);
                 }
             });
         }
 
-        // Affiche les pistes de l'album avec la pochette
-        async function displayTracks(items, albumId, token) {
+        function displayTracks(items) {
             const container = document.getElementById('tracks');
             container.innerHTML = '';
 
             if (!items || items.length === 0) {
-                container.innerHTML = '<li>Cet album est vide</li>';
+                container.innerHTML = '<li>Cette playlist est vide</li>';
                 return;
             }
 
-            // Récupérer d'abord l'image principale de l'album (car l'endpoint /tracks ne la donne pas directement)
-            let imageUrl = '';
-            try {
-                const albumResponse = await fetch(`https://api.spotify.com/v1/albums/${albumId}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const albumData = await albumResponse.json();
-                if (albumData.images && albumData.images.length > 0) {
-                    imageUrl = albumData.images[0].url; // URL officielle type https://i.scdn.co/image/...
-                }
-            } catch (e) {
-                console.error("Impossible de charger l'image de l'album", e);
-            }
-
-            // Générer chaque ligne de titre
-            items.forEach(piste => {
-                if (piste) {
+            items.forEach(playlistItem => {
+                // CORRECTION DOCUMENTATION : Utilisation de la nouvelle structure .item au lieu de .track
+                const itemData = playlistItem.item || playlistItem.track; 
+                
+                if (itemData) {
                     const li = document.createElement('li');
 
-                    // Image de l'album
+                    // Extraction de l'image de l'album lié à ce titre
+                    let imageUrl = '';
+                    if (itemData.album && itemData.album.images && itemData.album.images.length > 0) {
+                        imageUrl = itemData.album.images[0].url;
+                    }
+
+                    // Ajout visuel de la pochette d'album
                     if (imageUrl) {
                         const img = document.createElement('img');
                         img.src = imageUrl;
@@ -236,11 +227,11 @@
 
                     // Texte : Titre - Artistes
                     const textNode = document.createElement('span');
-                    const artistsNames = piste.artists && piste.artists.length > 0 
-                        ? piste.artists.map(a => a.name).join(', ') 
+                    const artistsNames = itemData.artists && itemData.artists.length > 0 
+                        ? itemData.artists.map(a => a.name).join(', ') 
                         : 'Artiste inconnu';
                         
-                    textNode.textContent = `${piste.name || 'Titre inconnu'} - ${artistsNames}`;
+                    textNode.textContent = `${itemData.name || 'Titre inconnu'} - ${artistsNames}`;
                     li.appendChild(textNode);
                     container.appendChild(li);
                 }
@@ -264,7 +255,5 @@
             }
         });
     </script>
-</body>
-</html>
 </body>
 </html>
