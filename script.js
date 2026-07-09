@@ -1,7 +1,7 @@
 
 
 
-const APP_VERSION = "v1.0.82";
+const APP_VERSION = "v1.0.84";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -981,6 +981,13 @@ async function toggleLikeCurrentTrack() {
     } catch (e) {
         console.error("Erreur lors du changement d'état du favori :", e);
     }
+}
+
+
+
+
+
+
 
 let playlistItems = [];
 let displayedPlaylistCount = 10;
@@ -988,7 +995,7 @@ let currentPlaylistTracks = [];
 let displayedPlaylistTracksCount = 10;
 let currentActivePlaylistId = "";
 
-        async function togglePlaylistsView() {
+async function togglePlaylistsView() {
     document.getElementById('profile-card-zone').style.display = 'none';
     if (!currentToken) return;
     
@@ -1140,4 +1147,6 @@ function renderPlaylistTracksSection() {
         resultsContainer.appendChild(moreBtn);
     }
 }
+
+
 
