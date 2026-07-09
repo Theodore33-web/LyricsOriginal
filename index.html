@@ -204,7 +204,7 @@
             });
         }
 
- function displayTracks(items) {
+function displayTracks(items) {
     const container = document.getElementById('tracks');
     container.innerHTML = '';
 
@@ -214,70 +214,66 @@
     }
 
     items.forEach(item => {
-        // 1. Récupération de l'image de l'album (si disponible)
+        // 1. Récupération de la pochette (gère "images" en anglais et français)
         let imageUrl = '';
         if (item && item.album && item.album.images && item.album.images.length > 0) {
-            imageUrl = item.album.images[0].url; // Prend la première image (généralement la plus grande ou standard)
+            imageUrl = item.album.images[0].url;
         } else if (item && item.track && item.track.album && item.track.album.images && item.track.album.images.length > 0) {
-            imageUrl = item.track.album.images[0].url; // Format standard Spotify alternatif
+            imageUrl = item.track.album.images[0].url;
         }
 
-        // 2. Traitement selon la structure de votre JSON (item.album.pistes.articles)
-        if (item && item.album && item.album.pistes && item.album.pistes.articles) {
-            
-            item.album.pistes.articles.forEach(piste => {
-                const li = document.createElement('li');
-                li.style.display = 'flex';
-                li.style.alignItems = 'center';
-                li.style.gap = '15px';
-
-                // Ajout de la pochette d'album si elle existe
-                if (imageUrl) {
-                    const img = document.createElement('img');
-                    img.src = imageUrl;
-                    img.alt = "Pochette album";
-                    img.style.width = '40px';
-                    img.style.height = '40px';
-                    img.style.borderRadius = '4px';
-                    img.style.objectFit = 'cover';
-                    li.appendChild(img);
-                }
-                
-                // Texte du titre et artistes
-                const textNode = document.createElement('span');
-                const artists = piste.artists && piste.artists.length > 0 
-                    ? piste.artists.map(a => a.name).join(', ') 
-                    : 'Artiste inconnu';
-                textNode.textContent = `${piste.name || 'Titre inconnu'} - ${artists}`;
-                
-                li.appendChild(textNode);
-                container.appendChild(li);
-            });
-            
-        } else if (item && item.track) {
-            // Sécurité : Format standard officiel Spotify
-            const li = document.createElement('li');
-            li.style.display = 'flex';
-            li.style.alignItems = 'center';
-            li.style.gap = '15px';
-
-            if (imageUrl) {
-                const img = document.createElement('img');
-                img.src = imageUrl;
-                img.style.width = '40px';
-                img.style.height = '40px';
-                img.style.borderRadius = '4px';
-                li.appendChild(img);
+        // 2. Extraction de la liste des morceaux (Vérifie toutes les combinaisons de langues)
+        let pistes = null;
+        if (item && item.album) {
+            // Cherche "pistes.articles" (Français) ou "tracks.items" (Anglais)
+            const objPistes = item.album.pistes || item.album.tracks;
+            if (objPistes) {
+                pistes = objPistes.articles || objPistes.items;
             }
+        }
 
-            const textNode = document.createElement('span');
-            const artists = item.track.artists ? item.track.artists.map(a => a.name).join(', ') : 'Artiste inconnu';
-            textNode.textContent = `${item.track.name} - ${artists}`;
-            
-            li.appendChild(textNode);
-            container.appendChild(li);
+        // 3. Rendu visuel
+        if (pistes && pistes.length > 0) {
+            // Format correspondant à votre exemple d'arborescence
+            pistes.forEach(piste => {
+                createTrackElement(piste.name, piste.artists, imageUrl, container);
+            });
+        } else if (item && item.track) {
+            // Format standard direct de l'API de production Spotify
+            createTrackElement(item.track.name, item.track.artists, imageUrl, container);
         }
     });
+}
+
+// Fonction interne pour générer proprement le HTML de chaque ligne
+function createTrackElement(trackName, artistsArray, imageUrl, container) {
+    const li = document.createElement('li');
+    li.style.display = 'flex';
+    li.style.alignItems = 'center';
+    li.style.gap = '15px';
+
+    // Si une image existe, on l'affiche
+    if (imageUrl) {
+        const img = document.createElement('img');
+        img.src = imageUrl;
+        img.alt = "Pochette";
+        img.style.width = '40px';
+        img.style.height = '40px';
+        img.style.borderRadius = '4px';
+        img.style.objectFit = 'cover';
+        li.appendChild(img);
+    }
+
+    // Gestion du texte (Titre - Artistes)
+    const textNode = document.createElement('span');
+    const artistsNames = artistsArray && artistsArray.length > 0 
+        ? artistsArray.map(a => a.name).join(', ') 
+        : 'Artiste inconnu';
+        
+    textNode.textContent = `${trackName || 'Titre inconnu'} - ${artistsNames}`;
+    
+    li.appendChild(textNode);
+    container.appendChild(li);
 }
         // --- INITIALISATION ---
 
