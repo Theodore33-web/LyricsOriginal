@@ -1,7 +1,7 @@
 
 
 
-const APP_VERSION = "v1.0.88";
+const APP_VERSION = "v1.0.90";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -990,18 +990,19 @@ async function toggleLikeCurrentTrack() {
 let playlistOffset = 0;
 let tracksOffset = 0;
 let currentSelectedPlaylistId = null;
+let currentSelectedPlaylistName = null; // 👈 Stocke le nom de la playlist active
 const PLAYLIST_LIMIT = 10;
 
 // Fonction principale déclenchée par le bouton 🎵
 async function togglePlaylistsView() {
     playlistOffset = 0;
     currentSelectedPlaylistId = null;
+    currentSelectedPlaylistName = null; // Réinitialisation
     
     const container = document.getElementById('playlist-container');
     if (!container) return;
     
-    // Aligné à gauche
-    container.innerHTML = "<h3 style='text-align: left; margin-left: 5px;'>Mes Playlists</h3><div id='playlist-list' style='text-align: left;'></div>";
+    container.innerHTML = "<h3>Mes Playlists</h3><div id='playlist-list'></div>";
     await loadMorePlaylists();
 }
 
@@ -1010,7 +1011,7 @@ async function loadMorePlaylists() {
     if (!currentToken) return;
     
     try {
-        const response = await fetch(`https://api.spotify.com/v1/me/playlists?limit=${PLAYLIMIT}&offset=${playlistOffset}`, {
+        const response = await fetch(`https://api.spotify.com/v1/me/playlists?limit=${PLAYLIST_LIMIT}&offset=${playlistOffset}`, {
             headers: { 'Authorization': 'Bearer ' + currentToken }
         });
         
@@ -1035,7 +1036,6 @@ async function loadMorePlaylists() {
             item.style.background = "rgba(255,255,255,0.1)";
             item.style.cursor = "pointer";
             item.style.borderRadius = "5px";
-            item.style.textAlign = "left"; // Forcé à gauche
             item.innerText = playlist.name;
             
             // Clic sur une playlist pour charger ses morceaux
@@ -1062,21 +1062,22 @@ async function loadMorePlaylists() {
     }
 }
 
-// 2. SÉLECTIONNER UNE PLAYLIST & AFFICHAGE DES TITRES EN VERT À GAUCHE
+// 2. SÉLECTIONNER UNE PLAYLIST & AFFICHAGE DES TITRES EN VERT À DROITE
 async function selectPlaylist(playlistId, playlistName) {
     currentSelectedPlaylistId = playlistId;
+    currentSelectedPlaylistName = playlistName; // 👈 Sauvegarde du titre dans la variable globale
     tracksOffset = 0;
     
     const container = document.getElementById('playlist-container');
     if (!container) return;
     
-    // Changement ici : align-items passe en flex-start et text-align en left pour tout mettre à gauche
+    // Structure : Bouton retour Rouge -> Nom de la playlist -> Liste des titres positionnée à droite en vert et petite taille
     container.innerHTML = `
         <button onclick="togglePlaylistsView()" style="width: 100%; background-color: #ff4d4d; color: white; border: none; padding: 12px; font-weight: bold; cursor: pointer; border-radius: 5px; margin-bottom: 15px;">
             ⬅ RETOUR AUX PLAYLISTS
         </button>
-        <h3 style="text-align: left; margin-left: 5px;">${playlistName}</h3>
-        <div id="tracks-list" style="display: flex; flex-direction: column; align-items: flex-start; text-align: left; width: 100%;"></div>
+        <h3>${playlistName}</h3>
+        <div id="tracks-list" style="display: flex; flex-direction: column; align-items: flex-end; text-align: right; width: 100%;"></div>
     `;
     
     await loadMoreTracks();
@@ -1109,20 +1110,15 @@ async function loadMoreTracks() {
             if (!item.track) return;
             const trackRow = document.createElement('div');
             
-            // --- STYLISATION DU TITRE (Vert, Petite taille, Côté GAUCHE) ---
+            // --- STYLISATION DU TITRE (Vert, Petite taille, Côté droit) ---
             trackRow.style.color = "#1DB954"; // Vert Spotify
             trackRow.style.fontSize = "0.85rem"; // Petite taille
             trackRow.style.padding = "6px 0";
             trackRow.style.width = "100%";
-            trackRow.style.textAlign = "left"; // Forcé à gauche
-            trackRow.style.cursor = "pointer"; // Curseur cliquable
             trackRow.style.borderBottom = "1px solid rgba(255,255,255,0.05)";
             
             const artists = (item.track.artists || []).map(a => a.name).join(", ");
             trackRow.innerText = `${item.track.name} - ${artists}`;
-            
-            // REND LE TITRE CLIQUABLE : Lance la musique à l'aide de ta fonction playTrack() existante
-            trackRow.onclick = () => playTrack(item.track.uri);
             
             tracksDiv.appendChild(trackRow);
         });
