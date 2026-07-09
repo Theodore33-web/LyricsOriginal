@@ -3,111 +3,156 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lyrics Original</title>
-    <link rel="icon" type="image/x-icon" href="favicon.ico">
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <script src="https://apis.google.com/js/api.js" async defer></script>
-    <link rel="stylesheet" href="style.css">
+    <title>LyricsOriginal - Spotify Connection</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #121212;
+            color: white;
+            padding: 20px;
+        }
+        button {
+            background-color: #1DB954;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 20px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #1ed760;
+        }
+        .container {
+            display: flex;
+            gap: 40px;
+            margin-top: 20px;
+        }
+        .list-container {
+            flex: 1;
+            background: #181818;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        li {
+            list-style: none;
+            padding: 10px;
+            margin: 5px 0;
+            background: #282828;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        li:hover {
+            background: #3e3e3e;
+        }
+    </style>
 </head>
 <body>
-    <div class="background-aurora" id="bg-aurora"></div>
-    
-    <div id="login-section">
-        <h1 style="color: var(--spotify-green); font-size: 3rem; margin-bottom: 10px;">Lyrics Original</h1>
-        <p style="color: var(--text-grey); margin-bottom: 30px;">Vos paroles synchronisées et votre bibliothèque réunies.</p>
-        <button id="login-btn">Se connecter avec Spotify</button>
+
+    <h1>LyricsOriginal</h1>
+    <button id="login-btn">Se connecter à Spotify</button>
+
+    <div class="container">
+        <div class="list-container">
+            <h2>Mes Playlists</h2>
+            <ul id="playlists"></ul>
+        </div>
+        <div class="list-container">
+            <h2>Titres de la Playlist</h2>
+            <ul id="tracks"></ul>
+        </div>
     </div>
 
-    <div id="dashboard">
-        <div class="lyrics-section" id="lyrics-container">
-            <div id="lyrics-content">Lancez une musique sur Spotify...</div>
-        </div>
-    
-        <div class="sidebar">   
+    <script>
+        // Configuration Spotify
+        const CLIENT_ID = '91d4165085fd4ed3bd281f16667d64bc';
+        const REDIRECT_URI = 'https://theodore33-web.github.io/LyricsOriginal/';
+        const SCOPES = 'playlist-read-private playlist-read-collaborative';
+
+        const loginBtn = document.getElementById('login-btn');
+        const playlistsUrl = 'https://api.spotify.com/v1/me/playlists';
+
+        // 1. Redirection vers la page de connexion Spotify
+        loginBtn.addEventListener('click', () => {
+            const authUrl = `https://accounts.spotify.com/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(SCOPES)}&response_type=token&show_dialog=true`;
+            window.location.href = authUrl;
+        });
+
+        // 2. Récupération du Token d'accès depuis l'URL après redirection
+        function getAccessTokenFromUrl() {
+            const hash = window.location.hash.substring(1);
+            const params = new URLSearchParams(hash);
+            return params.get('access_token');
+        }
+
+        const accessToken = getAccessTokenFromUrl();
+
+        if (accessToken) {
+            // Masquer le bouton de connexion si connecté
+            loginBtn.style.display = 'none';
+            // Nettoyer l'URL pour cacher le token
+            window.history.pushState({}, document.title, window.location.pathname);
             
-            <div class="card">
-                <p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 0 0 10px 0; text-align: center;">EXPLORER & RECHERCHER</p>
-                
-                <div class="search-box" style="display: flex; flex-direction: column; gap: 8px; max-width: 400px; width: 100%;">
-                    
-                    <div style="display: flex; width: 100%; gap: 6px;">
-                        <input type="text" id="search-input" placeholder="Titre, artiste..." style="flex: 1;">
-                        <button onclick="searchTrack()" title="Rechercher par texte">🔍</button>
-                    </div>
+            // Charger les playlists
+            fetchPlaylists(accessToken);
+        }
 
-                    <div style="display: flex; flex-wrap: wrap; gap: 6px; width: 100%;">
-                        <button id="mic-btn" onclick="toggleMicrophoneListen()" title="Identifier via AudD">🎙️</button>
-                        <button id="lib-toggle-btn" onclick="getUserLibrary()" title="Ouvrir ma bibliothèque (Likés)">📂</button>
-                        <button id="record-drive-btn" onclick="startDriveRecording()" title="Enregistrer un audio pour Google Drive">📹</button>
-                        <button id="recent-toggle-btn" onclick="getRecentlyPlayed()" title="Écoutes récentes">📄</button>
-                        <button id="profile-toggle-btn" onclick="toggleProfileCard()" title="Mon Profil">👤</button>
-                        <button id="device-toggle-btn" onclick="toggleDeviceSelector()" title="Changer d'appareil">📱</button>
-                   <button id="playlist-btn" onclick="togglePlaylistsView()" title="Mes Playlists" style="background: none; border: none; font-size: 1.4rem; cursor: pointer; padding: 5px;">🎵</button>
-                    </div>
+        // 3. Récupérer les playlists de l'utilisateur
+        async function fetchPlaylists(token) {
+            try {
+                const response = await fetch(playlistsUrl, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                displayPlaylists(data.items, token);
+            } catch (error) {
+                console.error('Erreur lors de la récupération des playlists:', error);
+            }
+        }
 
-                    <div id="playlist-container" style="margin-top: 20px;"></div>
-                    
-                    <div id="volume-control-zone" style="display: none; margin-top: 12px; width: 100%; align-items: center; justify-content: space-between; box-sizing: border-box; padding: 0 5px;">
-                        <span style="font-size: 0.9rem; color: var(--text-grey); width: 25px; flex-shrink: 0; text-align: left;">🔊</span>
-                        <input type="range" id="volume-slider" min="0" max="100" value="50" oninput="changeVolume(this.value)" style="flex: 1; accent-color: var(--spotify-green); cursor: pointer; height: 4px; min-width: 0; margin: 0 10px;">
-                        <span id="volume-percent" style="font-size: 0.8rem; color: var(--text-grey); width: 40px; flex-shrink: 0; text-align: right;">50%</span>
-                    </div>
+        // 4. Afficher les playlists dans le DOM
+        function displayPlaylists(playlists, token) {
+            const playlistsContainer = document.getElementById('playlists');
+            playlistsContainer.innerHTML = '';
 
-                    <div id="device-control-zone" style="display: none; margin-top: 12px; width: 100%; flex-direction: column; gap: 8px; box-sizing: border-box; padding: 0 5px;">
-                        <p style="font-size: 0.8rem; color: var(--text-grey); margin: 0 0 4px 0; text-align: left;">Appareils disponibles :</p>
-                        <div id="device-list-container" style="display: flex; flex-direction: column; gap: 6px; width: 100%;"></div>
-                    </div>
-                </div>
-                
-                <div id="drive-record-zone" style="display: none; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 12px; margin-top: 10px; font-size: 0.85rem;">
-                    <p style="margin: 5px 0; color: var(--spotify-green); font-weight: bold;">Enregistrement Drive</p>
-                    <div id="record-timer" style="font-size: 1.1rem; font-weight: bold; margin: 5px 0;">00:00</div>
-                    <div id="record-actions">
-                        <button onclick="stopDriveRecording()" style="background: #ef4444; color: white; border: none; border-radius: 20px; padding: 5px 15px; cursor: pointer; font-weight: bold;">🛑 Stopper</button>
-                    </div>
-                    <div id="drive-save-zone" style="display: none; margin-top: 10px;">
-                        <input type="text" id="audio-filename" placeholder="Nom de l'audio..." style="width: 80%; background: #121212; border: 1px solid #333; border-radius: 20px; padding: 6px 12px; color: white; margin-bottom: 8px;">
-                        <button onclick="prepareUploadToDrive()" style="background: var(--spotify-green); color: white; border: none; border-radius: 20px; padding: 6px 15px; cursor: pointer; font-weight: bold; width: 85%;">💾 Sauvegarder sur Drive</button>
-                    </div>
-                    <p id="drive-status-msg" style="margin: 5px 0; font-size: 0.8rem; color: var(--text-grey);"></p>
-                </div>
+            playlists.forEach(playlist => {
+                const li = document.createElement('li');
+                li.textContent = playlist.name;
+                // Événement au clic pour charger les titres
+                li.addEventListener('click', () => fetchPlaylistTracks(playlist.id, token));
+                playlistsContainer.appendChild(li);
+            });
+        }
 
-                <div id="profile-card-zone" style="display: none; background: rgba(255,255,255,0.05); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px); padding: 15px; border-radius: 12px; margin-top: 10px; border: 1px solid rgba(255, 255, 255, 0.08);">
-                    <div style="display: flex; align-items: center; justify-content: center; gap: 15px;">
-                        <img id="profile-card-avatar" src="https://via.placeholder.com/50" alt="Avatar" style="border-radius: 50%; width: 50px; height: 50px; border: 2px solid var(--spotify-green); object-fit: cover;">
-                        <div style="text-align: left;">
-                            <h4 id="profile-card-name" style="margin: 0;">Théo</h4>
-                            <span style="color: var(--spotify-green); font-size: 11px; font-weight: bold;">PREMIUM</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <div id="search-results"></div>
-            </div> <div class="card">
-                <p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 0;">LECTURE EN COURS</p>
-                <img id="track-art" src="" alt="" style="display:none;" crossorigin="anonymous">
-                <h3 id="track-title">Aucune lecture</h3>
-                <p id="track-artist"></p>
-                 
-                <div class="progress-container">
-                    <span id="time-current">0:00</span>
-                    <div class="progress-bar-bg" onclick="seekTrack(event)">
-                        <div class="progress-bar-fill" id="progress-fill"></div>
-                    </div>
-                    <span id="time-max">0:00</span>
-                </div>
+        // 5. Récupérer les titres d'une playlist spécifique
+        async function fetchPlaylistTracks(playlistId, token) {
+            const tracksUrl = `https://api.spotify.com/v1/playlists/${playlistId}/tracks`;
+            try {
+                const response = await fetch(tracksUrl, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                displayTracks(data.items);
+            } catch (error) {
+                console.error('Erreur lors de la récupération des titres:', error);
+            }
+        }
 
-                <div class="controls" style="display: flex; align-items: center; justify-content: center; position: relative;">
-    <button onclick="previousTrack()">⏮</button>
-    <button id="play-pause-btn" onclick="togglePlay()">▶️</button>
-    <button onclick="nextTrack()">⏭</button>
-    <button id="like-btn" onclick="toggleLikeCurrentTrack()" title="Ajouter aux favoris" style="position: absolute; right: 10px; background: none; border: none; font-size: 1.4rem; cursor: pointer; padding: 5px;">🤍</button>
-</div>
-            </div>
-        </div>
-    </div>
-    <script src="app.js"></script>
-    <script src="version.js"></script>
-    <script src="script.js"></script>
+        // 6. Afficher les titres dans le DOM
+        function displayTracks(tracks) {
+            const tracksContainer = document.getElementById('tracks');
+            tracksContainer.innerHTML = '';
+
+            tracks.forEach(item => {
+                if (item.track) {
+                    const li = document.createElement('li');
+                    const artists = item.track.artists.map(artist => artist.name).join(', ');
+                    li.textContent = `${item.track.name} - ${artists}`;
+                    tracksContainer.appendChild(li);
+                }
+            });
+        }
+    </script>
 </body>
 </html>
