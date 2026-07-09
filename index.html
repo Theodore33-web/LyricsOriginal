@@ -78,7 +78,7 @@
         const loginBtn = document.getElementById('login-btn');
         const statusText = document.getElementById('status-text');
 
-        // --- OUTILS PKCE (CRYPTO) ---
+        // --- ENCODAGE & CRYPTO POUR PKCE ---
         function generateCodeVerifier(length) {
             let text = '';
             const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
@@ -96,7 +96,7 @@
             return base64String.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
         }
 
-        // --- AUTHENTIFICATION ---
+        // --- FLUX D'AUTHENTIFICATION ---
         async function redirectToSpotify() {
             const verifier = generateCodeVerifier(128);
             localStorage.setItem("verifier", verifier);
@@ -133,84 +133,79 @@
                 const data = await response.json();
                 return data.access_token;
             } catch (error) {
-                console.error("Erreur token:", error);
+                console.error("Erreur d'échange de token:", error);
                 statusText.textContent = "Erreur d'authentification.";
             }
         }
 
-        // --- RÉCUPÉRATION DES DONNÉES ---
-       async function fetchPlaylists(token) {
-    statusText.textContent = "Chargement des playlists...";
-    try {
-        const response = await fetch('https://api.spotify.com/v1/me/playlists', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const data = await response.json();
-        // data.items contient déjà les images de couverture de chaque playlist !
-        displayPlaylists(data.items, token);
-        statusText.textContent = "Connecté à Spotify.";
-    } catch (error) {
-        statusText.textContent = "Erreur de chargement des playlists.";
-    }
-}
-     async function fetchPlaylistTracks(playlistId, token) {
-    statusText.textContent = "Chargement des titres...";
-    try {
-        // CORRECTION : Suppression du chiffre parasite devant l'accolade
-        // Utilisation du nouvel endpoint officiel : /playlists/{id}/items
-        const response = await fetch(`https://api.spotify.com/v1/me/library/contains/playlists/{id}/items`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        const data = await response.json();
-        
-        // On envoie le tableau d'éléments mis à jour à la fonction d'affichage
-        displayTracks(data.items);
-        statusText.textContent = "Titres chargés avec succès.";
-    } catch (error) {
-        console.error("Erreur titres:", error);
-        statusText.textContent = "Erreur de chargement des titres.";
-    }
-}
-        // --- AFFICHAGE DOM ---
-       function displayPlaylists(playlists, token) {
-    const container = document.getElementById('playlists');
-    container.innerHTML = '';
-    
-    if (!playlists || playlists.length === 0) {
-        container.innerHTML = '<li>Aucune playlist trouvée</li>';
-        return;
-    }
-    
-    playlists.forEach(pl => {
-        if (pl) {
-            const li = document.createElement('li');
-            li.style.display = 'flex';
-            li.style.alignItems = 'center';
-            li.style.gap = '15px';
-
-            // Récupération de l'image de la playlist (fournie directement dans l'objet)
-            if (pl.images && pl.images.length > 0) {
-                const img = document.createElement('img');
-                img.src = pl.images[0].url; // Utilise le lien de l'image
-                img.alt = "Couverture Playlist";
-                img.style.width = '40px';
-                img.style.height = '40px';
-                img.style.borderRadius = '4px';
-                img.style.objectFit = 'cover';
-                li.appendChild(img);
+        // --- APPELS API RESTE ---
+        async function fetchPlaylists(token) {
+            statusText.textContent = "Chargement des playlists...";
+            try {
+                const response = await fetch('https://api.spotify.com/v1/me/playlists', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                displayPlaylists(data.items, token);
+                statusText.textContent = "Connecté à Spotify.";
+            } catch (error) {
+                statusText.textContent = "Erreur de chargement des playlists.";
             }
-
-            // Nom de la playlist
-            const textNode = document.createElement('span');
-            textNode.textContent = pl.name;
-            
-            li.appendChild(textNode);
-            li.addEventListener('click', () => fetchPlaylistTracks(pl.id, token));
-            container.appendChild(li);
         }
-    });
-}
+
+        async function fetchPlaylistTracks(playlistId, token) {
+            statusText.textContent = "Chargement des titres...";
+            try {
+                // APPLICATION DE L'ENDPOINT : /playlists/{id}/items
+                const response = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/items`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                
+                displayTracks(data.items);
+                statusText.textContent = "Titres chargés.";
+            } catch (error) {
+                console.error("Erreur lors de la récupération des titres:", error);
+                statusText.textContent = "Erreur de chargement des titres.";
+            }
+        }
+
+        // --- INTERFACE (DOM) ---
+        function displayPlaylists(playlists, token) {
+            const container = document.getElementById('playlists');
+            container.innerHTML = '';
+            
+            if (!playlists || playlists.length === 0) {
+                container.innerHTML = '<li>Aucune playlist trouvée</li>';
+                return;
+            }
+            
+            playlists.forEach(pl => {
+                if (pl) {
+                    const li = document.createElement('li');
+                    
+                    // Récupération de l'image de couverture de la playlist
+                    if (pl.images && pl.images.length > 0) {
+                        const img = document.createElement('img');
+                        img.src = pl.images[0].url;
+                        img.alt = "Couverture";
+                        img.style.width = '40px';
+                        img.style.height = '40px';
+                        img.style.borderRadius = '4px';
+                        img.style.objectFit = 'cover';
+                        li.appendChild(img);
+                    }
+
+                    const textNode = document.createElement('span');
+                    textNode.textContent = pl.name;
+                    li.appendChild(textNode);
+                    
+                    // Clic sur la playlist pour charger ses titres
+                    li.addEventListener('click', () => fetchPlaylistTracks(pl.id, token));
+                    container.appendChild(li);
+                }
+            });
+        }
 
         function displayTracks(items) {
             const container = document.getElementById('tracks');
@@ -222,19 +217,18 @@
             }
 
             items.forEach(playlistItem => {
-                // CORRECTION DOCUMENTATION : Utilisation de la nouvelle structure .item au lieu de .track
+                // MISE A JOUR : Récupère l'objet imbriqué .item (ou .track en fallback)
                 const itemData = playlistItem.item || playlistItem.track; 
                 
                 if (itemData) {
                     const li = document.createElement('li');
 
-                    // Extraction de l'image de l'album lié à ce titre
+                    // Récupération de l'image de couverture de l'album lié au morceau
                     let imageUrl = '';
                     if (itemData.album && itemData.album.images && itemData.album.images.length > 0) {
                         imageUrl = itemData.album.images[0].url;
                     }
 
-                    // Ajout visuel de la pochette d'album
                     if (imageUrl) {
                         const img = document.createElement('img');
                         img.src = imageUrl;
@@ -246,7 +240,7 @@
                         li.appendChild(img);
                     }
 
-                    // Texte : Titre - Artistes
+                    // Nom du morceau + Liste des artistes
                     const textNode = document.createElement('span');
                     const artistsNames = itemData.artists && itemData.artists.length > 0 
                         ? itemData.artists.map(a => a.name).join(', ') 
@@ -259,7 +253,7 @@
             });
         }
 
-        // --- INITIALISATION ---
+        // --- INITIALISATION AU CHARGEMENT ---
         loginBtn.addEventListener('click', redirectToSpotify);
 
         window.addEventListener('DOMContentLoaded', async () => {
