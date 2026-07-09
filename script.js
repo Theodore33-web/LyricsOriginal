@@ -1,7 +1,7 @@
 
 
 
-const APP_VERSION = "v1.0.80";
+const APP_VERSION = "v1.0.81";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -1000,25 +1000,22 @@ async function toggleLikeCurrentTrack() {
 let playlistOffset = 0;
 let tracksOffset = 0;
 let currentSelectedPlaylistId = null;
-let playlistItems = [];            // Tableau cumulatif pour les playlists (comme libraryItems)
-let playlistTracksItems = [];      // Tableau cumulatif pour les titres de la playlist
+let playlistItems = [];            // Conteneur cumulatif (comme libraryItems)
+let playlistTracksItems = [];      // Conteneur cumulatif pour les morceaux
 const PLAYLIST_LIMIT = 10;
 
 // Fonction principale déclenchée par le bouton 🎵
 async function togglePlaylistsView() {
-    // Masquer la carte de profil comme dans getUserLibrary()
     if (document.getElementById('profile-card-zone')) {
         document.getElementById('profile-card-zone').style.display = 'none';
     }
     if (!currentToken) return;
     
-    // On cible le conteneur principal existant de ton application
     const resultsContainer = document.getElementById('search-results');
     if (!resultsContainer) return;
     
     resultsContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement des playlists...</p>";
     
-    // Réinitialisation des états et des listes cumulatives
     playlistOffset = 0;
     currentSelectedPlaylistId = null;
     playlistItems = [];
@@ -1026,12 +1023,12 @@ async function togglePlaylistsView() {
     await loadMorePlaylists();
 }
 
-// 1. CHARGER LES PLAYLISTS DE LA BIBLIOTHÈQUE (Même fonctionnement cumulatif que getUserLibrary)
+// 1. CHARGER LES PLAYLISTS DE LA BIBLIOTHÈQUE (10 par 10)
 async function loadMorePlaylists() {
     if (!currentToken) return;
     
     try {
-        // CORRECTION URL : Utilisation du symbole ? avant limit et de la syntaxe ${} valide
+        // CORRECTION DE L'URL : Syntaxe JavaScript exacte ${...} avec le symbole "?" pour les paramètres
         const response = await fetch(`https://api.spotify.com/v1/me/playlists?limit=${PLAYLIST_LIMIT}&offset=${playlistOffset}`, {
             headers: { 'Authorization': 'Bearer ' + currentToken }
         });
@@ -1043,7 +1040,6 @@ async function loadMorePlaylists() {
         
         const data = await response.json();
         if (data.items) {
-            // Cumul des playlists dans le tableau global (comme pour tes titres likés)
             playlistItems = playlistItems.concat(data.items);
             renderPlaylistsSection(data.next);
         }
@@ -1052,7 +1048,7 @@ async function loadMorePlaylists() {
     }
 }
 
-// Rendu visuel des Playlists (Utilise la même structure .search-item et .lib-btn que tes titres likés)
+// Rendu visuel des Playlists (Même affichage que Titres Likés)
 function renderPlaylistsSection(hasNext) {
     const resultsContainer = document.getElementById('search-results');
     if (!resultsContainer) return;
@@ -1065,9 +1061,8 @@ function renderPlaylistsSection(hasNext) {
 
     playlistItems.forEach((playlist) => {
         const item = document.createElement('div');
-        item.className = 'search-item'; // Récupère tes styles CSS natifs
+        item.className = 'search-item'; // Utilise tes classes CSS déjà existantes
         
-        // Récupération de l'image de la playlist ou image par défaut
         const imgUrl = (playlist.images && playlist.images.length > 0) ? playlist.images[playlist.images.length - 1].url : 'https://via.placeholder.com/30';
         
         item.innerHTML = `
@@ -1081,7 +1076,7 @@ function renderPlaylistsSection(hasNext) {
         resultsContainer.appendChild(item);
     });
 
-    // Bouton "Afficher plus" au format .lib-btn comme dans ta bibliothèque
+    // Le bouton "Afficher plus" s'affiche juste en dessous si d'autres playlists existent
     if (hasNext) {
         const moreBtn = document.createElement('button');
         moreBtn.className = 'lib-btn';
@@ -1099,17 +1094,17 @@ function renderPlaylistsSection(hasNext) {
 async function selectPlaylist(playlistId, playlistName) {
     currentSelectedPlaylistId = playlistId;
     tracksOffset = 0;
-    playlistTracksItems = []; // Réinitialisation de la liste des morceaux
+    playlistTracksItems = []; 
     
     await loadMoreTracks(playlistName);
 }
 
-// 3. CHARGER LES TITRES DE LA PLAYLIST CHOISIE
+// 3. CHARGER LES TITRES DE LA PLAYLIST CHOISIE (10 par 10)
 async function loadMoreTracks(playlistName) {
     if (!currentToken || !currentSelectedPlaylistId) return;
     
     try {
-        // CORRECTION URL : Syntaxe valide pour requêter les morceaux d'une playlist spécifique
+        // CORRECTION DE L'URL : Syntaxe d'API standard et correcte pour récupérer les morceaux d'une playlist
         const response = await fetch(`https://api.spotify.com/v1/playlists/${currentSelectedPlaylistId}/tracks?limit=${PLAYLIST_LIMIT}&offset=${tracksOffset}`, {
             headers: { 'Authorization': 'Bearer ' + currentToken }
         });
@@ -1121,7 +1116,6 @@ async function loadMoreTracks(playlistName) {
         
         const data = await response.json();
         if (data.items) {
-            // Cumul des pistes dans notre tableau global
             playlistTracksItems = playlistTracksItems.concat(data.items);
             renderPlaylistTracksSection(playlistName, data.next);
         }
@@ -1130,18 +1124,17 @@ async function loadMoreTracks(playlistName) {
     }
 }
 
-// Rendu des morceaux alignés à droite, petite taille et en vert Spotify
+// Rendu des morceaux (Bouton retour -> Titres verts réduits alignés à droite -> Bouton afficher plus)
 function renderPlaylistTracksSection(playlistName, hasNext) {
     const resultsContainer = document.getElementById('search-results');
     if (!resultsContainer) return;
     resultsContainer.innerHTML = "";
 
-    // Bouton de retour rouge pleine largeur
+    // 1. Le bouton de retour apparaît en premier tout en haut
     const backBtn = document.createElement('button');
     backBtn.innerText = "⬅ RETOUR AUX PLAYLISTS";
     backBtn.style = "width: 100%; background-color: #ff4d4d; color: white; border: none; padding: 12px; font-weight: bold; cursor: pointer; border-radius: 8px; margin-bottom: 15px; font-size: 0.85rem; letter-spacing: 1px;";
     backBtn.onclick = () => {
-        // Lors du retour, on rafraîchit la vue avec les playlists déjà accumulées
         renderPlaylistsSection(playlistOffset > 0 || playlistItems.length >= PLAYLIST_LIMIT);
     };
     resultsContainer.appendChild(backBtn);
@@ -1151,7 +1144,7 @@ function renderPlaylistTracksSection(playlistName, hasNext) {
     titleHeader.innerText = playlistName.toUpperCase();
     resultsContainer.appendChild(titleHeader);
 
-    // Conteneur forçant l'alignement à droite (Flexbox)
+    // Conteneur flexible pour aligner les titres sur le côté droit
     const listContainer = document.createElement('div');
     listContainer.style = "display: flex; flex-direction: column; align-items: flex-end; text-align: right; width: 100%; gap: 8px;";
 
@@ -1167,13 +1160,12 @@ function renderPlaylistTracksSection(playlistName, hasNext) {
 
         const artists = (track.artists || []).map(a => a.name).join(", ");
 
-        // Éléments stylisés : Titre en vert (#1DB954), taille réduite (0.85rem)
+        // 2. Juste en dessous, affichage des morceaux (Vert, petite taille, aligné à droite)
         item.innerHTML = `
             <strong style="display: block; color: #1DB954; font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${track.name}</strong>
             <span style="font-size: 0.75rem; color: var(--text-grey); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${artists}</span>
         `;
         
-        // Clic sur un morceau pour lancer la lecture
         item.onclick = () => {
             if (typeof playTrack === 'function') playTrack(track.uri);
         };
@@ -1182,7 +1174,7 @@ function renderPlaylistTracksSection(playlistName, hasNext) {
 
     resultsContainer.appendChild(listContainer);
 
-    // Bouton de pagination des titres au format .lib-btn
+    // 3. Et de nouveau le bouton "Afficher plus" tout à la fin pour les morceaux
     if (hasNext) {
         const moreTracksBtn = document.createElement('button');
         moreTracksBtn.className = 'lib-btn';
