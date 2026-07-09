@@ -164,9 +164,9 @@
             }
         }
 
-      async function fetchPlaylistTracks(playlistId, token) {
+    async function fetchPlaylistTracks(playlistId, token) {
     statusText.textContent = "Chargement des titres...";
-    // Correction de l'URL Spotify standard pour récupérer les morceaux
+    // Correction ici : l'URL exacte sans le chiffre parasite devant l'accolade
     const tracksUrl = `https://api.spotify.com/v1/playlists/${playlistId}/tracks`;
     
     try {
@@ -177,13 +177,12 @@
         
         // On envoie les éléments à la fonction d'affichage
         displayTracks(data.items);
-        statusText.textContent = "Titres chargés avec succès.";
+        statusText.textContent = "Titres chargés.";
     } catch (error) {
         console.error("Erreur lors de la récupération des titres:", error);
         statusText.textContent = "Erreur de chargement des titres.";
     }
 }
-
         // --- AFFICHAGE (DOM) ---
 
         function displayPlaylists(playlists, token) {
