@@ -1,7 +1,7 @@
 
 
 
-const APP_VERSION = "v1.0.95";
+const APP_VERSION = "v1.0.96";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -925,23 +925,22 @@ async function switchDevice(deviceId) {
     }
 }
 // 1. FONCTION POUR VÉRIFIER SI LE MORCEAU EST DÉJÀ LIKÉ
-// 1. FONCTION POUR VÉRIFIER SI LE MORCEAU EST DÉJÀ LIKÉ
 async function checkIfTrackIsLiked(trackId) {
     if (!currentToken || !trackId) return;
 
     try {
-        // ✅ CORRECTION : Utilisation des accents graves (backticks) pour insérer la variable trackId
+        // ✅ CORRECTION : Utilisation des backticks (accents graves) pour injecter le trackId
         const response = await fetch(`https://api.spotify.com/v1/me/tracks/contains?ids=$?ids=$${trackId}`, {
             headers: { 'Authorization': 'Bearer ' + currentToken }
         });
         
         if (response.ok) {
             const isLikedArray = await response.json();
-            const isLiked = isLikedArray[0]; // Renvoie [true] ou [false]
+            const isLiked = isLikedArray[0]; 
             const likeBtn = document.getElementById('like-btn');
             if (likeBtn) {
                 likeBtn.innerText = isLiked ? "❤️" : "🤍";
-                likeBtn.setAttribute('data-liked', String(isLiked)); // ✅ Forcer en String
+                likeBtn.setAttribute('data-liked', String(isLiked)); // Devient "true" ou "false"
             }
         }
     } catch (e) {
@@ -954,26 +953,29 @@ async function toggleLikeCurrentTrack() {
     if (!currentToken || !lastTrackId) return;
 
     const likeBtn = document.getElementById('like-btn');
-    if (!likeBtn) return; // Sécurité si le bouton n'existe pas dans le DOM
+    if (!likeBtn) return;
     
-    const isCurrentlyLiked = likeBtn.getAttribute('data-liked') === 'true';
+    // ✅ CORRECTION : Si data-liked n'existe pas encore (null), on considère que c'est false
+    const likedAttribute = likeBtn.getAttribute('data-liked');
+    const isCurrentlyLiked = likedAttribute === 'true';
+    
     const method = isCurrentlyLiked ? 'DELETE' : 'PUT';
 
     try {
-        // ✅ CORRECTION : Utilisation des accents graves (backticks) pour insérer la variable lastTrackId
+        // ✅ CORRECTION : Utilisation des backticks (accents graves) pour injecter le lastTrackId
         const response = await fetch(`https://api.spotify.com/v1/me/tracks?ids=$?ids=$${lastTrackId}`, {
             method: method,
             headers: { 
                 'Authorization': 'Bearer ' + currentToken,
                 'Content-Type': 'application/json'
             },
-            body: method === 'PUT' ? JSON.stringify({}) : null
+            body: method === 'PUT' ? JSON.stringify({}) : null 
         });
 
         if (response.ok || response.status === 200 || response.status === 201) {
             const newLikedState = !isCurrentlyLiked;
             likeBtn.innerText = newLikedState ? "❤️" : "🤍";
-            likeBtn.setAttribute('data-liked', String(newLikedState));
+            likeBtn.setAttribute('data-liked', String(newLikedState)); // On l'enregistre pour le prochain clic
             
             if (document.getElementById('search-results').innerHTML.includes("VOS TITRES LIKÉS")) {
                 getUserLibrary();
@@ -985,8 +987,6 @@ async function toggleLikeCurrentTrack() {
         console.error("Erreur lors du changement d'état du favori :", e);
     }
 }
-
-
 
 // --- VARIABLES GLOBALES POUR LA GESTION DES PLAYLISTS ---
 let playlistOffset = 0;
