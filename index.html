@@ -214,7 +214,7 @@ function displayTracks(items) {
     }
 
     items.forEach(item => {
-        // 1. Récupération de la pochette (gère "images" en anglais et français)
+        // 1. Extraction sécurisée de l'URL de l'image de l'album
         let imageUrl = '';
         if (item && item.album && item.album.images && item.album.images.length > 0) {
             imageUrl = item.album.images[0].url;
@@ -222,37 +222,36 @@ function displayTracks(items) {
             imageUrl = item.track.album.images[0].url;
         }
 
-        // 2. Extraction de la liste des morceaux (Vérifie toutes les combinaisons de langues)
+        // 2. Récupération de la liste des morceaux (Gestion Anglais / Français)
         let pistes = null;
         if (item && item.album) {
-            // Cherche "pistes.articles" (Français) ou "tracks.items" (Anglais)
             const objPistes = item.album.pistes || item.album.tracks;
             if (objPistes) {
                 pistes = objPistes.articles || objPistes.items;
             }
         }
 
-        // 3. Rendu visuel
+        // 3. Génération du HTML
         if (pistes && pistes.length > 0) {
-            // Format correspondant à votre exemple d'arborescence
+            // Pour la structure imbriquée de votre exemple JSON
             pistes.forEach(piste => {
                 createTrackElement(piste.name, piste.artists, imageUrl, container);
             });
         } else if (item && item.track) {
-            // Format standard direct de l'API de production Spotify
+            // Pour la structure standard en ligne de l'API Spotify
             createTrackElement(item.track.name, item.track.artists, imageUrl, container);
         }
     });
 }
 
-// Fonction interne pour générer proprement le HTML de chaque ligne
+// Fonction utilitaire pour injecter proprement le titre et sa pochette d'album
 function createTrackElement(trackName, artistsArray, imageUrl, container) {
     const li = document.createElement('li');
     li.style.display = 'flex';
     li.style.alignItems = 'center';
     li.style.gap = '15px';
 
-    // Si une image existe, on l'affiche
+    // Ajout de la balise image si l'URL est trouvée (ex: https://i.scdn.co/image/...)
     if (imageUrl) {
         const img = document.createElement('img');
         img.src = imageUrl;
@@ -264,7 +263,7 @@ function createTrackElement(trackName, artistsArray, imageUrl, container) {
         li.appendChild(img);
     }
 
-    // Gestion du texte (Titre - Artistes)
+    // Ajout du texte (Titre - Artistes)
     const textNode = document.createElement('span');
     const artistsNames = artistsArray && artistsArray.length > 0 
         ? artistsArray.map(a => a.name).join(', ') 
