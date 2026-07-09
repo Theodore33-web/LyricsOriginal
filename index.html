@@ -204,25 +204,41 @@
             });
         }
 
-        function displayTracks(items) {
-            const container = document.getElementById('tracks');
-            container.innerHTML = '';
+      function displayTracks(items) {
+    const container = document.getElementById('tracks');
+    container.innerHTML = '';
 
-            if (!items || items.length === 0) {
-                container.innerHTML = '<li>Cette playlist est vide</li>';
-                return;
-            }
+    if (!items || items.length === 0) {
+        container.innerHTML = '<li>Cette playlist est vide</li>';
+        return;
+    }
 
-            items.forEach(item => {
-                if (item && item.track) {
-                    const li = document.createElement('li');
-                    const artists = item.track.artists.map(a => a.name).join(', ');
-                    li.textContent = `${item.track.name} - ${artists}`;
-                    container.appendChild(li);
-                }
+    items.forEach(item => {
+        // Adaptation à la structure de votre JSON : item.album.pistes.articles
+        if (item && item.album && item.album.pistes && item.album.pistes.articles) {
+            
+            item.album.pistes.articles.forEach(piste => {
+                const li = document.createElement('li');
+                
+                // Récupération des artistes de la piste
+                const artists = piste.artists && piste.artists.length > 0 
+                    ? piste.artists.map(a => a.name).join(', ') 
+                    : 'Artiste inconnu';
+                
+                // Affichage du nom de la piste et de ses artistes
+                li.textContent = `${piste.name || 'Titre inconnu'} - ${artists}`;
+                container.appendChild(li);
             });
+            
+        } else if (item && item.track) {
+            // Sécurité : Conserve l'ancien format standard de Spotify au cas où
+            const li = document.createElement('li');
+            const artists = item.track.artists ? item.track.artists.map(a => a.name).join(', ') : 'Artiste inconnu';
+            li.textContent = `${item.track.name} - ${artists}`;
+            container.appendChild(li);
         }
-
+    });
+}
         // --- INITIALISATION ---
 
         loginBtn.addEventListener('click', redirectToSpotify);
