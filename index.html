@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LyricsOriginal - Vérification Titres Likés</title>
+    <title>LyricsOriginal - Statut Titre Liké</title>
     <style>
         body {
             font-family: 'Segoe UI', Arial, sans-serif;
@@ -41,15 +41,32 @@
         .track-title { font-size: 18px; font-weight: bold; margin: 10px 0 5px 0; }
         .track-artist { font-size: 14px; color: #b3b3b3; margin-bottom: 20px; }
 
+        /* Conteneur pour aligner le cœur et le texte informatif */
+        .like-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
         .like-btn {
             background: none;
             border: none;
             font-size: 45px;
             cursor: pointer;
             transition: transform 0.2s;
+            padding: 0;
+            line-height: 1;
         }
         .like-btn:hover { transform: scale(1.1); }
         .like-btn:focus { outline: none; }
+
+        .like-text {
+            font-size: 16px;
+            font-weight: bold;
+            transition: color 0.3s;
+        }
 
         .status { color: #1DB954; font-style: italic; margin-top: 20px; font-size: 13px; text-align: center; max-width: 400px; line-height: 1.4; }
     </style>
@@ -63,7 +80,10 @@
         <div class="track-title" id="track-name">Aucun titre</div>
         <div class="track-artist" id="track-author">Inconnu</div>
         
-        <button id="like-button" class="like-btn">🖤</button>
+        <div class="like-container">
+            <button id="like-button" class="like-btn">🖤</button>
+            <span id="like-status-text" class="like-text">...</span>
+        </div>
     </div>
     
     <p id="status-text" class="status">Initialisation de la connexion...</p>
@@ -72,7 +92,6 @@
         const clientId = '91d4165085fd4ed3bd281f16667d64bc';
         const redirectUri = 'https://theodore33-web.github.io/LyricsOriginal/';
         
-        // Autorisations requises pour lire l'écoute en cours et analyser/modifier la bibliothèque
         const scope = 'user-read-currently-playing user-library-read user-library-modify';
 
         let currentToken = null; 
@@ -85,6 +104,7 @@
         const trackName = document.getElementById('track-name');
         const trackAuthor = document.getElementById('track-author');
         const likeButton = document.getElementById('like-button');
+        const likeStatusText = document.getElementById('like-status-text');
 
         // --- GÉNÉRATION PKCE ---
         function generateCodeVerifier(length) {
@@ -164,31 +184,31 @@
                 if (data && data.item) {
                     const track = data.item;
                     
-                    // Si la chanson change, on met à jour l'interface graphique et on lance le GET de vérification
                     if (currentTrackId !== track.id) {
                         currentTrackId = track.id;
                         trackName.textContent = track.name;
                         trackAuthor.textContent = track.artists.map(a => a.name).join(', ');
                         trackImg.style.backgroundImage = track.album.images.length > 0 ? `url(${track.album.images[0].url})` : 'none';
                         
-                        // APPEL DE LA VÉRIFICATION DU STATUT DU TITRE
+                        // Lance la détection du statut dans la bibliothèque
                         await checkIfTrackIsLiked(track.id);
                     }
+                    statusText.innerHTML = "Connecté à Spotify. Synchronisation en cours.";
                 }
             } catch (error) {
                 console.error("Erreur lecture en cours :", error);
             }
         }
 
-        // --- 2. VÉRIFICATION GRÂCE AU GET ---
+        // --- 2. VÉRIFICATION (GET) SI LE TITRE EST DANS LES TITRES LIKÉS ---
         async function checkIfTrackIsLiked(trackId) {
             if (!trackId || !currentToken) return;
             try {
-                // SYNTAXE CORRIGÉE : Utilisation de la variable JavaScript `${trackId}` sur l'url 14 dédiée au contains
+                // Utilisation correcte de l'URL de votre documentation pour le endpoint GET /me/library/contains
                 const url = `https://api.spotify.com/v1/me/library/contains?uris=spotify%3Atrack%3A7a3LWj5xSFhFRYmztS8wgK%2Cspotify%3Aalbum%3A4aawyAB9vmqN3uQ7FjRGTy%2Cspotify%3Aartist%3A2takcwOaAZWiXQijPHIx7B?uris=spotify:track:${trackId}`;
                 
                 const response = await fetch(url, {
-                    method: 'GET', // Utilisation de la méthode GET demandée
+                    method: 'GET',
                     headers: { 'Authorization': `Bearer ${currentToken}` }
                 });
                 
@@ -196,24 +216,24 @@
                 isCurrentTrackLiked = isLiked;
                 updateLikeButtonUI();
             } catch (error) {
-                console.error("Erreur vérification bibliothèque (GET) :", error);
+                console.error("Erreur de détection (GET) :", error);
             }
         }
 
-        // --- 3. METTRE À JOUR LE VISUEL DU CŒUR ---
+        // --- 3. MISE À JOUR DU CŒUR ET DU TEXTE À CÔTÉ ---
         function updateLikeButtonUI() {
             if (isCurrentTrackLiked) {
-                likeButton.textContent = "❤️"; // Liké
-                statusText.style.color = "#1DB954";
-                statusText.textContent = "Ce titre est dans vos Titres Likés.";
+                likeButton.textContent = "❤️";
+                likeStatusText.textContent = "Dans vos Titres Likés";
+                likeStatusText.style.color = "#1DB954"; // Vert Spotify
             } else {
-                likeButton.textContent = "🖤"; // Pas liké
-                statusText.style.color = "#aaaaaa";
-                statusText.textContent = "Ce titre n'est pas dans vos Titres Likés.";
+                likeButton.textContent = "🖤";
+                likeStatusText.textContent = "Pas encore liké";
+                likeStatusText.style.color = "#aaaaaa"; // Gris discret
             }
         }
 
-        // --- 4. ACTION CLIC : ENREGISTRER (PUT) OU SUPPRIMER (DELETE) ---
+        // --- 4. ACTION AU CLIC : AJOUTER OU SUPPRIMER ---
         async function toggleLikeTrack() {
             if (!currentTrackId || !currentToken) return;
 
@@ -235,15 +255,14 @@
                 });
 
                 if (response.ok) {
-                    // Inversion de l'état local et rafraîchissement visuel après modification réussie
                     isCurrentTrackLiked = !isCurrentTrackLiked;
                     updateLikeButtonUI();
                 } else if (response.status === 401 || response.status === 403) {
-                    statusText.textContent = "Session expirée. Reconnexion automatique...";
+                    statusText.textContent = "Session expirée. Reconnexion...";
                     setTimeout(redirectToSpotify, 1500);
                 }
             } catch (error) {
-                console.error("Erreur modification bibliothèque :", error);
+                console.error("Erreur modification :", error);
             }
         }
 
@@ -259,7 +278,7 @@
                 redirectToSpotify();
             } else {
                 window.history.pushState({}, document.title, window.location.pathname);
-                statusText.textContent = "Vérification des droits d'accès...";
+                statusText.textContent = "Analyse des droits d'accès...";
                 
                 const token = await getAccessToken(code);
                 if (token) {
@@ -267,7 +286,6 @@
                     playerBox.style.display = 'block';
                     
                     await checkCurrentPlayback();
-                    // Suivi automatique toutes les 3 secondes
                     setInterval(checkCurrentPlayback, 3000);
                 } else {
                     statusText.textContent = "Échec d'authentification. Relancement...";
