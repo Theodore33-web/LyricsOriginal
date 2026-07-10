@@ -310,5 +310,107 @@
         }
 
         // --- 3. VÉRIFICATION (GET) SUR LA BIBLIOTHÈQUE ---
-        async function checkIfTrackIsLiked
+        async function checkIfTrackIsLiked(trackId) {
+            if (!trackId || !currentToken) return;
+            try {
+                const url = `https://api.spotify.com/v1/me/library/contains?uris=spotify:track:${trackId}`;
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                });
+                
+                const [isLiked] = await response.json();
+                isCurrentTrackLiked = isLiked;
+                updateLikeButtonUI();
+            } catch (error) {
+                console.error("Erreur de détection :", error);
+            }
+        }
+
+        // --- 4. MISE À JOUR VISUELLE ---
+        function updateLikeButtonUI() {
+            if (isCurrentTrackLiked) {
+                likeButton.textContent = "❤️";
+                likeStatusText.textContent = "Liké";
+                likeStatusText.style.color = "#1DB954";
+            } else {
+                likeButton.textContent = "🖤";
+                likeStatusText.textContent = "Non liké";
+                likeStatusText.style.color = "#aaaaaa";
+            }
+        }
+
+        // --- 5. ACTION DYNAMIQUE : AJOUTER OU SUPPRIMER DES FAVORIS ---
+        async function toggleLikeTrack() {
+            if (!currentTrackId || !currentToken) return;
+
+            // Détermine dynamiquement la méthode HTTP selon l'état actuel
+            const methodType = isCurrentTrackLiked ? 'DELETE' : 'PUT';
             
+            // Point d'accès unifié du document pour modifier la bibliothèque (/me/library)
+            const url = 'https://api.spotify.com/v1/me/library';
+
+            // Format d'envoi utilisant l'URI complet requis par le point d'accès unifié
+            const bodyData = {
+                uris: [`spotify:track:${currentTrackId}`]
+            };
+
+            try {
+                const response = await fetch(url, {
+                    method: methodType,
+                    headers: { 
+                        'Authorization': `Bearer ${currentToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(bodyData)
+                });
+
+                if (response.ok) {
+                    // Alterne l'état local interne
+                    isCurrentTrackLiked = !isCurrentTrackLiked;
+                    
+                    // Met visuellement à jour le bouton cœur
+                    updateLikeButtonUI();
+                    
+                    // Actualise instantanément la liste de droite
+                    await fetchAndDisplaySavedTracks();
+                } else if (response.status === 401 || response.status === 403) {
+                    statusText.textContent = "Session expirée. Reconnexion...";
+                    setTimeout(redirectToSpotify, 1500);
+                }
+            } catch (error) {
+                console.error("Erreur modification bibliothèque :", error);
+            }
+        }
+
+        // --- ATTACHEMENTS ET CYCLE DE LANCEMENT ---
+        likeButton.addEventListener('click', toggleLikeTrack);
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+
+            if (!code) {
+                statusText.textContent = "Redirection vers Spotify...";
+                redirectToSpotify();
+            } else {
+                window.history.pushState({}, document.title, window.location.pathname);
+                statusText.textContent = "Analyse des droits...";
+                
+                const token = await getAccessToken(code);
+                if (token) {
+                    currentToken = token; 
+                    playerBox.style.display = 'flex';
+                    
+                    await fetchAndDisplaySavedTracks();
+                    await checkCurrentPlayback();
+                    setInterval(checkCurrentPlayback, 3000);
+                } else {
+                    statusText.textContent = "Échec d'authentification. Relancement...";
+                    setTimeout(redirectToSpotify, 2000);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
