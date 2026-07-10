@@ -130,7 +130,7 @@
 
         // --- FONCTION DE VOLUME ---
         async function setSpotifyVolume(volumePercent, token) {
-            const url = `https://api.spotify.com/v1/me/player/volume?volume_percent=${volumePercent}`;
+            const url = `https://api.spotify.com/v1/me/player/volume_percent=${volumePercent}`;
             try {
                 const response = await fetch(url, {
                     method: 'PUT',
