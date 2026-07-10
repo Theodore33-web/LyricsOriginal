@@ -344,11 +344,12 @@
         async function toggleLikeTrack() {
             if (!currentTrackId || !currentToken) return;
 
-            // Alterne entre DELETE et PUT selon le statut actuel
+            // Détermine la bonne méthode selon l'état actuel :
+            // Si c'est déjà Liké (true/rouge) -> Clic applique DELETE (passe au noir)
+            // Si ce n'est pas Liké (false/noir) -> Clic applique PUT (passe au rouge)
             const methodType = isCurrentTrackLiked ? 'DELETE' : 'PUT';
             const url = 'https://api.spotify.com/v1/me/library';
 
-            // Le point d'accès unifié accepte un tableau d'URIs Spotify complets
             const bodyData = {
                 uris: [`spotify:track:${currentTrackId}`]
             };
@@ -364,11 +365,11 @@
                 });
 
                 if (response.ok) {
-                    // Inverse l'état local suite au succès de l'API
+                    // Inverse l'état local après le succès de l'appel API
                     isCurrentTrackLiked = !isCurrentTrackLiked;
                     updateLikeButtonUI();
                     
-                    // Rafraîchit instantanément l'affichage des titres likés sur le panneau droit
+                    // Rafraîchit automatiquement le panneau des favoris à droite
                     await fetchAndDisplaySavedTracks();
                 } else if (response.status === 401 || response.status === 403) {
                     statusText.textContent = "Session expirée. Reconnexion...";
