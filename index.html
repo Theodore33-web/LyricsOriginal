@@ -18,7 +18,6 @@
         }
         h1 { color: #1DB954; margin-bottom: 20px; }
         
-        /* Conteneur Principal pour aligner le lecteur et la liste */
         .main-wrapper {
             display: flex;
             background: #181818;
@@ -71,10 +70,9 @@
             line-height: 1;
         }
         .like-btn:hover { transform: scale(1.1); }
-
         .like-text { font-size: 14px; font-weight: bold; }
 
-        /* --- CÔTÉ DROIT : TOUS LES TITRES LIKÉS --- */
+        /* --- CÔTÉ DROIT : PANNEAU DES TITRES LIKÉS --- */
         .favorites-section {
             width: 320px;
             padding: 25px;
@@ -164,7 +162,6 @@
         const clientId = '91d4165085fd4ed3bd281f16667d64bc';
         const redirectUri = 'https://theodore33-web.github.io/LyricsOriginal/';
         
-        // Ajout explicite du scope pour pouvoir lire la liste entière de la bibliothèque
         const scope = 'user-read-currently-playing user-library-read user-library-modify';
 
         let currentToken = null; 
@@ -180,7 +177,7 @@
         const likeStatusText = document.getElementById('like-status-text');
         const favoritesContainer = document.getElementById('favorites-container');
 
-        // --- ENCODER PKCE ---
+        // --- AUTHENTIFICATION PKCE ---
         function generateCodeVerifier(length) {
             let text = '';
             const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
@@ -198,7 +195,6 @@
             return base64String.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
         }
 
-        // --- AUTHENTIFICATION ---
         async function redirectToSpotify() {
             localStorage.removeItem("verifier");
             const verifier = generateCodeVerifier(128);
@@ -237,27 +233,28 @@
                 const data = await response.json();
                 return data.access_token;
             } catch (error) {
-                console.error("Erreur Token :", error);
+                console.error("Erreur de récupération du Token:", error);
             }
         }
 
-        // --- 1. CHARGER ET AFFICHER LA LISTE COMPLÈTE À DROITE ---
+        // --- 1. CHARGEMENT ET AFFICHAGE DES FAVORIS À DROITE ---
         async function fetchAndDisplaySavedTracks() {
             if (!currentToken) return;
             try {
-                // Utilisation de l'endpoint de récupération globale de la bibliothèque
-                const response = await fetch('https://api.spotify.com/v1/me/library/contains', {
+                // CORRECTION : Utilisation de la bonne adresse de récupération spécifiée dans votre document
+                const response = await fetch('https://api.spotify.com/v1/me/tracks', {
                     method: 'GET',
                     headers: { 'Authorization': `Bearer ${currentToken}` }
                 });
 
                 if (response.ok) {
                     const data = await response.json();
-                    favoritesContainer.innerHTML = ""; // Vider l'ancienne liste
+                    favoritesContainer.innerHTML = ""; // Réinitialiser le panneau
 
+                    // Structure de réponse de la bibliothèque de favoris : data.items contenant des objets wrapper
                     if (data.items && data.items.length > 0) {
-                        data.items.forEach(wrapper => {
-                            const track = wrapper.track;
+                        data.items.forEach(item => {
+                            const track = item.track; // Accès obligatoire à la propriété .track d'après votre doc
                             if (!track) return;
 
                             const li = document.createElement('li');
@@ -266,7 +263,7 @@
                             const imgUrl = track.album.images.length > 0 ? track.album.images[0].url : '';
                             
                             li.innerHTML = `
-                                <img src="${imgUrl}" alt="art">
+                                <img src="${imgUrl}" alt="pochette">
                                 <div class="favorite-details">
                                     <span class="fav-name">${track.name}</span>
                                     <span class="fav-artist">${track.artists.map(a => a.name).join(', ')}</span>
@@ -275,7 +272,7 @@
                             favoritesContainer.appendChild(li);
                         });
                     } else {
-                        favoritesContainer.innerHTML = "<p style='font-size:12px; color:#aaa; text-align:center; padding-top:20px;'>Aucun favori trouvé.</p>";
+                        favoritesContainer.innerHTML = "<p style='font-size:12px; color:#aaa; text-align:center; padding-top:20px;'>Aucun favori enregistré.</p>";
                     }
                 }
             } catch (error) {
@@ -283,7 +280,7 @@
             }
         }
 
-        // --- 2. VÉRIFIER LA MUSIQUE EN COURS D'ÉCOUTE ---
+        // --- 2. RÉCUPÉRATION DU MORCEAU EN COURS ---
         async function checkCurrentPlayback() {
             if (!currentToken) return;
             try {
@@ -306,7 +303,7 @@
                         trackAuthor.textContent = track.artists.map(a => a.name).join(', ');
                         trackImg.style.backgroundImage = track.album.images.length > 0 ? `url(${track.album.images[0].url})` : 'none';
                         
-                        // Déclenche la détection du statut via GET
+                        // Lance la vérification GET pour l'état du cœur
                         await checkIfTrackIsLiked(track.id);
                     }
                     statusText.innerHTML = "Synchronisation active.";
@@ -316,11 +313,12 @@
             }
         }
 
-        // --- 3. VÉRIFICATION (GET) DU STATUT DU TITRE ÉCOUTÉ ---
+        // --- 3. VÉRIFICATION (GET) SUR LA BIBLIOTHÈQUE ---
         async function checkIfTrackIsLiked(trackId) {
             if (!trackId || !currentToken) return;
             try {
-                const url = `https://api.spotify.com/v1/me/library/contains?uris=spotify%3Atrack%3A7a3LWj5xSFhFRYmztS8wgK%2Cspotify%3Aalbum%3A4aawyAB9vmqN3uQ7FjRGTy%2Cspotify%3Aartist%3A2takcwOaAZWiXQijPHIx7B?uris=spotify:track:$${trackId}`;
+                // Utilisation de la nouvelle adresse unifiée /me/library/contains d'après votre document
+                const url = `https://api.spotify.com/v1/me/library/contains?uris=spotify:track:${trackId}`;
                 const response = await fetch(url, {
                     method: 'GET',
                     headers: { 'Authorization': `Bearer ${currentToken}` }
@@ -347,14 +345,14 @@
             }
         }
 
-        // --- 5. ACTION AU CLIC : AJOUTER OU SUPPRIMER ---
+        // --- 5. ACTION AU CLIC : PUT (ENREGISTRER) OU DELETE (SUPPRIMER) ---
         async function toggleLikeTrack() {
             if (!currentTrackId || !currentToken) return;
 
             const methodType = isCurrentTrackLiked ? 'DELETE' : 'PUT';
-            const url = 'https://api.spotify.com/v1/me/library?uris=spotify%3Atrack%3A7a3LWj5xSFhFRYmztS8wgK%2Cspotify%3Aalbum%3A4aawyAB9vmqN3uQ7FjRGTy';
+            const url = 'https://api.spotify.com/v1/me/library';
 
-            // Le format exige un tableau d'URIs complets
+            // Format mis à jour utilisant des URIs complets au lieu d'IDs purs
             const bodyData = {
                 uris: [`spotify:track:${currentTrackId}`]
             };
@@ -373,18 +371,18 @@
                     isCurrentTrackLiked = !isCurrentTrackLiked;
                     updateLikeButtonUI();
                     
-                    // CRUCIAL : On rafraîchit immédiatement le panneau de droite après l'action !
+                    // Rafraîchir instantanément la liste de droite après l'action
                     await fetchAndDisplaySavedTracks();
                 } else if (response.status === 401 || response.status === 403) {
                     statusText.textContent = "Session expirée. Reconnexion...";
                     setTimeout(redirectToSpotify, 1500);
                 }
             } catch (error) {
-                console.error("Erreur modification :", error);
+                console.error("Erreur modification bibliothèque :", error);
             }
         }
 
-        // --- CYCLES DE CHARGEMENT ---
+        // --- ATTACHEMENTS ET CYCLE DE Lancement ---
         likeButton.addEventListener('click', toggleLikeTrack);
 
         window.addEventListener('DOMContentLoaded', async () => {
@@ -403,10 +401,10 @@
                     currentToken = token; 
                     playerBox.style.display = 'flex';
                     
-                    // Chargement initial des favoris à droite
+                    // Charge la liste de droite
                     await fetchAndDisplaySavedTracks();
                     
-                    // Suivi de l'écoute en cours à gauche
+                    // Active la synchronisation de l'écoute à gauche
                     await checkCurrentPlayback();
                     setInterval(checkCurrentPlayback, 3000);
                 } else {
@@ -416,5 +414,7 @@
             }
         });
     </script>
+</body>
+</html>
 </body>
 </html>
