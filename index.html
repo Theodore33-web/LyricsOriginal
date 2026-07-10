@@ -371,3 +371,44 @@
                     updateLikeButtonUI();
                     
                     // On rafraîchit immédiatement la liste de droite pour faire apparaître/disparaitre le titre
+                    await fetchAndDisplaySavedTracks();
+                } else if (response.status === 401 || response.status === 403) {
+                    statusText.textContent = "Session expirée. Reconnexion...";
+                    setTimeout(redirectToSpotify, 1500);
+                }
+            } catch (error) {
+                console.error("Erreur modification bibliothèque :", error);
+            }
+        }
+
+        // --- ATTACHEMENTS ET CYCLE DE LANCEMENT ---
+        likeButton.addEventListener('click', toggleLikeTrack);
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+
+            if (!code) {
+                statusText.textContent = "Redirection vers Spotify...";
+                redirectToSpotify();
+            } else {
+                window.history.pushState({}, document.title, window.location.pathname);
+                statusText.textContent = "Analyse des droits...";
+                
+                const token = await getAccessToken(code);
+                if (token) {
+                    currentToken = token; 
+                    playerBox.style.display = 'flex';
+                    
+                    await fetchAndDisplaySavedTracks();
+                    await checkCurrentPlayback();
+                    setInterval(checkCurrentPlayback, 3000);
+                } else {
+                    statusText.textContent = "Échec d'authentification. Relancement...";
+                    setTimeout(redirectToSpotify, 2000);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
