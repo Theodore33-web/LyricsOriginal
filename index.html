@@ -228,6 +228,7 @@
         let currentTrackId = null;
         let isCurrentTrackLiked = false;
         let currentTrackData = null; // Stocke l'objet complet de la piste en cours (nom, artiste, pochette)
+        let currentDeviceId = null; // Stocke l'ID de l'appareil actif Spotify (nécessaire pour forcer les commandes)
 
         const statusText = document.getElementById('status-text');
         const playerBox = document.getElementById('player-box');
@@ -379,6 +380,9 @@
                         volumeValue.textContent = `${data.device.volume_percent}%`;
                         updateVolumeIcon(data.device.volume_percent);
                     }
+                    if (data.device && data.device.id) {
+                        currentDeviceId = data.device.id;
+                    }
 
                     statusText.innerHTML = "Synchronisation active.";
                 }
@@ -506,15 +510,31 @@
         async function setVolume(percent) {
             if (!currentToken) return;
             try {
-                const url = `https://api.spotify.com/v1/me/player/volume?volume_percent=${percent}`;
+                // On force le ciblage explicite de l'appareil actif (device_id) :
+                // sans ça, Spotify échoue parfois à déterminer la bonne cible ("Restriction violated")
+                let url = `https://api.spotify.com/v1/me/player/volume?volume_percent=${percent}`;
+                if (currentDeviceId) {
+                    url += `&device_id=${currentDeviceId}`;
+                }
+
                 const response = await fetch(url, {
                     method: 'PUT',
                     headers: { 'Authorization': `Bearer ${currentToken}` }
                 });
 
                 if (response.status === 401 || response.status === 403) {
-                    statusText.textContent = "Session expirée. Reconnexion...";
-                    setTimeout(redirectToSpotify, 1500);
+                    // On lit le corps de la réponse pour connaître la vraie raison du blocage
+                    const errorBody = await response.json().catch(() => null);
+                    console.error("Échec réglage volume :", response.status, errorBody);
+
+                    if (errorBody && errorBody.error && errorBody.error.reason === 'PREMIUM_REQUIRED') {
+                        statusText.textContent = "Le contrôle du volume nécessite Spotify Premium.";
+                    } else if (response.status === 403) {
+                        statusText.textContent = "Volume refusé par Spotify (restriction de l'appareil).";
+                    } else {
+                        statusText.textContent = "Session expirée. Reconnexion...";
+                        setTimeout(redirectToSpotify, 1500);
+                    }
                 } else if (response.status === 404) {
                     statusText.textContent = "Aucun appareil actif pour régler le volume.";
                 }
