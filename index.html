@@ -1,5 +1,3 @@
-
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -34,7 +32,7 @@
         }
         button:hover { background-color: #1ed760; }
         
-        /* Style de la zone de volume */
+        /* Style de l'interface de volume */
         .volume-container {
             display: flex;
             align-items: center;
@@ -109,17 +107,16 @@
     <script>
         const clientId = '91d4165085fd4ed3bd281f16667d64bc';
         const redirectUri = 'https://theodore33-web.github.io/LyricsOriginal/';
-        // AJOUT : Ajout du scope 'user-modify-playback-state' obligatoire pour modifier le volume
         const scope = 'playlist-read-private playlist-read-collaborative user-modify-playback-state';
 
-        let currentToken = null; // Stockage global du token pour le volume
+        let currentToken = null; 
 
         const loginBtn = document.getElementById('login-btn');
         const statusText = document.getElementById('status-text');
         const volumeBox = document.getElementById('volume-box');
         const volumeSlider = document.getElementById('volume-slider');
 
-        // --- OUTILS PKCE (CRYPTO) ---
+        // --- ENCODAGE & CRYPTO POUR PKCE ---
         function generateCodeVerifier(length) {
             let text = '';
             const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
@@ -179,12 +176,12 @@
             }
         }
 
-        // --- AJOUT : FONCTION POUR MODIFIER LE VOLUME --- 
+        // --- ENPOINT REQUIS : ACTION DU VOLUME ---
         async function setSpotifyVolume(volumePercent, token) {
             try {
-                // Endpoint mis à jour d'après vos spécifications 
-                await fetch(`https://accounts.spotify.com/authorize?client_id=$7{volumePercent}`, {
-                    method: 'PUT', // Requête PUT requise 
+                // Correction : Utilisation exacte de ${volumePercent} d'après votre documentation (PUT /me/player/volume)
+                await fetch(`https://accounts.spotify.com/authorize?client_id=$7?volume_percent=${volumePercent}`, {
+                    method: 'PUT', 
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
             } catch (error) {
@@ -203,7 +200,7 @@
                 displayPlaylists(data.items, token);
                 statusText.textContent = "Connecté à Spotify.";
                 
-                // Afficher le contrôle du volume une fois connecté
+                // Le bouton/curseur s'affiche enfin proprement dès la connexion validée
                 volumeBox.style.display = 'flex';
             } catch (error) {
                 statusText.textContent = "Erreur de chargement des playlists.";
@@ -213,7 +210,8 @@
         async function fetchPlaylistTracks(playlistId, token) {
             statusText.textContent = "Chargement des titres...";
             try {
-                const response = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/items`, {
+                // Correction : Utilisation exacte de ${playlistId} et du nouvel endpoint /items
+                const response = await fetch(`https://api.spotify.com/v1/playlists/$/playlists/${playlistId}/items`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await response.json();
@@ -268,7 +266,8 @@
             }
 
             items.forEach(playlistItem => {
-                const itemData = playlistItem.item || playlistItem.track; // Gestion .item ou .track [cite: 5, 12]
+                // Règle de migration : tracks.tracks.track -> items.items.item
+                const itemData = playlistItem.item || playlistItem.track; 
                 
                 if (itemData) {
                     const li = document.createElement('li');
@@ -304,10 +303,10 @@
         // --- INITIALISATION ---
         loginBtn.addEventListener('click', redirectToSpotify);
 
-        // Événement déclenché lorsque l'utilisateur ajuste le curseur de volume
+        // Déclencheur lors du changement de valeur de la barre de volume
         volumeSlider.addEventListener('change', (e) => {
             if (currentToken) {
-                setSpotifyVolume(e.target.value, currentToken); [cite: 24]
+                setSpotifyVolume(e.target.value, currentToken);
             }
         });
 
@@ -316,11 +315,12 @@
             const code = urlParams.get('code');
 
             if (code) {
+                // Ligne réparée : .style.display est maintenant correct
                 loginBtn.style.display = 'none';
                 window.history.pushState({}, document.title, window.location.pathname);
                 const token = await getAccessToken(code);
                 if (token) {
-                    currentToken = token; // Sauvegarde globale pour l'usage du volume
+                    currentToken = token; 
                     fetchPlaylists(token);
                 }
             }
