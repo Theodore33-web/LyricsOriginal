@@ -1,368 +1,461 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>LyricsOriginal — Like current track (PKCE)</title>
-<style>
-  body{font-family:system-ui,Segoe UI,Arial;background:#0f1113;color:#eee;padding:18px;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
-  .card{width:780px;background:#161618;padding:20px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.6)}
-  h1{color:#1DB954;margin:0 0 12px}
-  .layout{display:flex;gap:20px}
-  .left{flex:1;text-align:center;padding:18px;border-right:1px solid #242424}
-  .track-art{width:180px;height:180px;margin:12px auto;border-radius:8px;background:#222;background-size:cover;background-position:center;display:none}
-  .title{font-weight:700;margin-top:10px}
-  .artist{color:#b3b3b3;margin-bottom:8px}
-  .like{font-size:42px;background:none;border:none;color:inherit;cursor:pointer}
-  .disabled{opacity:.5;pointer-events:none}
-  .right{width:340px;padding:8px}
-  .section-title{color:#1DB954;margin-bottom:8px}
-  .list{max-height:280px;overflow:auto;padding:0;margin:0;list-style:none}
-  .item{display:flex;gap:10px;padding:8px;border-radius:6px;align-items:center}
-  .item img{width:44px;height:44px;border-radius:4px;object-fit:cover}
-  .small{font-size:13px;color:#9aa}
-  .status{margin-top:12px;color:#1DB954;font-style:italic;text-align:center}
-  pre{background:#0b0b0b;padding:8px;border-radius:6px;color:#9fd;max-height:160px;overflow:auto}
-  .controls{display:flex;gap:8px;justify-content:center;margin-top:10px}
-  button.primary{background:#1DB954;border:none;padding:8px 12px;border-radius:8px;color:#051;cursor:pointer}
-  button.ghost{background:#333;border:none;padding:8px 12px;border-radius:8px;color:#fff;cursor:pointer}
-  .token-info{font-size:13px;color:#9aa;margin-top:8px}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LyricsOriginal - Player & Favoris</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background-color: #121212;
+            color: #FFFFFF;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            gap: 40px;
+        }
+        h1 { color: #1DB954; margin-bottom: 20px; }
+        
+        .main-wrapper {
+            display: flex;
+            background: #181818;
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+            overflow: hidden;
+            width: 750px;
+            height: 480px;
+        }
+
+        /* --- CÔTÉ GAUCHE : LECTEUR --- */
+        .player-section {
+            flex: 1;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-right: 1px solid #282828;
+        }
+        
+        .track-art {
+            width: 180px;
+            height: 180px;
+            background-color: #282828;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            background-size: cover;
+            background-position: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        }
+
+        .track-title { font-size: 18px; font-weight: bold; margin: 10px 0 5px 0; text-align: center; }
+        .track-artist { font-size: 14px; color: #b3b3b3; margin-bottom: 15px; text-align: center; }
+
+        .like-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .like-btn {
+            background: none;
+            border: none;
+            font-size: 40px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            padding: 0;
+            line-height: 1;
+        }
+        .like-btn:hover { transform: scale(1.1); }
+        .like-text { font-size: 14px; font-weight: bold; }
+
+        /* --- CÔTÉ DROIT : PANNEAU DES TITRES LIKÉS --- */
+        .favorites-section {
+            width: 320px;
+            padding: 25px;
+            display: flex;
+            flex-direction: column;
+            background: #1c1c1c;
+        }
+
+        .favorites-section h3 {
+            margin-top: 0;
+            color: #1DB954;
+            border-bottom: 2px solid #282828;
+            padding-bottom: 10px;
+            font-size: 18px;
+        }
+
+        .favorites-list {
+            flex: 1;
+            overflow-y: auto;
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .favorite-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            border-radius: 6px;
+            transition: background 0.2s;
+            font-size: 13px;
+        }
+        .favorite-item:hover { background: #282828; }
+
+        .favorite-item img {
+            width: 35px;
+            height: 35px;
+            border-radius: 4px;
+            background-color: #333;
+        }
+
+        .favorite-details {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+        .fav-name { font-weight: bold; text-overflow: ellipsis; overflow: hidden; }
+        .fav-artist { color: #b3b3b3; font-size: 11px; text-overflow: ellipsis; overflow: hidden; }
+
+        .status { 
+            position: absolute;
+            bottom: 20px;
+            color: #1DB954; 
+            font-style: italic; 
+            font-size: 13px; 
+            text-align: center;
+        }
+    </style>
 </head>
 <body>
-  <div class="card">
-    <h1>LyricsOriginal — Like current track</h1>
-    <div class="layout">
-      <div class="left">
-        <div id="auth-area">
-          <button id="auth-btn" class="primary">Se connecter à Spotify</button>
-          <button id="logout-btn" class="ghost" style="display:none">Déconnexion</button>
-          <div class="token-info" id="scopes-info"></div>
-          <div class="token-info" id="redirect-note" style="margin-top:6px;color:#f99"></div>
+
+    <div class="main-wrapper" id="player-box" style="display: none;">
+        <div class="player-section">
+            <h1>LyricsOriginal</h1>
+            <div class="track-art" id="track-img"></div>
+            <div class="track-title" id="track-name">Aucun titre</div>
+            <div class="track-artist" id="track-author">Inconnu</div>
+            
+            <div class="like-container">
+                <button id="like-button" class="like-btn">🖤</button>
+                <span id="like-status-text" class="like-text">...</span>
+            </div>
         </div>
 
-        <div class="track-art" id="track-art"></div>
-        <div class="title" id="track-title">Aucun titre</div>
-        <div class="artist" id="track-artist">—</div>
-
-        <div class="controls">
-          <button id="like-btn" class="like" title="Like / Unlike" aria-label="Like" disabled>🤍</button>
+        <div class="favorites-section">
+            <h3>Mes Titres Likés 📁</h3>
+            <ul class="favorites-list" id="favorites-container">
+                </ul>
         </div>
-
-        <div class="status" id="status">Statut : non connecté</div>
-      </div>
-
-      <div class="right">
-        <div class="section-title">Mes titres likés (extrait)</div>
-        <ul id="saved-list" class="list"></ul>
-
-        <div style="margin-top:10px" class="small">Token / scopes :</div>
-        <pre id="token-info">Aucun token</pre>
-
-        <div style="margin-top:10px" class="small">Logs & debug :</div>
-        <pre id="log">—</pre>
-      </div>
     </div>
-  </div>
+    
+    <p id="status-text" class="status">Initialisation de la connexion...</p>
 
-<script>
-/* CONFIG */
-const CLIENT_ID = '91d4165085fd4ed3bd281f16667d64bc';
-const REDIRECT_URI = window.location.origin + window.location.pathname; // DOIT correspondre EXACTEMENT au Redirect URI dans le dashboard Spotify
-const SCOPES = 'user-read-currently-playing user-library-read user-library-modify';
-const AUTH_ENDPOINT = 'https://accounts.spotify.com/authorize';
-const TOKEN_ENDPOINT = 'https://accounts.spotify.com/api/token';
+    <script>
+        const clientId = '91d4165085fd4ed3bd281f16667d64bc';
+        const redirectUri = 'https://theodore33-web.github.io/LyricsOriginal/';
+        
+        const scope = 'user-read-currently-playing user-library-read user-library-modify';
 
-/* UI refs */
-const authBtn = document.getElementById('auth-btn');
-const logoutBtn = document.getElementById('logout-btn');
-const statusEl = document.getElementById('status');
-const trackArtEl = document.getElementById('track-art');
-const trackTitleEl = document.getElementById('track-title');
-const trackArtistEl = document.getElementById('track-artist');
-const likeBtn = document.getElementById('like-btn');
-const savedListEl = document.getElementById('saved-list');
-const logEl = document.getElementById('log');
-const tokenInfoEl = document.getElementById('token-info');
-const scopesInfoEl = document.getElementById('scopes-info');
-const redirectNoteEl = document.getElementById('redirect-note');
+        let currentToken = null; 
+        let currentTrackId = null;
+        let isCurrentTrackLiked = false;
+        let currentTrackData = null; // Stocke l'objet complet de la piste en cours (nom, artiste, pochette)
 
-/* State */
-let accessToken = null;
-let tokenScopes = '';
-let tokenExpiry = 0;
-let currentTrackId = null;
-let isLiked = false;
-let pollInterval = null;
+        const statusText = document.getElementById('status-text');
+        const playerBox = document.getElementById('player-box');
+        const trackImg = document.getElementById('track-img');
+        const trackName = document.getElementById('track-name');
+        const trackAuthor = document.getElementById('track-author');
+        const likeButton = document.getElementById('like-button');
+        const likeStatusText = document.getElementById('like-status-text');
+        const favoritesContainer = document.getElementById('favorites-container');
 
-/* Utils */
-function log(...args){
-  const t = new Date().toLocaleTimeString();
-  logEl.textContent = `[${t}] ${args.join(' ')}\n` + logEl.textContent;
-  console.log(...args);
-}
-function setStatus(s){ statusEl.textContent = 'Statut : ' + s; }
-function saveToken(token, expiryMs, scopes){
-  accessToken = token; tokenExpiry = expiryMs; tokenScopes = scopes || '';
-  localStorage.setItem('sp_token', token);
-  localStorage.setItem('sp_token_expiry', String(expiryMs));
-  localStorage.setItem('sp_token_scopes', scopes || '');
-  tokenInfoEl.textContent = `token: ${token ? token.slice(0,8)+'…' : '(none)'}\nscopes: ${scopes || '(none)'}\nexpires: ${new Date(expiryMs).toLocaleString()}`;
-  scopesInfoEl.textContent = 'Scopes: ' + (scopes || '(none)');
-}
-function loadToken(){
-  const t = localStorage.getItem('sp_token');
-  const e = Number(localStorage.getItem('sp_token_expiry') || 0);
-  const s = localStorage.getItem('sp_token_scopes') || '';
-  if (!t || Date.now() > e){ clearToken(); return null; }
-  accessToken = t; tokenExpiry = e; tokenScopes = s;
-  tokenInfoEl.textContent = `token: ${t.slice(0,8)}…\nscopes: ${s}\nexpires: ${new Date(e).toLocaleString()}`;
-  scopesInfoEl.textContent = 'Scopes: ' + s;
-  return t;
-}
-function clearToken(){
-  accessToken = null; tokenExpiry = 0; tokenScopes = '';
-  localStorage.removeItem('sp_token'); localStorage.removeItem('sp_token_expiry'); localStorage.removeItem('sp_token_scopes');
-  tokenInfoEl.textContent = 'Aucun token';
-  scopesInfoEl.textContent = '';
-}
+        // --- AUTHENTIFICATION PKCE ---
+        function generateCodeVerifier(length) {
+            let text = '';
+            const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+            for (let i = 0; i < length; i++) {
+                text += possible.charAt(Math.floor(Math.random() * possible.length));
+            }
+            return text;
+        }
 
-/* PKCE helpers */
-function generateCodeVerifier(len = 128) {
-  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
-  let out = '';
-  for (let i=0;i<len;i++) out += possible.charAt(Math.floor(Math.random()*possible.length));
-  return out;
-}
-async function generateCodeChallenge(verifier){
-  const enc = new TextEncoder().encode(verifier);
-  const digest = await crypto.subtle.digest('SHA-256', enc);
-  let b = btoa(String.fromCharCode(...new Uint8Array(digest)));
-  return b.replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
-}
+        async function generateCodeChallenge(codeVerifier) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(codeVerifier);
+            const digest = await window.crypto.subtle.digest('SHA-256', data);
+            const base64String = btoa(String.fromCharCode(...new Uint8Array(digest)));
+            return base64String.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        }
 
-/* Show note about redirect URI */
-redirectNoteEl.textContent = `Redirect URI utilisée : ${REDIRECT_URI} — assure-toi qu'elle est enregistrée EXACtement dans Spotify Developer.`;
+        async function redirectToSpotify() {
+            localStorage.removeItem("verifier");
+            const verifier = generateCodeVerifier(128);
+            localStorage.setItem("verifier", verifier);
+            const challenge = await generateCodeChallenge(verifier);
 
-/* Auth redirect */
-authBtn.addEventListener('click', async () => {
-  const verifier = generateCodeVerifier(64);
-  localStorage.setItem('pkce_verifier', verifier);
-  const challenge = await generateCodeChallenge(verifier);
-  const params = new URLSearchParams({
-    response_type: 'code',
-    client_id: CLIENT_ID,
-    scope: SCOPES,
-    redirect_uri: REDIRECT_URI,
-    code_challenge_method: 'S256',
-    code_challenge: challenge,
-    show_dialog: 'true'
-  });
-  window.location.href = AUTH_ENDPOINT + '?' + params.toString();
-});
-logoutBtn.addEventListener('click', () => {
-  clearToken();
-  setStatus('déconnecté');
-  updateUIForAuth(false);
-});
+            const authUrl = new URL("https://accounts.spotify.com/authorize");
+            const args = {
+                response_type: 'code',
+                client_id: clientId,
+                scope: scope,
+                redirect_uri: redirectUri,
+                code_challenge_method: 'S256',
+                code_challenge: challenge,
+                show_dialog: true 
+            };
+            authUrl.search = new URLSearchParams(args).toString();
+            window.location.href = authUrl.toString();
+        }
 
-/* Exchange code -> token (client-side). May be blocked by CORS in some setups. */
-async function exchangeCodeForToken(code){
-  const verifier = localStorage.getItem('pkce_verifier');
-  if (!verifier) { log('PKCE verifier missing'); return { error: 'pkce_verifier_missing' }; }
-  const body = new URLSearchParams({
-    grant_type: 'authorization_code',
-    code: code,
-    redirect_uri: REDIRECT_URI,
-    client_id: CLIENT_ID,
-    code_verifier: verifier
-  });
-  try {
-    const resp = await fetch(TOKEN_ENDPOINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body.toString()
-    });
-    const text = await resp.text();
-    log('POST /api/token ->', resp.status, text);
-    if (!resp.ok) {
-      let parsed; try{ parsed = JSON.parse(text); } catch(e){ parsed = text; }
-      return { error: parsed, status: resp.status };
-    }
-    const data = JSON.parse(text);
-    const expiry = Date.now() + (data.expires_in || 3600)*1000;
-    saveToken(data.access_token, expiry, data.scope || '');
-    setStatus('connecté');
-    updateUIForAuth(true);
-    return { data };
-  } catch(err){
-    log('Exchange failed:', err);
-    return { error: String(err) };
-  }
-}
+        async function getAccessToken(code) {
+            const codeVerifier = localStorage.getItem('verifier');
+            const payload = {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    client_id: clientId,
+                    grant_type: 'authorization_code',
+                    code: code,
+                    redirect_uri: redirectUri,
+                    code_verifier: codeVerifier
+                })
+            };
+            try {
+                const response = await fetch('https://accounts.spotify.com/api/token', payload);
+                const data = await response.json();
+                return data.access_token;
+            } catch (error) {
+                console.error("Erreur de récupération du Token:", error);
+            }
+        }
 
-/* Small API wrapper */
-async function apiFetch(path, opts = {}) {
-  const token = accessToken || loadToken();
-  if (!token) throw new Error('no token');
-  const headers = Object.assign({}, opts.headers || {}, { Authorization: 'Bearer ' + token });
-  const res = await fetch('https://api.spotify.com' + path, Object.assign({}, opts, { headers }));
-  return res;
-}
+        // --- 1. CHARGEMENT ET AFFICHAGE DES FAVORIS À DROITE ---
+        async function fetchAndDisplaySavedTracks() {
+            if (!currentToken) return;
+            try {
+                // CORRECTION : Utilisation de la bonne adresse de récupération spécifiée dans votre document
+                const response = await fetch('https://api.spotify.com/v1/me/tracks', {
+                    method: 'GET',
+                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                });
 
-/* Refresh saved tracks list (GET /v1/me/tracks) */
-async function refreshSavedList(){
-  try {
-    const res = await apiFetch('/v1/me/tracks?limit=50');
-    if (!res.ok) { log('saved tracks error', res.status); return; }
-    const data = await res.json();
-    savedListEl.innerHTML = '';
-    if (data.items && data.items.length) {
-      data.items.forEach(it => {
-        const tr = it.track;
-        const li = document.createElement('li'); li.className='item';
-        li.innerHTML = `<img src="${escapeHtml((tr.album.images && tr.album.images[0] && tr.album.images[0].url)||'')}" alt="">
-                        <div><div style="font-weight:600">${escapeHtml(tr.name)}</div>
-                        <div class="small">${escapeHtml((tr.artists || []).map(a=>a.name).join(', '))}</div></div>`;
-        savedListEl.appendChild(li);
-      });
-    } else {
-      savedListEl.innerHTML = '<div class="small">Aucun titre liké (extrait)</div>';
-    }
-  } catch(e){ log('refreshSavedList error', e); }
-}
+                if (response.ok) {
+                    const data = await response.json();
+                    favoritesContainer.innerHTML = ""; // Réinitialiser le panneau
 
-/* Update currently playing (GET /v1/me/player/currently-playing) */
-async function updateCurrentlyPlaying(){
-  try {
-    const res = await apiFetch('/v1/me/player/currently-playing');
-    if (res.status === 204 || res.status === 404) {
-      setStatus('Aucun titre en cours');
-      trackArtEl.style.display='none';
-      trackTitleEl.textContent = 'Aucun titre';
-      trackArtistEl.textContent = '—';
-      likeBtn.disabled = true;
-      return;
-    }
-    if (!res.ok) { log('currently-playing error', res.status); return; }
-    const data = await res.json();
-    if (!data || !data.item) return;
-    const tr = data.item;
-    if (currentTrackId !== tr.id) {
-      currentTrackId = tr.id;
-      trackArtEl.style.display='block';
-      trackArtEl.style.backgroundImage = tr.album && tr.album.images && tr.album.images[0] ? `url(${tr.album.images[0].url})` : 'none';
-      trackTitleEl.textContent = tr.name;
-      trackArtistEl.textContent = (tr.artists||[]).map(a=>a.name).join(', ');
-      likeBtn.disabled = false;
-      await checkIfLiked(currentTrackId);
-    }
-    setStatus('Synchronisé');
-  } catch(e){ log('updateCurrentlyPlaying error', e); if (String(e).includes('no token')) setStatus('non connecté'); }
-}
+                    // Structure de réponse de la bibliothèque de favoris : data.items contenant des objets wrapper
+                    if (data.items && data.items.length > 0) {
+                        data.items.forEach(item => {
+                            const track = item.track; // Accès obligatoire à la propriété .track d'après votre doc
+                            if (!track) return;
 
-/* Check saved state using GET /v1/me/tracks/contains?ids={id} */
-async function checkIfLiked(trackId){
-  try {
-    const token = accessToken || loadToken();
-    if (!token || !trackId) return;
-    const url = `https://api.spotify.com/v1/me/tracks/contains?ids=${encodeURIComponent(trackId)}`;
-    const res = await fetch(url, { method: 'GET', headers: { Authorization: 'Bearer ' + token } });
-    const text = await res.text();
-    log('GET /v1/me/tracks/contains ->', res.status, text);
-    if (!res.ok) {
-      if (res.status === 401) { setStatus('token invalide'); return; }
-      if (res.status === 403) { alert('403: scope manquant (user-library-modify)'); return; }
-      isLiked = false; updateLikeUI(); return;
-    }
-    const arr = JSON.parse(text);
-    isLiked = !!arr[0];
-    updateLikeUI();
-  } catch (e) {
-    log('checkIfLiked error', e);
-  }
-}
+                            const li = document.createElement('li');
+                            li.className = 'favorite-item';
+                            li.dataset.trackId = track.id;
+                            
+                            const imgUrl = track.album.images.length > 0 ? track.album.images[0].url : '';
+                            
+                            li.innerHTML = `
+                                <img src="${imgUrl}" alt="pochette">
+                                <div class="favorite-details">
+                                    <span class="fav-name">${track.name}</span>
+                                    <span class="fav-artist">${track.artists.map(a => a.name).join(', ')}</span>
+                                </div>
+                            `;
+                            favoritesContainer.appendChild(li);
+                        });
+                    } else {
+                        favoritesContainer.innerHTML = "<p style='font-size:12px; color:#aaa; text-align:center; padding-top:20px;'>Aucun favori enregistré.</p>";
+                    }
+                }
+            } catch (error) {
+                console.error("Erreur lors de la récupération des favoris :", error);
+            }
+        }
 
-/* Toggle using PUT/DELETE /v1/me/tracks?ids={id} */
-async function toggleLike(){
-  try {
-    const token = accessToken || loadToken();
-    if (!token || !currentTrackId) return;
-    likeBtn.disabled = true;
-    const method = isLiked ? 'DELETE' : 'PUT';
-    const url = `https://api.spotify.com/v1/me/tracks?ids=${encodeURIComponent(currentTrackId)}`;
-    const res = await fetch(url, { method, headers: { Authorization: 'Bearer ' + token } });
-    log(`${method} /v1/me/tracks ->`, res.status);
-    if (res.ok || res.status === 204) {
-      isLiked = !isLiked;
-      updateLikeUI();
-      await refreshSavedList();
-    } else {
-      if (res.status === 401) { alert('401 token invalide, reconnecte-toi'); clearToken(); updateUIForAuth(false); }
-      else if (res.status === 403) { alert('403 Forbidden — scope manquant ou compte incorrect'); }
-      else { const t = await res.text(); log('toggle error body', t); alert('Erreur API: ' + res.status); }
-    }
-  } catch (e) {
-    log('toggleLike error', e); alert('Erreur réseau');
-  } finally {
-    likeBtn.disabled = false;
-  }
-}
+        // --- 2. RÉCUPÉRATION DU MORCEAU EN COURS ---
+        async function checkCurrentPlayback() {
+            if (!currentToken) return;
+            try {
+                const response = await fetch('https://api.spotify.com/v1/me/player/currently-playing', {
+                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                });
 
-/* UI helpers */
-function updateLikeUI(){ likeBtn.textContent = isLiked ? '❤️' : '🤍'; likeBtn.title = isLiked ? 'Supprimer des favoris' : 'Ajouter aux favoris'; }
-function escapeHtml(str){ return String(str||'').replace(/[&<>"'`=\/]/g, s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','/':'&#x2F;','`':'&#x60;','=':'&#x3D;'})[s]); }
-function updateUIForAuth(connected){ if (connected){ authBtn.style.display='none'; logoutBtn.style.display='inline-block'; } else { authBtn.style.display='inline-block'; logoutBtn.style.display='none'; scopesInfoEl.textContent=''; } }
+                if (response.status === 204 || response.status === 404) {
+                    statusText.innerHTML = "💡 Aucun titre en cours d'écoute. Activez Spotify !";
+                    return;
+                }
 
-/* Exchange wrapper used in init */
-async function exchangeCode(code){
-  return await exchangeCodeForToken(code);
-}
+                const data = await response.json();
+                if (data && data.item) {
+                    const track = data.item;
+                    
+                    if (currentTrackId !== track.id) {
+                        currentTrackId = track.id;
+                        currentTrackData = track;
+                        trackName.textContent = track.name;
+                        trackAuthor.textContent = track.artists.map(a => a.name).join(', ');
+                        trackImg.style.backgroundImage = track.album.images.length > 0 ? `url(${track.album.images[0].url})` : 'none';
+                        
+                        // Lance la vérification GET pour l'état du cœur
+                        await checkIfTrackIsLiked(track.id);
+                    }
+                    statusText.innerHTML = "Synchronisation active.";
+                }
+            } catch (error) {
+                console.error("Erreur lecture en cours :", error);
+            }
+        }
 
-/* Init */
-async function init(){
-  updateUIForAuth(false);
-  const stored = loadToken();
-  const params = new URLSearchParams(window.location.search);
-  const code = params.get('code');
+        // --- 3. VÉRIFICATION (GET) SUR LA BIBLIOTHÈQUE ---
+        async function checkIfTrackIsLiked(trackId) {
+            if (!trackId || !currentToken) return;
+            try {
+                // Utilisation de la nouvelle adresse unifiée /me/library/contains d'après votre document
+                const url = `https://api.spotify.com/v1/me/library/contains?uris=spotify:track:${trackId}`;
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                });
+                
+                const [isLiked] = await response.json();
+                isCurrentTrackLiked = isLiked;
+                updateLikeButtonUI();
+            } catch (error) {
+                console.error("Erreur de détection :", error);
+            }
+        }
 
-  if (code && !stored) {
-    setStatus('Échange du code...');
-    window.history.replaceState({}, document.title, window.location.pathname);
-    const result = await exchangeCode(code);
-    if (result && result.error) {
-      log('exchange error', result.error);
-      if (String(result.error).toLowerCase().includes('cors') || String(result.error).toLowerCase().includes('failed')) {
-        alert('Échange code→token bloqué par CORS. Il faut un proxy serveur pour l’échange. Dis‑moi si tu veux le proxy Node.js.');
-        setStatus('Erreur d’échange (CORS).');
-        return;
-      } else {
-        alert('Échec échange: ' + JSON.stringify(result.error));
-        setStatus('Erreur échange token.');
-        return;
-      }
-    }
-  } else if (stored) {
-    accessToken = stored;
-    updateUIForAuth(true);
-    setStatus('connecté (token chargé)');
-  } else {
-    setStatus('non connecté — cliquez "Se connecter"');
-  }
+        // --- 4. MISE À JOUR VISUELLE ---
+        function updateLikeButtonUI() {
+            if (isCurrentTrackLiked) {
+                likeButton.textContent = "❤️";
+                likeStatusText.textContent = "Liké";
+                likeStatusText.style.color = "#1DB954";
+            } else {
+                likeButton.textContent = "🖤";
+                likeStatusText.textContent = "Non liké";
+                likeStatusText.style.color = "#aaaaaa";
+            }
+        }
 
-  if (accessToken) {
-    await refreshSavedList();
-    await updateCurrentlyPlaying();
-    if (pollInterval) clearInterval(pollInterval);
-    pollInterval = setInterval(updateCurrentlyPlaying, 3000);
-  }
-}
+        // --- 5a. AJOUT INSTANTANÉ D'UN TITRE DANS LA LISTE DE DROITE ---
+        function addTrackToFavoritesUI(track) {
+            if (!track) return;
+            // Évite les doublons si le titre est déjà présent dans la liste
+            if (favoritesContainer.querySelector(`[data-track-id="${track.id}"]`)) return;
 
-/* Wire */
-likeBtn.addEventListener('click', toggleLike);
+            // Supprime le message "Aucun favori enregistré." s'il est affiché
+            const emptyMsg = favoritesContainer.querySelector('p');
+            if (emptyMsg) emptyMsg.remove();
 
-/* Start */
-init();
-</script>
+            const imgUrl = track.album && track.album.images.length > 0 ? track.album.images[0].url : '';
+
+            const li = document.createElement('li');
+            li.className = 'favorite-item';
+            li.dataset.trackId = track.id;
+            li.innerHTML = `
+                <img src="${imgUrl}" alt="pochette">
+                <div class="favorite-details">
+                    <span class="fav-name">${track.name}</span>
+                    <span class="fav-artist">${track.artists.map(a => a.name).join(', ')}</span>
+                </div>
+            `;
+            favoritesContainer.prepend(li);
+        }
+
+        // --- 5b. RETRAIT INSTANTANÉ D'UN TITRE DE LA LISTE DE DROITE ---
+        function removeTrackFromFavoritesUI(trackId) {
+            const li = favoritesContainer.querySelector(`[data-track-id="${trackId}"]`);
+            if (li) li.remove();
+
+            // Réaffiche le message si la liste est désormais vide
+            if (favoritesContainer.children.length === 0) {
+                favoritesContainer.innerHTML = "<p style='font-size:12px; color:#aaa; text-align:center; padding-top:20px;'>Aucun favori enregistré.</p>";
+            }
+        }
+
+        // --- 6. ACTION AU CLIC : PUT (ENREGISTRER) OU DELETE (SUPPRIMER) ---
+        async function toggleLikeTrack() {
+            if (!currentTrackId || !currentToken) return;
+
+            const methodType = isCurrentTrackLiked ? 'DELETE' : 'PUT';
+            const url = 'https://api.spotify.com/v1/me/library';
+
+            // Format mis à jour utilisant des URIs complets au lieu d'IDs purs
+            const bodyData = {
+                uris: [`spotify:track:${currentTrackId}`]
+            };
+
+            try {
+                const response = await fetch(url, {
+                    method: methodType,
+                    headers: { 
+                        'Authorization': `Bearer ${currentToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(bodyData)
+                });
+
+                if (response.ok) {
+                    isCurrentTrackLiked = !isCurrentTrackLiked;
+                    updateLikeButtonUI();
+
+                    // Ajoute ou retire le titre dans la liste de droite sans refaire d'appel API
+                    if (isCurrentTrackLiked) {
+                        addTrackToFavoritesUI(currentTrackData);
+                    } else {
+                        removeTrackFromFavoritesUI(currentTrackId);
+                    }
+                } else if (response.status === 401 || response.status === 403) {
+                    statusText.textContent = "Session expirée. Reconnexion...";
+                    setTimeout(redirectToSpotify, 1500);
+                }
+            } catch (error) {
+                console.error("Erreur modification bibliothèque :", error);
+            }
+        }
+
+        // --- ATTACHEMENTS ET CYCLE DE Lancement ---
+        likeButton.addEventListener('click', toggleLikeTrack);
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+
+            if (!code) {
+                statusText.textContent = "Redirection vers Spotify...";
+                redirectToSpotify();
+            } else {
+                window.history.pushState({}, document.title, window.location.pathname);
+                statusText.textContent = "Analyse des droits...";
+                
+                const token = await getAccessToken(code);
+                if (token) {
+                    currentToken = token; 
+                    playerBox.style.display = 'flex';
+                    
+                    // Charge la liste de droite
+                    await fetchAndDisplaySavedTracks();
+                    
+                    // Active la synchronisation de l'écoute à gauche
+                    await checkCurrentPlayback();
+                    setInterval(checkCurrentPlayback, 3000);
+                } else {
+                    statusText.textContent = "Échec d'authentification. Relancement...";
+                    setTimeout(redirectToSpotify, 2000);
+                }
+            }
+        });
+    </script>
 </body>
 </html>
