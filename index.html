@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LyricsOriginal - Player & Like</title>
+    <title>LyricsOriginal - Vérification Titres Likés</title>
     <style>
         body {
             font-family: 'Segoe UI', Arial, sans-serif;
@@ -72,7 +72,7 @@
         const clientId = '91d4165085fd4ed3bd281f16667d64bc';
         const redirectUri = 'https://theodore33-web.github.io/LyricsOriginal/';
         
-        // Les scopes nécessaires pour lire la lecture et modifier la bibliothèque
+        // Autorisations requises pour lire l'écoute en cours et analyser/modifier la bibliothèque
         const scope = 'user-read-currently-playing user-library-read user-library-modify';
 
         let currentToken = null; 
@@ -143,11 +143,11 @@
                 const data = await response.json();
                 return data.access_token;
             } catch (error) {
-                console.error("Erreur Token:", error);
+                console.error("Erreur Token :", error);
             }
         }
 
-        // --- 1. MUSIQUE EN COURS ---
+        // --- 1. RÉCUPÉRATION DE LA MUSIQUE EN COURS ---
         async function checkCurrentPlayback() {
             if (!currentToken) return;
             try {
@@ -156,7 +156,7 @@
                 });
 
                 if (response.status === 204 || response.status === 404) {
-                    statusText.innerHTML = "💡 Aucun titre en cours d'écoute.<br>Lancez une musique sur votre application Spotify !";
+                    statusText.innerHTML = "💡 Aucun titre en cours d'écoute.<br>Activez Spotify sur votre appareil et lancez un morceau !";
                     return;
                 }
 
@@ -164,51 +164,62 @@
                 if (data && data.item) {
                     const track = data.item;
                     
+                    // Si la chanson change, on met à jour l'interface graphique et on lance le GET de vérification
                     if (currentTrackId !== track.id) {
                         currentTrackId = track.id;
                         trackName.textContent = track.name;
                         trackAuthor.textContent = track.artists.map(a => a.name).join(', ');
                         trackImg.style.backgroundImage = track.album.images.length > 0 ? `url(${track.album.images[0].url})` : 'none';
                         
-                        // Vérifier si ce nouveau titre est liké
+                        // APPEL DE LA VÉRIFICATION DU STATUT DU TITRE
                         await checkIfTrackIsLiked(track.id);
                     }
-                    statusText.innerHTML = "Connecté !<br>💡 Utilisez un appareil actif (PC, téléphone) avec de la musique en cours pour interagir.";
                 }
             } catch (error) {
-                console.error("Erreur lecture en cours:", error);
+                console.error("Erreur lecture en cours :", error);
             }
         }
 
-        // --- 2. VÉRIFIER SI LE TITRE EST LIKÉ ---
+        // --- 2. VÉRIFICATION GRÂCE AU GET ---
         async function checkIfTrackIsLiked(trackId) {
+            if (!trackId || !currentToken) return;
             try {
-                // Correction de la syntaxe d'URL et ajout du paramètre d'URI requis par la documentation
+                // SYNTAXE CORRIGÉE : Utilisation de la variable JavaScript `${trackId}` sur l'url 14 dédiée au contains
                 const url = `https://api.spotify.com/v1/me/library/contains?uris=spotify%3Atrack%3A7a3LWj5xSFhFRYmztS8wgK%2Cspotify%3Aalbum%3A4aawyAB9vmqN3uQ7FjRGTy%2Cspotify%3Aartist%3A2takcwOaAZWiXQijPHIx7B?uris=spotify:track:${trackId}`;
+                
                 const response = await fetch(url, {
+                    method: 'GET', // Utilisation de la méthode GET demandée
                     headers: { 'Authorization': `Bearer ${currentToken}` }
                 });
+                
                 const [isLiked] = await response.json();
                 isCurrentTrackLiked = isLiked;
                 updateLikeButtonUI();
             } catch (error) {
-                console.error("Erreur vérification bibliothèque:", error);
+                console.error("Erreur vérification bibliothèque (GET) :", error);
             }
         }
 
-        // --- 3. MISE À JOUR VISUELLE ---
+        // --- 3. METTRE À JOUR LE VISUEL DU CŒUR ---
         function updateLikeButtonUI() {
-            likeButton.textContent = isCurrentTrackLiked ? "❤️" : "🖤";
+            if (isCurrentTrackLiked) {
+                likeButton.textContent = "❤️"; // Liké
+                statusText.style.color = "#1DB954";
+                statusText.textContent = "Ce titre est dans vos Titres Likés.";
+            } else {
+                likeButton.textContent = "🖤"; // Pas liké
+                statusText.style.color = "#aaaaaa";
+                statusText.textContent = "Ce titre n'est pas dans vos Titres Likés.";
+            }
         }
 
-        // --- 4. ACTION LIKER / DISLIKER ---
+        // --- 4. ACTION CLIC : ENREGISTRER (PUT) OU SUPPRIMER (DELETE) ---
         async function toggleLikeTrack() {
             if (!currentTrackId || !currentToken) return;
 
             const methodType = isCurrentTrackLiked ? 'DELETE' : 'PUT';
             const url = 'https://api.spotify.com/v1/me/library?uris=spotify%3Atrack%3A7a3LWj5xSFhFRYmztS8wgK%2Cspotify%3Aalbum%3A4aawyAB9vmqN3uQ7FjRGTy';
 
-            // Payload avec le tableau d'uris demandé par les nouveaux endpoints
             const bodyData = {
                 uris: [`spotify:track:${currentTrackId}`]
             };
@@ -224,15 +235,15 @@
                 });
 
                 if (response.ok) {
+                    // Inversion de l'état local et rafraîchissement visuel après modification réussie
                     isCurrentTrackLiked = !isCurrentTrackLiked;
                     updateLikeButtonUI();
-                    statusText.textContent = isCurrentTrackLiked ? "Titre ajouté aux favoris !" : "Titre retiré des favoris !";
                 } else if (response.status === 401 || response.status === 403) {
-                    statusText.textContent = "Session expirée ou droits invalides. Reconnexion...";
+                    statusText.textContent = "Session expirée. Reconnexion automatique...";
                     setTimeout(redirectToSpotify, 1500);
                 }
             } catch (error) {
-                console.error("Erreur action bibliothèque:", error);
+                console.error("Erreur modification bibliothèque :", error);
             }
         }
 
@@ -248,7 +259,7 @@
                 redirectToSpotify();
             } else {
                 window.history.pushState({}, document.title, window.location.pathname);
-                statusText.textContent = "Vérification des droits...";
+                statusText.textContent = "Vérification des droits d'accès...";
                 
                 const token = await getAccessToken(code);
                 if (token) {
@@ -256,10 +267,10 @@
                     playerBox.style.display = 'block';
                     
                     await checkCurrentPlayback();
-                    // Rafraîchissement automatique toutes les 3 secondes
+                    // Suivi automatique toutes les 3 secondes
                     setInterval(checkCurrentPlayback, 3000);
                 } else {
-                    statusText.textContent = "Échec d'accès. Relancement...";
+                    statusText.textContent = "Échec d'authentification. Relancement...";
                     setTimeout(redirectToSpotify, 2000);
                 }
             }
