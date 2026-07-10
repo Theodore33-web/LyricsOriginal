@@ -309,11 +309,10 @@
             }
         }
 
-        // --- 3. VÉRIFICATION (GET) SUR LA BIBLIOTHÈQUE CONTAINS ---
+        // --- 3. VÉRIFICATION (GET) SUR LA BIBLIOTHÈQUE ---
         async function checkIfTrackIsLiked(trackId) {
             if (!trackId || !currentToken) return;
             try {
-                // CORRECTION : Utilisation de /me/library/contains d'après ton document
                 const url = `https://api.spotify.com/v1/me/library/contains?uris=spotify:track:${trackId}`;
                 const response = await fetch(url, {
                     method: 'GET',
@@ -341,16 +340,13 @@
             }
         }
 
-        // --- 5. ACTION AU CLIC : /me/library (PUT OU DELETE) ---
+        // --- 5. ACTION AU CLIC : AJOUT ET SUPPRESSION DYNAMIQUE ---
         async function toggleLikeTrack() {
             if (!currentTrackId || !currentToken) return;
 
-            // Détermination de la méthode d'action :
-            // Si c'est rouge (true) -> DELETE pour supprimer de /me/library
-            // Si c'est noir (false) -> PUT pour sauvegarder dans /me/library
+            // SI LIKÉ (true / rouge) -> On applique DELETE pour le supprimer des favoris
+            // SI NON LIKÉ (false / noir) -> On applique PUT pour l'ajouter aux favoris
             const methodType = isCurrentTrackLiked ? 'DELETE' : 'PUT';
-            
-            // CORRECTION : L'URL cible est bien l'endpoint unifié /me/library
             const url = 'https://api.spotify.com/v1/me/library';
 
             const bodyData = {
@@ -368,49 +364,10 @@
                 });
 
                 if (response.ok) {
-                    // Changement de l'état local et mise à jour visuelle (Rouge <-> Noir)
+                    // L'action a fonctionné sur Spotify : On inverse le statut local
                     isCurrentTrackLiked = !isCurrentTrackLiked;
+                    
+                    // On bascule l'affichage du bouton (Rouge ⇄ Noir)
                     updateLikeButtonUI();
                     
-                    // Rafraîchissement automatique de la liste latérale droite
-                    await fetchAndDisplaySavedTracks();
-                } else if (response.status === 401 || response.status === 403) {
-                    statusText.textContent = "Session expirée. Reconnexion...";
-                    setTimeout(redirectToSpotify, 1500);
-                }
-            } catch (error) {
-                console.error("Erreur modification bibliothèque :", error);
-            }
-        }
-
-        // --- ATTACHEMENTS ET CYCLE DE LANCEMENT ---
-        likeButton.addEventListener('click', toggleLikeTrack);
-
-        window.addEventListener('DOMContentLoaded', async () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            const code = urlParams.get('code');
-
-            if (!code) {
-                statusText.textContent = "Redirection vers Spotify...";
-                redirectToSpotify();
-            } else {
-                window.history.pushState({}, document.title, window.location.pathname);
-                statusText.textContent = "Analyse des droits...";
-                
-                const token = await getAccessToken(code);
-                if (token) {
-                    currentToken = token; 
-                    playerBox.style.display = 'flex';
-                    
-                    await fetchAndDisplaySavedTracks();
-                    await checkCurrentPlayback();
-                    setInterval(checkCurrentPlayback, 3000);
-                } else {
-                    statusText.textContent = "Échec d'authentification. Relancement...";
-                    setTimeout(redirectToSpotify, 2000);
-                }
-            }
-        });
-    </script>
-</body>
-</html>
+                    // On rafraîchit immédiatement la liste de droite pour faire apparaître/disparaitre le titre
