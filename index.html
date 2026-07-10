@@ -72,7 +72,7 @@
         const clientId = '91d4165085fd4ed3bd281f16667d64bc';
         const redirectUri = 'https://theodore33-web.github.io/LyricsOriginal/';
         
-        // Autorisations requises pour voir l'écoute en cours, lire et modifier votre bibliothèque (Titres Likés)
+        // Les scopes nécessaires pour lire la lecture et modifier la bibliothèque
         const scope = 'user-read-currently-playing user-library-read user-library-modify';
 
         let currentToken = null; 
@@ -104,7 +104,7 @@
             return base64String.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
         }
 
-        // --- AUTHENTIFICATION AUTOMATIQUE RECONNEXION ---
+        // --- AUTHENTIFICATION AUTOMATIQUE ---
         async function redirectToSpotify() {
             localStorage.removeItem("verifier");
             const verifier = generateCodeVerifier(128);
@@ -147,11 +147,10 @@
             }
         }
 
-        // --- ETAPE 1 : RÉCUPÉRATION DE LA MUSIQUE EN COURS ---
+        // --- 1. MUSIQUE EN COURS ---
         async function checkCurrentPlayback() {
             if (!currentToken) return;
             try {
-                // Endpoint pour obtenir l'élément actuellement écouté
                 const response = await fetch('https://api.spotify.com/v1/me/player/currently-playing', {
                     headers: { 'Authorization': `Bearer ${currentToken}` }
                 });
@@ -165,28 +164,27 @@
                 if (data && data.item) {
                     const track = data.item;
                     
-                    // Si la chanson change, on rafraîchit l'interface graphique
                     if (currentTrackId !== track.id) {
                         currentTrackId = track.id;
                         trackName.textContent = track.name;
                         trackAuthor.textContent = track.artists.map(a => a.name).join(', ');
                         trackImg.style.backgroundImage = track.album.images.length > 0 ? `url(${track.album.images[0].url})` : 'none';
                         
-                        // Déclenche immédiatement la vérification de présence dans les favoris
+                        // Vérifier si ce nouveau titre est liké
                         await checkIfTrackIsLiked(track.id);
                     }
-                    statusText.innerHTML = "Synchronisation active avec votre lecteur Spotify.";
+                    statusText.innerHTML = "Connecté !<br>💡 Utilisez un appareil actif (PC, téléphone) avec de la musique en cours pour interagir.";
                 }
             } catch (error) {
                 console.error("Erreur lecture en cours:", error);
             }
         }
 
-        // --- ETAPE 2 : VÉRIFIER SI LE TITRE EN COURS EST LIKÉ ---
+        // --- 2. VÉRIFIER SI LE TITRE EST LIKÉ ---
         async function checkIfTrackIsLiked(trackId) {
             try {
-                // Utilisation de la nouvelle adresse de votre document pour GET /me/library/contains
-                const url = `https://api.spotify.com/v1/me/library/contains?uris=spotify%3Atrack%3A7a3LWj5xSFhFRYmztS8wgK%2Cspotify%3Aalbum%3A4aawyAB9vmqN3uQ7FjRGTy%2Cspotify%3Aartist%3A2takcwOaAZWiXQijPHIx7B?ids=${trackId}`;
+                // Correction de la syntaxe d'URL et ajout du paramètre d'URI requis par la documentation
+                const url = `https://api.spotify.com/v1/me/library/contains?uris=spotify%3Atrack%3A7a3LWj5xSFhFRYmztS8wgK%2Cspotify%3Aalbum%3A4aawyAB9vmqN3uQ7FjRGTy%2Cspotify%3Aartist%3A2takcwOaAZWiXQijPHIx7B?uris=spotify:track:${trackId}`;
                 const response = await fetch(url, {
                     headers: { 'Authorization': `Bearer ${currentToken}` }
                 });
@@ -198,26 +196,19 @@
             }
         }
 
-        // --- MISE A JOUR DU COEURS INTERFACTIF ---
+        // --- 3. MISE À JOUR VISUELLE ---
         function updateLikeButtonUI() {
-            if (isCurrentTrackLiked) {
-                likeButton.textContent = "❤️"; // Titre liké
-            } else {
-                likeButton.textContent = "🖤"; // Titre non liké
-            }
+            likeButton.textContent = isCurrentTrackLiked ? "❤️" : "🖤";
         }
 
-        // --- ETAPE 3 : AJOUTER (PUT) OU RETIRER (DELETE) DES FAVORIS ---
+        // --- 4. ACTION LIKER / DISLIKER ---
         async function toggleLikeTrack() {
             if (!currentTrackId || !currentToken) return;
 
-            // Détermination de la méthode (PUT pour ajouter, DELETE pour retirer) d'après votre doc
             const methodType = isCurrentTrackLiked ? 'DELETE' : 'PUT';
-            
-            // Nouvelle adresse commune d'après votre document : /me/library
             const url = 'https://api.spotify.com/v1/me/library?uris=spotify%3Atrack%3A7a3LWj5xSFhFRYmztS8wgK%2Cspotify%3Aalbum%3A4aawyAB9vmqN3uQ7FjRGTy';
 
-            // D'après votre document, l'API attend un objet JSON contenant un tableau d'uris Spotify complets
+            // Payload avec le tableau d'uris demandé par les nouveaux endpoints
             const bodyData = {
                 uris: [`spotify:track:${currentTrackId}`]
             };
@@ -235,9 +226,9 @@
                 if (response.ok) {
                     isCurrentTrackLiked = !isCurrentTrackLiked;
                     updateLikeButtonUI();
-                    statusText.textContent = isCurrentTrackLiked ? "Titre ajouté à vos favoris !" : "Titre retiré de vos favoris !";
+                    statusText.textContent = isCurrentTrackLiked ? "Titre ajouté aux favoris !" : "Titre retiré des favoris !";
                 } else if (response.status === 401 || response.status === 403) {
-                    statusText.textContent = "Session expirée. Reconnexion en cours...";
+                    statusText.textContent = "Session expirée ou droits invalides. Reconnexion...";
                     setTimeout(redirectToSpotify, 1500);
                 }
             } catch (error) {
@@ -245,7 +236,7 @@
             }
         }
 
-        // --- INITIALISATION ---
+        // --- CYCLES DE CHARGEMENT ---
         likeButton.addEventListener('click', toggleLikeTrack);
 
         window.addEventListener('DOMContentLoaded', async () => {
@@ -264,10 +255,8 @@
                     currentToken = token; 
                     playerBox.style.display = 'block';
                     
-                    // Lancement direct du suivi de lecture
                     await checkCurrentPlayback();
-                    
-                    // Analyse automatique toutes les 3 secondes pour mettre à jour la pochette et le statut du cœur si la musique change
+                    // Rafraîchissement automatique toutes les 3 secondes
                     setInterval(checkCurrentPlayback, 3000);
                 } else {
                     statusText.textContent = "Échec d'accès. Relancement...";
