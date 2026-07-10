@@ -309,10 +309,11 @@
             }
         }
 
-        // --- 3. VÉRIFICATION (GET) SUR LA BIBLIOTHÈQUE ---
+        // --- 3. VÉRIFICATION (GET) SUR LA BIBLIOTHÈQUE CONTAINS ---
         async function checkIfTrackIsLiked(trackId) {
             if (!trackId || !currentToken) return;
             try {
+                // CORRECTION : Utilisation de /me/library/contains d'après ton document
                 const url = `https://api.spotify.com/v1/me/library/contains?uris=spotify:track:${trackId}`;
                 const response = await fetch(url, {
                     method: 'GET',
@@ -340,14 +341,16 @@
             }
         }
 
-        // --- 5. ACTION AU CLIC : PUT (AJOUTER) OU DELETE (SUPPRIMER) ---
+        // --- 5. ACTION AU CLIC : /me/library (PUT OU DELETE) ---
         async function toggleLikeTrack() {
             if (!currentTrackId || !currentToken) return;
 
-            // Détermine la bonne méthode selon l'état actuel :
-            // Si c'est déjà Liké (true/rouge) -> Clic applique DELETE (passe au noir)
-            // Si ce n'est pas Liké (false/noir) -> Clic applique PUT (passe au rouge)
+            // Détermination de la méthode d'action :
+            // Si c'est rouge (true) -> DELETE pour supprimer de /me/library
+            // Si c'est noir (false) -> PUT pour sauvegarder dans /me/library
             const methodType = isCurrentTrackLiked ? 'DELETE' : 'PUT';
+            
+            // CORRECTION : L'URL cible est bien l'endpoint unifié /me/library
             const url = 'https://api.spotify.com/v1/me/library';
 
             const bodyData = {
@@ -365,11 +368,11 @@
                 });
 
                 if (response.ok) {
-                    // Inverse l'état local après le succès de l'appel API
+                    // Changement de l'état local et mise à jour visuelle (Rouge <-> Noir)
                     isCurrentTrackLiked = !isCurrentTrackLiked;
                     updateLikeButtonUI();
                     
-                    // Rafraîchit automatiquement le panneau des favoris à droite
+                    // Rafraîchissement automatique de la liste latérale droite
                     await fetchAndDisplaySavedTracks();
                 } else if (response.status === 401 || response.status === 403) {
                     statusText.textContent = "Session expirée. Reconnexion...";
