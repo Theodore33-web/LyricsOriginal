@@ -793,11 +793,44 @@ function toggleVolumeControl() {
 }
 
 // Fonction principale du volume liée à ton slider range
+// Fonction pour afficher/masquer la réglette du volume
+function toggleVolumeControl() {
+    document.getElementById('profile-card-zone').style.display = 'none';
+    document.getElementById('device-control-zone').style.display = 'none';
+    document.getElementById('search-results').innerHTML = "";
+
+    const volumeZone = document.getElementById('volume-control-zone');
+    if (volumeZone.style.display === 'none' || volumeZone.style.display === '') {
+        volumeZone.style.display = 'flex';
+    } else {
+        volumeZone.style.display = 'none';
+    }
+}
+
+// Met à jour l'icône selon le niveau (dégradé 3 états)
+function updateVolumeIcon(value) {
+    const icon = document.getElementById('volume-icon');
+    if (!icon) return;
+
+    if (value == 0) {
+        icon.innerText = "🔇";
+    } else if (value < 50) {
+        icon.innerText = "🔉";
+    } else {
+        icon.innerText = "🔊";
+    }
+}
+
+// Fonction principale du volume liée à ton slider range
 async function changeVolume(value) {
     const percentLabel = document.getElementById('volume-percent');
     if (percentLabel) percentLabel.innerText = value + '%';
-    
-    if (!currentToken) return;
+    updateVolumeIcon(value);
+
+    if (!currentToken) {
+        console.error("Aucun jeton de connexion (currentToken) trouvé.");
+        return;
+    }
 
     try {
         const response = await fetch(`https://api.spotify.com/v1/me/player/volume?volume_percent=${value}`, {
@@ -813,32 +846,6 @@ async function changeVolume(value) {
             console.warn("⚠️ Statut 404 : Aucun appareil actif trouvé pour modifier le volume.");
         } else if (response.ok) {
             console.log(`✅ Volume réglé sur ${value}%`);
-        }
-    } catch (error) {
-        console.error("Erreur lors du changement de volume :", error);
-    }
-}
-// Fonction pour modifier le volume (et mettre à jour le texte du pourcentage)
-async function changeVolume(value) {
-    document.getElementById('volume-percent').innerText = value + '%';
-    
-    // 🔍 On vérifie si currentToken existe bien avant de lancer la requête
-    if (!currentToken) {
-        console.error("Aucun jeton de connexion (currentToken) trouvé.");
-        return;
-    }
-
-    try {
-        const response = await fetch(`https://api.spotify.com/v1/me/player/volume?volume_percent=${value}`, {
-            method: 'PUT',
-            headers: {
-                'Authorization': 'Bearer ' + currentToken, // ✅ Utilisation du bon token
-                'Content-Type': 'application/json'
-            }
-        });
-
-        if (response.ok) {
-            console.log("✅ Volume modifié avec succès à :", value);
         } else {
             console.error("❌ Erreur API Spotify (Statut):", response.status);
         }
