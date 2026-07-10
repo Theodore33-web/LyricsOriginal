@@ -126,7 +126,7 @@
         
         .controls button { 
             background: none; border: none; color: white; 
-            font-size: 24px; cursor: pointer; margin: 0 8px; 
+            font-size: 30px; cursor: pointer; margin: 0 10px; 
         }
         .controls button:hover { color: var(--spotify-green); }
         
@@ -187,8 +187,8 @@
             color: white;
             border: none;
             border-radius: 50%;
-            width: 34px;  
-            height: 34px; 
+            width: 30px;  
+            height: 30px; 
             cursor: pointer;
             font-size: 0.85rem; 
             display: flex;
