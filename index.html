@@ -69,7 +69,7 @@
     <script>
         const clientId = '91d4165085fd4ed3bd281f16667d64bc';
         const redirectUri = 'https://theodore33-web.github.io/LyricsOriginal/';
-        // Le scope 'user-modify-playback-state' est indispensable pour modifier le volume
+        // Le scope requis d'après votre documentation pour modifier le volume
         const scope = 'user-modify-playback-state';
 
         let currentToken = null; 
@@ -97,7 +97,7 @@
             return base64String.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
         }
 
-        // --- APpELS D'AUTHENTIFICATION ---
+        // --- AUTHENTIFICATION ---
         async function redirectToSpotify() {
             const verifier = generateCodeVerifier(128);
             localStorage.setItem("verifier", verifier);
@@ -139,32 +139,33 @@
             }
         }
 
-        // --- ACTION DU VOLUME CORRIGÉE ---
+        // --- APPEL API VOLUME CORRIGÉ ---
         async function setSpotifyVolume(volumePercent, token) {
             try {
-                // Utilisation de la vraie syntaxe JavaScript `${volumePercent}` et de l'endpoint PUT valide
-                await fetch(`https://accounts.spotify.com/authorize?client_id=$7${volumePercent}`, {
-                    method: 'PUT', 
+                // CORRECTION : Utilisation de l'endpoint exact avec le paramètre de requête (Query Parameter) ?volume_percent=
+                const url = `https://api.spotify.com/v1/me/player/volume?volume_percent=50?volume_percent=${volumePercent}`;
+                
+                await fetch(url, {
+                    method: 'PUT', // Méthode PUT requise par la documentation
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 statusText.textContent = `Volume ajusté à ${volumePercent}%`;
             } catch (error) {
-                console.error("Erreur lors de l'ajustement du volume:", error);
-                statusText.textContent = "Erreur de communication avec l'appareil.";
+                console.error("Erreur volume:", error);
+                statusText.textContent = "Erreur lors du changement de volume.";
             }
         }
 
-        // --- INITIALISATION ---
+        // --- INITIALISATION AU CHARGEMENT ---
         loginBtn.addEventListener('click', redirectToSpotify);
 
-        // Détecte le changement de la barre de volume
+        // Détecte les mouvements du curseur de volume
         volumeSlider.addEventListener('change', (e) => {
             if (currentToken) {
                 setSpotifyVolume(e.target.value, currentToken);
             }
         });
 
-        // Gestion du retour d'authentification au chargement de la page
         window.addEventListener('DOMContentLoaded', async () => {
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
@@ -177,7 +178,7 @@
                 if (token) {
                     currentToken = token; 
                     statusText.textContent = "Connecté à Spotify !";
-                    // Fait apparaître uniquement le module de volume
+                    // Affichage de la boîte de volume
                     volumeBox.style.display = 'flex';
                 }
             }
