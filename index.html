@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LyricsOriginal - Test Volume Logs</title>
+    <title>LyricsOriginal - Volume Uniquement</title>
     <style>
         body {
             font-family: 'Segoe UI', Arial, sans-serif;
@@ -55,7 +55,7 @@
 </head>
 <body>
 
-    <h1>LyricsOriginal (Mode Test)</h1>
+    <h1>LyricsOriginal</h1>
     
     <button id="login-btn">Se connecter à Spotify</button>
     
@@ -113,12 +113,10 @@
                 code_challenge: challenge
             };
             authUrl.search = new URLSearchParams(args).toString();
-            console.log("URL de redirection générée :", authUrl.toString());
             window.location.href = authUrl.toString();
         }
 
         async function getAccessToken(code) {
-            console.log("Échange du code d'autorisation contre un Token d'accès...");
             const codeVerifier = localStorage.getItem('verifier');
             const payload = {
                 method: 'POST',
@@ -134,19 +132,17 @@
             try {
                 const response = await fetch('https://accounts.spotify.com/api/token', payload);
                 const data = await response.json();
-                console.log("Réponse de Spotify Token :", data);
                 return data.access_token;
             } catch (error) {
-                console.error("Erreur critique lors de la récupération du token :", error);
-                statusText.textContent = "Erreur de récupération du token.";
+                console.error("Erreur de récupération du token :", error);
+                statusText.textContent = "Erreur d'authentification.";
             }
         }
 
-        // --- FONCTION DE VOLUME AVEC VÉRIFICATION DE STATUT NETWORK ---
+        // --- FONCTION DE VOLUME ---
         async function setSpotifyVolume(volumePercent, token) {
             const url = `https://api.spotify.com/v1/me/player/volume?volume_percent=${volumePercent}`;
-            console.log(`[VOLUME] Tentative d'envoi à Spotify : ${volumePercent}%...`);
-            console.log(`[VOLUME] URL ciblée : ${url}`);
+            console.log(`[VOLUME] Modification demandée : ${volumePercent}%`);
 
             try {
                 const response = await fetch(url, {
@@ -154,60 +150,42 @@
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 
-                console.log(`[VOLUME] Code de réponse HTTP reçu : ${response.status} (${response.statusText})`);
-if (response.status === 204) {
-    console.log("🎉 Succès ! Le volume a été mis à jour.");
-    statusText.style.color = "#1DB954";
-    statusText.textContent = `Succès : Volume calé à ${volumePercent}%`;
-} 
-else if (response.status === 403) {
-    console.warn("⚠️ Erreur 403 : Restriction d'accès ou scope manquant.");
-    statusText.style.color = "#ff4444";
-    statusText.textContent = "Erreur 403 : Compte Premium requis ou autorisation expirée. Reconnexion...";
-    
-    // NETTOYAGE DU CACHE & RECONNEXION AUTOMATIQUE FORCEE
-    setTimeout(() => {
-        localStorage.removeItem("verifier"); // Efface l'ancien code verifier PKCE
-        redirectToSpotify(); // Renvoie l'utilisateur vers la page de connexion Spotify
-    }, 2000); // Laisse 2 secondes à l'utilisateur pour lire le message avant de rediriger
-}
+                if (response.status === 204) {
+                    statusText.style.color = "#1DB954";
+                    statusText.textContent = `Volume ajusté à ${volumePercent}% !`;
                 } 
                 else if (response.status === 404) {
-                    console.warn("⚠️ Erreur 404 : Aucun appareil actif détecté par l'API.");
                     statusText.style.color = "#ff4444";
-                    statusText.textContent = "⚠️ Erreur (404) : Lance de la musique sur ton application Spotify d'abord !";
+                    statusText.textContent = "⚠️ Aucun appareil actif. Lance une musique sur ton application Spotify !";
                 } 
                 else if (response.status === 403) {
-                    console.warn("⚠️ Erreur 403 : Problème de droits ou restriction de lecture.");
                     statusText.style.color = "#ff4444";
-                    statusText.textContent = "Erreur (403) : Commande refusée (Vérifie ton compte Premium/Actif).";
+                    statusText.textContent = "Erreur 403 : Autorisation manquante ou expirée. Reconnexion forcée...";
+                    
+                    // Nettoyage et Reconnexion Automatique pour corriger les scopes
+                    setTimeout(() => {
+                        localStorage.removeItem("verifier");
+                        redirectToSpotify();
+                    }, 2000);
                 } 
                 else if (response.status === 401) {
-                    console.warn("⚠️ Erreur 401 : Session expirée.");
                     statusText.style.color = "#ff4444";
-                    statusText.textContent = "Erreur (401) : Session expirée. Reconnecte-toi.";
-                }
-                else {
-                    const errorData = await response.json().catch(() => ({}));
-                    console.error("[VOLUME] Erreur API Spotify inconnue :", errorData);
+                    statusText.textContent = "Erreur 401 : Session expirée. Reconnectez-vous.";
                 }
 
             } catch (error) {
-                console.error("[VOLUME] Erreur de connexion réseau (Fetch a échoué) :", error);
+                console.error("Erreur réseau :", error);
                 statusText.style.color = "#ff4444";
-                statusText.textContent = "Erreur réseau de communication.";
+                statusText.textContent = "Erreur de communication réseau.";
             }
         }
 
-        // --- INITIALISATION ---
+        // --- ENREGISTREMENT DES ÉVÉNEMENTS ---
         loginBtn.addEventListener('click', redirectToSpotify);
 
-        // Déclencheur immédiat pendant que tu glisses ou relâches
         volumeSlider.addEventListener('change', (e) => {
             if (currentToken) {
                 setSpotifyVolume(e.target.value, currentToken);
-            } else {
-                console.error("Impossible de changer le volume : Tu n'as pas de Token valide !");
             }
         });
 
@@ -216,14 +194,12 @@ else if (response.status === 403) {
             const code = urlParams.get('code');
 
             if (code) {
-                console.log("Code d'authentification trouvé dans l'URL !");
                 loginBtn.style.display = 'none';
                 window.history.pushState({}, document.title, window.location.pathname);
                 
                 const token = await getAccessToken(code);
                 if (token) {
                     currentToken = token; 
-                    console.log("Connexion réussie. Token actif prêt.");
                     statusText.textContent = "Connecté ! Lance une musique sur Spotify puis bouge le curseur.";
                     volumeBox.style.display = 'flex';
                 }
