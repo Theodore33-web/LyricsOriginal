@@ -953,8 +953,7 @@ async function checkIfTrackIsLiked(trackId) {
     if (!currentToken || !trackId) return;
 
     try {
-        // Utilisation du format standard ?ids=
-        const response = await fetch(`https://api.spotify.com/v1/me/tracks/contains?ids=$?ids=${trackId}`, {
+        const response = await fetch(`https://api.spotify.com/v1/me/tracks/contains?ids=${trackId}`, {
             headers: { 'Authorization': 'Bearer ' + currentToken }
         });
         
@@ -981,14 +980,13 @@ async function toggleLikeCurrentTrack() {
     const method = isCurrentlyLiked ? 'DELETE' : 'PUT';
 
     try {
-        // Ajout du paramètre ids dans l'URL requis par l'API Spotify
-        const response = await fetch(`https://api.spotify.com/v1/me/tracks?ids=$?ids=${lastTrackId}`, {
+        const response = await fetch(`https://api.spotify.com/v1/me/tracks?ids=${lastTrackId}`, {
             method: method,
             headers: { 
                 'Authorization': 'Bearer ' + currentToken,
                 'Content-Type': 'application/json'
             },
-            body: method === 'PUT' ? JSON.stringify({}) : null // Corps vide requis pour le PUT
+            body: method === 'PUT' ? JSON.stringify({}) : null
         });
 
         if (response.ok || response.status === 200 || response.status === 201) {
@@ -1006,6 +1004,4 @@ async function toggleLikeCurrentTrack() {
         console.error("Erreur lors du changement d'état du favori :", e);
     }
 }
-
-
 
