@@ -155,11 +155,22 @@
                 });
 
                 console.log(`[VOLUME] Code de réponse HTTP reçu : ${response.status} (${response.statusText})`);
-
-                if (response.status === 204) {
-                    console.log("🎉 Succès ! Le volume a bien été mis à jour sur Spotify.");
-                    statusText.style.color = "#1DB954";
-                    statusText.textContent = `Succès : Volume calé à ${volumePercent}% !`;
+if (response.status === 204) {
+    console.log("🎉 Succès ! Le volume a été mis à jour.");
+    statusText.style.color = "#1DB954";
+    statusText.textContent = `Succès : Volume calé à ${volumePercent}%`;
+} 
+else if (response.status === 403) {
+    console.warn("⚠️ Erreur 403 : Restriction d'accès ou scope manquant.");
+    statusText.style.color = "#ff4444";
+    statusText.textContent = "Erreur 403 : Compte Premium requis ou autorisation expirée. Reconnexion...";
+    
+    // NETTOYAGE DU CACHE & RECONNEXION AUTOMATIQUE FORCEE
+    setTimeout(() => {
+        localStorage.removeItem("verifier"); // Efface l'ancien code verifier PKCE
+        redirectToSpotify(); // Renvoie l'utilisateur vers la page de connexion Spotify
+    }, 2000); // Laisse 2 secondes à l'utilisateur pour lire le message avant de rediriger
+}
                 } 
                 else if (response.status === 404) {
                     console.warn("⚠️ Erreur 404 : Aucun appareil actif détecté par l'API.");
