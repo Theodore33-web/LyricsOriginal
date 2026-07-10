@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.0.96";
+const APP_VERSION = "v1.0.98";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -826,6 +826,7 @@ async function changeVolume(value) {
     const percentLabel = document.getElementById('volume-percent');
     if (percentLabel) percentLabel.innerText = value + '%';
     updateVolumeIcon(value);
+    updateVolumeTrack(value);
 
     if (!currentToken) {
         console.error("Aucun jeton de connexion (currentToken) trouvé.");
@@ -853,7 +854,11 @@ async function changeVolume(value) {
         console.error("🚨 Erreur réseau ou JS :", error);
     }
 }
-
+function updateVolumeTrack(value) {
+    const slider = document.getElementById('volume-slider');
+    if (!slider) return;
+    slider.style.background = `linear-gradient(to right, #1DB954 0%, #1DB954 ${value}%, #4d4d4d ${value}%, #4d4d4d 100%)`;
+}
 // 1. Liaison avec l'ID du bouton (comme demandé pour le profil)
 const deviceBtn = document.getElementById('device-toggle-btn');
 
@@ -1013,3 +1018,4 @@ async function toggleLikeCurrentTrack() {
         console.error("Erreur modification bibliothèque :", error);
     }
 }
+
