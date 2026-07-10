@@ -142,8 +142,9 @@
         // --- APPEL API VOLUME CORRIGÉ ---
         async function setSpotifyVolume(volumePercent, token) {
             try {
-                // CORRECTION : Utilisation de l'endpoint exact avec le paramètre de requête (Query Parameter) ?volume_percent=
-                const url = `const url = `https://api.spotify.com/v1/me/player/volume?volume_percent=${volumePercent}`;`;
+                // SYNTAXE CORRIGÉE : Utilisation de la vraie variable JavaScript `${volumePercent}`
+                // et application du paramètre d'URL (Query Parameter) d'après votre documentation
+                const url = `https://api.spotify.com/v1/me/player/volume?volume_percent=${volumePercent}`;
                 
                 await fetch(url, {
                     method: 'PUT', // Méthode PUT requise par la documentation
@@ -173,16 +174,3 @@
             if (code) {
                 loginBtn.style.display = 'none';
                 window.history.pushState({}, document.title, window.location.pathname);
-                
-                const token = await getAccessToken(code);
-                if (token) {
-                    currentToken = token; 
-                    statusText.textContent = "Connecté à Spotify !";
-                    // Affichage de la boîte de volume
-                    volumeBox.style.display = 'flex';
-                }
-            }
-        });
-    </script>
-</body>
-</html>
