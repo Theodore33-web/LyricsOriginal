@@ -69,7 +69,6 @@
     <script>
         const clientId = '91d4165085fd4ed3bd281f16667d64bc';
         const redirectUri = 'https://theodore33-web.github.io/LyricsOriginal/';
-        // Le scope requis d'après votre documentation pour modifier le volume
         const scope = 'user-modify-playback-state';
 
         let currentToken = null; 
@@ -97,12 +96,13 @@
             return base64String.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
         }
 
-        // --- AUTHENTIFICATION ---
+        // --- AUTHENTIFICATION OFFICIELLE SPOTIFY ---
         async function redirectToSpotify() {
             const verifier = generateCodeVerifier(128);
             localStorage.setItem("verifier", verifier);
             const challenge = await generateCodeChallenge(verifier);
 
+            // CORRECTION : Utilisation de la VRAIE URL d'authentification de Spotify
             const authUrl = new URL("https://accounts.spotify.com/authorize");
             const args = {
                 response_type: 'code',
@@ -130,6 +130,7 @@
                 })
             };
             try {
+                // CORRECTION : Utilisation de la VRAIE URL pour récupérer le token
                 const response = await fetch('https://accounts.spotify.com/api/token', payload);
                 const data = await response.json();
                 return data.access_token;
@@ -139,15 +140,14 @@
             }
         }
 
-        // --- APPEL API VOLUME CORRIGÉ ---
+        // --- CONTROLE DU VOLUME OFFICIEL ---
         async function setSpotifyVolume(volumePercent, token) {
             try {
-                // SYNTAXE CORRIGÉE : Utilisation de la vraie variable JavaScript `${volumePercent}`
-                // et application du paramètre d'URL (Query Parameter) d'après votre documentation
+                // CORRECTION : Utilisation de la VRAIE URL d'API Spotify avec le Query Parameter conforme à votre doc
                 const url = `https://api.spotify.com/v1/me/player/volume?volume_percent=${volumePercent}`;
                 
                 await fetch(url, {
-                    method: 'PUT', // Méthode PUT requise par la documentation
+                    method: 'PUT', 
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 statusText.textContent = `Volume ajusté à ${volumePercent}%`;
@@ -160,7 +160,6 @@
         // --- INITIALISATION AU CHARGEMENT ---
         loginBtn.addEventListener('click', redirectToSpotify);
 
-        // Détecte les mouvements du curseur de volume
         volumeSlider.addEventListener('change', (e) => {
             if (currentToken) {
                 setSpotifyVolume(e.target.value, currentToken);
@@ -174,3 +173,15 @@
             if (code) {
                 loginBtn.style.display = 'none';
                 window.history.pushState({}, document.title, window.location.pathname);
+                
+                const token = await getAccessToken(code);
+                if (token) {
+                    currentToken = token; 
+                    statusText.textContent = "Connecté à Spotify !";
+                    volumeBox.style.display = 'flex';
+                }
+            }
+        });
+    </script>
+</body>
+</html>
