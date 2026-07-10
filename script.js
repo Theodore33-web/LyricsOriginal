@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.0.35";
+const APP_VERSION = "v1.0.96";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -956,59 +956,60 @@ async function switchDevice(deviceId) {
     }
 }
 // 1. FONCTION POUR VÉRIFIER SI LE MORCEAU EST DÉJÀ LIKÉ
+// --- VÉRIFICATION (GET) SUR LA BIBLIOTHÈQUE ---
 async function checkIfTrackIsLiked(trackId) {
-    if (!currentToken || !trackId) return;
+    if (!trackId || !currentToken) return;
 
     try {
-        const response = await fetch(`https://api.spotify.com/v1/me/tracks/contains?ids=${trackId}`, {
-            headers: { 'Authorization': 'Bearer ' + currentToken }
+        const url = `https://api.spotify.com/v1/me/library/contains?uris=spotify:track:${trackId}`;
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${currentToken}` }
         });
-        
-        if (response.ok) {
-            const isLikedArray = await response.json();
-            const isLiked = isLikedArray[0]; // L'API renvoie un tableau [true] ou [false]
-            const likeBtn = document.getElementById('like-btn');
-            if (likeBtn) {
-                likeBtn.innerText = isLiked ? "❤️" : "🤍";
-                likeBtn.setAttribute('data-liked', isLiked);
-            }
+
+        const [isLiked] = await response.json();
+
+        const likeBtn = document.getElementById('like-btn');
+        if (likeBtn) {
+            likeBtn.innerText = isLiked ? "❤️" : "🤍";
+            likeBtn.setAttribute('data-liked', isLiked);
         }
-    } catch (e) {
-        console.error("Erreur lors de la vérification du favori :", e);
+    } catch (error) {
+        console.error("Erreur de détection :", error);
     }
 }
 
-// 2. FONCTION POUR AJOUTER OU SUPPRIMER DES FAVORIS AU CLIC
+// --- ACTION AU CLIC : PUT (ENREGISTRER) OU DELETE (SUPPRIMER) ---
 async function toggleLikeCurrentTrack() {
     if (!currentToken || !lastTrackId) return;
 
     const likeBtn = document.getElementById('like-btn');
     const isCurrentlyLiked = likeBtn.getAttribute('data-liked') === 'true';
-    const method = isCurrentlyLiked ? 'DELETE' : 'PUT';
+    const methodType = isCurrentlyLiked ? 'DELETE' : 'PUT';
+
+    const trackUri = encodeURIComponent(`spotify:track:${lastTrackId}`);
+    const url = `https://api.spotify.com/v1/me/library?uris=${trackUri}`;
 
     try {
-        const response = await fetch(`https://api.spotify.com/v1/me/tracks?ids=${lastTrackId}`, {
-            method: method,
-            headers: { 
-                'Authorization': 'Bearer ' + currentToken,
-                'Content-Type': 'application/json'
-            },
-            body: method === 'PUT' ? JSON.stringify({}) : null
+        const response = await fetch(url, {
+            method: methodType,
+            headers: { 'Authorization': `Bearer ${currentToken}` }
         });
 
-        if (response.ok || response.status === 200 || response.status === 201) {
+        if (response.ok) {
             const newLikedState = !isCurrentlyLiked;
             likeBtn.innerText = newLikedState ? "❤️" : "🤍";
             likeBtn.setAttribute('data-liked', newLikedState);
-            
-            if (document.getElementById('search-results').innerHTML.includes("VOS TITRES LIKÉS")) {
+
+            // Rafraîchit la liste des titres likés si elle est affichée
+            const results = document.getElementById('search-results');
+            if (results && results.innerHTML.includes("VOS TITRES LIKÉS")) {
                 getUserLibrary();
             }
-        } else {
-            console.error("Réponse API Spotify incorrecte :", response.status);
+        } else if (response.status === 401 || response.status === 403) {
+            console.warn("Session expirée ou accès refusé.");
         }
-    } catch (e) {
-        console.error("Erreur lors du changement d'état du favori :", e);
+    } catch (error) {
+        console.error("Erreur modification bibliothèque :", error);
     }
 }
-
