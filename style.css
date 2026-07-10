@@ -281,31 +281,31 @@
     border-radius: 2px;
     outline: none;
     margin: 0;
-    /* le fond est maintenant géré dynamiquement en JS via updateVolumeTrack() */
+    background: #4d4d4d; /* Fond gris par défaut avant application du JS */
 }
 
+/* Cache complètement le bouton rond vert pour Chrome, Safari, Edge et les navigateurs mobiles Android/iOS */
 #volume-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    background: var(--spotify-green, #1DB954);
-    margin-top: -5px;
-    cursor: pointer;
+    width: 1px; /* Une taille infime */
+    height: 1px;
+    opacity: 0; /* Totalement invisible */
+    background: transparent !important; /* Force la transparence pour détruire le vert natif */
+    border: none;
+}
+
+/* Cache complètement le bouton rond pour Firefox */
+#volume-slider::-moz-range-thumb {
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    background: transparent !important;
+    border: none;
 }
 
 #volume-slider::-moz-range-track {
     height: 4px;
     border-radius: 2px;
     background: #4d4d4d;
-}
-
-#volume-slider::-moz-range-thumb {
-    width: 14px;
-    height: 14px;
-    border: none;
-    border-radius: 50%;
-    background: var(--spotify-green, #1DB954);
-    cursor: pointer;
 }
