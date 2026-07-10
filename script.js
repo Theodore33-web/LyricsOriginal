@@ -1,8 +1,6 @@
 
 
-
-
-const APP_VERSION = "v1.0.93";
+const APP_VERSION = "v1.0.35";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -795,6 +793,31 @@ function toggleVolumeControl() {
 }
 
 // Fonction principale du volume liée à ton slider range
+async function changeVolume(value) {
+    const percentLabel = document.getElementById('volume-percent');
+    if (percentLabel) percentLabel.innerText = value + '%';
+    
+    if (!currentToken) return;
+
+    try {
+        const response = await fetch(`https://api.spotify.com/v1/me/player/volume?volume_percent=${value}`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': 'Bearer ' + currentToken
+            }
+        });
+
+        if (response.status === 403) {
+            console.warn("⚠️ Statut 403 : Spotify refuse le contrôle du volume sur cet appareil (ex: Web Player ou restrictions de compte).");
+        } else if (response.status === 404) {
+            console.warn("⚠️ Statut 404 : Aucun appareil actif trouvé pour modifier le volume.");
+        } else if (response.ok) {
+            console.log(`✅ Volume réglé sur ${value}%`);
+        }
+    } catch (error) {
+        console.error("Erreur lors du changement de volume :", error);
+    }
+}
 // Fonction pour modifier le volume (et mettre à jour le texte du pourcentage)
 async function changeVolume(value) {
     document.getElementById('volume-percent').innerText = value + '%';
@@ -981,192 +1004,6 @@ async function toggleLikeCurrentTrack() {
         }
     } catch (e) {
         console.error("Erreur lors du changement d'état du favori :", e);
-    }
-}
-
-
-
-
-
-// --- VARIABLES GLOBALES POUR LA GESTION DES PLAYLISTS ---
-let playlistOffset = 0;
-let tracksOffset = 0;
-let currentSelectedPlaylistId = null;
-let currentSelectedPlaylistName = null;
-const PLAYLIST_LIMIT = 10;
-
-// Fonction principale déclenchée par le bouton 🎵
-async function togglePlaylistsView() {
-    playlistOffset = 0;
-    currentSelectedPlaylistId = null;
-    currentSelectedPlaylistName = null;
-    
-    const container = document.getElementById('playlist-container');
-    if (!container) return;
-    
-    container.innerHTML = "<h3>Mes Playlists</h3><div id='playlist-list'></div>";
-    await loadMorePlaylists();
-}
-
-// 1. CHARGER LES PLAYLISTS DE LA BIBLIOTHÈQUE (10 par 10)
-async function loadMorePlaylists() {
-    if (!currentToken) return;
-    
-    try {
-        // CORRECTION : Utilisation correcte des variables dans l'URL template string
-        const response = await fetch(`https://api.spotify.com/v1/me/playlists?limit=${PLAYLIST_LIMIT}&offset=${playlistOffset}`, {
-            headers: { 'Authorization': 'Bearer ' + currentToken }
-        });
-        
-        if (!response.ok) {
-            console.error("Erreur playlists:", response.status);
-            return;
-        }
-        
-        const data = await response.json();
-        const listDiv = document.getElementById('playlist-list');
-        const container = document.getElementById('playlist-container');
-        
-        // Supprimer l'ancien bouton "Afficher plus" s'il existe
-        const oldMoreBtn = document.getElementById('more-playlists-btn');
-        if (oldMoreBtn) oldMoreBtn.remove();
-        
-        // Affichage des playlists
-        data.items.forEach(playlist => {
-            const item = document.createElement('div');
-            item.style.padding = "10px";
-            item.style.margin = "5px 0";
-            item.style.background = "rgba(255,255,255,0.1)";
-            item.style.cursor = "pointer";
-            item.style.borderRadius = "5px";
-            item.innerText = playlist.name;
-            
-            // CLIC : Charge le contenu de la playlist sélectionnée
-            item.onclick = () => selectPlaylist(playlist.id, playlist.name);
-            listDiv.appendChild(item);
-        });
-        
-        // Si d'autres playlists sont disponibles, on ajoute le bouton "Afficher plus"
-        if (data.next) {
-            playlistOffset += PLAYLIST_LIMIT;
-            const moreBtn = document.createElement('button');
-            moreBtn.id = 'more-playlists-btn';
-            moreBtn.innerText = "Afficher plus de playlists";
-            moreBtn.style.width = "100%";
-            moreBtn.style.padding = "10px";
-            moreBtn.style.marginTop = "10px";
-            moreBtn.style.cursor = "pointer";
-            moreBtn.onclick = loadMorePlaylists;
-            container.appendChild(moreBtn);
-        }
-        
-    } catch (e) {
-        console.error("Erreur loadMorePlaylists:", e);
-    }
-}
-
-// 2. SÉLECTIONNER UNE PLAYLIST & PRÉPARER L'AFFICHAGE DES TITRES
-async function selectPlaylist(playlistId, playlistName) {
-    currentSelectedPlaylistId = playlistId;
-    currentSelectedPlaylistName = playlistName;
-    tracksOffset = 0; // Réinitialise le compteur de titres pour cette playlist
-    
-    const container = document.getElementById('playlist-container');
-    if (!container) return;
-    
-    // Structure de la vue Playlist : Bouton Retour -> Titre -> Liste des morceaux vide au départ
-    container.innerHTML = `
-        <button onclick="togglePlaylistsView()" style="width: 100%; background-color: #ff4d4d; color: white; border: none; padding: 12px; font-weight: bold; cursor: pointer; border-radius: 5px; margin-bottom: 15px;">
-            ⬅ RETOUR AUX PLAYLISTS
-        </button>
-        <h3>${playlistName}</h3>
-        <div id="tracks-list" style="display: flex; flex-direction: column; align-items: flex-end; text-align: right; width: 100%;"></div>
-    `;
-    
-    // Appel immédiat pour charger les 10 premiers titres
-    await loadMoreTracks();
-}
-
-// 3. CHARGER LES TITRES DE LA PLAYLIST CHOISIE (10 par 10)
-async function loadMoreTracks() {
-    if (!currentToken || !currentSelectedPlaylistId) return;
-    
-    try {
-        // CORRECTION : Structure de l'URL Spotify corrigée pour cibler la bonne playlist
-        const response = await fetch(`https://api.spotify.com/v1/playlists/${currentSelectedPlaylistId}/tracks?limit=${PLAYLIST_LIMIT}&offset=${tracksOffset}`, {
-            headers: { 'Authorization': 'Bearer ' + currentToken }
-        });
-        
-        if (!response.ok) {
-            console.error("Erreur titres playlist:", response.status);
-            return;
-        }
-        
-        const data = await response.json();
-        const tracksDiv = document.getElementById('tracks-list');
-        const container = document.getElementById('playlist-container');
-        
-        // Supprimer l'ancien bouton "Afficher plus" des morceaux s'il existe pour le replacer plus bas
-        const oldMoreTracksBtn = document.getElementById('more-tracks-btn');
-        if (oldMoreTracksBtn) oldMoreTracksBtn.remove();
-        
-        // Affichage des morceaux récupérés
-        data.items.forEach(item => {
-            if (!item.track) return;
-            const trackRow = document.createElement('div');
-            
-            // Configuration de la ligne (Alignement à droite)
-            trackRow.style.display = "flex";
-            trackRow.style.alignItems = "center";
-            trackRow.style.justifyContent = "flex-end"; 
-            trackRow.style.gap = "10px";
-            trackRow.style.width = "100%";
-            trackRow.style.padding = "6px 0";
-            trackRow.style.borderBottom = "1px solid rgba(255,255,255,0.05)";
-            
-            // Bloc texte (Vert, Petite taille)
-            const textSpan = document.createElement('span');
-            textSpan.style.color = "#1DB954"; 
-            textSpan.style.fontSize = "0.85rem"; 
-            const artists = (item.track.artists || []).map(a => a.name).join(", ");
-            textSpan.innerText = `${item.track.name} - ${artists}`;
-            
-            // Pochette d'album
-            const img = document.createElement('img');
-            img.style.width = "32px";
-            img.style.height = "32px";
-            img.style.borderRadius = "4px";
-            img.style.objectFit = "cover";
-            
-            if (item.track.album && item.track.album.images && item.track.album.images.length > 0) {
-                img.src = item.track.album.images[item.track.album.images.length - 1].url;
-            } else {
-                img.src = "https://via.placeholder.com/32?text=🎵"; 
-            }
-            
-            trackRow.appendChild(textSpan);
-            trackRow.appendChild(img);
-            tracksDiv.appendChild(trackRow);
-        });
-        
-        // BOUTON AFFICHER PLUS : Si la playlist contient encore des morceaux non affichés
-        if (data.next) {
-            tracksOffset += PLAYLIST_LIMIT; // On incrémente l'offset pour la prochaine requête
-            const moreTracksBtn = document.createElement('button');
-            moreTracksBtn.id = 'more-tracks-btn';
-            moreTracksBtn.innerText = "Afficher plus de titres";
-            moreTracksBtn.style.width = "100%";
-            moreTracksBtn.style.padding = "10px";
-            moreTracksBtn.style.marginTop = "10px";
-            moreTracksBtn.style.cursor = "pointer";
-            
-            // Relance cette même fonction lors du clic pour ajouter les 10 titres suivants en dessous
-            moreTracksBtn.onclick = loadMoreTracks; 
-            container.appendChild(moreTracksBtn);
-        }
-        
-    } catch (e) {
-        console.error("Erreur loadMoreTracks:", e);
     }
 }
 
