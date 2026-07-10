@@ -27,7 +27,7 @@
             padding: 30px;
             border-radius: 12px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-            width: 300px;
+            width: 320px;
         }
         .volume-container label {
             font-size: 16px;
@@ -38,7 +38,7 @@
             accent-color: #1DB954;
             cursor: pointer;
         }
-        .status { color: #1DB954; font-style: italic; margin-top: 20px; font-size: 14px; text-align: center; max-width: 400px; }
+        .status { color: #1DB954; font-style: italic; margin-top: 20px; font-size: 14px; text-align: center; max-width: 400px; line-height: 1.4; }
     </style>
 </head>
 <body>
@@ -83,8 +83,6 @@
 
         // --- REDIRECTION DE CONNEXION ---
         async function redirectToSpotify() {
-            console.log("Redirection systématique vers Spotify...");
-            // Nettoyage complet avant de générer les nouveaux identifiants de session
             localStorage.removeItem("verifier");
 
             const verifier = generateCodeVerifier(128);
@@ -99,7 +97,7 @@
                 redirect_uri: redirectUri,
                 code_challenge_method: 'S256',
                 code_challenge: challenge,
-                show_dialog: true // Force Spotify à afficher l'écran de sélection de compte / validation
+                show_dialog: true 
             };
             authUrl.search = new URLSearchParams(args).toString();
             window.location.href = authUrl.toString();
@@ -123,14 +121,14 @@
                 const data = await response.json();
                 return data.access_token;
             } catch (error) {
-                console.error("Erreur de récupération du token :", error);
+                console.error("Erreur token :", error);
                 statusText.textContent = "Erreur d'authentification.";
             }
         }
 
         // --- FONCTION DE VOLUME ---
         async function setSpotifyVolume(volumePercent, token) {
-            const url = `https://api.spotify.com/v1/me/player/volume_percent=${volumePercent}`;
+            const url = `https://api.spotify.com/v1/me/player/volume?volume_percent=${volumePercent}`;
             try {
                 const response = await fetch(url, {
                     method: 'PUT',
@@ -143,14 +141,12 @@
                 } 
                 else if (response.status === 404) {
                     statusText.style.color = "#ff4444";
-                    statusText.textContent = "⚠️ Aucun appareil actif. Lance une musique sur ton application Spotify !";
+                    statusText.innerHTML = "⚠️ Aucun appareil actif trouvé.<br>Ouvre Spotify sur ton téléphone/PC et lance une musique !";
                 } 
                 else if (response.status === 403 || response.status === 401) {
                     statusText.style.color = "#ff4444";
-                    statusText.textContent = "Session invalide. Relancement de la connexion...";
-                    setTimeout(() => {
-                        redirectToSpotify();
-                    }, 1500);
+                    statusText.textContent = "Session invalide. Relancement...";
+                    setTimeout(() => { redirectToSpotify(); }, 1500);
                 }
             } catch (error) {
                 console.error("Erreur réseau :", error);
@@ -170,24 +166,23 @@
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
 
-            // Si aucun code n'est présent dans l'URL, c'est que l'utilisateur vient d'arriver : on force la connexion
             if (!code) {
                 statusText.textContent = "Redirection vers Spotify...";
                 redirectToSpotify();
             } else {
-                // Si un code est présent, on nettoie l'URL et on récupère le jeton
                 window.history.pushState({}, document.title, window.location.pathname);
-                statusText.textContent = "Validation des droits en cours...";
+                statusText.textContent = "Validation des droits...";
                 
                 const token = await getAccessToken(code);
                 if (token) {
                     currentToken = token; 
                     statusText.style.color = "#1DB954";
-                    statusText.textContent = "Connecté ! Lance une musique sur Spotify puis bouge le curseur.";
+                    // CONSIGNE UTILISATEUR AJOUTÉE ICI
+                    statusText.innerHTML = "Connecté !<br>💡 <b>Important :</b> Assure-toi d'avoir une musique en cours de lecture sur un appareil actif (PC, téléphone) pour contrôler le volume.";
                     volumeBox.style.display = 'flex';
                 } else {
                     statusText.style.color = "#ff4444";
-                    statusText.textContent = "Échec de l'authentification. Relancement...";
+                    statusText.textContent = "Échec. Relancement...";
                     setTimeout(() => { redirectToSpotify(); }, 2000);
                 }
             }
