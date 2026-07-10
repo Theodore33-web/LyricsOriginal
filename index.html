@@ -236,47 +236,124 @@
         }
 
         // --- 1. CHARGEMENT ET AFFICHAGE DE LA SECTION "TITRES LIKÉS" À DROITE ---
-        async function fetchAndDisplaySavedTracks() {
-            if (!currentToken) return;
-            try {
-                // GET /me/tracks d'après la documentation pour obtenir la liste des favoris de la bibliothèque
-                const response = await fetch('https://api.spotify.com/v1/me/tracks', {
-                    method: 'GET',
-                    headers: { 'Authorization': `Bearer ${currentToken}` }
+// --- 1. CHARGEMENT ET AFFICHAGE DE LA SECTION OFFICIELLE "TITRES LIKÉS" ---
+async function fetchAndDisplaySavedTracks() {
+    if (!currentToken) return;
+    try {
+        // GET /me/tracks récupère les titres sauvegardés dans la bibliothèque officielle
+        const response = await fetch('https://api.spotify.com/v1/me/tracks', {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${currentToken}` }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            favoritesContainer.innerHTML = ""; 
+
+            if (data.items && data.items.length > 0) {
+                data.items.forEach(item => {
+                    const track = item.track; 
+                    if (!track) return;
+
+                    const li = document.createElement('li');
+                    li.className = 'favorite-item';
+                    
+                    const imgUrl = (track.album && track.album.images.length > 0) ? track.album.images[0].url : '';
+                    
+                    li.innerHTML = `
+                        <img src="${imgUrl}" alt="pochette">
+                        <div class="favorite-details">
+                            <span class="fav-name">${track.name}</span>
+                            <span class="fav-artist">${track.artists ? track.artists.map(a => a.name).join(', ') : 'Inconnu'}</span>
+                        </div>
+                    `;
+                    favoritesContainer.appendChild(li);
                 });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    favoritesContainer.innerHTML = ""; 
-
-                    if (data.items && data.items.length > 0) {
-                        data.items.forEach(item => {
-                            const track = item.track; 
-                            if (!track) return;
-
-                            const li = document.createElement('li');
-                            li.className = 'favorite-item';
-                            
-                            const imgUrl = track.album && track.album.images.length > 0 ? track.album.images[0].url : '';
-                            
-                            li.innerHTML = `
-                                <img src="${imgUrl}" alt="pochette">
-                                <div class="favorite-details">
-                                    <span class="fav-name">${track.name}</span>
-                                    <span class="fav-artist">${track.artists ? track.artists.map(a => a.name).join(', ') : 'Inconnu'}</span>
-                                </div>
-                            `;
-                            favoritesContainer.appendChild(li);
-                        });
-                    } else {
-                        favoritesContainer.innerHTML = "<p style='font-size:12px; color:#aaa; text-align:center; padding-top:20px;'>Aucun titre liké.</p>";
-                    }
-                }
-            } catch (error) {
-                console.error("Erreur lors de la récupération des favoris :", error);
+            } else {
+                favoritesContainer.innerHTML = "<p style='font-size:12px; color:#aaa; text-align:center; padding-top:20px;'>Aucun titre liké.</p>";
             }
         }
+    } catch (error) {
+        console.error("Erreur lors de la récupération des favoris :", error);
+    }
+}
 
+// --- 2. VÉRIFICATION DE L'ÉTAT INITIAL (GET /me/library/contains) ---
+async function checkIfTrackIsLiked(trackId) {
+    if (!trackId || !currentToken) return;
+    try {
+        // Appel de la route /me/library/contains via l'URL simulée correspondante
+        const url = `https://api.spotify.com/v1/me/tracks?limit=50?ids=${trackId}`;
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${currentToken}` }
+        });
+        
+        const [isLiked] = await response.json();
+        isCurrentTrackLiked = isLiked; // true (rouge) ou false (noir)
+        updateLikeButtonUI();
+    } catch (error) {
+        console.error("Erreur de détection du statut Like :", error);
+    }
+}
+
+// --- 3. MISE À JOUR VISUELLE (ROUGE / NOIR) ---
+function updateLikeButtonUI() {
+    if (isCurrentTrackLiked) {
+        likeButton.textContent = "❤️"; // Passe au rouge
+        likeStatusText.textContent = "Liké";
+        likeStatusText.style.color = "#1DB954";
+    } else {
+        likeButton.textContent = "🖤"; // Passe au noir
+        likeStatusText.textContent = "Non liké";
+        likeStatusText.style.color = "#aaaaaa";
+    }
+}
+
+// --- 4. ACTION AU CLIC : INVERSION D'ÉTAT STRICTE ET ACTION SUR /me/library ---
+async function toggleLikeTrack() {
+    if (!currentTrackId || !currentToken) return;
+
+    // Détermination de la méthode selon l'état actuel :
+    // - Si le cœur est Rouge (true) -> Le clic applique DELETE pour supprimer de la bibliothèque officielle
+    // - Si le cœur est Noir (false) -> Le clic applique PUT pour ajouter à la bibliothèque officielle
+    const methodType = isCurrentTrackLiked ? 'DELETE' : 'PUT';
+    
+    // Endpoint unifié pour la bibliothèque (/me/library)
+    const url = 'https://api.spotify.com/v1/me/library'; 
+
+    // Format requis : tableau d'URIs complets
+    const bodyData = {
+        uris: [`spotify:track:${currentTrackId}`]
+    };
+
+    try {
+        const response = await fetch(url, {
+            method: methodType,
+            headers: { 
+                'Authorization': `Bearer ${currentToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(bodyData)
+        });
+
+        if (response.ok) {
+            // L'action a été validée par Spotify : on inverse l'état logique local
+            isCurrentTrackLiked = !isCurrentTrackLiked;
+            
+            // On change instantanément la couleur du cœur (Rouge ⇄ Noir)
+            updateLikeButtonUI();
+            
+            // On rafraîchit immédiatement le panneau de droite "Titres Likés"
+            await fetchAndDisplaySavedTracks();
+        } else if (response.status === 401 || response.status === 403) {
+            statusText.textContent = "Session expirée. Reconnexion...";
+            setTimeout(redirectToSpotify, 1500);
+        }
+    } catch (error) {
+        console.error("Erreur lors de la mise à jour de la bibliothèque :", error);
+    }
+}
         // --- 2. RÉCUPÉRATION DU MORCEAU EN COURS d'ÉCOUTE ---
         async function checkCurrentPlayback() {
             if (!currentToken) return;
@@ -311,77 +388,11 @@
         }
 
         // --- 3. VÉRIFICATION (GET /me/library/contains) ---
-        async function checkIfTrackIsLiked(trackId) {
-            if (!trackId || !currentToken) return;
-            try {
-                // Utilisation de GET /me/library/contains via endpoint simulé
-                const url = `https://api.spotify.com/v1/me/library/contains?uris=spotify:track:$?ids=${trackId}`;
-                const response = await fetch(url, {
-                    method: 'GET',
-                    headers: { 'Authorization': `Bearer ${currentToken}` }
-                });
-                
-                const [isLiked] = await response.json();
-                isCurrentTrackLiked = isLiked;
-                updateLikeButtonUI();
-            } catch (error) {
-                console.error("Erreur de détection :", error);
-            }
-        }
 
-        // --- 4. MISE À JOUR VISUELLE (ROUGE / NOIR) ---
-        function updateLikeButtonUI() {
-            if (isCurrentTrackLiked) {
-                likeButton.textContent = "❤️";
-                likeStatusText.textContent = "Liké";
-                likeStatusText.style.color = "#1DB954";
-            } else {
-                likeButton.textContent = "🖤";
-                likeStatusText.textContent = "Non liké";
-                likeStatusText.style.color = "#aaaaaa";
-            }
-        }
 
-        // --- 5. ACTION CLIC : INTERACTION DIRECTE AVEC /me/library ---
-        async function toggleLikeTrack() {
-            if (!currentTrackId || !currentToken) return;
 
-            // Logique stricte d'inversion :
-            // Si le coeur est rouge (true) -> Le clic applique un DELETE (passe au noir)
-            // Si le coeur est noir (false) -> Le clic applique un PUT (passe au rouge)
-            const methodType = isCurrentTrackLiked ? 'DELETE' : 'PUT';
-            const url = 'https://api.spotify.com/v1/me/library'; // Cible l'endpoint unifié /me/library
 
-            // Utilisation obligatoire des URIs complets d'après la mise à jour
-            const bodyData = {
-                uris: [`spotify:track:${currentTrackId}`]
-            };
-
-            try {
-                const response = await fetch(url, {
-                    method: methodType,
-                    headers: { 
-                        'Authorization': `Bearer ${currentToken}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(bodyData)
-                });
-
-                if (response.ok) {
-                    // Inversion réussie
-                    isCurrentTrackLiked = !isCurrentTrackLiked;
-                    updateLikeButtonUI();
-                    
-                    // Rafraîchissement automatique de la liste latérale droite
-                    await fetchAndDisplaySavedTracks();
-                } else if (response.status === 401 || response.status === 403) {
-                    statusText.textContent = "Session expirée. Reconnexion...";
-                    setTimeout(redirectToSpotify, 1500);
-                }
-            } catch (error) {
-                console.error("Erreur de mise à jour de la bibliothèque :", error);
-            }
-        }
+        
 
         // --- CYCLE DE LANCEMENT ET ÉVÉNEMENTS ---
         likeButton.addEventListener('click', toggleLikeTrack);
