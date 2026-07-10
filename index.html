@@ -17,18 +17,6 @@
             margin: 0;
         }
         h1 { color: #1DB954; margin-bottom: 30px; }
-        button {
-            background-color: #1DB954;
-            color: white;
-            border: none;
-            padding: 14px 28px;
-            font-size: 16px;
-            font-weight: bold;
-            border-radius: 25px;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        button:hover { background-color: #1ed760; }
         
         .volume-container {
             display: flex;
@@ -57,14 +45,12 @@
 
     <h1>LyricsOriginal</h1>
     
-    <button id="login-btn">Se connecter à Spotify</button>
-    
     <div class="volume-container" id="volume-box" style="display: none;">
         <label for="volume-slider">Volume Spotify 🔊</label>
         <input type="range" id="volume-slider" min="0" max="100" value="50">
     </div>
     
-    <p id="status-text" class="status">Statut : Non connecté.</p>
+    <p id="status-text" class="status">Initialisation de la connexion...</p>
 
     <script>
         const clientId = '91d4165085fd4ed3bd281f16667d64bc';
@@ -73,7 +59,6 @@
 
         let currentToken = null; 
 
-        const loginBtn = document.getElementById('login-btn');
         const statusText = document.getElementById('status-text');
         const volumeBox = document.getElementById('volume-box');
         const volumeSlider = document.getElementById('volume-slider');
@@ -96,9 +81,12 @@
             return base64String.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
         }
 
-        // --- AUTHENTIFICATION ---
+        // --- REDIRECTION DE CONNEXION ---
         async function redirectToSpotify() {
-            console.log("Démarrage de la redirection vers Spotify...");
+            console.log("Redirection systématique vers Spotify...");
+            // Nettoyage complet avant de générer les nouveaux identifiants de session
+            localStorage.removeItem("verifier");
+
             const verifier = generateCodeVerifier(128);
             localStorage.setItem("verifier", verifier);
             const challenge = await generateCodeChallenge(verifier);
@@ -110,7 +98,8 @@
                 scope: scope,
                 redirect_uri: redirectUri,
                 code_challenge_method: 'S256',
-                code_challenge: challenge
+                code_challenge: challenge,
+                show_dialog: true // Force Spotify à afficher l'écran de sélection de compte / validation
             };
             authUrl.search = new URLSearchParams(args).toString();
             window.location.href = authUrl.toString();
@@ -142,8 +131,6 @@
         // --- FONCTION DE VOLUME ---
         async function setSpotifyVolume(volumePercent, token) {
             const url = `https://api.spotify.com/v1/me/player/volume?volume_percent=${volumePercent}`;
-            console.log(`[VOLUME] Modification demandée : ${volumePercent}%`);
-
             try {
                 const response = await fetch(url, {
                     method: 'PUT',
@@ -158,21 +145,13 @@
                     statusText.style.color = "#ff4444";
                     statusText.textContent = "⚠️ Aucun appareil actif. Lance une musique sur ton application Spotify !";
                 } 
-                else if (response.status === 403) {
+                else if (response.status === 403 || response.status === 401) {
                     statusText.style.color = "#ff4444";
-                    statusText.textContent = "Erreur 403 : Autorisation manquante ou expirée. Reconnexion forcée...";
-                    
-                    // Nettoyage et Reconnexion Automatique pour corriger les scopes
+                    statusText.textContent = "Session invalide. Relancement de la connexion...";
                     setTimeout(() => {
-                        localStorage.removeItem("verifier");
                         redirectToSpotify();
-                    }, 2000);
-                } 
-                else if (response.status === 401) {
-                    statusText.style.color = "#ff4444";
-                    statusText.textContent = "Erreur 401 : Session expirée. Reconnectez-vous.";
+                    }, 1500);
                 }
-
             } catch (error) {
                 console.error("Erreur réseau :", error);
                 statusText.style.color = "#ff4444";
@@ -180,9 +159,7 @@
             }
         }
 
-        // --- ENREGISTREMENT DES ÉVÉNEMENTS ---
-        loginBtn.addEventListener('click', redirectToSpotify);
-
+        // --- CYCLES DE CHARGEMENT DE LA PAGE ---
         volumeSlider.addEventListener('change', (e) => {
             if (currentToken) {
                 setSpotifyVolume(e.target.value, currentToken);
@@ -193,15 +170,25 @@
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
 
-            if (code) {
-                loginBtn.style.display = 'none';
+            // Si aucun code n'est présent dans l'URL, c'est que l'utilisateur vient d'arriver : on force la connexion
+            if (!code) {
+                statusText.textContent = "Redirection vers Spotify...";
+                redirectToSpotify();
+            } else {
+                // Si un code est présent, on nettoie l'URL et on récupère le jeton
                 window.history.pushState({}, document.title, window.location.pathname);
+                statusText.textContent = "Validation des droits en cours...";
                 
                 const token = await getAccessToken(code);
                 if (token) {
                     currentToken = token; 
+                    statusText.style.color = "#1DB954";
                     statusText.textContent = "Connecté ! Lance une musique sur Spotify puis bouge le curseur.";
                     volumeBox.style.display = 'flex';
+                } else {
+                    statusText.style.color = "#ff4444";
+                    statusText.textContent = "Échec de l'authentification. Relancement...";
+                    setTimeout(() => { redirectToSpotify(); }, 2000);
                 }
             }
         });
