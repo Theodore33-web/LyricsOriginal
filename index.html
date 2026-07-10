@@ -313,7 +313,8 @@
         async function checkIfTrackIsLiked(trackId) {
             if (!trackId || !currentToken) return;
             try {
-                const url = `https://api.spotify.com/v1/me/library/contains?uris=spotify:track:${trackId}`;
+                // Utilisation correcte du endpoint unifié /me/library/contains via paramètre ids
+                const url = `https://api.spotify.com/v1/me/library/contains?uris=spotify:track:$?ids=${trackId}`;
                 const response = await fetch(url, {
                     method: 'GET',
                     headers: { 'Authorization': `Bearer ${currentToken}` }
@@ -340,15 +341,16 @@
             }
         }
 
-        // --- 5. ACTION AU CLIC : AJOUT ET SUPPRESSION DYNAMIQUE ---
+        // --- 5. ACTION AU CLIC : PUT (AJOUTER) OU DELETE (SUPPRIMER) ---
         async function toggleLikeTrack() {
             if (!currentTrackId || !currentToken) return;
 
-            // SI LIKÉ (true / rouge) -> On applique DELETE pour le supprimer des favoris
-            // SI NON LIKÉ (false / noir) -> On applique PUT pour l'ajouter aux favoris
+            // SI LIKÉ (true / rouge) -> Clic applique DELETE pour supprimer du panneau des favoris
+            // SI NON LIKÉ (false / noir) -> Clic applique PUT pour ajouter au panneau des favoris
             const methodType = isCurrentTrackLiked ? 'DELETE' : 'PUT';
             const url = 'https://api.spotify.com/v1/me/library';
 
+            // Corps avec format d'URI Spotify complet requis
             const bodyData = {
                 uris: [`spotify:track:${currentTrackId}`]
             };
@@ -364,13 +366,13 @@
                 });
 
                 if (response.ok) {
-                    // L'action a fonctionné sur Spotify : On inverse le statut local
+                    // Changement d'état immédiat suite au succès de la requête
                     isCurrentTrackLiked = !isCurrentTrackLiked;
                     
-                    // On bascule l'affichage du bouton (Rouge ⇄ Noir)
+                    // Basculement visuel (Rouge ⇄ Noir)
                     updateLikeButtonUI();
                     
-                    // On rafraîchit immédiatement la liste de droite pour faire apparaître/disparaitre le titre
+                    // Actualisation instantanée de la liste latérale droite (Titres Likés)
                     await fetchAndDisplaySavedTracks();
                 } else if (response.status === 401 || response.status === 403) {
                     statusText.textContent = "Session expirée. Reconnexion...";
