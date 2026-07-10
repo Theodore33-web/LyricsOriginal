@@ -389,21 +389,16 @@
             if (!currentTrackId || !currentToken) return;
 
             const methodType = isCurrentTrackLiked ? 'DELETE' : 'PUT';
-            const url = 'https://api.spotify.com/v1/me/library';
-
-            // Format mis à jour utilisant des URIs complets au lieu d'IDs purs
-            const bodyData = {
-                uris: [`spotify:track:${currentTrackId}`]
-            };
+            // Les URIs doivent être passés en paramètre de requête dans l'URL, pas dans le body
+            const trackUri = encodeURIComponent(`spotify:track:${currentTrackId}`);
+            const url = `https://api.spotify.com/v1/me/library?uris=${trackUri}`;
 
             try {
                 const response = await fetch(url, {
                     method: methodType,
                     headers: { 
-                        'Authorization': `Bearer ${currentToken}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(bodyData)
+                        'Authorization': `Bearer ${currentToken}`
+                    }
                 });
 
                 if (response.ok) {
@@ -457,5 +452,7 @@
             }
         });
     </script>
+</body>
+</html>
 </body>
 </html>
