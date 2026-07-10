@@ -1,12 +1,12 @@
 <!doctype html>
 <html lang="fr">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>LyricsOriginal — Like current track (PKCE / me/library)</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>LyricsOriginal — Like current track (PKCE)</title>
 <style>
   body{font-family:system-ui,Segoe UI,Arial;background:#0f1113;color:#eee;padding:18px;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
-  .card{width:760px;background:#161618;padding:20px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.6)}
+  .card{width:780px;background:#161618;padding:20px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.6)}
   h1{color:#1DB954;margin:0 0 12px}
   .layout{display:flex;gap:20px}
   .left{flex:1;text-align:center;padding:18px;border-right:1px solid #242424}
@@ -15,17 +15,18 @@
   .artist{color:#b3b3b3;margin-bottom:8px}
   .like{font-size:42px;background:none;border:none;color:inherit;cursor:pointer}
   .disabled{opacity:.5;pointer-events:none}
-  .right{width:320px;padding:8px}
+  .right{width:340px;padding:8px}
   .section-title{color:#1DB954;margin-bottom:8px}
-  .list{max-height:300px;overflow:auto;padding:0;margin:0;list-style:none}
+  .list{max-height:280px;overflow:auto;padding:0;margin:0;list-style:none}
   .item{display:flex;gap:10px;padding:8px;border-radius:6px;align-items:center}
   .item img{width:44px;height:44px;border-radius:4px;object-fit:cover}
   .small{font-size:13px;color:#9aa}
   .status{margin-top:12px;color:#1DB954;font-style:italic;text-align:center}
-  pre{background:#0b0b0b;padding:8px;border-radius:6px;color:#9fd;max-height:120px;overflow:auto}
+  pre{background:#0b0b0b;padding:8px;border-radius:6px;color:#9fd;max-height:160px;overflow:auto}
   .controls{display:flex;gap:8px;justify-content:center;margin-top:10px}
   button.primary{background:#1DB954;border:none;padding:8px 12px;border-radius:8px;color:#051;cursor:pointer}
   button.ghost{background:#333;border:none;padding:8px 12px;border-radius:8px;color:#fff;cursor:pointer}
+  .token-info{font-size:13px;color:#9aa;margin-top:8px}
 </style>
 </head>
 <body>
@@ -36,7 +37,8 @@
         <div id="auth-area">
           <button id="auth-btn" class="primary">Se connecter à Spotify</button>
           <button id="logout-btn" class="ghost" style="display:none">Déconnexion</button>
-          <div class="small" id="scopes-info"></div>
+          <div class="token-info" id="scopes-info"></div>
+          <div class="token-info" id="redirect-note" style="margin-top:6px;color:#f99"></div>
         </div>
 
         <div class="track-art" id="track-art"></div>
@@ -53,6 +55,10 @@
       <div class="right">
         <div class="section-title">Mes titres likés (extrait)</div>
         <ul id="saved-list" class="list"></ul>
+
+        <div style="margin-top:10px" class="small">Token / scopes :</div>
+        <pre id="token-info">Aucun token</pre>
+
         <div style="margin-top:10px" class="small">Logs & debug :</div>
         <pre id="log">—</pre>
       </div>
@@ -62,12 +68,12 @@
 <script>
 /* CONFIG */
 const CLIENT_ID = '91d4165085fd4ed3bd281f16667d64bc';
-const REDIRECT_URI = window.location.origin + window.location.pathname; // must match dashboard
+const REDIRECT_URI = window.location.origin + window.location.pathname; // DOIT correspondre EXACTEMENT au Redirect URI dans le dashboard Spotify
 const SCOPES = 'user-read-currently-playing user-library-read user-library-modify';
 const AUTH_ENDPOINT = 'https://accounts.spotify.com/authorize';
 const TOKEN_ENDPOINT = 'https://accounts.spotify.com/api/token';
 
-/* UI */
+/* UI refs */
 const authBtn = document.getElementById('auth-btn');
 const logoutBtn = document.getElementById('logout-btn');
 const statusEl = document.getElementById('status');
@@ -77,7 +83,9 @@ const trackArtistEl = document.getElementById('track-artist');
 const likeBtn = document.getElementById('like-btn');
 const savedListEl = document.getElementById('saved-list');
 const logEl = document.getElementById('log');
+const tokenInfoEl = document.getElementById('token-info');
 const scopesInfoEl = document.getElementById('scopes-info');
+const redirectNoteEl = document.getElementById('redirect-note');
 
 /* State */
 let accessToken = null;
@@ -87,7 +95,7 @@ let currentTrackId = null;
 let isLiked = false;
 let pollInterval = null;
 
-/* Helpers */
+/* Utils */
 function log(...args){
   const t = new Date().toLocaleTimeString();
   logEl.textContent = `[${t}] ${args.join(' ')}\n` + logEl.textContent;
@@ -99,6 +107,7 @@ function saveToken(token, expiryMs, scopes){
   localStorage.setItem('sp_token', token);
   localStorage.setItem('sp_token_expiry', String(expiryMs));
   localStorage.setItem('sp_token_scopes', scopes || '');
+  tokenInfoEl.textContent = `token: ${token ? token.slice(0,8)+'…' : '(none)'}\nscopes: ${scopes || '(none)'}\nexpires: ${new Date(expiryMs).toLocaleString()}`;
   scopesInfoEl.textContent = 'Scopes: ' + (scopes || '(none)');
 }
 function loadToken(){
@@ -107,21 +116,22 @@ function loadToken(){
   const s = localStorage.getItem('sp_token_scopes') || '';
   if (!t || Date.now() > e){ clearToken(); return null; }
   accessToken = t; tokenExpiry = e; tokenScopes = s;
+  tokenInfoEl.textContent = `token: ${t.slice(0,8)}…\nscopes: ${s}\nexpires: ${new Date(e).toLocaleString()}`;
   scopesInfoEl.textContent = 'Scopes: ' + s;
   return t;
 }
 function clearToken(){
   accessToken = null; tokenExpiry = 0; tokenScopes = '';
-  localStorage.removeItem('sp_token');
-  localStorage.removeItem('sp_token_expiry');
-  localStorage.removeItem('sp_token_scopes');
+  localStorage.removeItem('sp_token'); localStorage.removeItem('sp_token_expiry'); localStorage.removeItem('sp_token_scopes');
+  tokenInfoEl.textContent = 'Aucun token';
   scopesInfoEl.textContent = '';
 }
 
-/* PKCE */
+/* PKCE helpers */
 function generateCodeVerifier(len = 128) {
   const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
-  let out = ''; for (let i=0;i<len;i++) out += possible.charAt(Math.floor(Math.random()*possible.length));
+  let out = '';
+  for (let i=0;i<len;i++) out += possible.charAt(Math.floor(Math.random()*possible.length));
   return out;
 }
 async function generateCodeChallenge(verifier){
@@ -131,7 +141,10 @@ async function generateCodeChallenge(verifier){
   return b.replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 }
 
-/* Auth redirection */
+/* Show note about redirect URI */
+redirectNoteEl.textContent = `Redirect URI utilisée : ${REDIRECT_URI} — assure-toi qu'elle est enregistrée EXACtement dans Spotify Developer.`;
+
+/* Auth redirect */
 authBtn.addEventListener('click', async () => {
   const verifier = generateCodeVerifier(64);
   localStorage.setItem('pkce_verifier', verifier);
@@ -153,7 +166,7 @@ logoutBtn.addEventListener('click', () => {
   updateUIForAuth(false);
 });
 
-/* Exchange code -> token */
+/* Exchange code -> token (client-side). May be blocked by CORS in some setups. */
 async function exchangeCodeForToken(code){
   const verifier = localStorage.getItem('pkce_verifier');
   if (!verifier) { log('PKCE verifier missing'); return { error: 'pkce_verifier_missing' }; }
@@ -188,8 +201,8 @@ async function exchangeCodeForToken(code){
   }
 }
 
-/* API helper */
-async function api(path, opts = {}) {
+/* Small API wrapper */
+async function apiFetch(path, opts = {}) {
   const token = accessToken || loadToken();
   if (!token) throw new Error('no token');
   const headers = Object.assign({}, opts.headers || {}, { Authorization: 'Bearer ' + token });
@@ -197,11 +210,11 @@ async function api(path, opts = {}) {
   return res;
 }
 
-/* Fetch saved tracks (display) */
+/* Refresh saved tracks list (GET /v1/me/tracks) */
 async function refreshSavedList(){
   try {
-    const res = await api('/v1/me/tracks?limit=50');
-    if (!res.ok){ log('saved tracks error', res.status); return; }
+    const res = await apiFetch('/v1/me/tracks?limit=50');
+    if (!res.ok) { log('saved tracks error', res.status); return; }
     const data = await res.json();
     savedListEl.innerHTML = '';
     if (data.items && data.items.length) {
@@ -219,10 +232,10 @@ async function refreshSavedList(){
   } catch(e){ log('refreshSavedList error', e); }
 }
 
-/* Update currently playing */
+/* Update currently playing (GET /v1/me/player/currently-playing) */
 async function updateCurrentlyPlaying(){
   try {
-    const res = await api('/v1/me/player/currently-playing');
+    const res = await apiFetch('/v1/me/player/currently-playing');
     if (res.status === 204 || res.status === 404) {
       setStatus('Aucun titre en cours');
       trackArtEl.style.display='none';
@@ -248,15 +261,15 @@ async function updateCurrentlyPlaying(){
   } catch(e){ log('updateCurrentlyPlaying error', e); if (String(e).includes('no token')) setStatus('non connecté'); }
 }
 
-/* Check liked using /v1/me/library/contains?uris=spotify:track:{id} */
+/* Check saved state using GET /v1/me/tracks/contains?ids={id} */
 async function checkIfLiked(trackId){
   try {
     const token = accessToken || loadToken();
-    if (!token) return;
-    const url = `https://api.spotify.com/v1/me/library/contains?uris=spotify:track:${encodeURIComponent(trackId)}`;
+    if (!token || !trackId) return;
+    const url = `https://api.spotify.com/v1/me/tracks/contains?ids=${encodeURIComponent(trackId)}`;
     const res = await fetch(url, { method: 'GET', headers: { Authorization: 'Bearer ' + token } });
     const text = await res.text();
-    log('GET /v1/me/library/contains ->', res.status, text);
+    log('GET /v1/me/tracks/contains ->', res.status, text);
     if (!res.ok) {
       if (res.status === 401) { setStatus('token invalide'); return; }
       if (res.status === 403) { alert('403: scope manquant (user-library-modify)'); return; }
@@ -270,21 +283,16 @@ async function checkIfLiked(trackId){
   }
 }
 
-/* Toggle like using PUT/DELETE to /v1/me/library */
+/* Toggle using PUT/DELETE /v1/me/tracks?ids={id} */
 async function toggleLike(){
   try {
     const token = accessToken || loadToken();
     if (!token || !currentTrackId) return;
     likeBtn.disabled = true;
     const method = isLiked ? 'DELETE' : 'PUT';
-    const url = 'https://api.spotify.com/v1/me/library';
-    const body = JSON.stringify({ uris: [`spotify:track:${currentTrackId}`] });
-    const res = await fetch(url, {
-      method,
-      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-      body
-    });
-    log(`${method} /v1/me/library ->`, res.status);
+    const url = `https://api.spotify.com/v1/me/tracks?ids=${encodeURIComponent(currentTrackId)}`;
+    const res = await fetch(url, { method, headers: { Authorization: 'Bearer ' + token } });
+    log(`${method} /v1/me/tracks ->`, res.status);
     if (res.ok || res.status === 204) {
       isLiked = !isLiked;
       updateLikeUI();
@@ -304,9 +312,9 @@ async function toggleLike(){
 /* UI helpers */
 function updateLikeUI(){ likeBtn.textContent = isLiked ? '❤️' : '🤍'; likeBtn.title = isLiked ? 'Supprimer des favoris' : 'Ajouter aux favoris'; }
 function escapeHtml(str){ return String(str||'').replace(/[&<>"'`=\/]/g, s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','/':'&#x2F;','`':'&#x60;','=':'&#x3D;'})[s]); }
-function updateUIForAuth(connected){ if (connected){ authBtn.style.display='none'; logoutBtn.style.display='inline-block'; } else { authBtn.style.display='inline-block'; logoutBtn.style.display='none'; scopesInfoEl.textContent = ''; } }
+function updateUIForAuth(connected){ if (connected){ authBtn.style.display='none'; logoutBtn.style.display='inline-block'; } else { authBtn.style.display='inline-block'; logoutBtn.style.display='none'; scopesInfoEl.textContent=''; } }
 
-/* exchange wrapper for init */
+/* Exchange wrapper used in init */
 async function exchangeCode(code){
   return await exchangeCodeForToken(code);
 }
@@ -325,7 +333,7 @@ async function init(){
     if (result && result.error) {
       log('exchange error', result.error);
       if (String(result.error).toLowerCase().includes('cors') || String(result.error).toLowerCase().includes('failed')) {
-        alert('Échange code→token bloqué par CORS. Il faut un proxy serveur pour l’échange. Demande le proxy si nécessaire.');
+        alert('Échange code→token bloqué par CORS. Il faut un proxy serveur pour l’échange. Dis‑moi si tu veux le proxy Node.js.');
         setStatus('Erreur d’échange (CORS).');
         return;
       } else {
@@ -350,7 +358,7 @@ async function init(){
   }
 }
 
-/* Wire events */
+/* Wire */
 likeBtn.addEventListener('click', toggleLike);
 
 /* Start */
