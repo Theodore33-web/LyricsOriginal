@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LyricsOriginal - Player & Favoris</title>
+    <title>LyricsOriginal - Player & Titres Likés</title>
     <style>
         body {
             font-family: 'Segoe UI', Arial, sans-serif;
@@ -28,7 +28,6 @@
             height: 480px;
         }
 
-        /* --- CÔTÉ GAUCHE : LECTEUR --- */
         .player-section {
             flex: 1;
             padding: 30px;
@@ -72,7 +71,6 @@
         .like-btn:hover { transform: scale(1.1); }
         .like-text { font-size: 14px; font-weight: bold; }
 
-        /* --- CÔTÉ DROIT : PANNEAU DES TITRES LIKÉS --- */
         .favorites-section {
             width: 320px;
             padding: 25px;
@@ -150,7 +148,7 @@
         </div>
 
         <div class="favorites-section">
-            <h3>Mes Titres Likés 📁</h3>
+            <h3>Titres Likés 📁</h3>
             <ul class="favorites-list" id="favorites-container"></ul>
         </div>
     </div>
@@ -161,6 +159,7 @@
         const clientId = '91d4165085fd4ed3bd281f16667d64bc';
         const redirectUri = 'https://theodore33-web.github.io/LyricsOriginal/';
         
+        // Scope nécessaire pour lire et modifier la bibliothèque utilisateur (Titres Likés)
         const scope = 'user-read-currently-playing user-library-read user-library-modify';
 
         let currentToken = null; 
@@ -236,10 +235,11 @@
             }
         }
 
-        // --- 1. CHARGEMENT ET AFFICHAGE DES FAVORIS À DROITE ---
+        // --- 1. CHARGEMENT ET AFFICHAGE DE LA SECTION "TITRES LIKÉS" À DROITE ---
         async function fetchAndDisplaySavedTracks() {
             if (!currentToken) return;
             try {
+                // GET /me/tracks d'après la documentation pour obtenir la liste des favoris de la bibliothèque
                 const response = await fetch('https://api.spotify.com/v1/me/tracks', {
                     method: 'GET',
                     headers: { 'Authorization': `Bearer ${currentToken}` }
@@ -257,19 +257,19 @@
                             const li = document.createElement('li');
                             li.className = 'favorite-item';
                             
-                            const imgUrl = track.album.images.length > 0 ? track.album.images[0].url : '';
+                            const imgUrl = track.album && track.album.images.length > 0 ? track.album.images[0].url : '';
                             
                             li.innerHTML = `
                                 <img src="${imgUrl}" alt="pochette">
                                 <div class="favorite-details">
                                     <span class="fav-name">${track.name}</span>
-                                    <span class="fav-artist">${track.artists.map(a => a.name).join(', ')}</span>
+                                    <span class="fav-artist">${track.artists ? track.artists.map(a => a.name).join(', ') : 'Inconnu'}</span>
                                 </div>
                             `;
                             favoritesContainer.appendChild(li);
                         });
                     } else {
-                        favoritesContainer.innerHTML = "<p style='font-size:12px; color:#aaa; text-align:center; padding-top:20px;'>Aucun favori enregistré.</p>";
+                        favoritesContainer.innerHTML = "<p style='font-size:12px; color:#aaa; text-align:center; padding-top:20px;'>Aucun titre liké.</p>";
                     }
                 }
             } catch (error) {
@@ -277,7 +277,7 @@
             }
         }
 
-        // --- 2. RÉCUPÉRATION DU MORCEAU EN COURS ---
+        // --- 2. RÉCUPÉRATION DU MORCEAU EN COURS d'ÉCOUTE ---
         async function checkCurrentPlayback() {
             if (!currentToken) return;
             try {
@@ -300,6 +300,7 @@
                         trackAuthor.textContent = track.artists.map(a => a.name).join(', ');
                         trackImg.style.backgroundImage = track.album.images.length > 0 ? `url(${track.album.images[0].url})` : 'none';
                         
+                        // Vérifier si le nouveau titre chargé est déjà présent dans la liste
                         await checkIfTrackIsLiked(track.id);
                     }
                     statusText.innerHTML = "Synchronisation active.";
@@ -309,11 +310,11 @@
             }
         }
 
-        // --- 3. VÉRIFICATION (GET) SUR LA BIBLIOTHÈQUE ---
+        // --- 3. VÉRIFICATION (GET /me/library/contains) ---
         async function checkIfTrackIsLiked(trackId) {
             if (!trackId || !currentToken) return;
             try {
-                // Utilisation correcte du endpoint unifié /me/library/contains via paramètre ids
+                // Utilisation de GET /me/library/contains via endpoint simulé
                 const url = `https://api.spotify.com/v1/me/library/contains?uris=spotify:track:$?ids=${trackId}`;
                 const response = await fetch(url, {
                     method: 'GET',
@@ -328,7 +329,7 @@
             }
         }
 
-        // --- 4. MISE À JOUR VISUELLE ---
+        // --- 4. MISE À JOUR VISUELLE (ROUGE / NOIR) ---
         function updateLikeButtonUI() {
             if (isCurrentTrackLiked) {
                 likeButton.textContent = "❤️";
@@ -341,16 +342,17 @@
             }
         }
 
-        // --- 5. ACTION AU CLIC : PUT (AJOUTER) OU DELETE (SUPPRIMER) ---
+        // --- 5. ACTION CLIC : INTERACTION DIRECTE AVEC /me/library ---
         async function toggleLikeTrack() {
             if (!currentTrackId || !currentToken) return;
 
-            // SI LIKÉ (true / rouge) -> Clic applique DELETE pour supprimer du panneau des favoris
-            // SI NON LIKÉ (false / noir) -> Clic applique PUT pour ajouter au panneau des favoris
+            // Logique stricte d'inversion :
+            // Si le coeur est rouge (true) -> Le clic applique un DELETE (passe au noir)
+            // Si le coeur est noir (false) -> Le clic applique un PUT (passe au rouge)
             const methodType = isCurrentTrackLiked ? 'DELETE' : 'PUT';
-            const url = 'https://api.spotify.com/v1/me/library';
+            const url = 'https://api.spotify.com/v1/me/library'; // Cible l'endpoint unifié /me/library
 
-            // Corps avec format d'URI Spotify complet requis
+            // Utilisation obligatoire des URIs complets d'après la mise à jour
             const bodyData = {
                 uris: [`spotify:track:${currentTrackId}`]
             };
@@ -366,24 +368,22 @@
                 });
 
                 if (response.ok) {
-                    // Changement d'état immédiat suite au succès de la requête
+                    // Inversion réussie
                     isCurrentTrackLiked = !isCurrentTrackLiked;
-                    
-                    // Basculement visuel (Rouge ⇄ Noir)
                     updateLikeButtonUI();
                     
-                    // Actualisation instantanée de la liste latérale droite (Titres Likés)
+                    // Rafraîchissement automatique de la liste latérale droite
                     await fetchAndDisplaySavedTracks();
                 } else if (response.status === 401 || response.status === 403) {
                     statusText.textContent = "Session expirée. Reconnexion...";
                     setTimeout(redirectToSpotify, 1500);
                 }
             } catch (error) {
-                console.error("Erreur modification bibliothèque :", error);
+                console.error("Erreur de mise à jour de la bibliothèque :", error);
             }
         }
 
-        // --- ATTACHEMENTS ET CYCLE DE LANCEMENT ---
+        // --- CYCLE DE LANCEMENT ET ÉVÉNEMENTS ---
         likeButton.addEventListener('click', toggleLikeTrack);
 
         window.addEventListener('DOMContentLoaded', async () => {
