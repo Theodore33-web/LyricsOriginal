@@ -340,17 +340,15 @@
             }
         }
 
-        // --- 5. ACTION DYNAMIQUE : AJOUTER OU SUPPRIMER DES FAVORIS ---
+        // --- 5. ACTION AU CLIC : PUT (AJOUTER) OU DELETE (SUPPRIMER) ---
         async function toggleLikeTrack() {
             if (!currentTrackId || !currentToken) return;
 
-            // Détermine dynamiquement la méthode HTTP selon l'état actuel
+            // Alterne entre DELETE et PUT selon le statut actuel
             const methodType = isCurrentTrackLiked ? 'DELETE' : 'PUT';
-            
-            // Point d'accès unifié du document pour modifier la bibliothèque (/me/library)
             const url = 'https://api.spotify.com/v1/me/library';
 
-            // Format d'envoi utilisant l'URI complet requis par le point d'accès unifié
+            // Le point d'accès unifié accepte un tableau d'URIs Spotify complets
             const bodyData = {
                 uris: [`spotify:track:${currentTrackId}`]
             };
@@ -366,13 +364,11 @@
                 });
 
                 if (response.ok) {
-                    // Alterne l'état local interne
+                    // Inverse l'état local suite au succès de l'API
                     isCurrentTrackLiked = !isCurrentTrackLiked;
-                    
-                    // Met visuellement à jour le bouton cœur
                     updateLikeButtonUI();
                     
-                    // Actualise instantanément la liste de droite
+                    // Rafraîchit instantanément l'affichage des titres likés sur le panneau droit
                     await fetchAndDisplaySavedTracks();
                 } else if (response.status === 401 || response.status === 403) {
                     statusText.textContent = "Session expirée. Reconnexion...";
