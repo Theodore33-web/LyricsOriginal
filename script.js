@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.10";
+const APP_VERSION = "v1.1.11";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -1270,9 +1270,10 @@ async function fetchQueue() {
             return;
         }
         if (response.status === 429) {
-            resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:orange; margin:5px;'>Trop de requêtes envoyées à Spotify, réessaie dans quelques secondes.</p>";
-            return;
-        }
+    const retryAfter = response.headers.get('Retry-After');
+    resultsContainer.innerHTML = `<p style='font-size:0.9rem; color:orange; margin:5px;'>Trop de requêtes envoyées à Spotify${retryAfter ? `, réessaie dans ${retryAfter} secondes.` : ', réessaie dans quelques secondes.'}</p>`;
+    return;
+}
 
         const data = await response.json();
         renderQueueSection(data);
