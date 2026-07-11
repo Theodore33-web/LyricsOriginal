@@ -1,4 +1,5 @@
-const APP_VERSION = "v1.1.12";
+
+const APP_VERSION = "v1.1.13";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -31,6 +32,58 @@ function createMoreButton(onClickHandler) {
     };
     moreBtn.onclick = onClickHandler;
     return moreBtn;
+}
+
+// Ajoute un titre à la file d'attente Spotify (POST /me/player/queue)
+async function addToQueue(uri, btnEl) {
+    if (!currentToken) return;
+    try {
+        const response = await fetch(`https://api.spotify.com/v1/me/player/queue?uri=${encodeURIComponent(uri)}`, {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + currentToken }
+        });
+
+        if (response.status === 204) {
+            // Petit retour visuel : l'icône passe brièvement en ✅
+            if (btnEl) {
+                const original = btnEl.innerText;
+                btnEl.innerText = '✅';
+                btnEl.disabled = true;
+                setTimeout(() => {
+                    btnEl.innerText = original;
+                    btnEl.disabled = false;
+                }, 1200);
+            }
+        } else if (response.status === 404) {
+            alert("Ouvrez Spotify et lancez une lecture sur l'un de vos appareils avant d'ajouter à la file.");
+        } else if (response.status === 429) {
+            const retryAfter = response.headers.get('Retry-After');
+            alert(`Trop de requêtes envoyées à Spotify${retryAfter ? `, réessaie dans ${retryAfter} secondes.` : ', réessaie dans quelques secondes.'}`);
+        }
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+// Crée le bouton 📥 à placer à droite de chaque titre, partout où il est utilisé
+function buildQueueButton(uri) {
+    const btn = document.createElement('button');
+    btn.innerText = '📥';
+    btn.title = "Ajouter à la file d'attente";
+    btn.style.cssText = `
+        background: none;
+        border: none;
+        font-size: 1rem;
+        cursor: pointer;
+        margin-left: auto;
+        padding: 4px 8px;
+        flex-shrink: 0;
+    `;
+    btn.onclick = (e) => {
+        e.stopPropagation(); // empêche de déclencher la lecture du titre en cliquant sur 📥
+        addToQueue(uri, btn);
+    };
+    return btn;
 }
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
@@ -229,6 +282,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                     </div>
                 `;
                 item.onclick = () => playTrackList(allUris, index);
+                item.appendChild(buildQueueButton(track.uri));
                 resultsContainer.appendChild(item);
             });
 
@@ -470,6 +524,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                             </div>
                         `;
                         item.onclick = () => playTrack(track.uri);
+                        item.appendChild(buildQueueButton(track.uri));
                         resultsContainer.appendChild(item);
                     });
                 } else {
@@ -831,6 +886,7 @@ function highlightLyrics(currentTime) {
                     </div>
                 `;
                 item.onclick = () => { playTrack(track.uri); };
+                item.appendChild(buildQueueButton(track.uri));
                 resultsContainer.appendChild(item);
             });
 
@@ -1267,6 +1323,7 @@ function renderPlaylistTracksSection() {
             </div>
         `;
         item.onclick = () => playTrackList(allUris, index);
+        item.appendChild(buildQueueButton(track.uri));
         scrollBox.appendChild(item);
     });
 
@@ -1380,6 +1437,8 @@ function buildQueueItem(track) {
     `;
     return item;
 }
+
+
 
 
 
