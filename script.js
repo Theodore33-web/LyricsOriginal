@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.07";
+const APP_VERSION = "v1.1.08";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -1234,4 +1234,106 @@ function renderPlaylistTracksSection() {
         };
         scrollBox.appendChild(moreBtn);
     }
+}
+// ==========================================
+// FILE D'ATTENTE — bouton 📋
+// ==========================================
+async function toggleQueue() {
+    document.getElementById('profile-card-zone').style.display = 'none';
+    document.getElementById('device-control-zone').style.display = 'none';
+    document.getElementById('volume-control-zone').style.display = 'none';
+    const plContainer = document.getElementById('playlist-container');
+    if (plContainer) { plContainer.style.display = 'none'; plContainer.innerHTML = ''; }
+
+    const resultsContainer = document.getElementById('search-results');
+
+    // Si la file est déjà affichée, on referme au 2e clic
+    if (resultsContainer.dataset.view === 'queue') {
+        resultsContainer.innerHTML = '';
+        resultsContainer.dataset.view = '';
+        return;
+    }
+
+    resultsContainer.dataset.view = 'queue';
+    await fetchQueue();
+}
+
+async function fetchQueue() {
+    if (!currentToken) return;
+    const resultsContainer = document.getElementById('search-results');
+    resultsContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement de la file d'attente...</p>";
+
+    try {
+        const response = await fetch('https://api.spotify.com/v1/me/player/queue', {
+            headers: { 'Authorization': 'Bearer ' + currentToken }
+        });
+
+        if (response.status === 401 || response.status === 403) {
+            resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Session expirée, reconnecte-toi.</p>";
+            return;
+        }
+
+        const data = await response.json();
+        renderQueueSection(data);
+    } catch (e) {
+        console.error(e);
+        resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur lors du chargement de la file d'attente.</p>";
+    }
+}
+
+function renderQueueSection(data) {
+    const resultsContainer = document.getElementById('search-results');
+    resultsContainer.innerHTML = "";
+    resultsContainer.style.textAlign = 'left';
+
+    // --- Titre en cours de lecture ---
+    if (data.currently_playing) {
+        const currentHeader = document.createElement('p');
+        currentHeader.style = "color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;";
+        currentHeader.innerText = "EN COURS DE LECTURE";
+        resultsContainer.appendChild(currentHeader);
+
+        resultsContainer.appendChild(buildQueueItem(data.currently_playing));
+    }
+
+    // --- File d'attente ---
+    const queueHeader = document.createElement('p');
+    queueHeader.style = "color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 15px 0 10px 5px;";
+    queueHeader.innerText = "À SUIVRE";
+    resultsContainer.appendChild(queueHeader);
+
+    if (!data.queue || data.queue.length === 0) {
+        const emptyMsg = document.createElement('p');
+        emptyMsg.style = "font-size:0.9rem; color:var(--text-grey); margin:5px;";
+        emptyMsg.innerText = "Aucun titre en attente.";
+        resultsContainer.appendChild(emptyMsg);
+        return;
+    }
+
+    data.queue.forEach(track => {
+        resultsContainer.appendChild(buildQueueItem(track));
+    });
+}
+
+// Construit une ligne d'affichage pour un titre (piste ou épisode)
+function buildQueueItem(track) {
+    const item = document.createElement('div');
+    item.className = 'search-item';
+
+    const imgUrl = track.album && track.album.images && track.album.images.length > 0
+        ? track.album.images[track.album.images.length > 2 ? 2 : 0].url
+        : 'https://via.placeholder.com/30';
+
+    const artistsNames = track.artists && track.artists.length > 0
+        ? track.artists.map(a => a.name).join(', ')
+        : (track.show ? track.show.name : 'Artiste inconnu');
+
+    item.innerHTML = `
+        <img src="${imgUrl}" alt="">
+        <div>
+            <strong style="display:block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${track.name}</strong>
+            <span style="font-size: 0.8rem; color: var(--text-grey);">${artistsNames}</span>
+        </div>
+    `;
+    return item;
 }
