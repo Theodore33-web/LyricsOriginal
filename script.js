@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.00";
+const APP_VERSION = "v1.1.01";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -1033,9 +1033,152 @@ function togglePlaylistsView() {
     const container = document.getElementById('playlist-container');
     if (container.style.display === 'none' || container.innerHTML === '') {
         container.style.display = 'block';
+        // Défilement identique à getUserLibrary (search-results)
+        container.style.maxHeight = '340px';
+        container.style.overflowY = 'auto';
+        container.style.textAlign = 'left';
         fetchUserPlaylists();
     } else {
         container.style.display = 'none';
+        container.innerHTML = '';
+    }
+}
+
+// --- 2. RÉCUPÉRATION DE TOUTES LES PLAYLISTS (inchangée) ---
+async function fetchUserPlaylists() {
+    if (!currentToken) return;
+    const container = document.getElementById('playlist-container');
+    container.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement des playlists...</p>";
+
+    try {
+        const response = await fetch('https://api.spotify.com/v1/me/playlists?limit=50', {
+            headers: { 'Authorization': 'Bearer ' + currentToken }
+        });
+        const data = await response.json();
+
+        if (data.items && data.items.length > 0) {
+            userPlaylists = data.items;
+            displayedPlaylistsCount = 10;
+            renderPlaylistsSection();
+        } else {
+            container.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Aucune playlist trouvée.</p>";
+        }
+    } catch (e) {
+        console.error(e);
+        container.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur lors du chargement des playlists.</p>";
+    }
+}
+
+// --- 3. AFFICHAGE DE LA LISTE DES PLAYLISTS : "VOS PLAYLISTS" à gauche ---
+function renderPlaylistsSection() {
+    const container = document.getElementById('playlist-container');
+    container.innerHTML = "";
+    container.style.textAlign = 'left';
+
+    const titleHeader = document.createElement('p');
+    titleHeader.style = "color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px; text-align: left;";
+    titleHeader.innerText = "VOS PLAYLISTS";
+    container.appendChild(titleHeader);
+
+    const itemsToDisplay = userPlaylists.slice(0, displayedPlaylistsCount);
+
+    itemsToDisplay.forEach(pl => {
+        if (!pl) return;
+        const item = document.createElement('div');
+        item.className = 'search-item';
+        const imgUrl = pl.images && pl.images.length > 0 ? pl.images[0].url : 'https://via.placeholder.com/30';
+
+        const totalCount = (pl.tracks && pl.tracks.total !== undefined)
+            ? pl.tracks.total
+            : (pl.items && pl.items.total !== undefined ? pl.items.total : '?');
+
+        item.innerHTML = `
+            <img src="${imgUrl}" alt="">
+            <div>
+                <strong style="display:block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${pl.name}</strong>
+                <span style="font-size: 0.8rem; color: var(--text-grey);">${totalCount} titres</span>
+            </div>
+        `;
+        item.onclick = () => loadPlaylistTracks(pl.id, pl.name);
+        container.appendChild(item);
+    });
+
+    // Bouton "Afficher plus" — même classe/style que getUserLibrary
+    if (userPlaylists.length > displayedPlaylistsCount) {
+        const moreBtn = document.createElement('button');
+        moreBtn.className = 'lib-btn';
+        moreBtn.style.marginTop = '10px';
+        moreBtn.innerText = "➕ Afficher plus (+10)";
+        moreBtn.onclick = () => {
+            displayedPlaylistsCount += 10;
+            renderPlaylistsSection();
+        };
+        container.appendChild(moreBtn);
+    }
+}
+
+// --- 4. TITRES D'UNE PLAYLIST : titre puis bouton retour rectangulaire EN DESSOUS ---
+async function loadPlaylistTracks(playlistId, playlistName) {
+    const container = document.getElementById('playlist-container');
+    container.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement des titres...</p>";
+
+    try {
+        const response = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/items`, {
+            headers: { 'Authorization': 'Bearer ' + currentToken }
+        });
+        const data = await response.json();
+        currentPlaylistTracks = data.items || [];
+
+        container.innerHTML = "";
+        container.style.textAlign = 'left';
+
+        // 1. Titre de la playlist en premier
+        const titleHeader = document.createElement('p');
+        titleHeader.style = "color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px; text-align: left;";
+        titleHeader.innerText = playlistName.toUpperCase();
+        container.appendChild(titleHeader);
+
+        // 2. Bouton retour EN DESSOUS, forme rectangulaire (pas de pilule)
+        const backBtn = document.createElement('button');
+        backBtn.innerText = "⬅ Retour";
+        backBtn.style = "background:#e22134; color:white; border:none; padding:8px 16px; border-radius:4px; font-size:0.8rem; font-weight:bold; cursor:pointer; margin-bottom:15px; display:block;";
+        backBtn.onclick = () => renderPlaylistsSection();
+        container.appendChild(backBtn);
+
+        if (currentPlaylistTracks.length === 0) {
+            container.innerHTML += "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Cette playlist est vide.</p>";
+            return;
+        }
+
+        const allUris = currentPlaylistTracks
+            .map(obj => (obj.item || obj.track) ? (obj.item || obj.track).uri : null)
+            .filter(uri => uri);
+
+        currentPlaylistTracks.forEach((obj, index) => {
+            const track = obj.item || obj.track;
+            if (!track) return;
+
+            const item = document.createElement('div');
+            item.className = 'search-item';
+            const imgUrl = track.album && track.album.images && track.album.images.length > 2 ? track.album.images[2].url : 'https://via.placeholder.com/30';
+            const artistsNames = track.artists && track.artists.length > 0 ? track.artists.map(a => a.name).join(', ') : 'Artiste inconnu';
+
+            item.innerHTML = `
+                <img src="${imgUrl}" alt="">
+                <div>
+                    <strong style="display:block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${track.name}</strong>
+                    <span style="font-size: 0.8rem; color: var(--text-grey);">${artistsNames}</span>
+                </div>
+            `;
+            // Clic sur un titre = lancement immédiat via playTrackList (déjà présente dans ton code)
+            item.onclick = () => playTrackList(allUris, index);
+            container.appendChild(item);
+        });
+    } catch (e) {
+        console.error(e);
+        container.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur lors du chargement des titres.</p>";
+    }
+}ner.style.display = 'none';
         container.innerHTML = '';
     }
 }
