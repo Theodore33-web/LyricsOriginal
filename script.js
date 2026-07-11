@@ -1,5 +1,3 @@
-
-
 const APP_VERSION = "v1.1.07";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
