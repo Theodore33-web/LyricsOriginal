@@ -1048,7 +1048,7 @@ async function fetchUserPlaylists() {
     container.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement des playlists...</p>";
 
     try {
-        const response = await fetch('https://api.spotify.com/v1/me/playlists?limit=50', {
+        const response = await fetch('https://api.spotify.com/v1/me/playlists', {
             headers: { 'Authorization': 'Bearer ' + currentToken }
         });
         const data = await response.json();
@@ -1065,7 +1065,6 @@ async function fetchUserPlaylists() {
         container.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur lors du chargement des playlists.</p>";
     }
 }
-
 // --- 3. AFFICHAGE DE LA LISTE DES PLAYLISTS (style identique à renderLibrarySection) ---
 function renderPlaylistsSection() {
     const container = document.getElementById('playlist-container');
