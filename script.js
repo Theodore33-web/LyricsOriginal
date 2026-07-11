@@ -1,4 +1,6 @@
-const APP_VERSION = "v1.1.07";
+
+
+const APP_VERSION = "v1.0.35";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -6,9 +8,6 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
         let lastTrackId = "";
         let currentLyrics = [];
         let trackDurationMs = 0; 
-        let currentProgressMs = 0;
-        let isCurrentlyPlaying = false;
-        let localProgressInterval = null;
         let libraryItems = [];
         let displayedCount = 10;
         const auddApiToken = "187ef3238849ff75583d237fa40dbb48"; 
@@ -131,47 +130,32 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
             }
         }
 
-    async function getUserLibrary() {
-    document.getElementById('profile-card-zone').style.display = 'none';
-    if (!currentToken) return;
-    const resultsContainer = document.getElementById('search-results');
-    resultsContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement de la bibliothèque...</p>";
+        async function getUserLibrary() {
+            document.getElementById('profile-card-zone').style.display = 'none';
+            if (!currentToken) return;
+            const resultsContainer = document.getElementById('search-results');
+            resultsContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement de la bibliothèque...</p>";
+            
+            try {
+                const response = await fetch('https://api.spotify.com/v1/me/tracks?limit=50', {
+                    headers: { 'Authorization': 'Bearer ' + currentToken }
+                });
+                const data = await response.json();
+                resultsContainer.innerHTML = "";
 
-    try {
-        let allItems = [];
-        let offset = 0;
-        const limit = 50;
-        let total = Infinity;
-
-        while (offset < total) {
-            const response = await fetch(`https://api.spotify.com/v1/me/tracks?limit=${limit}&offset=${offset}`, {
-                headers: { 'Authorization': 'Bearer ' + currentToken }
-            });
-            const data = await response.json();
-
-            if (!data.items) break;
-
-            allItems = allItems.concat(data.items);
-            total = data.total;
-            offset += limit;
-
-            resultsContainer.innerHTML = `<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement de la bibliothèque... (${allItems.length}/${total})</p>`;
+                if (data.items && data.items.length > 0) {
+                    libraryItems = data.items;
+                    displayedCount = 10; 
+                    renderLibrarySection();
+                } else {
+                    resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Aucun morceau favori trouvé.</p>";
+                }
+            } catch (e) { 
+                console.error(e); 
+                resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur lors du chargement de la bibliothèque.</p>";
+            }
         }
 
-        resultsContainer.innerHTML = "";
-
-        if (allItems.length > 0) {
-            libraryItems = allItems;
-            displayedCount = 10; 
-            renderLibrarySection();
-        } else {
-            resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Aucun morceau favori trouvé.</p>";
-        }
-    } catch (e) { 
-        console.error(e); 
-        resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur lors du chargement de la bibliothèque.</p>";
-    }
-}
         function renderLibrarySection() {
             const resultsContainer = document.getElementById('search-results');
             resultsContainer.innerHTML = "";
@@ -483,8 +467,6 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 if (response.status === 204) {
                     document.getElementById('search-results').innerHTML = "";
                     document.getElementById('search-input').value = "";
-                    const plContainer = document.getElementById('playlist-container');
-                    if (plContainer) { plContainer.style.display = 'none'; plContainer.innerHTML = ""; }
                     setTimeout(updateNowPlaying, 600);
                 } else if (response.status === 404) {
                     alert("Ouvrez Spotify et lancez une lecture sur l'un de vos appareils.");
@@ -629,10 +611,7 @@ function highlightLyrics(currentTime) {
             if (!currentToken) return;
             try {
                 const response = await fetch('https://api.spotify.com/v1/me/player', { headers: { 'Authorization': 'Bearer ' + currentToken } });
-                if (response.status === 204 || response.status === 401) {
-                    isCurrentlyPlaying = false;
-                    return;
-                }
+                if (response.status === 204 || response.status === 401) return;
                 const data = await response.json();
 
                 if (data && data.item) {
@@ -640,10 +619,6 @@ function highlightLyrics(currentTime) {
                     document.getElementById('track-title').innerText = data.item.name;
                     document.getElementById('track-artist').innerText = data.item.artists.map(a => a.name).join(", ");
                       
-                    // Resynchronise la progression réelle avec celle de Spotify (corrige toute dérive locale)
-                    currentProgressMs = data.progress_ms;
-                    isCurrentlyPlaying = data.is_playing;
-
                     document.getElementById('time-current').innerText = formatTime(data.progress_ms);
                     document.getElementById('time-max').innerText = formatTime(trackDurationMs);
                     const progressPercent = (data.progress_ms / trackDurationMs) * 100;
@@ -669,24 +644,6 @@ function highlightLyrics(currentTime) {
                 }
             } catch (e) {}
         }
-
-        // Fait avancer la barre de progression et le chrono chaque seconde, SANS appeler l'API.
-        // La vraie valeur est resynchronisée par updateNowPlaying() toutes les 3s.
-        function tickLocalProgress() {
-            if (!isCurrentlyPlaying || trackDurationMs === 0) return;
-
-            currentProgressMs += 1000;
-            if (currentProgressMs > trackDurationMs) currentProgressMs = trackDurationMs;
-
-            const progressPercent = (currentProgressMs / trackDurationMs) * 100;
-            const fillEl = document.getElementById('progress-fill');
-            const timeEl = document.getElementById('time-current');
-            if (fillEl) fillEl.style.width = `${progressPercent}%`;
-            if (timeEl) timeEl.innerText = formatTime(currentProgressMs);
-
-            highlightLyrics(currentProgressMs / 1000);
-        }
-        localProgressInterval = setInterval(tickLocalProgress, 1000);
 
      async function togglePlay() {
     if (!currentToken) return;
@@ -752,7 +709,7 @@ function highlightLyrics(currentTime) {
         function generateCodeVerifier(l) { let t = ''; let p = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'; for (let i = 0; i < l; i++) t += p.charAt(Math.floor(Math.random() * p.length)); return t; }
         async function generateCodeChallenge(v) { const d = await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(v)); return btoa(String.fromCharCode.apply(null, new Uint8Array(d))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
 
-        setInterval(updateNowPlaying, 3000);
+        setInterval(updateNowPlaying, 1000);
         
         async function getRecentlyPlayed() {
             document.getElementById('profile-card-zone').style.display = 'none'; 
@@ -762,7 +719,7 @@ function highlightLyrics(currentTime) {
             resultsContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement de l'historique...</p>";
 
             try {
-                const response = await fetch('https://api.spotify.com/v1/me/player/recently-played?limit=50', {
+                const response = await fetch('https://api.spotify.com/v1/me/player/recently-played', {
                     headers: { 'Authorization': 'Bearer ' + currentToken }
                 });
                 const data = await response.json();
@@ -836,135 +793,11 @@ function toggleVolumeControl() {
 }
 
 // Fonction principale du volume liée à ton slider range
-// Fonction pour afficher/masquer la réglette du volume
-
-// ==========================================
-// FILE D'ATTENTE — bouton 📋
-// ==========================================
-async function toggleQueue() {
-    document.getElementById('profile-card-zone').style.display = 'none';
-    document.getElementById('device-control-zone').style.display = 'none';
-    document.getElementById('volume-control-zone').style.display = 'none';
-    const plContainer = document.getElementById('playlist-container');
-    if (plContainer) { plContainer.style.display = 'none'; plContainer.innerHTML = ''; }
-
-    const resultsContainer = document.getElementById('search-results');
-
-    if (resultsContainer.dataset.view === 'queue') {
-        resultsContainer.innerHTML = '';
-        resultsContainer.dataset.view = '';
-        return;
-    }
-
-    resultsContainer.dataset.view = 'queue';
-    await fetchQueue();
-}
-
-async function fetchQueue() {
-    if (!currentToken) return;
-    const resultsContainer = document.getElementById('search-results');
-    resultsContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement de la file d'attente...</p>";
-
-    try {
-        const response = await fetch('https://api.spotify.com/v1/me/player/queue', {
-            headers: { 'Authorization': 'Bearer ' + currentToken }
-        });
-
-        if (response.status === 401 || response.status === 403) {
-            resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Session expirée, reconnecte-toi.</p>";
-            return;
-        }
-        if (response.status === 429) {
-            resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:orange; margin:5px;'>Trop de requêtes envoyées à Spotify, réessaie dans quelques secondes.</p>";
-            return;
-        }
-
-        const data = await response.json();
-        renderQueueSection(data);
-    } catch (e) {
-        console.error(e);
-        resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur lors du chargement de la file d'attente.</p>";
-    }
-}
-
-function renderQueueSection(data) {
-    const resultsContainer = document.getElementById('search-results');
-    resultsContainer.innerHTML = "";
-    resultsContainer.style.textAlign = 'left';
-
-    if (data.currently_playing) {
-        const currentHeader = document.createElement('p');
-        currentHeader.style = "color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;";
-        currentHeader.innerText = "EN COURS DE LECTURE";
-        resultsContainer.appendChild(currentHeader);
-        resultsContainer.appendChild(buildQueueItem(data.currently_playing));
-    }
-
-    const queueHeader = document.createElement('p');
-    queueHeader.style = "color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 15px 0 10px 5px;";
-    queueHeader.innerText = "À SUIVRE";
-    resultsContainer.appendChild(queueHeader);
-
-    if (!data.queue || data.queue.length === 0) {
-        const emptyMsg = document.createElement('p');
-        emptyMsg.style = "font-size:0.9rem; color:var(--text-grey); margin:5px;";
-        emptyMsg.innerText = "Aucun titre en attente.";
-        resultsContainer.appendChild(emptyMsg);
-        return;
-    }
-
-    data.queue.forEach(track => {
-        resultsContainer.appendChild(buildQueueItem(track));
-    });
-}
-
-function buildQueueItem(track) {
-    const item = document.createElement('div');
-    item.className = 'search-item';
-
-    const imgUrl = track.album && track.album.images && track.album.images.length > 0
-        ? track.album.images[track.album.images.length > 2 ? 2 : 0].url
-        : 'https://via.placeholder.com/30';
-
-    const artistsNames = track.artists && track.artists.length > 0
-        ? track.artists.map(a => a.name).join(', ')
-        : (track.show ? track.show.name : 'Artiste inconnu');
-
-    item.innerHTML = `
-        <img src="${imgUrl}" alt="">
-        <div>
-            <strong style="display:block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${track.name}</strong>
-            <span style="font-size: 0.8rem; color: var(--text-grey);">${artistsNames}</span>
-        </div>
-    `;
-    return item;
-}
-
-// Met à jour l'icône selon le niveau (dégradé 3 états)
-function updateVolumeIcon(value) {
-    const icon = document.getElementById('volume-icon');
-    if (!icon) return;
-
-    if (value == 0) {
-        icon.innerText = "🔇";
-    } else if (value < 50) {
-        icon.innerText = "🔉";
-    } else {
-        icon.innerText = "🔊";
-    }
-}
-
-// Fonction principale du volume liée à ton slider range
 async function changeVolume(value) {
     const percentLabel = document.getElementById('volume-percent');
     if (percentLabel) percentLabel.innerText = value + '%';
-    updateVolumeIcon(value);
-    updateVolumeTrack(value);
-
-    if (!currentToken) {
-        console.error("Aucun jeton de connexion (currentToken) trouvé.");
-        return;
-    }
+    
+    if (!currentToken) return;
 
     try {
         const response = await fetch(`https://api.spotify.com/v1/me/player/volume?volume_percent=${value}`, {
@@ -980,6 +813,32 @@ async function changeVolume(value) {
             console.warn("⚠️ Statut 404 : Aucun appareil actif trouvé pour modifier le volume.");
         } else if (response.ok) {
             console.log(`✅ Volume réglé sur ${value}%`);
+        }
+    } catch (error) {
+        console.error("Erreur lors du changement de volume :", error);
+    }
+}
+// Fonction pour modifier le volume (et mettre à jour le texte du pourcentage)
+async function changeVolume(value) {
+    document.getElementById('volume-percent').innerText = value + '%';
+    
+    // 🔍 On vérifie si currentToken existe bien avant de lancer la requête
+    if (!currentToken) {
+        console.error("Aucun jeton de connexion (currentToken) trouvé.");
+        return;
+    }
+
+    try {
+        const response = await fetch(`https://api.spotify.com/v1/me/player/volume?volume_percent=${value}`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': 'Bearer ' + currentToken, // ✅ Utilisation du bon token
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (response.ok) {
+            console.log("✅ Volume modifié avec succès à :", value);
         } else {
             console.error("❌ Erreur API Spotify (Statut):", response.status);
         }
@@ -987,11 +846,7 @@ async function changeVolume(value) {
         console.error("🚨 Erreur réseau ou JS :", error);
     }
 }
-function updateVolumeTrack(value) {
-    const slider = document.getElementById('volume-slider');
-    if (!slider) return;
-    slider.style.background = `linear-gradient(to right, #1DB954 0%, #1DB954 ${value}%, #4d4d4d ${value}%, #4d4d4d 100%)`;
-}
+
 // 1. Liaison avec l'ID du bouton (comme demandé pour le profil)
 const deviceBtn = document.getElementById('device-toggle-btn');
 
@@ -1094,278 +949,61 @@ async function switchDevice(deviceId) {
     }
 }
 // 1. FONCTION POUR VÉRIFIER SI LE MORCEAU EST DÉJÀ LIKÉ
-// --- VÉRIFICATION (GET) SUR LA BIBLIOTHÈQUE ---
 async function checkIfTrackIsLiked(trackId) {
-    if (!trackId || !currentToken) return;
+    if (!currentToken || !trackId) return;
 
     try {
-        const url = `https://api.spotify.com/v1/me/library/contains?uris=spotify:track:${trackId}`;
-        const response = await fetch(url, {
-            method: 'GET',
-            headers: { 'Authorization': `Bearer ${currentToken}` }
+        // Utilisation du format standard ?ids=
+        const response = await fetch(`https://api.spotify.com/v1/me/tracks/contains?ids=$?ids=${trackId}`, {
+            headers: { 'Authorization': 'Bearer ' + currentToken }
         });
-
-        const [isLiked] = await response.json();
-
-        const likeBtn = document.getElementById('like-btn');
-        if (likeBtn) {
-            likeBtn.innerText = isLiked ? "❤️" : "🤍";
-            likeBtn.setAttribute('data-liked', isLiked);
+        
+        if (response.ok) {
+            const isLikedArray = await response.json();
+            const isLiked = isLikedArray[0]; // L'API renvoie un tableau [true] ou [false]
+            const likeBtn = document.getElementById('like-btn');
+            if (likeBtn) {
+                likeBtn.innerText = isLiked ? "❤️" : "🤍";
+                likeBtn.setAttribute('data-liked', isLiked);
+            }
         }
-    } catch (error) {
-        console.error("Erreur de détection :", error);
+    } catch (e) {
+        console.error("Erreur lors de la vérification du favori :", e);
     }
 }
 
-// --- ACTION AU CLIC : PUT (ENREGISTRER) OU DELETE (SUPPRIMER) ---
+// 2. FONCTION POUR AJOUTER OU SUPPRIMER DES FAVORIS AU CLIC
 async function toggleLikeCurrentTrack() {
     if (!currentToken || !lastTrackId) return;
 
     const likeBtn = document.getElementById('like-btn');
     const isCurrentlyLiked = likeBtn.getAttribute('data-liked') === 'true';
-    const methodType = isCurrentlyLiked ? 'DELETE' : 'PUT';
-
-    const trackUri = encodeURIComponent(`spotify:track:${lastTrackId}`);
-    const url = `https://api.spotify.com/v1/me/library?uris=${trackUri}`;
+    const method = isCurrentlyLiked ? 'DELETE' : 'PUT';
 
     try {
-        const response = await fetch(url, {
-            method: methodType,
-            headers: { 'Authorization': `Bearer ${currentToken}` }
+        // Ajout du paramètre ids dans l'URL requis par l'API Spotify
+        const response = await fetch(`https://api.spotify.com/v1/me/tracks?ids=$?ids=${lastTrackId}`, {
+            method: method,
+            headers: { 
+                'Authorization': 'Bearer ' + currentToken,
+                'Content-Type': 'application/json'
+            },
+            body: method === 'PUT' ? JSON.stringify({}) : null // Corps vide requis pour le PUT
         });
 
-        if (response.ok) {
+        if (response.ok || response.status === 200 || response.status === 201) {
             const newLikedState = !isCurrentlyLiked;
             likeBtn.innerText = newLikedState ? "❤️" : "🤍";
             likeBtn.setAttribute('data-liked', newLikedState);
-
-            // Rafraîchit la liste des titres likés si elle est affichée
-            const results = document.getElementById('search-results');
-            if (results && results.innerHTML.includes("VOS TITRES LIKÉS")) {
+            
+            if (document.getElementById('search-results').innerHTML.includes("VOS TITRES LIKÉS")) {
                 getUserLibrary();
             }
-        } else if (response.status === 401 || response.status === 403) {
-            console.warn("Session expirée ou accès refusé.");
-        }
-    } catch (error) {
-        console.error("Erreur modification bibliothèque :", error);
-    }
-}
-// ==========================================
-// VARIABLES GLOBALES
-// ==========================================
-let userPlaylists = [];
-let displayedPlaylistsCount = 10;
-let currentPlaylistTracks = [];
-let displayedTracksCount = 10;
-let currentPlaylistName = "";
-
-// ==========================================
-// 1. AFFICHAGE / MASQUAGE AU CLIC SUR LE BOUTON 🎵
-// ==========================================
-function togglePlaylistsView() {
-    document.getElementById('profile-card-zone').style.display = 'none';
-    document.getElementById('device-control-zone').style.display = 'none';
-    document.getElementById('volume-control-zone').style.display = 'none';
-    document.getElementById('search-results').innerHTML = '';
-
-    const container = document.getElementById('playlist-container');
-    if (container.style.display === 'none' || container.innerHTML === '') {
-        container.style.display = 'block';
-        container.style.width = '100%';
-        container.style.boxSizing = 'border-box';
-        fetchUserPlaylists();
-    } else {
-        container.style.display = 'none';
-        container.innerHTML = '';
-    }
-}
-
-// ==========================================
-// 2. RÉCUPÉRATION DE TOUTES LES PLAYLISTS
-// ==========================================
-async function fetchUserPlaylists() {
-    if (!currentToken) return;
-    const container = document.getElementById('playlist-container');
-    container.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement des playlists...</p>";
-
-    try {
-        const response = await fetch('https://api.spotify.com/v1/me/playlists?limit=50', {
-            headers: { 'Authorization': 'Bearer ' + currentToken }
-        });
-        const data = await response.json();
-
-        if (data.items && data.items.length > 0) {
-            userPlaylists = data.items;
-            displayedPlaylistsCount = 10;
-            renderPlaylistsSection();
         } else {
-            container.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Aucune playlist trouvée.</p>";
+            console.error("Réponse API Spotify incorrecte :", response.status);
         }
     } catch (e) {
-        console.error(e);
-        container.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur lors du chargement des playlists.</p>";
+        console.error("Erreur lors du changement d'état du favori :", e);
     }
 }
 
-// ==========================================
-// 3. LISTE DES PLAYLISTS
-// Titre "VOS PLAYLISTS" HORS du cadre défilant
-// Cadre défilant = 100% de la largeur du container
-// ==========================================
-function renderPlaylistsSection() {
-    const container = document.getElementById('playlist-container');
-    container.innerHTML = "";
-    container.style.textAlign = 'left';
-    container.style.width = '100%';
-    container.style.boxSizing = 'border-box';
-
-    // Titre EXTÉRIEUR au cadre de défilement
-    const titleHeader = document.createElement('p');
-    titleHeader.style = "color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 0; text-align: left; width: 100%;";
-    titleHeader.innerText = "VOS PLAYLISTS";
-    container.appendChild(titleHeader);
-
-    // Cadre défilant, prend toute la largeur du container
-    const scrollBox = document.createElement('div');
-    scrollBox.id = 'playlist-scroll-box';
-    scrollBox.style = "width: 100%; box-sizing: border-box; max-height: 300px; overflow-y: auto;";
-    container.appendChild(scrollBox);
-
-    const itemsToDisplay = userPlaylists.slice(0, displayedPlaylistsCount);
-
-    itemsToDisplay.forEach(pl => {
-        if (!pl) return;
-        const item = document.createElement('div');
-        item.className = 'search-item';
-        item.style.width = '100%';
-        item.style.boxSizing = 'border-box';
-        const imgUrl = pl.images && pl.images.length > 0 ? pl.images[0].url : 'https://via.placeholder.com/30';
-
-        const totalCount = (pl.tracks && pl.tracks.total !== undefined)
-            ? pl.tracks.total
-            : (pl.items && pl.items.total !== undefined ? pl.items.total : '?');
-
-        item.innerHTML = `
-            <img src="${imgUrl}" alt="">
-            <div>
-                <strong style="display:block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${pl.name}</strong>
-                <span style="font-size: 0.8rem; color: var(--text-grey);">${totalCount} titres</span>
-            </div>
-        `;
-        item.onclick = () => loadPlaylistTracks(pl.id, pl.name);
-        scrollBox.appendChild(item);
-    });
-
-    // Bouton "Afficher plus" — même style que getUserLibrary (classe lib-btn, rien d'autre)
-    if (userPlaylists.length > displayedPlaylistsCount) {
-        const moreBtn = document.createElement('button');
-        moreBtn.className = 'lib-btn';
-        moreBtn.style.marginTop = '10px';
-        moreBtn.innerText = "➕ Afficher plus (+10)";
-        moreBtn.onclick = () => {
-            displayedPlaylistsCount += 10;
-            renderPlaylistsSection();
-        };
-        scrollBox.appendChild(moreBtn);
-    }
-}
-
-// ==========================================
-// 4. CHARGEMENT DES TITRES D'UNE PLAYLIST
-// ==========================================
-async function loadPlaylistTracks(playlistId, playlistName) {
-    const container = document.getElementById('playlist-container');
-    container.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement des titres...</p>";
-
-    try {
-        const response = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/items`, {
-            headers: { 'Authorization': 'Bearer ' + currentToken }
-        });
-        const data = await response.json();
-        currentPlaylistTracks = data.items || [];
-        currentPlaylistName = playlistName;
-        displayedTracksCount = 10;
-
-        renderPlaylistTracksSection();
-    } catch (e) {
-        console.error(e);
-        container.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur lors du chargement des titres.</p>";
-    }
-}
-
-// ==========================================
-// 5. TITRES D'UNE PLAYLIST
-// Titre + bouton retour (pleine largeur) HORS du cadre défilant
-// ==========================================
-function renderPlaylistTracksSection() {
-    const container = document.getElementById('playlist-container');
-    container.innerHTML = "";
-    container.style.textAlign = 'left';
-    container.style.width = '100%';
-    container.style.boxSizing = 'border-box';
-
-    // Titre EXTÉRIEUR au cadre
-    const titleHeader = document.createElement('p');
-    titleHeader.style = "color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 0; text-align: left; width: 100%;";
-    titleHeader.innerText = currentPlaylistName.toUpperCase();
-    container.appendChild(titleHeader);
-
-    // Bouton retour EXTÉRIEUR, pleine largeur
-    const backBtn = document.createElement('button');
-    backBtn.innerText = "⬅ Retour";
-    backBtn.style = "background:#e22134; color:white; border:none; padding:10px; border-radius:4px; font-size:0.85rem; font-weight:bold; cursor:pointer; margin-bottom:15px; width:100%; box-sizing:border-box; display:block; text-align:center;";
-    backBtn.onclick = () => renderPlaylistsSection();
-    container.appendChild(backBtn);
-
-    if (currentPlaylistTracks.length === 0) {
-        container.innerHTML += "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Cette playlist est vide.</p>";
-        return;
-    }
-
-    // Cadre défilant, prend toute la largeur
-    const scrollBox = document.createElement('div');
-    scrollBox.id = 'playlist-tracks-scroll-box';
-    scrollBox.style = "width: 100%; box-sizing: border-box; max-height: 300px; overflow-y: auto;";
-    container.appendChild(scrollBox);
-
-    const allUris = currentPlaylistTracks
-        .map(obj => (obj.item || obj.track) ? (obj.item || obj.track).uri : null)
-        .filter(uri => uri);
-
-    const itemsToDisplay = currentPlaylistTracks.slice(0, displayedTracksCount);
-
-    itemsToDisplay.forEach((obj, index) => {
-        const track = obj.item || obj.track;
-        if (!track) return;
-
-        const item = document.createElement('div');
-        item.className = 'search-item';
-        item.style.width = '100%';
-        item.style.boxSizing = 'border-box';
-        const imgUrl = track.album && track.album.images && track.album.images.length > 2 ? track.album.images[2].url : 'https://via.placeholder.com/30';
-        const artistsNames = track.artists && track.artists.length > 0 ? track.artists.map(a => a.name).join(', ') : 'Artiste inconnu';
-
-        item.innerHTML = `
-            <img src="${imgUrl}" alt="">
-            <div>
-                <strong style="display:block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${track.name}</strong>
-                <span style="font-size: 0.8rem; color: var(--text-grey);">${artistsNames}</span>
-            </div>
-        `;
-        item.onclick = () => playTrackList(allUris, index);
-        scrollBox.appendChild(item);
-    });
-
-    if (currentPlaylistTracks.length > displayedTracksCount) {
-        const moreBtn = document.createElement('button');
-        moreBtn.className = 'lib-btn';
-        moreBtn.style.marginTop = '10px';
-        moreBtn.innerText = "➕ Afficher plus (+10)";
-        moreBtn.onclick = () => {
-            displayedTracksCount += 10;
-            renderPlaylistTracksSection();
-        };
-        scrollBox.appendChild(moreBtn);
-    }
-}
