@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.07";
+const APP_VERSION = "v1.1.06";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -734,7 +734,7 @@ function highlightLyrics(currentTime) {
             resultsContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement de l'historique...</p>";
 
             try {
-                const response = await fetch('https://api.spotify.com/v1/me/player/recently-played?limit=50', {
+                const response = await fetch('https://api.spotify.com/v1/me/player/recently-played', {
                     headers: { 'Authorization': 'Bearer ' + currentToken }
                 });
                 const data = await response.json();
