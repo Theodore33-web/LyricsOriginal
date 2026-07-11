@@ -1,6 +1,4 @@
-
-
-const APP_VERSION = "v1.1.04";
+const APP_VERSION = "v1.1.03";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -1181,7 +1179,7 @@ function renderPlaylistTracksSection() {
     // Bouton retour EXTÉRIEUR, pleine largeur
     const backBtn = document.createElement('button');
     backBtn.innerText = "⬅ Retour";
-    backBtn.style = "background:#e22134; color:white; border:none; padding:10px; border-radius:4px; font-size:0.85rem; font-weight:bold; cursor:pointer; margin-bottom:15px; width:100%; box-sizing:border-box; display:block; text-align:center;";
+    backBtn.style = "background:#e22134; color:white; border:none; padding:10px; border-radius:4px; font-size:0.85rem; font-weight:bold; cursor:pointer; margin-bottom:15px; width:100%; box-sizing:border-box; display:block;";
     backBtn.onclick = () => renderPlaylistsSection();
     container.appendChild(backBtn);
 
