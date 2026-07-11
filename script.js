@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.02";
+const APP_VERSION = "v1.1.03";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -1019,8 +1019,7 @@ async function toggleLikeCurrentTrack() {
     }
 }
 // ==========================================
-// VARIABLES GLOBALES — à placer en haut du fichier
-// (à ajouter à côté de libraryItems / displayedCount)
+// VARIABLES GLOBALES
 // ==========================================
 let userPlaylists = [];
 let displayedPlaylistsCount = 10;
@@ -1040,9 +1039,8 @@ function togglePlaylistsView() {
     const container = document.getElementById('playlist-container');
     if (container.style.display === 'none' || container.innerHTML === '') {
         container.style.display = 'block';
-        container.style.maxHeight = '340px';
-        container.style.overflowY = 'auto';
-        container.style.textAlign = 'left';
+        container.style.width = '100%';
+        container.style.boxSizing = 'border-box';
         fetchUserPlaylists();
     } else {
         container.style.display = 'none';
@@ -1078,17 +1076,28 @@ async function fetchUserPlaylists() {
 }
 
 // ==========================================
-// 3. AFFICHAGE DE LA LISTE DES PLAYLISTS (10 par 10)
+// 3. LISTE DES PLAYLISTS
+// Titre "VOS PLAYLISTS" HORS du cadre défilant
+// Cadre défilant = 100% de la largeur du container
 // ==========================================
 function renderPlaylistsSection() {
     const container = document.getElementById('playlist-container');
     container.innerHTML = "";
     container.style.textAlign = 'left';
+    container.style.width = '100%';
+    container.style.boxSizing = 'border-box';
 
+    // Titre EXTÉRIEUR au cadre de défilement
     const titleHeader = document.createElement('p');
-    titleHeader.style = "color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px; text-align: left;";
+    titleHeader.style = "color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 0; text-align: left; width: 100%;";
     titleHeader.innerText = "VOS PLAYLISTS";
     container.appendChild(titleHeader);
+
+    // Cadre défilant, prend toute la largeur du container
+    const scrollBox = document.createElement('div');
+    scrollBox.id = 'playlist-scroll-box';
+    scrollBox.style = "width: 100%; box-sizing: border-box; max-height: 300px; overflow-y: auto;";
+    container.appendChild(scrollBox);
 
     const itemsToDisplay = userPlaylists.slice(0, displayedPlaylistsCount);
 
@@ -1096,6 +1105,8 @@ function renderPlaylistsSection() {
         if (!pl) return;
         const item = document.createElement('div');
         item.className = 'search-item';
+        item.style.width = '100%';
+        item.style.boxSizing = 'border-box';
         const imgUrl = pl.images && pl.images.length > 0 ? pl.images[0].url : 'https://via.placeholder.com/30';
 
         const totalCount = (pl.tracks && pl.tracks.total !== undefined)
@@ -1110,9 +1121,10 @@ function renderPlaylistsSection() {
             </div>
         `;
         item.onclick = () => loadPlaylistTracks(pl.id, pl.name);
-        container.appendChild(item);
+        scrollBox.appendChild(item);
     });
 
+    // Bouton "Afficher plus" — même style que getUserLibrary (classe lib-btn, rien d'autre)
     if (userPlaylists.length > displayedPlaylistsCount) {
         const moreBtn = document.createElement('button');
         moreBtn.className = 'lib-btn';
@@ -1122,7 +1134,7 @@ function renderPlaylistsSection() {
             displayedPlaylistsCount += 10;
             renderPlaylistsSection();
         };
-        container.appendChild(moreBtn);
+        scrollBox.appendChild(moreBtn);
     }
 }
 
@@ -1150,21 +1162,26 @@ async function loadPlaylistTracks(playlistId, playlistName) {
 }
 
 // ==========================================
-// 5. AFFICHAGE DES TITRES (10 par 10) + BOUTON RETOUR RECTANGLE EN DESSOUS DU TITRE
+// 5. TITRES D'UNE PLAYLIST
+// Titre + bouton retour (pleine largeur) HORS du cadre défilant
 // ==========================================
 function renderPlaylistTracksSection() {
     const container = document.getElementById('playlist-container');
     container.innerHTML = "";
     container.style.textAlign = 'left';
+    container.style.width = '100%';
+    container.style.boxSizing = 'border-box';
 
+    // Titre EXTÉRIEUR au cadre
     const titleHeader = document.createElement('p');
-    titleHeader.style = "color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px; text-align: left;";
+    titleHeader.style = "color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 0; text-align: left; width: 100%;";
     titleHeader.innerText = currentPlaylistName.toUpperCase();
     container.appendChild(titleHeader);
 
+    // Bouton retour EXTÉRIEUR, pleine largeur
     const backBtn = document.createElement('button');
     backBtn.innerText = "⬅ Retour";
-    backBtn.style = "background:#e22134; color:white; border:none; padding:8px 16px; border-radius:4px; font-size:0.8rem; font-weight:bold; cursor:pointer; margin-bottom:15px; display:block;";
+    backBtn.style = "background:#e22134; color:white; border:none; padding:10px; border-radius:4px; font-size:0.85rem; font-weight:bold; cursor:pointer; margin-bottom:15px; width:100%; box-sizing:border-box; display:block;";
     backBtn.onclick = () => renderPlaylistsSection();
     container.appendChild(backBtn);
 
@@ -1172,6 +1189,12 @@ function renderPlaylistTracksSection() {
         container.innerHTML += "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Cette playlist est vide.</p>";
         return;
     }
+
+    // Cadre défilant, prend toute la largeur
+    const scrollBox = document.createElement('div');
+    scrollBox.id = 'playlist-tracks-scroll-box';
+    scrollBox.style = "width: 100%; box-sizing: border-box; max-height: 300px; overflow-y: auto;";
+    container.appendChild(scrollBox);
 
     const allUris = currentPlaylistTracks
         .map(obj => (obj.item || obj.track) ? (obj.item || obj.track).uri : null)
@@ -1185,6 +1208,8 @@ function renderPlaylistTracksSection() {
 
         const item = document.createElement('div');
         item.className = 'search-item';
+        item.style.width = '100%';
+        item.style.boxSizing = 'border-box';
         const imgUrl = track.album && track.album.images && track.album.images.length > 2 ? track.album.images[2].url : 'https://via.placeholder.com/30';
         const artistsNames = track.artists && track.artists.length > 0 ? track.artists.map(a => a.name).join(', ') : 'Artiste inconnu';
 
@@ -1196,7 +1221,7 @@ function renderPlaylistTracksSection() {
             </div>
         `;
         item.onclick = () => playTrackList(allUris, index);
-        container.appendChild(item);
+        scrollBox.appendChild(item);
     });
 
     if (currentPlaylistTracks.length > displayedTracksCount) {
@@ -1208,7 +1233,6 @@ function renderPlaylistTracksSection() {
             displayedTracksCount += 10;
             renderPlaylistTracksSection();
         };
-        container.appendChild(moreBtn);
+        scrollBox.appendChild(moreBtn);
     }
 }
-
