@@ -1,6 +1,37 @@
+const APP_VERSION = "v1.1.12";
 
-
-const APP_VERSION = "v1.1.11";
+// Crée un bouton "Afficher plus" avec un style forcé en JS,
+// identique à 100% partout où il est utilisé (bibliothèque, écoutes
+// récentes, playlists, titres de playlist), peu importe le CSS parent.
+function createMoreButton(onClickHandler) {
+    const moreBtn = document.createElement('button');
+    moreBtn.innerText = "➕ Afficher plus (+10)";
+    moreBtn.style.cssText = `
+        background: none;
+        border: 1px solid var(--spotify-green);
+        color: var(--spotify-green);
+        border-radius: 20px;
+        padding: 8px 15px;
+        margin-top: 10px;
+        cursor: pointer;
+        font-size: 0.8rem;
+        font-weight: bold;
+        width: 100%;
+        box-sizing: border-box;
+        display: block;
+        transition: all 0.2s;
+    `;
+    moreBtn.onmouseenter = () => {
+        moreBtn.style.background = 'var(--spotify-green)';
+        moreBtn.style.color = 'white';
+    };
+    moreBtn.onmouseleave = () => {
+        moreBtn.style.background = 'none';
+        moreBtn.style.color = 'var(--spotify-green)';
+    };
+    moreBtn.onclick = onClickHandler;
+    return moreBtn;
+}
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -8,6 +39,9 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
         let lastTrackId = "";
         let currentLyrics = [];
         let trackDurationMs = 0; 
+        let currentProgressMs = 0;
+        let isCurrentlyPlaying = false;
+        let localProgressInterval = null;
         let libraryItems = [];
         let displayedCount = 10;
         const auddApiToken = "187ef3238849ff75583d237fa40dbb48"; 
@@ -199,14 +233,10 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
             });
 
             if (libraryItems.length > displayedCount) {
-                const moreBtn = document.createElement('button');
-                moreBtn.className = 'lib-btn';
-                moreBtn.style.marginTop = '10px';
-                moreBtn.innerText = "➕ Afficher plus (+10)";
-                moreBtn.onclick = () => {
+                const moreBtn = createMoreButton(() => {
                     displayedCount += 10;
                     renderLibrarySection();
-                };
+                });
                 resultsContainer.appendChild(moreBtn);
             }
         }
@@ -626,14 +656,21 @@ function highlightLyrics(currentTime) {
             if (!currentToken) return;
             try {
                 const response = await fetch('https://api.spotify.com/v1/me/player', { headers: { 'Authorization': 'Bearer ' + currentToken } });
-                if (response.status === 204 || response.status === 401) return;
+                if (response.status === 204 || response.status === 401) {
+                    isCurrentlyPlaying = false;
+                    return;
+                }
                 const data = await response.json();
 
                 if (data && data.item) {
                     trackDurationMs = data.item.duration_ms; 
                     document.getElementById('track-title').innerText = data.item.name;
                     document.getElementById('track-artist').innerText = data.item.artists.map(a => a.name).join(", ");
-                      
+
+                    // Resynchronise la progression réelle avec celle de Spotify (corrige toute dérive locale)
+                    currentProgressMs = data.progress_ms;
+                    isCurrentlyPlaying = data.is_playing;
+
                     document.getElementById('time-current').innerText = formatTime(data.progress_ms);
                     document.getElementById('time-max').innerText = formatTime(trackDurationMs);
                     const progressPercent = (data.progress_ms / trackDurationMs) * 100;
@@ -659,6 +696,24 @@ function highlightLyrics(currentTime) {
                 }
             } catch (e) {}
         }
+
+        // Fait avancer la barre de progression et le chrono chaque seconde, SANS appeler l'API.
+        // La vraie valeur est resynchronisée par updateNowPlaying() toutes les 3s.
+        function tickLocalProgress() {
+            if (!isCurrentlyPlaying || trackDurationMs === 0) return;
+
+            currentProgressMs += 1000;
+            if (currentProgressMs > trackDurationMs) currentProgressMs = trackDurationMs;
+
+            const progressPercent = (currentProgressMs / trackDurationMs) * 100;
+            const fillEl = document.getElementById('progress-fill');
+            const timeEl = document.getElementById('time-current');
+            if (fillEl) fillEl.style.width = `${progressPercent}%`;
+            if (timeEl) timeEl.innerText = formatTime(currentProgressMs);
+
+            highlightLyrics(currentProgressMs / 1000);
+        }
+        localProgressInterval = setInterval(tickLocalProgress, 1000);
 
      async function togglePlay() {
     if (!currentToken) return;
@@ -724,7 +779,7 @@ function highlightLyrics(currentTime) {
         function generateCodeVerifier(l) { let t = ''; let p = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'; for (let i = 0; i < l; i++) t += p.charAt(Math.floor(Math.random() * p.length)); return t; }
         async function generateCodeChallenge(v) { const d = await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(v)); return btoa(String.fromCharCode.apply(null, new Uint8Array(d))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
 
-        setInterval(updateNowPlaying, 1000);
+        setInterval(updateNowPlaying, 3000);
         
         async function getRecentlyPlayed() {
             document.getElementById('profile-card-zone').style.display = 'none'; 
@@ -780,14 +835,10 @@ function highlightLyrics(currentTime) {
             });
 
             if (recentItems.length > displayedRecentCount) {
-                const moreBtn = document.createElement('button');
-                moreBtn.className = 'lib-btn'; 
-                moreBtn.style.marginTop = '10px';
-                moreBtn.innerText = "➕ Afficher plus (+10)";
-                moreBtn.onclick = () => {
+                const moreBtn = createMoreButton(() => {
                     displayedRecentCount += 10; 
                     renderRecentPlayedSection(); 
-                };
+                });
                 resultsContainer.appendChild(moreBtn);
             }
         }
@@ -1125,13 +1176,10 @@ function renderPlaylistsSection() {
 
     // Bouton "Afficher plus" — même style que getUserLibrary (classe lib-btn, rien d'autre)
     if (userPlaylists.length > displayedPlaylistsCount) {
-        const moreBtn = document.createElement('button');
-        moreBtn.className = 'lib-btn';
-        moreBtn.innerText = "➕ Afficher plus (+10)";
-        moreBtn.onclick = () => {
+        const moreBtn = createMoreButton(() => {
             displayedPlaylistsCount += 10;
             renderPlaylistsSection();
-        };
+        });
         scrollBox.appendChild(moreBtn);
     }
 }
@@ -1223,13 +1271,10 @@ function renderPlaylistTracksSection() {
     });
 
     if (currentPlaylistTracks.length > displayedTracksCount) {
-        const moreBtn = document.createElement('button');
-        moreBtn.className = 'lib-btn';
-        moreBtn.innerText = "➕ Afficher plus (+10)";
-        moreBtn.onclick = () => {
+        const moreBtn = createMoreButton(() => {
             displayedTracksCount += 10;
             renderPlaylistTracksSection();
-        };
+        });
         scrollBox.appendChild(moreBtn);
     }
 }
@@ -1270,10 +1315,10 @@ async function fetchQueue() {
             return;
         }
         if (response.status === 429) {
-    const retryAfter = response.headers.get('Retry-After');
-    resultsContainer.innerHTML = `<p style='font-size:0.9rem; color:orange; margin:5px;'>Trop de requêtes envoyées à Spotify${retryAfter ? `, réessaie dans ${retryAfter} secondes.` : ', réessaie dans quelques secondes.'}</p>`;
-    return;
-}
+            const retryAfter = response.headers.get('Retry-After');
+            resultsContainer.innerHTML = `<p style='font-size:0.9rem; color:orange; margin:5px;'>Trop de requêtes envoyées à Spotify${retryAfter ? `, réessaie dans ${retryAfter} secondes.` : ', réessaie dans quelques secondes.'}</p>`;
+            return;
+        }
 
         const data = await response.json();
         renderQueueSection(data);
@@ -1335,9 +1380,6 @@ function buildQueueItem(track) {
     `;
     return item;
 }
-
-
-
 
 
 
