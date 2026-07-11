@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.08";
+const APP_VERSION = "v1.1.07";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -8,6 +8,9 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
         let lastTrackId = "";
         let currentLyrics = [];
         let trackDurationMs = 0; 
+        let currentProgressMs = 0;
+        let isCurrentlyPlaying = false;
+        let localProgressInterval = null;
         let libraryItems = [];
         let displayedCount = 10;
         const auddApiToken = "187ef3238849ff75583d237fa40dbb48"; 
@@ -482,6 +485,8 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 if (response.status === 204) {
                     document.getElementById('search-results').innerHTML = "";
                     document.getElementById('search-input').value = "";
+                    const plContainer = document.getElementById('playlist-container');
+                    if (plContainer) { plContainer.style.display = 'none'; plContainer.innerHTML = ""; }
                     setTimeout(updateNowPlaying, 600);
                 } else if (response.status === 404) {
                     alert("Ouvrez Spotify et lancez une lecture sur l'un de vos appareils.");
@@ -626,7 +631,10 @@ function highlightLyrics(currentTime) {
             if (!currentToken) return;
             try {
                 const response = await fetch('https://api.spotify.com/v1/me/player', { headers: { 'Authorization': 'Bearer ' + currentToken } });
-                if (response.status === 204 || response.status === 401) return;
+                if (response.status === 204 || response.status === 401) {
+                    isCurrentlyPlaying = false;
+                    return;
+                }
                 const data = await response.json();
 
                 if (data && data.item) {
@@ -634,6 +642,10 @@ function highlightLyrics(currentTime) {
                     document.getElementById('track-title').innerText = data.item.name;
                     document.getElementById('track-artist').innerText = data.item.artists.map(a => a.name).join(", ");
                       
+                    // Resynchronise la progression réelle avec celle de Spotify (corrige toute dérive locale)
+                    currentProgressMs = data.progress_ms;
+                    isCurrentlyPlaying = data.is_playing;
+
                     document.getElementById('time-current').innerText = formatTime(data.progress_ms);
                     document.getElementById('time-max').innerText = formatTime(trackDurationMs);
                     const progressPercent = (data.progress_ms / trackDurationMs) * 100;
@@ -659,6 +671,24 @@ function highlightLyrics(currentTime) {
                 }
             } catch (e) {}
         }
+
+        // Fait avancer la barre de progression et le chrono chaque seconde, SANS appeler l'API.
+        // La vraie valeur est resynchronisée par updateNowPlaying() toutes les 3s.
+        function tickLocalProgress() {
+            if (!isCurrentlyPlaying || trackDurationMs === 0) return;
+
+            currentProgressMs += 1000;
+            if (currentProgressMs > trackDurationMs) currentProgressMs = trackDurationMs;
+
+            const progressPercent = (currentProgressMs / trackDurationMs) * 100;
+            const fillEl = document.getElementById('progress-fill');
+            const timeEl = document.getElementById('time-current');
+            if (fillEl) fillEl.style.width = `${progressPercent}%`;
+            if (timeEl) timeEl.innerText = formatTime(currentProgressMs);
+
+            highlightLyrics(currentProgressMs / 1000);
+        }
+        localProgressInterval = setInterval(tickLocalProgress, 1000);
 
      async function togglePlay() {
     if (!currentToken) return;
@@ -724,7 +754,7 @@ function highlightLyrics(currentTime) {
         function generateCodeVerifier(l) { let t = ''; let p = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'; for (let i = 0; i < l; i++) t += p.charAt(Math.floor(Math.random() * p.length)); return t; }
         async function generateCodeChallenge(v) { const d = await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(v)); return btoa(String.fromCharCode.apply(null, new Uint8Array(d))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
 
-        setInterval(updateNowPlaying, 1500);
+        setInterval(updateNowPlaying, 3000);
         
         async function getRecentlyPlayed() {
             document.getElementById('profile-card-zone').style.display = 'none'; 
@@ -792,6 +822,7 @@ function highlightLyrics(currentTime) {
             }
         }
 // Fonction pour afficher/masquer la barre de volume
+// Fonction pour afficher/masquer la réglette du volume
 function toggleVolumeControl() {
     // On ferme les autres panneaux pour éviter les superpositions
     document.getElementById('profile-card-zone').style.display = 'none';
@@ -804,6 +835,111 @@ function toggleVolumeControl() {
     } else {
         volumeZone.style.display = 'none';
     }
+}
+
+// Fonction principale du volume liée à ton slider range
+// Fonction pour afficher/masquer la réglette du volume
+
+// ==========================================
+// FILE D'ATTENTE — bouton 📋
+// ==========================================
+async function toggleQueue() {
+    document.getElementById('profile-card-zone').style.display = 'none';
+    document.getElementById('device-control-zone').style.display = 'none';
+    document.getElementById('volume-control-zone').style.display = 'none';
+    const plContainer = document.getElementById('playlist-container');
+    if (plContainer) { plContainer.style.display = 'none'; plContainer.innerHTML = ''; }
+
+    const resultsContainer = document.getElementById('search-results');
+
+    if (resultsContainer.dataset.view === 'queue') {
+        resultsContainer.innerHTML = '';
+        resultsContainer.dataset.view = '';
+        return;
+    }
+
+    resultsContainer.dataset.view = 'queue';
+    await fetchQueue();
+}
+
+async function fetchQueue() {
+    if (!currentToken) return;
+    const resultsContainer = document.getElementById('search-results');
+    resultsContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement de la file d'attente...</p>";
+
+    try {
+        const response = await fetch('https://api.spotify.com/v1/me/player/queue', {
+            headers: { 'Authorization': 'Bearer ' + currentToken }
+        });
+
+        if (response.status === 401 || response.status === 403) {
+            resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Session expirée, reconnecte-toi.</p>";
+            return;
+        }
+        if (response.status === 429) {
+            resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:orange; margin:5px;'>Trop de requêtes envoyées à Spotify, réessaie dans quelques secondes.</p>";
+            return;
+        }
+
+        const data = await response.json();
+        renderQueueSection(data);
+    } catch (e) {
+        console.error(e);
+        resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur lors du chargement de la file d'attente.</p>";
+    }
+}
+
+function renderQueueSection(data) {
+    const resultsContainer = document.getElementById('search-results');
+    resultsContainer.innerHTML = "";
+    resultsContainer.style.textAlign = 'left';
+
+    if (data.currently_playing) {
+        const currentHeader = document.createElement('p');
+        currentHeader.style = "color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;";
+        currentHeader.innerText = "EN COURS DE LECTURE";
+        resultsContainer.appendChild(currentHeader);
+        resultsContainer.appendChild(buildQueueItem(data.currently_playing));
+    }
+
+    const queueHeader = document.createElement('p');
+    queueHeader.style = "color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 15px 0 10px 5px;";
+    queueHeader.innerText = "À SUIVRE";
+    resultsContainer.appendChild(queueHeader);
+
+    if (!data.queue || data.queue.length === 0) {
+        const emptyMsg = document.createElement('p');
+        emptyMsg.style = "font-size:0.9rem; color:var(--text-grey); margin:5px;";
+        emptyMsg.innerText = "Aucun titre en attente.";
+        resultsContainer.appendChild(emptyMsg);
+        return;
+    }
+
+    data.queue.forEach(track => {
+        resultsContainer.appendChild(buildQueueItem(track));
+    });
+}
+
+function buildQueueItem(track) {
+    const item = document.createElement('div');
+    item.className = 'search-item';
+
+    const imgUrl = track.album && track.album.images && track.album.images.length > 0
+        ? track.album.images[track.album.images.length > 2 ? 2 : 0].url
+        : 'https://via.placeholder.com/30';
+
+    const artistsNames = track.artists && track.artists.length > 0
+        ? track.artists.map(a => a.name).join(', ')
+        : (track.show ? track.show.name : 'Artiste inconnu');
+
+    item.innerHTML = `
+        <img src="${imgUrl}" alt="">
+        <div>
+            <strong style="display:block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${track.name}</strong>
+            <span style="font-size: 0.8rem; color: var(--text-grey);">${artistsNames}</span>
+        </div>
+    `;
+    return item;
 }
 
 // Met à jour l'icône selon le niveau (dégradé 3 états)
@@ -1234,106 +1370,4 @@ function renderPlaylistTracksSection() {
         };
         scrollBox.appendChild(moreBtn);
     }
-}
-// ==========================================
-// FILE D'ATTENTE — bouton 📋
-// ==========================================
-async function toggleQueue() {
-    document.getElementById('profile-card-zone').style.display = 'none';
-    document.getElementById('device-control-zone').style.display = 'none';
-    document.getElementById('volume-control-zone').style.display = 'none';
-    const plContainer = document.getElementById('playlist-container');
-    if (plContainer) { plContainer.style.display = 'none'; plContainer.innerHTML = ''; }
-
-    const resultsContainer = document.getElementById('search-results');
-
-    // Si la file est déjà affichée, on referme au 2e clic
-    if (resultsContainer.dataset.view === 'queue') {
-        resultsContainer.innerHTML = '';
-        resultsContainer.dataset.view = '';
-        return;
-    }
-
-    resultsContainer.dataset.view = 'queue';
-    await fetchQueue();
-}
-
-async function fetchQueue() {
-    if (!currentToken) return;
-    const resultsContainer = document.getElementById('search-results');
-    resultsContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement de la file d'attente...</p>";
-
-    try {
-        const response = await fetch('https://api.spotify.com/v1/me/player/queue', {
-            headers: { 'Authorization': 'Bearer ' + currentToken }
-        });
-
-        if (response.status === 401 || response.status === 403) {
-            resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Session expirée, reconnecte-toi.</p>";
-            return;
-        }
-
-        const data = await response.json();
-        renderQueueSection(data);
-    } catch (e) {
-        console.error(e);
-        resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur lors du chargement de la file d'attente.</p>";
-    }
-}
-
-function renderQueueSection(data) {
-    const resultsContainer = document.getElementById('search-results');
-    resultsContainer.innerHTML = "";
-    resultsContainer.style.textAlign = 'left';
-
-    // --- Titre en cours de lecture ---
-    if (data.currently_playing) {
-        const currentHeader = document.createElement('p');
-        currentHeader.style = "color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;";
-        currentHeader.innerText = "EN COURS DE LECTURE";
-        resultsContainer.appendChild(currentHeader);
-
-        resultsContainer.appendChild(buildQueueItem(data.currently_playing));
-    }
-
-    // --- File d'attente ---
-    const queueHeader = document.createElement('p');
-    queueHeader.style = "color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 15px 0 10px 5px;";
-    queueHeader.innerText = "À SUIVRE";
-    resultsContainer.appendChild(queueHeader);
-
-    if (!data.queue || data.queue.length === 0) {
-        const emptyMsg = document.createElement('p');
-        emptyMsg.style = "font-size:0.9rem; color:var(--text-grey); margin:5px;";
-        emptyMsg.innerText = "Aucun titre en attente.";
-        resultsContainer.appendChild(emptyMsg);
-        return;
-    }
-
-    data.queue.forEach(track => {
-        resultsContainer.appendChild(buildQueueItem(track));
-    });
-}
-
-// Construit une ligne d'affichage pour un titre (piste ou épisode)
-function buildQueueItem(track) {
-    const item = document.createElement('div');
-    item.className = 'search-item';
-
-    const imgUrl = track.album && track.album.images && track.album.images.length > 0
-        ? track.album.images[track.album.images.length > 2 ? 2 : 0].url
-        : 'https://via.placeholder.com/30';
-
-    const artistsNames = track.artists && track.artists.length > 0
-        ? track.artists.map(a => a.name).join(', ')
-        : (track.show ? track.show.name : 'Artiste inconnu');
-
-    item.innerHTML = `
-        <img src="${imgUrl}" alt="">
-        <div>
-            <strong style="display:block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${track.name}</strong>
-            <span style="font-size: 0.8rem; color: var(--text-grey);">${artistsNames}</span>
-        </div>
-    `;
-    return item;
 }
