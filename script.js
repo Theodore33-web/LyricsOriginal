@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.04";
+const APP_VERSION = "v1.1.05";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -130,32 +130,47 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
             }
         }
 
-        async function getUserLibrary() {
-            document.getElementById('profile-card-zone').style.display = 'none';
-            if (!currentToken) return;
-            const resultsContainer = document.getElementById('search-results');
-            resultsContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement de la bibliothèque...</p>";
-            
-            try {
-                const response = await fetch('https://api.spotify.com/v1/me/tracks?limit=50', {
-                    headers: { 'Authorization': 'Bearer ' + currentToken }
-                });
-                const data = await response.json();
-                resultsContainer.innerHTML = "";
+    async function getUserLibrary() {
+    document.getElementById('profile-card-zone').style.display = 'none';
+    if (!currentToken) return;
+    const resultsContainer = document.getElementById('search-results');
+    resultsContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement de la bibliothèque...</p>";
 
-                if (data.items && data.items.length > 0) {
-                    libraryItems = data.items;
-                    displayedCount = 10; 
-                    renderLibrarySection();
-                } else {
-                    resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Aucun morceau favori trouvé.</p>";
-                }
-            } catch (e) { 
-                console.error(e); 
-                resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur lors du chargement de la bibliothèque.</p>";
-            }
+    try {
+        let allItems = [];
+        let offset = 0;
+        const limit = 50;
+        let total = Infinity;
+
+        while (offset < total) {
+            const response = await fetch(`https://api.spotify.com/v1/me/tracks?limit=${limit}&offset=${offset}`, {
+                headers: { 'Authorization': 'Bearer ' + currentToken }
+            });
+            const data = await response.json();
+
+            if (!data.items) break;
+
+            allItems = allItems.concat(data.items);
+            total = data.total;
+            offset += limit;
+
+            resultsContainer.innerHTML = `<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement de la bibliothèque... (${allItems.length}/${total})</p>`;
         }
 
+        resultsContainer.innerHTML = "";
+
+        if (allItems.length > 0) {
+            libraryItems = allItems;
+            displayedCount = 10; 
+            renderLibrarySection();
+        } else {
+            resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Aucun morceau favori trouvé.</p>";
+        }
+    } catch (e) { 
+        console.error(e); 
+        resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur lors du chargement de la bibliothèque.</p>";
+    }
+}
         function renderLibrarySection() {
             const resultsContainer = document.getElementById('search-results');
             resultsContainer.innerHTML = "";
