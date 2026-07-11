@@ -227,6 +227,8 @@
             cursor: pointer;
             font-size: 0.8rem;
             font-weight: bold;
+            box-sizing: border-box;  
+            display: block;
             width: 100%;
             transition: all 0.2s;
         }
