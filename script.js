@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.0.98";
+const APP_VERSION = "v1.0.99";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
