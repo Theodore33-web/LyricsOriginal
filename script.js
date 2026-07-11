@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.05";
+const APP_VERSION = "v1.1.06";
 
 const clientId = "91d4165085fd4ed3bd281f16667d64bc"; 
         const redirectUri = window.location.origin + window.location.pathname;
@@ -1143,7 +1143,6 @@ function renderPlaylistsSection() {
     if (userPlaylists.length > displayedPlaylistsCount) {
         const moreBtn = document.createElement('button');
         moreBtn.className = 'lib-btn';
-        moreBtn.style.marginTop = '10px';
         moreBtn.innerText = "➕ Afficher plus (+10)";
         moreBtn.onclick = () => {
             displayedPlaylistsCount += 10;
@@ -1242,7 +1241,6 @@ function renderPlaylistTracksSection() {
     if (currentPlaylistTracks.length > displayedTracksCount) {
         const moreBtn = document.createElement('button');
         moreBtn.className = 'lib-btn';
-        moreBtn.style.marginTop = '10px';
         moreBtn.innerText = "➕ Afficher plus (+10)";
         moreBtn.onclick = () => {
             displayedTracksCount += 10;
