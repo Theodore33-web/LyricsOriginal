@@ -724,7 +724,7 @@ function highlightLyrics(currentTime) {
         function generateCodeVerifier(l) { let t = ''; let p = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'; for (let i = 0; i < l; i++) t += p.charAt(Math.floor(Math.random() * p.length)); return t; }
         async function generateCodeChallenge(v) { const d = await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(v)); return btoa(String.fromCharCode.apply(null, new Uint8Array(d))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
 
-        setInterval(updateNowPlaying, 1000);
+        setInterval(updateNowPlaying, 1500);
         
         async function getRecentlyPlayed() {
             document.getElementById('profile-card-zone').style.display = 'none'; 
