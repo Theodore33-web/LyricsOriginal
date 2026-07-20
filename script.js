@@ -1,9 +1,6 @@
 
 
-
-
-
-const APP_VERSION = "v1.1.19";
+const APP_VERSION = "v1.1.20";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -124,6 +121,8 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
         let isRecording = false;
         let recentItems = [];        
         let displayedRecentCount = 10; 
+        let recommendedItems = [];
+        let displayedRecommendedCount = 10;
      
         // --- CONFIGURATION GOOGLE DRIVE (via Apps Script, sans connexion utilisateur) ---
         const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx38Z36OtqfhOHFK-j8DqTJxCxfSTnvYOPhD1Y0G-jJeKjl9cUPxMo6bKjC--U-j0K6tQ/exec";
@@ -151,6 +150,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
             const resultsContainer = document.getElementById('search-results');
             resultsContainer.innerHTML = ""; 
             resultsContainer.dataset.view = '';
+            resultsContainer.dataset.topTracksOpen = '';
             stopQueueAutoRefresh();
             document.getElementById('device-control-zone').style.display = 'none';
             document.getElementById('volume-control-zone').style.display = 'none';
@@ -219,6 +219,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
     if (!currentToken) return;
     const resultsContainer = document.getElementById('search-results');
     resultsContainer.dataset.view = '';
+    resultsContainer.dataset.topTracksOpen = '';
     stopQueueAutoRefresh();
     resultsContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement de la bibliothèque...</p>";
 
@@ -520,6 +521,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 const resultsContainer = document.getElementById('search-results');
                 resultsContainer.innerHTML = "";
                 resultsContainer.dataset.view = '';
+                resultsContainer.dataset.topTracksOpen = '';
                 stopQueueAutoRefresh();
 
                 if (data.tracks && data.tracks.items.length > 0) {
@@ -852,6 +854,7 @@ function highlightLyrics(currentTime) {
             
             const resultsContainer = document.getElementById('search-results');
             resultsContainer.dataset.view = '';
+            resultsContainer.dataset.topTracksOpen = '';
             stopQueueAutoRefresh();
             resultsContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement de l'historique...</p>";
 
@@ -910,6 +913,103 @@ function highlightLyrics(currentTime) {
                 resultsContainer.appendChild(moreBtn);
             }
         }
+// ==========================================
+// TOP TITRES — bouton 🪩 (playlist fixe Top 50 France)
+// ==========================================
+const TOP_TRACKS_PLAYLIST_ID = "37i9dQZEVXbIPW1A8O3uwM";
+
+async function toggleTopTracks() {
+    document.getElementById('profile-card-zone').style.display = 'none';
+    document.getElementById('device-control-zone').style.display = 'none';
+    document.getElementById('volume-control-zone').style.display = 'none';
+    const plContainer = document.getElementById('playlist-container');
+    if (plContainer) { plContainer.style.display = 'none'; plContainer.innerHTML = ''; }
+
+    const resultsContainer = document.getElementById('search-results');
+    resultsContainer.dataset.view = '';
+    stopQueueAutoRefresh();
+
+    if (resultsContainer.dataset.topTracksOpen === 'true') {
+        resultsContainer.innerHTML = '';
+        resultsContainer.dataset.topTracksOpen = '';
+        return;
+    }
+
+    resultsContainer.dataset.topTracksOpen = 'true';
+    await fetchTopTracks();
+}
+
+async function fetchTopTracks() {
+    if (!currentToken) return;
+    const resultsContainer = document.getElementById('search-results');
+    resultsContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement du Top titres...</p>";
+
+    try {
+        const response = await fetch(`https://api.spotify.com/v1/playlists/${TOP_TRACKS_PLAYLIST_ID}/items`, {
+            headers: { 'Authorization': 'Bearer ' + currentToken }
+        });
+        const data = await response.json();
+        resultsContainer.innerHTML = "";
+
+        if (data.items && data.items.length > 0) {
+            recommendedItems = data.items;
+            displayedRecommendedCount = 10;
+            renderTopTracksSection();
+        } else {
+            resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Impossible de charger le Top titres.</p>";
+        }
+    } catch (e) {
+        console.error(e);
+        resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur lors du chargement du Top titres.</p>";
+    }
+}
+
+function renderTopTracksSection() {
+    const resultsContainer = document.getElementById('search-results');
+    resultsContainer.innerHTML = "";
+    resultsContainer.style.textAlign = 'left';
+
+    const titleHeader = document.createElement('p');
+    titleHeader.style = "color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;";
+    titleHeader.innerText = "TOP TITRES";
+    resultsContainer.appendChild(titleHeader);
+
+    const itemsToDisplay = recommendedItems.slice(0, displayedRecommendedCount);
+
+    const allUris = recommendedItems
+        .map(obj => (obj.item || obj.track) ? (obj.item || obj.track).uri : null)
+        .filter(uri => uri);
+
+    itemsToDisplay.forEach((obj, index) => {
+        const track = obj.item || obj.track;
+        if (!track) return;
+
+        const item = document.createElement('div');
+        item.className = 'search-item';
+        const imgUrl = track.album && track.album.images && track.album.images.length > 2 ? track.album.images[2].url : 'https://via.placeholder.com/30';
+        const artistsNames = track.artists && track.artists.length > 0 ? track.artists.map(a => a.name).join(', ') : 'Artiste inconnu';
+
+        item.innerHTML = `
+            <img src="${imgUrl}" alt="">
+            <div>
+                <strong style="display:block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${track.name}</strong>
+                <span style="font-size: 0.8rem; color: var(--text-grey);">${artistsNames}</span>
+            </div>
+        `;
+        item.onclick = () => playTrackList(allUris, index);
+        item.appendChild(buildQueueButton(track.uri));
+        resultsContainer.appendChild(item);
+    });
+
+    if (recommendedItems.length > displayedRecommendedCount) {
+        const moreBtn = createMoreButton(() => {
+            displayedRecommendedCount += 10;
+            renderTopTracksSection();
+        });
+        resultsContainer.appendChild(moreBtn);
+    }
+}
+
 // Fonction pour afficher/masquer la barre de volume
 function toggleVolumeControl() {
     // On ferme les autres panneaux pour éviter les superpositions
@@ -918,6 +1018,7 @@ function toggleVolumeControl() {
     const resultsContainer = document.getElementById('search-results');
     resultsContainer.innerHTML = "";
     resultsContainer.dataset.view = '';
+    resultsContainer.dataset.topTracksOpen = '';
     stopQueueAutoRefresh();
 
     const volumeZone = document.getElementById('volume-control-zone');
@@ -992,6 +1093,7 @@ async function toggleDeviceSelector() {
     const resultsContainer = document.getElementById('search-results');
     resultsContainer.innerHTML = "";
     resultsContainer.dataset.view = '';
+    resultsContainer.dataset.topTracksOpen = '';
     stopQueueAutoRefresh();
 
     const deviceZone = document.getElementById('device-control-zone');
@@ -1162,6 +1264,7 @@ function togglePlaylistsView() {
     const resultsContainer = document.getElementById('search-results');
     resultsContainer.innerHTML = '';
     resultsContainer.dataset.view = '';
+    resultsContainer.dataset.topTracksOpen = '';
     stopQueueAutoRefresh();
 
     const container = document.getElementById('playlist-container');
@@ -1388,6 +1491,7 @@ async function toggleQueue() {
     if (resultsContainer.dataset.view === 'queue') {
         resultsContainer.innerHTML = '';
         resultsContainer.dataset.view = '';
+        resultsContainer.dataset.topTracksOpen = '';
         stopQueueAutoRefresh();
         lastQueueSnapshot = null; // pour forcer un vrai rendu à la prochaine ouverture
         return;
@@ -1513,7 +1617,6 @@ function buildQueueItem(track) {
     `;
     return item;
 }
-
 
 
 
