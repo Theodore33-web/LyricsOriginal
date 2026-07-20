@@ -1,6 +1,8 @@
 
 
-const APP_VERSION = "v1.1.20";
+
+
+const APP_VERSION = "v1.1.21;
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -49,9 +51,10 @@ async function addToQueue(uri, btnEl) {
             // maintien 1 seconde, puis retour à 📥
             if (btnEl) {
                 const original = btnEl.innerText;
-                btnEl.disabled = true;
+                btnEl.dataset.busy = 'true'; // bloque les re-clics sans utiliser "disabled" (qui assombrit le bouton)
                 btnEl.innerText = '✅';
                 btnEl.style.transform = 'scale(1.4)';
+                btnEl.style.opacity = '1'; // s'assure que l'icône reste bien visible au premier plan
 
                 setTimeout(() => {
                     btnEl.style.transform = 'scale(1)';
@@ -59,7 +62,7 @@ async function addToQueue(uri, btnEl) {
 
                 setTimeout(() => {
                     btnEl.innerText = original;
-                    btnEl.disabled = false;
+                    btnEl.dataset.busy = '';
                 }, 1200);
             }
         } else if (response.status === 404) {
@@ -86,10 +89,14 @@ function buildQueueButton(uri) {
         margin-left: auto;
         padding: 4px 8px;
         flex-shrink: 0;
-        transition: transform 0.13s ease, opacity 0.13s ease;
+        opacity: 1;
+        position: relative;
+        z-index: 5;
+        transition: transform 0.13s ease;
     `;
     btn.onclick = (e) => {
         e.stopPropagation(); // empêche de déclencher la lecture du titre en cliquant sur 📥
+        if (btn.dataset.busy === 'true') return; // ignore les clics pendant l'animation en cours
         addToQueue(uri, btn);
     };
     return btn;
@@ -914,9 +921,9 @@ function highlightLyrics(currentTime) {
             }
         }
 // ==========================================
-// TOP TITRES — bouton 🪩 (playlist fixe Top 50 France)
+// TOP TITRES — bouton 🪩 (classement Last.fm France + résolution Spotify)
 // ==========================================
-const TOP_TRACKS_PLAYLIST_ID = "37i9dQZEVXbIPW1A8O3uwM";
+const LASTFM_API_KEY = "2f76b9d833b38b85b1ec9f9741703e7a";
 
 async function toggleTopTracks() {
     document.getElementById('profile-card-zone').style.display = 'none';
@@ -939,20 +946,27 @@ async function toggleTopTracks() {
     await fetchTopTracks();
 }
 
+// Récupère le classement France depuis Last.fm (titre + artiste, pas d'URI Spotify)
 async function fetchTopTracks() {
-    if (!currentToken) return;
     const resultsContainer = document.getElementById('search-results');
     resultsContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement du Top titres...</p>";
 
     try {
-        const response = await fetch(`https://api.spotify.com/v1/playlists/${TOP_TRACKS_PLAYLIST_ID}/items`, {
-            headers: { 'Authorization': 'Bearer ' + currentToken }
-        });
+        const url = `https://ws.audioscrobbler.com/2.0/?method=geo.gettoptracks&country=france&api_key=${LASTFM_API_KEY}&format=json&limit=50`;
+        const response = await fetch(url);
         const data = await response.json();
         resultsContainer.innerHTML = "";
 
-        if (data.items && data.items.length > 0) {
-            recommendedItems = data.items;
+        if (data.tracks && data.tracks.track && data.tracks.track.length > 0) {
+            // On stocke les données brutes Last.fm + un cache pour la résolution Spotify (rempli au fur et à mesure)
+            recommendedItems = data.tracks.track.map(t => ({
+                lastfmName: t.name,
+                lastfmArtist: t.artist && t.artist.name ? t.artist.name : '',
+                spotifyUri: null,
+                spotifyImage: null,
+                resolved: false,
+                notFound: false
+            }));
             displayedRecommendedCount = 10;
             renderTopTracksSection();
         } else {
@@ -960,7 +974,32 @@ async function fetchTopTracks() {
         }
     } catch (e) {
         console.error(e);
-        resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur lors du chargement du Top titres.</p>";
+        resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur lors du chargement du Top titres (Last.fm).</p>";
+    }
+}
+
+// Cherche le titre correspondant sur Spotify pour récupérer son URI et sa pochette
+async function resolveTrackOnSpotify(entry) {
+    if (!currentToken || entry.resolved) return;
+    try {
+        const query = encodeURIComponent(`track:${entry.lastfmName} artist:${entry.lastfmArtist}`);
+        const response = await fetch(`https://api.spotify.com/v1/search?q=${query}&type=track&limit=1`, {
+            headers: { 'Authorization': 'Bearer ' + currentToken }
+        });
+        const data = await response.json();
+        const track = data.tracks && data.tracks.items && data.tracks.items.length > 0 ? data.tracks.items[0] : null;
+
+        if (track) {
+            entry.spotifyUri = track.uri;
+            entry.spotifyImage = track.album && track.album.images && track.album.images.length > 2 ? track.album.images[2].url : (track.album && track.album.images && track.album.images.length > 0 ? track.album.images[0].url : '');
+        } else {
+            entry.notFound = true;
+        }
+    } catch (e) {
+        console.error(e);
+        entry.notFound = true;
+    } finally {
+        entry.resolved = true;
     }
 }
 
@@ -971,34 +1010,51 @@ function renderTopTracksSection() {
 
     const titleHeader = document.createElement('p');
     titleHeader.style = "color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;";
-    titleHeader.innerText = "TOP TITRES";
+    titleHeader.innerText = "TOP TITRES FRANCE";
     resultsContainer.appendChild(titleHeader);
 
     const itemsToDisplay = recommendedItems.slice(0, displayedRecommendedCount);
 
-    const allUris = recommendedItems
-        .map(obj => (obj.item || obj.track) ? (obj.item || obj.track).uri : null)
-        .filter(uri => uri);
+    // Les URIs déjà résolus servent à construire l'ordre de lecture "playTrackList"
+    const buildResolvedUris = () => recommendedItems.filter(e => e.spotifyUri).map(e => e.spotifyUri);
 
-    itemsToDisplay.forEach((obj, index) => {
-        const track = obj.item || obj.track;
-        if (!track) return;
-
+    itemsToDisplay.forEach((entry) => {
         const item = document.createElement('div');
         item.className = 'search-item';
-        const imgUrl = track.album && track.album.images && track.album.images.length > 2 ? track.album.images[2].url : 'https://via.placeholder.com/30';
-        const artistsNames = track.artists && track.artists.length > 0 ? track.artists.map(a => a.name).join(', ') : 'Artiste inconnu';
+        item.dataset.lastfmName = entry.lastfmName;
 
+        const imgUrl = entry.spotifyImage || 'https://via.placeholder.com/30';
         item.innerHTML = `
             <img src="${imgUrl}" alt="">
             <div>
-                <strong style="display:block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${track.name}</strong>
-                <span style="font-size: 0.8rem; color: var(--text-grey);">${artistsNames}</span>
+                <strong style="display:block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${entry.lastfmName}</strong>
+                <span style="font-size: 0.8rem; color: var(--text-grey);">${entry.lastfmArtist}${entry.resolved && entry.notFound ? ' — indisponible sur Spotify' : (!entry.resolved ? ' — recherche...' : '')}</span>
             </div>
         `;
-        item.onclick = () => playTrackList(allUris, index);
-        item.appendChild(buildQueueButton(track.uri));
+
+        if (entry.resolved && entry.spotifyUri) {
+            item.onclick = () => {
+                const uris = buildResolvedUris();
+                const index = uris.indexOf(entry.spotifyUri);
+                playTrackList(uris, index >= 0 ? index : 0);
+            };
+            item.appendChild(buildQueueButton(entry.spotifyUri));
+        } else if (entry.resolved && entry.notFound) {
+            item.style.opacity = '0.5';
+            item.style.cursor = 'default';
+        }
+
         resultsContainer.appendChild(item);
+
+        // Résolution en arrière-plan si pas encore fait, puis re-rendu ciblé de cette ligne uniquement
+        if (!entry.resolved) {
+            resolveTrackOnSpotify(entry).then(() => {
+                // On ne redessine que si le panneau Top Titres est toujours ouvert
+                if (resultsContainer.dataset.topTracksOpen === 'true') {
+                    renderTopTracksSection();
+                }
+            });
+        }
     });
 
     if (recommendedItems.length > displayedRecommendedCount) {
