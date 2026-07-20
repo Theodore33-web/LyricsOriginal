@@ -3,7 +3,7 @@
 
 
 
-const APP_VERSION = "v1.1.18";
+const APP_VERSION = "v1.1.19";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -47,7 +47,7 @@ async function addToQueue(uri, btnEl) {
             headers: { 'Authorization': 'Bearer ' + currentToken }
         });
 
-        if (response.status === 204) {
+        if (response.ok) {
             // Retour visuel simple et fiable : bascule immédiate en ✅ avec un léger effet de rebond,
             // maintien 1 seconde, puis retour à 📥
             if (btnEl) {
@@ -550,7 +550,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                     headers: { 'Authorization': 'Bearer ' + currentToken, 'Content-Type': 'application/json' },
                     body: JSON.stringify({ uris: [trackUri] })
                 });
-                if (response.status === 204) {
+                if (response.ok) {
                     document.getElementById('search-results').innerHTML = "";
                     document.getElementById('search-input').value = "";
                     setTimeout(updateNowPlaying, 600);
@@ -574,7 +574,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                         offset: { position: startIndex } 
                     })
                 });
-                if (response.status === 204) {
+                if (response.ok) {
                     document.getElementById('search-results').innerHTML = "";
                     document.getElementById('search-input').value = "";
                     setTimeout(updateNowPlaying, 600);
@@ -1513,6 +1513,7 @@ function buildQueueItem(track) {
     `;
     return item;
 }
+
 
 
 
