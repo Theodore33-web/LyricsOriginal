@@ -1,7 +1,10 @@
 
 
 
-const APP_VERSION = "v1.1.07";
+
+
+
+const APP_VERSION = "v1.1.17";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -117,6 +120,15 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
         let currentProgressMs = 0;
         let isCurrentlyPlaying = false;
         let localProgressInterval = null;
+        let queueRefreshInterval = null;
+
+        // Stoppe le rafraîchissement automatique de la file d'attente (à appeler dès qu'on quitte ce panneau)
+        function stopQueueAutoRefresh() {
+            if (queueRefreshInterval) {
+                clearInterval(queueRefreshInterval);
+                queueRefreshInterval = null;
+            }
+        }
         let libraryItems = [];
         let displayedCount = 10;
         const auddApiToken = "187ef3238849ff75583d237fa40dbb48"; 
@@ -149,7 +161,10 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
 
         function toggleProfileCard() {
             const profileZone = document.getElementById('profile-card-zone');
-            document.getElementById('search-results').innerHTML = ""; 
+            const resultsContainer = document.getElementById('search-results');
+            resultsContainer.innerHTML = ""; 
+            resultsContainer.dataset.view = '';
+            stopQueueAutoRefresh();
             document.getElementById('device-control-zone').style.display = 'none';
             document.getElementById('volume-control-zone').style.display = 'none';
             const driveZone = document.getElementById('drive-record-zone');
@@ -216,6 +231,8 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
     document.getElementById('profile-card-zone').style.display = 'none';
     if (!currentToken) return;
     const resultsContainer = document.getElementById('search-results');
+    resultsContainer.dataset.view = '';
+    stopQueueAutoRefresh();
     resultsContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement de la bibliothèque...</p>";
 
     try {
@@ -515,6 +532,8 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 const data = await response.json();
                 const resultsContainer = document.getElementById('search-results');
                 resultsContainer.innerHTML = "";
+                resultsContainer.dataset.view = '';
+                stopQueueAutoRefresh();
 
                 if (data.tracks && data.tracks.items.length > 0) {
                     data.tracks.items.forEach(track => {
@@ -845,6 +864,8 @@ function highlightLyrics(currentTime) {
             if (!currentToken) return;
             
             const resultsContainer = document.getElementById('search-results');
+            resultsContainer.dataset.view = '';
+            stopQueueAutoRefresh();
             resultsContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement de l'historique...</p>";
 
             try {
@@ -907,7 +928,10 @@ function toggleVolumeControl() {
     // On ferme les autres panneaux pour éviter les superpositions
     document.getElementById('profile-card-zone').style.display = 'none';
     document.getElementById('device-control-zone').style.display = 'none';
-    document.getElementById('search-results').innerHTML = "";
+    const resultsContainer = document.getElementById('search-results');
+    resultsContainer.innerHTML = "";
+    resultsContainer.dataset.view = '';
+    stopQueueAutoRefresh();
 
     const volumeZone = document.getElementById('volume-control-zone');
     if (volumeZone.style.display === 'none' || volumeZone.style.display === '') {
@@ -978,6 +1002,10 @@ async function toggleDeviceSelector() {
     // On cache le volume et le profil
     document.getElementById('volume-control-zone').style.display = 'none';
     document.getElementById('profile-card-zone').style.display = 'none';
+    const resultsContainer = document.getElementById('search-results');
+    resultsContainer.innerHTML = "";
+    resultsContainer.dataset.view = '';
+    stopQueueAutoRefresh();
 
     const deviceZone = document.getElementById('device-control-zone');
     if (deviceZone.style.display === 'none' || deviceZone.style.display === '') {
@@ -1144,7 +1172,10 @@ function togglePlaylistsView() {
     document.getElementById('profile-card-zone').style.display = 'none';
     document.getElementById('device-control-zone').style.display = 'none';
     document.getElementById('volume-control-zone').style.display = 'none';
-    document.getElementById('search-results').innerHTML = '';
+    const resultsContainer = document.getElementById('search-results');
+    resultsContainer.innerHTML = '';
+    resultsContainer.dataset.view = '';
+    stopQueueAutoRefresh();
 
     const container = document.getElementById('playlist-container');
     if (container.style.display === 'none' || container.innerHTML === '') {
@@ -1192,6 +1223,11 @@ async function fetchUserPlaylists() {
 // ==========================================
 function renderPlaylistsSection() {
     const container = document.getElementById('playlist-container');
+
+    // Mémorise la position de défilement avant de tout reconstruire
+    const previousScrollBox = document.getElementById('playlist-scroll-box');
+    const savedScrollTop = previousScrollBox ? previousScrollBox.scrollTop : 0;
+
     container.innerHTML = "";
     container.style.textAlign = 'left';
     container.style.width = '100%';
@@ -1242,6 +1278,9 @@ function renderPlaylistsSection() {
         });
         scrollBox.appendChild(moreBtn);
     }
+
+    // Restaure la position de défilement (évite que la liste reparte en haut)
+    scrollBox.scrollTop = savedScrollTop;
 }
 
 // ==========================================
@@ -1273,6 +1312,11 @@ async function loadPlaylistTracks(playlistId, playlistName) {
 // ==========================================
 function renderPlaylistTracksSection() {
     const container = document.getElementById('playlist-container');
+
+    // Mémorise la position de défilement avant de tout reconstruire
+    const previousScrollBox = document.getElementById('playlist-tracks-scroll-box');
+    const savedScrollTop = previousScrollBox ? previousScrollBox.scrollTop : 0;
+
     container.innerHTML = "";
     container.style.textAlign = 'left';
     container.style.width = '100%';
@@ -1338,6 +1382,9 @@ function renderPlaylistTracksSection() {
         });
         scrollBox.appendChild(moreBtn);
     }
+
+    // Restaure la position de défilement (évite que la liste reparte en haut)
+    scrollBox.scrollTop = savedScrollTop;
 }
 // ==========================================
 // FILE D'ATTENTE — bouton 📋
@@ -1354,11 +1401,22 @@ async function toggleQueue() {
     if (resultsContainer.dataset.view === 'queue') {
         resultsContainer.innerHTML = '';
         resultsContainer.dataset.view = '';
+        stopQueueAutoRefresh();
         return;
     }
 
     resultsContainer.dataset.view = 'queue';
     await fetchQueue();
+
+    // Rafraîchit automatiquement toutes les 4s tant que le panneau reste ouvert
+    stopQueueAutoRefresh(); // sécurité anti-doublon si jamais un intervalle tournait déjà
+    queueRefreshInterval = setInterval(() => {
+        if (resultsContainer.dataset.view === 'queue') {
+            fetchQueue();
+        } else {
+            stopQueueAutoRefresh();
+        }
+    }, 4000);
 }
 
 async function fetchQueue() {
@@ -1393,35 +1451,6 @@ function renderQueueSection(data) {
     const resultsContainer = document.getElementById('search-results');
     resultsContainer.innerHTML = "";
     resultsContainer.style.textAlign = 'left';
-
-    // Bouton d'actualisation manuelle, en haut du panneau
-    const refreshBtn = document.createElement('button');
-    refreshBtn.innerText = "🔄 Actualiser la file d'attente";
-    refreshBtn.style.cssText = `
-        background: none;
-        border: 1px solid var(--spotify-green);
-        color: var(--spotify-green);
-        border-radius: 20px;
-        padding: 8px 15px;
-        margin-bottom: 15px;
-        cursor: pointer;
-        font-size: 0.8rem;
-        font-weight: bold;
-        width: 100%;
-        box-sizing: border-box;
-        display: block;
-        transition: all 0.2s;
-    `;
-    refreshBtn.onmouseenter = () => {
-        refreshBtn.style.background = 'var(--spotify-green)';
-        refreshBtn.style.color = 'white';
-    };
-    refreshBtn.onmouseleave = () => {
-        refreshBtn.style.background = 'none';
-        refreshBtn.style.color = 'var(--spotify-green)';
-    };
-    refreshBtn.onclick = () => fetchQueue();
-    resultsContainer.appendChild(refreshBtn);
 
     if (data.currently_playing) {
         const currentHeader = document.createElement('p');
@@ -1470,6 +1499,7 @@ function buildQueueItem(track) {
     `;
     return item;
 }
+
 
 
 
