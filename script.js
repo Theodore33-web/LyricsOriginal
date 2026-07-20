@@ -1,10 +1,6 @@
 
 
-
-
-
-
-const APP_VERSION = "v1.1.22";
+const APP_VERSION = "v1.1.07";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -981,75 +977,26 @@ async function fetchTopTracks() {
 }
 
 // Cherche le titre correspondant sur Spotify pour récupérer son URI et sa pochette
-// File d'attente : garantit qu'une seule recherche Spotify est envoyée à la fois,
-// avec un léger espacement entre chacune, pour ne jamais déclencher de rate limit (429)
-// même quand on clique plusieurs fois rapidement sur "Afficher plus".
-let resolveQueue = [];
-let isProcessingResolveQueue = false;
-
-function enqueueResolve(entry, onDone) {
-    resolveQueue.push({ entry, onDone });
-    if (!isProcessingResolveQueue) {
-        processResolveQueue();
-    }
-}
-
-async function processResolveQueue() {
-    isProcessingResolveQueue = true;
-    while (resolveQueue.length > 0) {
-        const { entry, onDone } = resolveQueue.shift();
-        await resolveTrackOnSpotify(entry);
-        onDone();
-        await new Promise(resolve => setTimeout(resolve, 150)); // espacement entre deux recherches
-    }
-    isProcessingResolveQueue = false;
-}
-
-async function resolveTrackOnSpotify(entry, attempt = 1) {
+async function resolveTrackOnSpotify(entry) {
     if (!currentToken || entry.resolved) return;
-    const MAX_ATTEMPTS = 3;
-
     try {
         const query = encodeURIComponent(`track:${entry.lastfmName} artist:${entry.lastfmArtist}`);
         const response = await fetch(`https://api.spotify.com/v1/search?q=${query}&type=track&limit=1`, {
             headers: { 'Authorization': 'Bearer ' + currentToken }
         });
-
-        // Erreur temporaire (rate limit, token expiré, souci serveur) : ne PAS marquer "introuvable",
-        // on réessaie après un court délai plutôt que de conclure trop vite.
-        if (!response.ok) {
-            if (attempt < MAX_ATTEMPTS) {
-                const retryAfterHeader = response.headers.get('Retry-After');
-                const waitMs = retryAfterHeader ? (parseInt(retryAfterHeader, 10) * 1000) : (attempt * 800);
-                await new Promise(resolve => setTimeout(resolve, waitMs));
-                return resolveTrackOnSpotify(entry, attempt + 1);
-            }
-            // Après plusieurs échecs répétés, on abandonne pour ce titre (mais ce n'est pas garanti "introuvable")
-            entry.notFound = true;
-            entry.resolved = true;
-            return;
-        }
-
         const data = await response.json();
         const track = data.tracks && data.tracks.items && data.tracks.items.length > 0 ? data.tracks.items[0] : null;
 
         if (track) {
             entry.spotifyUri = track.uri;
             entry.spotifyImage = track.album && track.album.images && track.album.images.length > 2 ? track.album.images[2].url : (track.album && track.album.images && track.album.images.length > 0 ? track.album.images[0].url : '');
-            entry.resolved = true;
         } else {
-            // Ici, la réponse est bien arrivée (200 OK) et ne contient vraiment aucun résultat : c'est un vrai "introuvable"
             entry.notFound = true;
-            entry.resolved = true;
         }
     } catch (e) {
-        // Erreur réseau (pas une réponse HTTP) : on réessaie aussi avant d'abandonner
-        if (attempt < MAX_ATTEMPTS) {
-            await new Promise(resolve => setTimeout(resolve, attempt * 800));
-            return resolveTrackOnSpotify(entry, attempt + 1);
-        }
         console.error(e);
         entry.notFound = true;
+    } finally {
         entry.resolved = true;
     }
 }
@@ -1097,10 +1044,9 @@ function renderTopTracksSection() {
 
         resultsContainer.appendChild(item);
 
-        // Résolution mise en file d'attente (une seule requête Spotify à la fois, jamais en rafale)
-        if (!entry.resolved && !entry.queued) {
-            entry.queued = true;
-            enqueueResolve(entry, () => {
+        // Résolution en arrière-plan si pas encore fait, puis re-rendu ciblé de cette ligne uniquement
+        if (!entry.resolved) {
+            resolveTrackOnSpotify(entry).then(() => {
                 // On ne redessine que si le panneau Top Titres est toujours ouvert
                 if (resultsContainer.dataset.topTracksOpen === 'true') {
                     renderTopTracksSection();
