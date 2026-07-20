@@ -1,8 +1,7 @@
 
 
 
-
-const APP_VERSION = "v1.1.16";
+const APP_VERSION = "v1.1.07";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -47,15 +46,34 @@ async function addToQueue(uri, btnEl) {
         });
 
         if (response.status === 204) {
-            // Petit retour visuel : l'icône passe brièvement en ✅
+            // Petit retour visuel animé : l'icône zoome, fond en ✅, puis revient à 📥
             if (btnEl) {
                 const original = btnEl.innerText;
-                btnEl.innerText = '✅';
                 btnEl.disabled = true;
+                btnEl.style.transform = 'scale(1.6)';
+                btnEl.style.opacity = '0';
+
+                setTimeout(() => {
+                    btnEl.innerText = '✅';
+                    btnEl.style.transform = 'scale(1.4)';
+                    btnEl.style.opacity = '1';
+                }, 120);
+
+                setTimeout(() => {
+                    btnEl.style.transform = 'scale(1)';
+                }, 250);
+
+                setTimeout(() => {
+                    btnEl.style.transform = 'scale(1.4)';
+                    btnEl.style.opacity = '0';
+                }, 1200);
+
                 setTimeout(() => {
                     btnEl.innerText = original;
+                    btnEl.style.transform = 'scale(1)';
+                    btnEl.style.opacity = '1';
                     btnEl.disabled = false;
-                }, 1200);
+                }, 1350);
             }
         } else if (response.status === 404) {
             alert("Ouvrez Spotify et lancez une lecture sur l'un de vos appareils avant d'ajouter à la file.");
@@ -81,6 +99,7 @@ function buildQueueButton(uri) {
         margin-left: auto;
         padding: 4px 8px;
         flex-shrink: 0;
+        transition: transform 0.13s ease, opacity 0.13s ease;
     `;
     btn.onclick = (e) => {
         e.stopPropagation(); // empêche de déclencher la lecture du titre en cliquant sur 📥
@@ -107,13 +126,10 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
         let recentItems = [];        
         let displayedRecentCount = 10; 
      
-        // --- CONFIGURATION GOOGLE DRIVE API ---
-    
+        // --- CONFIGURATION GOOGLE DRIVE (via Apps Script, sans connexion utilisateur) ---
+        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx38Z36OtqfhOHFK-j8DqTJxCxfSTnvYOPhD1Y0G-jJeKjl9cUPxMo6bKjC--U-j0K6tQ/exec";
+        const APPS_SCRIPT_SECRET = "CHANGE_MOI_PAR_UNE_VALEUR_SECRETE_LONGUE_ET_UNIQUE"; // doit être identique à SECRET_KEY dans le script Apps Script
 
-        let tokenClient;
-        let gapiInited = false;
-        let gisiInited = false;
-        let googleAccessToken = null;
         let driveRecorder = null;
         let driveAudioChunks = [];
         let driveTimerInterval = null;
@@ -130,30 +146,6 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
             document.getElementById('login-btn').onclick = () => redirectToSpotify();
         }
 
-        function gapiLoad() {
-            gapi.load('client', async () => {
-                await gapi.client.init({ apiKey: API_KEY, discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"] });
-                gapiInited = true;
-            });
-        }
-
-        function gisInit() {
-            tokenClient = google.accounts.oauth2.initTokenClient({
-                client_id: CLIENT_ID,
-                scope: SCOPES,
-                callback: (tokenResponse) => {
-                    if (tokenResponse.error !== undefined) throw (tokenResponse);
-                    googleAccessToken = tokenResponse.access_token;
-                    executeActualUpload(); 
-                },
-            });
-            gisiInited = true;
-        }
-
-        window.onload = function() {
-            gapiLoad();
-            gisInit();
-        };
 
         function toggleProfileCard() {
             const profileZone = document.getElementById('profile-card-zone');
@@ -354,54 +346,63 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
             if (driveRecorder && driveRecorder.state !== "inactive") driveRecorder.stop();
         }
 
+        // Convertit le Blob audio en base64 et l'envoie au script relais (aucune connexion Google requise)
         function prepareUploadToDrive() {
             const inputName = document.getElementById('audio-filename').value.trim();
             const statusMsg = document.getElementById('drive-status-msg');
-            
+
             if (!inputName) { alert("Veuillez donner un titre !"); return; }
             if (!finalAudioBlob) { alert("Aucun audio détecté."); return; }
 
             statusMsg.style.color = 'var(--text-grey)';
-            statusMsg.innerText = "Authentification Google...";
+            statusMsg.innerText = "Préparation de l'audio...";
 
-            if (googleAccessToken === null) {
-                tokenClient.requestAccessToken({ prompt: 'consent' });
-            } else {
-                executeActualUpload();
-            }
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const base64Audio = reader.result.split(',')[1]; // retire le préfixe "data:audio/mp3;base64,"
+                executeActualUpload(base64Audio);
+            };
+            reader.onerror = () => {
+                statusMsg.style.color = '#ef4444';
+                statusMsg.innerText = "Erreur de lecture de l'audio.";
+            };
+            reader.readAsDataURL(finalAudioBlob);
         }
 
-        async function executeActualUpload() {
+        async function executeActualUpload(base64Audio) {
             const inputName = document.getElementById('audio-filename').value.trim();
             const fileName = inputName.endsWith('.mp3') ? inputName : `${inputName}.mp3`;
             const statusMsg = document.getElementById('drive-status-msg');
 
             statusMsg.innerText = "Téléversement sur Google Drive...";
 
-            const metadata = { name: fileName, mimeType: 'audio/mp3' };
-            const form = new FormData();
-            form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-            form.append('file', finalAudioBlob);
-
             try {
-                const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+                const response = await fetch(APPS_SCRIPT_URL, {
                     method: 'POST',
-                    headers: { 'Authorization': 'Bearer ' + googleAccessToken },
-                    body: form
+                    // Content-Type "text/plain" évite le préflight CORS bloqué par Apps Script
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({
+                        audioBase64: base64Audio,
+                        fileName: fileName,
+                        mimeType: 'audio/mp3',
+                        secret: APPS_SCRIPT_SECRET
+                    })
                 });
 
-                if (response.ok) {
+                const result = await response.json();
+
+                if (result.success) {
                     statusMsg.style.color = 'var(--spotify-green)';
                     statusMsg.innerText = "Audio enregistré avec succès sur Google Drive !";
                     setTimeout(() => { document.getElementById('drive-record-zone').style.display = 'none'; }, 3000);
                 } else {
-                    const errData = await response.json();
                     statusMsg.style.color = '#ef4444';
-                    statusMsg.innerText = "Erreur Drive : " + (errData.error.message || "Échec");
+                    statusMsg.innerText = "Erreur Drive : " + (result.error || "Échec");
                 }
             } catch (error) {
                 statusMsg.style.color = '#ef4444';
-                statusMsg.innerText = "Erreur de connexion Google API.";
+                statusMsg.innerText = "Erreur réseau lors du téléversement.";
+                console.error(error);
             }
         }
 
@@ -1393,6 +1394,35 @@ function renderQueueSection(data) {
     resultsContainer.innerHTML = "";
     resultsContainer.style.textAlign = 'left';
 
+    // Bouton d'actualisation manuelle, en haut du panneau
+    const refreshBtn = document.createElement('button');
+    refreshBtn.innerText = "🔄 Actualiser la file d'attente";
+    refreshBtn.style.cssText = `
+        background: none;
+        border: 1px solid var(--spotify-green);
+        color: var(--spotify-green);
+        border-radius: 20px;
+        padding: 8px 15px;
+        margin-bottom: 15px;
+        cursor: pointer;
+        font-size: 0.8rem;
+        font-weight: bold;
+        width: 100%;
+        box-sizing: border-box;
+        display: block;
+        transition: all 0.2s;
+    `;
+    refreshBtn.onmouseenter = () => {
+        refreshBtn.style.background = 'var(--spotify-green)';
+        refreshBtn.style.color = 'white';
+    };
+    refreshBtn.onmouseleave = () => {
+        refreshBtn.style.background = 'none';
+        refreshBtn.style.color = 'var(--spotify-green)';
+    };
+    refreshBtn.onclick = () => fetchQueue();
+    resultsContainer.appendChild(refreshBtn);
+
     if (data.currently_playing) {
         const currentHeader = document.createElement('p');
         currentHeader.style = "color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;";
@@ -1440,3 +1470,8 @@ function buildQueueItem(track) {
     `;
     return item;
 }
+
+
+
+
+
