@@ -1,5 +1,8 @@
 
-const APP_VERSION = "v1.1.13";
+
+
+
+const APP_VERSION = "v1.1.16";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -1437,7 +1440,3 @@ function buildQueueItem(track) {
     `;
     return item;
 }
-
-
-
-
