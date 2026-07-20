@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.23";
+const APP_VERSION = "v1.1.07";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -1006,11 +1006,7 @@ async function resolveTrackOnSpotify(entry, attempt = 1) {
     const MAX_ATTEMPTS = 3;
 
     try {
-        // Les valeurs doivent être entre guillemets, sinon Spotify ne comprend que le 1er mot
-        // comme faisant partie du champ track:/artist: (cause principale des faux "introuvable")
-        const escapedName = entry.lastfmName.replace(/"/g, '\\"');
-        const escapedArtist = entry.lastfmArtist.replace(/"/g, '\\"');
-        const query = encodeURIComponent(`track:"${escapedName}" artist:"${escapedArtist}"`);
+        const query = encodeURIComponent(`track:${entry.lastfmName} artist:${entry.lastfmArtist}`);
         const response = await fetch(`https://api.spotify.com/v1/search?q=${query}&type=track&limit=1`, {
             headers: { 'Authorization': 'Bearer ' + currentToken }
         });
@@ -1037,30 +1033,11 @@ async function resolveTrackOnSpotify(entry, attempt = 1) {
             entry.spotifyUri = track.uri;
             entry.spotifyImage = track.album && track.album.images && track.album.images.length > 2 ? track.album.images[2].url : (track.album && track.album.images && track.album.images.length > 0 ? track.album.images[0].url : '');
             entry.resolved = true;
-            return;
+        } else {
+            // Ici, la réponse est bien arrivée (200 OK) et ne contient vraiment aucun résultat : c'est un vrai "introuvable"
+            entry.notFound = true;
+            entry.resolved = true;
         }
-
-        // Rien trouvé avec la recherche stricte (champs track:/artist:) : on retente en repli
-        // avec une recherche libre, plus tolérante aux variations de titre (Remastered, feat., etc.)
-        const fallbackQuery = encodeURIComponent(`${entry.lastfmName} ${entry.lastfmArtist}`);
-        const fallbackResponse = await fetch(`https://api.spotify.com/v1/search?q=${fallbackQuery}&type=track&limit=1`, {
-            headers: { 'Authorization': 'Bearer ' + currentToken }
-        });
-
-        if (fallbackResponse.ok) {
-            const fallbackData = await fallbackResponse.json();
-            const fallbackTrack = fallbackData.tracks && fallbackData.tracks.items && fallbackData.tracks.items.length > 0 ? fallbackData.tracks.items[0] : null;
-            if (fallbackTrack) {
-                entry.spotifyUri = fallbackTrack.uri;
-                entry.spotifyImage = fallbackTrack.album && fallbackTrack.album.images && fallbackTrack.album.images.length > 2 ? fallbackTrack.album.images[2].url : (fallbackTrack.album && fallbackTrack.album.images && fallbackTrack.album.images.length > 0 ? fallbackTrack.album.images[0].url : '');
-                entry.resolved = true;
-                return;
-            }
-        }
-
-        // Aucune des deux recherches n'a rien donné : là, c'est un vrai "introuvable"
-        entry.notFound = true;
-        entry.resolved = true;
     } catch (e) {
         // Erreur réseau (pas une réponse HTTP) : on réessaie aussi avant d'abandonner
         if (attempt < MAX_ATTEMPTS) {
