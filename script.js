@@ -3,8 +3,7 @@
 
 
 
-
-const APP_VERSION = "v1.1.17";
+const APP_VERSION = "v1.1.18";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -49,34 +48,22 @@ async function addToQueue(uri, btnEl) {
         });
 
         if (response.status === 204) {
-            // Petit retour visuel animé : l'icône zoome, fond en ✅, puis revient à 📥
+            // Retour visuel simple et fiable : bascule immédiate en ✅ avec un léger effet de rebond,
+            // maintien 1 seconde, puis retour à 📥
             if (btnEl) {
                 const original = btnEl.innerText;
                 btnEl.disabled = true;
-                btnEl.style.transform = 'scale(1.6)';
-                btnEl.style.opacity = '0';
-
-                setTimeout(() => {
-                    btnEl.innerText = '✅';
-                    btnEl.style.transform = 'scale(1.4)';
-                    btnEl.style.opacity = '1';
-                }, 120);
+                btnEl.innerText = '✅';
+                btnEl.style.transform = 'scale(1.4)';
 
                 setTimeout(() => {
                     btnEl.style.transform = 'scale(1)';
-                }, 250);
-
-                setTimeout(() => {
-                    btnEl.style.transform = 'scale(1.4)';
-                    btnEl.style.opacity = '0';
-                }, 1200);
+                }, 150);
 
                 setTimeout(() => {
                     btnEl.innerText = original;
-                    btnEl.style.transform = 'scale(1)';
-                    btnEl.style.opacity = '1';
                     btnEl.disabled = false;
-                }, 1350);
+                }, 1200);
             }
         } else if (response.status === 404) {
             alert("Ouvrez Spotify et lancez une lecture sur l'un de vos appareils avant d'ajouter à la file.");
@@ -1402,27 +1389,36 @@ async function toggleQueue() {
         resultsContainer.innerHTML = '';
         resultsContainer.dataset.view = '';
         stopQueueAutoRefresh();
+        lastQueueSnapshot = null; // pour forcer un vrai rendu à la prochaine ouverture
         return;
     }
 
     resultsContainer.dataset.view = 'queue';
+    lastQueueSnapshot = null; // force l'affichage initial même si identique au dernier passage
     await fetchQueue();
 
     // Rafraîchit automatiquement toutes les 4s tant que le panneau reste ouvert
+    // (en arrière-plan : ne redessine que si le contenu a réellement changé)
     stopQueueAutoRefresh(); // sécurité anti-doublon si jamais un intervalle tournait déjà
     queueRefreshInterval = setInterval(() => {
         if (resultsContainer.dataset.view === 'queue') {
-            fetchQueue();
+            fetchQueue(true);
         } else {
             stopQueueAutoRefresh();
         }
     }, 4000);
 }
 
-async function fetchQueue() {
+let lastQueueSnapshot = null;
+
+async function fetchQueue(isBackgroundRefresh = false) {
     if (!currentToken) return;
     const resultsContainer = document.getElementById('search-results');
-    resultsContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement de la file d'attente...</p>";
+
+    // N'affiche "Chargement..." qu'à l'ouverture manuelle, pas lors des rafraîchissements auto en arrière-plan
+    if (!isBackgroundRefresh) {
+        resultsContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement de la file d'attente...</p>";
+    }
 
     try {
         const response = await fetch('https://api.spotify.com/v1/me/player/queue', {
@@ -1430,20 +1426,38 @@ async function fetchQueue() {
         });
 
         if (response.status === 401 || response.status === 403) {
-            resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Session expirée, reconnecte-toi.</p>";
+            if (!isBackgroundRefresh) {
+                resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Session expirée, reconnecte-toi.</p>";
+            }
             return;
         }
         if (response.status === 429) {
-            const retryAfter = response.headers.get('Retry-After');
-            resultsContainer.innerHTML = `<p style='font-size:0.9rem; color:orange; margin:5px;'>Trop de requêtes envoyées à Spotify${retryAfter ? `, réessaie dans ${retryAfter} secondes.` : ', réessaie dans quelques secondes.'}</p>`;
-            return;
+            if (!isBackgroundRefresh) {
+                const retryAfter = response.headers.get('Retry-After');
+                resultsContainer.innerHTML = `<p style='font-size:0.9rem; color:orange; margin:5px;'>Trop de requêtes envoyées à Spotify${retryAfter ? `, réessaie dans ${retryAfter} secondes.` : ', réessaie dans quelques secondes.'}</p>`;
+            }
+            return; // en arrière-plan, on ignore simplement ce cycle et on réessaiera au prochain tick
         }
 
         const data = await response.json();
+
+        // Compare avec le dernier état connu : ne redessine que si quelque chose a réellement changé
+        const snapshot = JSON.stringify({
+            current: data.currently_playing ? data.currently_playing.id : null,
+            queue: (data.queue || []).map(t => t.id)
+        });
+
+        if (snapshot === lastQueueSnapshot) {
+            return; // rien de nouveau, on ne touche pas à l'affichage
+        }
+        lastQueueSnapshot = snapshot;
+
         renderQueueSection(data);
     } catch (e) {
         console.error(e);
-        resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur lors du chargement de la file d'attente.</p>";
+        if (!isBackgroundRefresh) {
+            resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur lors du chargement de la file d'attente.</p>";
+        }
     }
 }
 
@@ -1499,7 +1513,6 @@ function buildQueueItem(track) {
     `;
     return item;
 }
-
 
 
 
