@@ -363,11 +363,14 @@
    CANVAS DU SPECTRE AUDIO
    ============================================ */
 #audio-spectrum-canvas {
+    position: fixed;
+    left: 0;
+    bottom: 0;
     width: 100%;
     height: 60px;
     display: block;
-    margin-top: 10px;
-    border-radius: 6px;
+    z-index: 1; /* reste DERRIÈRE le badge de version */
+    pointer-events: none; /* n'intercepte pas les clics, purement visuel */
     background: transparent;
 }
 
