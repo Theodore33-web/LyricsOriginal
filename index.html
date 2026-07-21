@@ -56,11 +56,11 @@
 
         <!-- Interrupteur à glissière -->
         <label class="switch">
-            <input type="checkbox" id="spectrum-toggle" checked onchange="toggleSpectrumSetting(this.checked)">
+            <input type="checkbox" id="spectrum-toggle" onchange="toggleSpectrumSetting(this.checked)">
             <span class="slider"></span>
         </label>
     </div>
-</div>  
+</div>
                     <div id="playlist-container" style="margin-top: 20px;"></div>
                     
                   <div id="volume-control-zone" style="display: none; margin-top: 12px; width: 100%; align-items: center; justify-content: space-between; box-sizing: border-box; padding: 0 5px;">
@@ -132,5 +132,12 @@
 </body>
 </html>
     </script>
+
+<!-- 2. Canvas du spectre : à placer en ENFANT DIRECT de <body>, tout à la fin du fichier
+     (juste avant la fermeture </body>), PAS à l'intérieur de la carte du lecteur.
+     Le CSS le rend "position: fixed" donc son emplacement dans le HTML n'affecte pas
+     sa position visuelle, mais il doit être hors de tout parent avec transform/filter. -->
+<canvas id="audio-spectrum-canvas"></canvas>
+
 </body>
 </html>
