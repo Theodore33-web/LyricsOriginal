@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.24";
+const APP_VERSION = "v1.1.25";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -1141,7 +1141,7 @@ function renderTopTracksSection() {
 // ==========================================
 // PARAMÈTRES — bouton ⚙️ (activer/désactiver le spectre audio animé)
 // ==========================================
-let spectrumEnabled = localStorage.getItem('spectrumEnabled') !== 'false'; // activé par défaut
+let spectrumEnabled = localStorage.getItem('spectrumEnabled') === 'true'; // désactivé par défaut
 
 function toggleSettings() {
     document.getElementById('profile-card-zone').style.display = 'none';
