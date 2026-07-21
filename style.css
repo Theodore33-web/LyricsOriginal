@@ -369,8 +369,11 @@
     width: 100%;
     height: 60px;
     display: block;
-    z-index: 1; /* reste DERRIÈRE le badge de version */
+    z-index: 500; /* passe devant le contenu (recherche, lecture, paroles...) */
     pointer-events: none; /* n'intercepte pas les clics, purement visuel */
     background: transparent;
 }
+
+
+
 
