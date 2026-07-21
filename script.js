@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.26";
+const APP_VERSION = "v1.1.27";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -736,9 +736,18 @@ function highlightLyrics(currentTime) {
                 const data = await response.json();
 
                 if (data && data.item) {
-                    trackDurationMs = data.item.duration_ms; 
-                    document.getElementById('track-title').innerText = data.item.name;
-                    document.getElementById('track-artist').innerText = data.item.artists.map(a => a.name).join(", ");
+                    const isEpisode = data.currently_playing_type === 'episode';
+                    trackDurationMs = data.item.duration_ms;
+
+                    if (isEpisode) {
+                        // --- ÉPISODE DE PODCAST ---
+                        document.getElementById('track-title').innerText = data.item.name;
+                        document.getElementById('track-artist').innerText = data.item.show ? data.item.show.name : "Podcast";
+                    } else {
+                        // --- MORCEAU DE MUSIQUE ---
+                        document.getElementById('track-title').innerText = data.item.name;
+                        document.getElementById('track-artist').innerText = data.item.artists.map(a => a.name).join(", ");
+                    }
 
                     // Resynchronise la progression réelle avec celle de Spotify (corrige toute dérive locale)
                     currentProgressMs = data.progress_ms;
@@ -751,11 +760,15 @@ function highlightLyrics(currentTime) {
 
                     const art = document.getElementById('track-art');
                     const oldSrc = art.src;
-                    art.src = data.item.album.images && data.item.album.images.length > 0 ? data.item.album.images[0].url : ""; 
+                    // La pochette d'un épisode est directement sur .images, celle d'un morceau est sous .album.images
+                    const images = isEpisode ? data.item.images : (data.item.album ? data.item.album.images : null);
+                    art.src = images && images.length > 0 ? images[0].url : "";
                     art.style.display = "block";
                     document.getElementById('play-pause-btn').innerText = data.is_playing ? "⏸" : "▶️";
 
-                    highlightLyrics(data.progress_ms / 1000);
+                    if (!isEpisode) {
+                        highlightLyrics(data.progress_ms / 1000);
+                    }
 
                     if (art.src !== oldSrc) {
                         art.onload = () => updateDynamicBackground();
@@ -763,8 +776,15 @@ function highlightLyrics(currentTime) {
 
                     if (data.item.id !== lastTrackId) {
                         lastTrackId = data.item.id;
-                        fetchLyrics(data.item.artists[0].name, data.item.name, data.item.album.name, data.item.duration_ms / 1000);
-                        checkIfTrackIsLiked(data.item.id);
+                        if (isEpisode) {
+                            // Pas de paroles ni de like pour un podcast : on vide juste l'ancien affichage de paroles
+                            currentLyrics = [];
+                            const lyricsContainer = document.getElementById('lyrics-container');
+                            if (lyricsContainer) lyricsContainer.innerHTML = "<p style='text-align:center; color:var(--text-grey); font-size:0.85rem;'>Paroles indisponibles pour les podcasts.</p>";
+                        } else {
+                            fetchLyrics(data.item.artists[0].name, data.item.name, data.item.album.name, data.item.duration_ms / 1000);
+                            checkIfTrackIsLiked(data.item.id);
+                        }
                     }
                 }
             } catch (e) {}
