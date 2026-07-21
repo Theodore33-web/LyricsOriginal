@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.25";
+const APP_VERSION = "v1.1.26";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -1204,6 +1204,13 @@ function initSpectrum() {
         const h = canvas.height;
         ctx.clearRect(0, 0, w, h);
 
+        // Si l'interrupteur est désactivé : RIEN à l'écran, on s'arrête là.
+        // (distinct du cas "actif mais en pause" qui garde un petit état plat, voir plus bas)
+        if (!spectrumEnabled) {
+            spectrumBars.forEach(bar => { bar.current = 0.04; }); // réinitialise pour un redémarrage propre
+            return;
+        }
+
         // Actif seulement si l'interrupteur est activé ET qu'un titre est en cours de lecture
         const active = spectrumEnabled && isCurrentlyPlaying;
         const barWidth = w / spectrumBars.length;
@@ -1211,7 +1218,7 @@ function initSpectrum() {
         spectrumBars.forEach((bar, i) => {
             bar.phase += bar.speed;
 
-            // Cible : grande amplitude si actif, sinon quasi plat (petit état)
+            // Cible : grande amplitude si actif, sinon quasi plat (petit état, uniquement en pause)
             const targetAmplitude = active
                 ? (0.25 + 0.75 * Math.abs(Math.sin(bar.phase)))
                 : 0.04;
