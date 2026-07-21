@@ -49,6 +49,18 @@
                         <button id="settings-btn" onclick="toggleSettings()" title="Paramètres">⚙️</button>
                     </div>
 
+<!-- 1. Panneau réglages : à placer près de tes autres zones (profile-card-zone, volume-control-zone, etc.) -->
+<div id="settings-zone" style="display: none; margin-top: 12px; width: 100%; box-sizing: border-box; padding: 10px; flex-direction: column; gap: 10px;">
+    <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+        <span style="font-size: 0.85rem; color: var(--text-grey);">Spectre audio animé</span>
+
+        <!-- Interrupteur à glissière -->
+        <label class="switch">
+            <input type="checkbox" id="spectrum-toggle" checked onchange="toggleSpectrumSetting(this.checked)">
+            <span class="slider"></span>
+        </label>
+    </div>
+</div>  
                     <div id="playlist-container" style="margin-top: 20px;"></div>
                     
                   <div id="volume-control-zone" style="display: none; margin-top: 12px; width: 100%; align-items: center; justify-content: space-between; box-sizing: border-box; padding: 0 5px;">
@@ -110,6 +122,10 @@
             </div>
         </div>
     </div>
+
+<!-- 2. Canvas du spectre : à placer tout en bas de ton lecteur (dernier élément de la carte principale) -->
+<canvas id="audio-spectrum-canvas" style="width: 100%; height: 60px; display: block; margin-top: 10px;"></canvas>
+    
     <script src="app.js"></script>
     <script src="version.js"></script>
     <script src="script.js"></script>
