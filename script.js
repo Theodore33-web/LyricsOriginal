@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.TEST";
+const APP_VERSION = "v1.1.24";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -214,6 +214,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 }, 100);
                 
                 updateNowPlaying();
+                initSpectrum();
             } catch (e) {
                 console.error("Impossible de récupérer le profil : ", e);
             }
@@ -977,26 +978,98 @@ async function fetchTopTracks() {
 }
 
 // Cherche le titre correspondant sur Spotify pour récupérer son URI et sa pochette
-async function resolveTrackOnSpotify(entry) {
+// File d'attente : garantit qu'une seule recherche Spotify est envoyée à la fois,
+// avec un léger espacement entre chacune, pour ne jamais déclencher de rate limit (429)
+// même quand on clique plusieurs fois rapidement sur "Afficher plus".
+let resolveQueue = [];
+let isProcessingResolveQueue = false;
+
+function enqueueResolve(entry, onDone) {
+    resolveQueue.push({ entry, onDone });
+    if (!isProcessingResolveQueue) {
+        processResolveQueue();
+    }
+}
+
+async function processResolveQueue() {
+    isProcessingResolveQueue = true;
+    while (resolveQueue.length > 0) {
+        const { entry, onDone } = resolveQueue.shift();
+        await resolveTrackOnSpotify(entry);
+        onDone();
+        await new Promise(resolve => setTimeout(resolve, 150)); // espacement entre deux recherches
+    }
+    isProcessingResolveQueue = false;
+}
+
+async function resolveTrackOnSpotify(entry, attempt = 1) {
     if (!currentToken || entry.resolved) return;
+    const MAX_ATTEMPTS = 3;
+
     try {
-        const query = encodeURIComponent(`track:${entry.lastfmName} artist:${entry.lastfmArtist}`);
+        // Les valeurs doivent être entre guillemets, sinon Spotify ne comprend que le 1er mot
+        // comme faisant partie du champ track:/artist: (cause principale des faux "introuvable")
+        const escapedName = entry.lastfmName.replace(/"/g, '\\"');
+        const escapedArtist = entry.lastfmArtist.replace(/"/g, '\\"');
+        const query = encodeURIComponent(`track:"${escapedName}" artist:"${escapedArtist}"`);
         const response = await fetch(`https://api.spotify.com/v1/search?q=${query}&type=track&limit=1`, {
             headers: { 'Authorization': 'Bearer ' + currentToken }
         });
+
+        // Erreur temporaire (rate limit, token expiré, souci serveur) : ne PAS marquer "introuvable",
+        // on réessaie après un court délai plutôt que de conclure trop vite.
+        if (!response.ok) {
+            if (attempt < MAX_ATTEMPTS) {
+                const retryAfterHeader = response.headers.get('Retry-After');
+                const waitMs = retryAfterHeader ? (parseInt(retryAfterHeader, 10) * 1000) : (attempt * 800);
+                await new Promise(resolve => setTimeout(resolve, waitMs));
+                return resolveTrackOnSpotify(entry, attempt + 1);
+            }
+            // Après plusieurs échecs répétés, on abandonne pour ce titre (mais ce n'est pas garanti "introuvable")
+            entry.notFound = true;
+            entry.resolved = true;
+            return;
+        }
+
         const data = await response.json();
         const track = data.tracks && data.tracks.items && data.tracks.items.length > 0 ? data.tracks.items[0] : null;
 
         if (track) {
             entry.spotifyUri = track.uri;
             entry.spotifyImage = track.album && track.album.images && track.album.images.length > 2 ? track.album.images[2].url : (track.album && track.album.images && track.album.images.length > 0 ? track.album.images[0].url : '');
-        } else {
-            entry.notFound = true;
+            entry.resolved = true;
+            return;
         }
+
+        // Rien trouvé avec la recherche stricte (champs track:/artist:) : on retente en repli
+        // avec une recherche libre, plus tolérante aux variations de titre (Remastered, feat., etc.)
+        const fallbackQuery = encodeURIComponent(`${entry.lastfmName} ${entry.lastfmArtist}`);
+        const fallbackResponse = await fetch(`https://api.spotify.com/v1/search?q=${fallbackQuery}&type=track&limit=1`, {
+            headers: { 'Authorization': 'Bearer ' + currentToken }
+        });
+
+        if (fallbackResponse.ok) {
+            const fallbackData = await fallbackResponse.json();
+            const fallbackTrack = fallbackData.tracks && fallbackData.tracks.items && fallbackData.tracks.items.length > 0 ? fallbackData.tracks.items[0] : null;
+            if (fallbackTrack) {
+                entry.spotifyUri = fallbackTrack.uri;
+                entry.spotifyImage = fallbackTrack.album && fallbackTrack.album.images && fallbackTrack.album.images.length > 2 ? fallbackTrack.album.images[2].url : (fallbackTrack.album && fallbackTrack.album.images && fallbackTrack.album.images.length > 0 ? fallbackTrack.album.images[0].url : '');
+                entry.resolved = true;
+                return;
+            }
+        }
+
+        // Aucune des deux recherches n'a rien donné : là, c'est un vrai "introuvable"
+        entry.notFound = true;
+        entry.resolved = true;
     } catch (e) {
+        // Erreur réseau (pas une réponse HTTP) : on réessaie aussi avant d'abandonner
+        if (attempt < MAX_ATTEMPTS) {
+            await new Promise(resolve => setTimeout(resolve, attempt * 800));
+            return resolveTrackOnSpotify(entry, attempt + 1);
+        }
         console.error(e);
         entry.notFound = true;
-    } finally {
         entry.resolved = true;
     }
 }
@@ -1044,9 +1117,10 @@ function renderTopTracksSection() {
 
         resultsContainer.appendChild(item);
 
-        // Résolution en arrière-plan si pas encore fait, puis re-rendu ciblé de cette ligne uniquement
-        if (!entry.resolved) {
-            resolveTrackOnSpotify(entry).then(() => {
+        // Résolution mise en file d'attente (une seule requête Spotify à la fois, jamais en rafale)
+        if (!entry.resolved && !entry.queued) {
+            entry.queued = true;
+            enqueueResolve(entry, () => {
                 // On ne redessine que si le panneau Top Titres est toujours ouvert
                 if (resultsContainer.dataset.topTracksOpen === 'true') {
                     renderTopTracksSection();
@@ -1062,6 +1136,104 @@ function renderTopTracksSection() {
         });
         resultsContainer.appendChild(moreBtn);
     }
+}
+
+// ==========================================
+// PARAMÈTRES — bouton ⚙️ (activer/désactiver le spectre audio animé)
+// ==========================================
+let spectrumEnabled = localStorage.getItem('spectrumEnabled') !== 'false'; // activé par défaut
+
+function toggleSettings() {
+    document.getElementById('profile-card-zone').style.display = 'none';
+    document.getElementById('device-control-zone').style.display = 'none';
+    document.getElementById('volume-control-zone').style.display = 'none';
+    const resultsContainer = document.getElementById('search-results');
+    resultsContainer.innerHTML = '';
+    resultsContainer.dataset.view = '';
+    resultsContainer.dataset.topTracksOpen = '';
+    stopQueueAutoRefresh();
+    const plContainer = document.getElementById('playlist-container');
+    if (plContainer) { plContainer.style.display = 'none'; plContainer.innerHTML = ''; }
+
+    const settingsZone = document.getElementById('settings-zone');
+    if (settingsZone.style.display === 'none' || settingsZone.style.display === '') {
+        settingsZone.style.display = 'flex';
+        const toggle = document.getElementById('spectrum-toggle');
+        if (toggle) toggle.checked = spectrumEnabled;
+    } else {
+        settingsZone.style.display = 'none';
+    }
+}
+
+function toggleSpectrumSetting(checked) {
+    spectrumEnabled = checked;
+    localStorage.setItem('spectrumEnabled', checked ? 'true' : 'false');
+}
+
+// ==========================================
+// SPECTRE AUDIO ANIMÉ (décoratif — voir explication : pas de vraie analyse
+// audio possible via l'API Spotify, le flux étant protégé par DRM)
+// ==========================================
+let spectrumBars = [];
+let spectrumAnimId = null;
+
+function initSpectrum() {
+    const canvas = document.getElementById('audio-spectrum-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const barCount = 48;
+
+    spectrumBars = Array.from({ length: barCount }, () => ({
+        phase: Math.random() * Math.PI * 2,
+        speed: 0.02 + Math.random() * 0.035,
+        current: 0.04 // hauteur de départ = petit état plat
+    }));
+
+    function resizeCanvas() {
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * window.devicePixelRatio;
+        canvas.height = rect.height * window.devicePixelRatio;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    function draw() {
+        spectrumAnimId = requestAnimationFrame(draw);
+
+        const w = canvas.width;
+        const h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+
+        // Actif seulement si l'interrupteur est activé ET qu'un titre est en cours de lecture
+        const active = spectrumEnabled && isCurrentlyPlaying;
+        const barWidth = w / spectrumBars.length;
+
+        spectrumBars.forEach((bar, i) => {
+            bar.phase += bar.speed;
+
+            // Cible : grande amplitude si actif, sinon quasi plat (petit état)
+            const targetAmplitude = active
+                ? (0.25 + 0.75 * Math.abs(Math.sin(bar.phase)))
+                : 0.04;
+
+            // Lissage : la barre "monte et descend" progressivement vers sa cible,
+            // ça évite les à-coups quand on met en pause/lecture ou qu'on bascule le réglage
+            bar.current += (targetAmplitude - bar.current) * 0.08;
+
+            const barHeight = Math.max(2, bar.current * h);
+            const hue = 140 + (i / spectrumBars.length) * 220; // dégradé vert → bleu → rose → orange
+
+            const gradient = ctx.createLinearGradient(0, h, 0, h - barHeight);
+            gradient.addColorStop(0, `hsl(${hue}, 90%, 45%)`);
+            gradient.addColorStop(1, `hsl(${hue}, 90%, 70%)`);
+            ctx.fillStyle = gradient;
+
+            const x = i * barWidth;
+            const gap = barWidth * 0.15;
+            ctx.fillRect(x + gap, h - barHeight, barWidth - gap * 2, barHeight);
+        });
+    }
+    draw();
 }
 
 // Fonction pour afficher/masquer la barre de volume
