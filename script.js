@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.30";
+const APP_VERSION = "v1.1.30api";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -120,7 +120,6 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
         }
         let libraryItems = [];
         let displayedCount = 10;
-        const auddApiToken = "187ef3238849ff75583d237fa40dbb48"; 
         let mediaRecorder = null;
         let audioChunks = [];
         let isRecording = false;
@@ -130,7 +129,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
         let displayedRecommendedCount = 10;
      
         // --- CONFIGURATION GOOGLE DRIVE (via Apps Script, sans connexion utilisateur) ---
-        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx38Z36OtqfhOHFK-j8DqTJxCxfSTnvYOPhD1Y0G-jJeKjl9cUPxMo6bKjC--U-j0K6tQ/exec";
+        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzUHHl2qp1kLzl3rF5rkHb-qpGiajuYmXJvNsvFzhRHsHz613CmRSknswkXR0ijVJg7Ig/exec";
         const APPS_SCRIPT_SECRET = "CHANGE_MOI_PAR_UNE_VALEUR_SECRETE_LONGUE_ET_UNIQUE"; // doit être identique à SECRET_KEY dans le script Apps Script
 
         let driveRecorder = null;
@@ -440,7 +439,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                     isRecording = true;
                     micBtn.classList.add('recording');
                     micBtn.innerText = "🛑";
-                    resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>AudD vous écoute (10s)...</p>";
+                    resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>ACRCloud vous écoute (10s)...</p>";
                 };
 
                 mediaRecorder.onstop = async () => {
@@ -453,7 +452,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                     stream.getTracks().forEach(track => track.stop());
 
                     if (audioBlob.size > 1000) {
-                        recognizeAudioWithAudD(audioBlob);
+                        identifyWithACRCloud(audioBlob);
                     } else {
                         resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur : Enregistrement vide.</p>";
                     }
@@ -469,48 +468,82 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
             }
         }
 
-        async function recognizeAudioWithAudD(blob) {
+        async function identifyWithACRCloud(blob) {
             const GlassContainer = document.getElementById('search-results');
-            const formData = new FormData();
-            formData.append('file', blob);
-            formData.append('api_token', auddApiToken);
-            formData.append('return', 'spotify');
 
             try {
-                const response = await fetch('https://api.audd.io/', { method: 'POST', body: formData });
-                const result = await response.json();
+                // Convertit le blob audio en base64 pour l'envoyer au relais Apps Script
+                const base64Audio = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result.split(',')[1]);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(blob);
+                });
 
-                if (result.status === "success" && result.result) {
-                    GlassContainer.innerHTML = "";
-                    const track = result.result;
-                    let spotifyUri = track.spotify && track.spotify.id ? `spotify:track:${track.spotify.id}` : null;
+                const response = await fetch(APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({
+                        action: 'identify_song',
+                        secret: APPS_SCRIPT_SECRET,
+                        audioBase64: base64Audio,
+                        mimeType: blob.type || 'audio/webm'
+                    })
+                });
 
-                    const item = document.createElement('div');
-                    item.className = 'search-item';
-                    const coverImg = (track.spotify && track.spotify.album && track.spotify.album.images.length > 0) ? track.spotify.album.images[2].url : "https://via.placeholder.com/30";
+                const relayResult = await response.json();
 
-                    item.innerHTML = `
-                        <img src="${coverImg}" alt="">
-                        <div>
-                            <strong style="display:block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${track.title}</strong>
-                            <span style="font-size: 0.8rem; color: var(--text-grey);">${track.artist}</span>
-                        </div>
-                    `;
-                    
-                    item.onclick = () => {
-                        if (spotifyUri) {
-                            playTrack(spotifyUri);
-                        } else {
-                            document.getElementById('search-input').value = `${track.title} ${track.artist}`;
-                            searchTrack();
-                        }
-                    };
-                    GlassContainer.appendChild(item);
-                } else {
-                    GlassContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Aucune correspondance trouvée par AudD.</p>";
+                if (!relayResult.success) {
+                    GlassContainer.innerHTML = `<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur : ${relayResult.error || 'échec du relais.'}</p>`;
+                    return;
                 }
+
+                const acrData = relayResult.result;
+                const music = acrData && acrData.metadata && acrData.metadata.music && acrData.metadata.music.length > 0
+                    ? acrData.metadata.music[0]
+                    : null;
+
+                if (!music) {
+                    GlassContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Aucune correspondance trouvée par ACRCloud.</p>";
+                    return;
+                }
+
+                const title = music.title || 'Titre inconnu';
+                const artist = music.artists && music.artists.length > 0 ? music.artists.map(a => a.name).join(', ') : 'Artiste inconnu';
+
+                GlassContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Recherche sur Spotify...</p>";
+
+                // ACRCloud ne donne pas toujours un lien Spotify direct : on résout via une recherche,
+                // comme pour "Top Titres", pour garantir un lien de lecture fiable
+                const entry = { lastfmName: title, lastfmArtist: artist, spotifyUri: null, spotifyImage: null, resolved: false, notFound: false };
+                await resolveTrackOnSpotify(entry);
+
+                GlassContainer.innerHTML = "";
+                const item = document.createElement('div');
+                item.className = 'search-item';
+                const coverImg = entry.spotifyImage || 'https://via.placeholder.com/30';
+
+                item.innerHTML = `
+                    <img src="${coverImg}" alt="">
+                    <div>
+                        <strong style="display:block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${title}</strong>
+                        <span style="font-size: 0.8rem; color: var(--text-grey);">${artist}${entry.notFound ? ' — indisponible sur Spotify' : ''}</span>
+                    </div>
+                `;
+
+                if (entry.spotifyUri) {
+                    item.onclick = () => playTrack(entry.spotifyUri);
+                } else {
+                    item.onclick = () => {
+                        document.getElementById('search-input').value = `${title} ${artist}`;
+                        searchTrack();
+                    };
+                }
+                GlassContainer.appendChild(item);
+
             } catch (err) {
-                GlassContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Échec de communication avec AudD.</p>";
+                console.error(err);
+                GlassContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Échec de communication avec ACRCloud.</p>";
             }
         }
 
@@ -777,16 +810,14 @@ function highlightLyrics(currentTime) {
                     if (data.item.id !== lastTrackId) {
                         lastTrackId = data.item.id;
                         if (isEpisode) {
-                            // Le conteneur reste visible, avec un message dédié aux podcasts
+                            // On cible lyrics-content (comme le fait fetchLyrics), PAS lyrics-container,
+                            // pour ne jamais détruire la structure DOM que fetchLyrics attend de retrouver
                             currentLyrics = [];
-                            const lyricsContainer = document.getElementById('lyrics-container');
-                            if (lyricsContainer) {
-                                lyricsContainer.style.display = "";
-                                lyricsContainer.innerHTML = "<p style='text-align:center; color:var(--text-grey); font-size:0.85rem;'>Paroles indisponibles pour les podcasts.</p>";
+                            const lyricsContent = document.getElementById('lyrics-content');
+                            if (lyricsContent) {
+                                lyricsContent.innerHTML = "<p style='text-align:center; color:var(--text-grey); font-size:0.85rem;'>Paroles indisponibles pour les podcasts.</p>";
                             }
                         } else {
-                            const lyricsContainer = document.getElementById('lyrics-container');
-                            if (lyricsContainer) lyricsContainer.style.display = ""; // réaffiche pour un morceau normal
                             fetchLyrics(data.item.artists[0].name, data.item.name, data.item.album.name, data.item.duration_ms / 1000);
                             checkIfTrackIsLiked(data.item.id);
                         }
