@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.30api";
+const APP_VERSION = "v1.1.api";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -130,7 +130,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
      
         // --- CONFIGURATION GOOGLE DRIVE (via Apps Script, sans connexion utilisateur) ---
         const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzUHHl2qp1kLzl3rF5rkHb-qpGiajuYmXJvNsvFzhRHsHz613CmRSknswkXR0ijVJg7Ig/exec";
-        const APPS_SCRIPT_SECRET = "CHANGE_MOI_PAR_UNE_VALEUR_SECRETE_LONGUE_ET_UNIQUE"; // doit être identique à SECRET_KEY dans le script Apps Script
+        const APPS_SCRIPT_SECRET = "fkgnekscihyn39cjr59zcf"; // doit être identique à SECRET_KEY dans le script Apps Script
 
         let driveRecorder = null;
         let driveAudioChunks = [];
