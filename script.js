@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.29TEST";
+const APP_VERSION = "v1.1.30";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -728,7 +728,7 @@ function highlightLyrics(currentTime) {
         async function updateNowPlaying() {
             if (!currentToken) return;
             try {
-                const response = await fetch('https://api.spotify.com/v1/me/player', { headers: { 'Authorization': 'Bearer ' + currentToken } });
+                const response = await fetch('https://api.spotify.com/v1/me/player?additional_types=track,episode', { headers: { 'Authorization': 'Bearer ' + currentToken } });
                 if (response.status === 204 || response.status === 401) {
                     isCurrentlyPlaying = false;
                     return;
@@ -777,11 +777,16 @@ function highlightLyrics(currentTime) {
                     if (data.item.id !== lastTrackId) {
                         lastTrackId = data.item.id;
                         if (isEpisode) {
-                            // Pas de paroles ni de like pour un podcast : on vide juste l'ancien affichage de paroles
+                            // Le conteneur reste visible, avec un message dédié aux podcasts
                             currentLyrics = [];
                             const lyricsContainer = document.getElementById('lyrics-container');
-                            if (lyricsContainer) lyricsContainer.innerHTML = "<p style='text-align:center; color:var(--text-grey); font-size:0.85rem;'>Paroles indisponibles pour les podcasts.</p>";
+                            if (lyricsContainer) {
+                                lyricsContainer.style.display = "";
+                                lyricsContainer.innerHTML = "<p style='text-align:center; color:var(--text-grey); font-size:0.85rem;'>Paroles indisponibles pour les podcasts.</p>";
+                            }
                         } else {
+                            const lyricsContainer = document.getElementById('lyrics-container');
+                            if (lyricsContainer) lyricsContainer.style.display = ""; // réaffiche pour un morceau normal
                             fetchLyrics(data.item.artists[0].name, data.item.name, data.item.album.name, data.item.duration_ms / 1000);
                             checkIfTrackIsLiked(data.item.id);
                         }
