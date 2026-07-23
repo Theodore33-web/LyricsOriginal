@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.35";
+const APP_VERSION = "v1.1.36";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -1268,28 +1268,53 @@ function toggleAutoScrollLyricsSetting(checked) {
 
 // Injecte le style de la boule à facettes directement en JS — fonctionne même si le
 // fichier CSS séparé n'a pas été correctement copié dans la page.
+// La boule elle-même reste totalement fixe (aucune rotation) : seuls les rayons
+// lumineux qui l'entourent tournent, via un dégradé conique animé en arrière-plan.
 function injectDiscoBallStyles() {
     if (document.getElementById('disco-ball-inline-style')) return; // déjà injecté
     const styleTag = document.createElement('style');
     styleTag.id = 'disco-ball-inline-style';
     styleTag.textContent = `
-        #disco-ball {
+        #disco-ball-wrapper {
             position: fixed;
             top: 10px;
             left: 50%;
             transform: translateX(-50%);
-            font-size: 2.2rem;
+            width: 70px;
+            height: 70px;
             z-index: 500;
             pointer-events: none;
-            animation: disco-spin 3s linear infinite, disco-glow 1.2s ease-in-out infinite alternate;
         }
-        @keyframes disco-spin {
-            from { transform: translateX(-50%) rotate(0deg); }
-            to   { transform: translateX(-50%) rotate(360deg); }
+        #disco-ball-rays {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 160px;
+            height: 160px;
+            transform: translate(-50%, -50%) rotate(0deg);
+            border-radius: 50%;
+            background: conic-gradient(
+                from 0deg,
+                transparent 0deg, rgba(255,255,255,0.55) 8deg, transparent 18deg,
+                transparent 85deg, rgba(29,185,84,0.55) 93deg, transparent 103deg,
+                transparent 175deg, rgba(255,255,255,0.55) 183deg, transparent 193deg,
+                transparent 265deg, rgba(29,185,84,0.55) 273deg, transparent 283deg,
+                transparent 360deg
+            );
+            filter: blur(3px);
+            animation: disco-rays-spin 4s linear infinite;
         }
-        @keyframes disco-glow {
-            from { filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 4px #1DB954); }
-            to   { filter: drop-shadow(0 0 10px #fff) drop-shadow(0 0 18px #1DB954); }
+        #disco-ball {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%); /* fixe : aucune rotation, aucun mouvement */
+            font-size: 2.2rem;
+            line-height: 1;
+        }
+        @keyframes disco-rays-spin {
+            from { transform: translate(-50%, -50%) rotate(0deg); }
+            to   { transform: translate(-50%, -50%) rotate(360deg); }
         }
     `;
     document.head.appendChild(styleTag);
@@ -1300,27 +1325,36 @@ function toggleDiscoBallSetting(checked) {
     discoBallEnabled = checked;
     localStorage.setItem('discoBallEnabled', checked ? 'true' : 'false');
     ensureDiscoBallElement();
-    const ball = document.getElementById('disco-ball');
-    if (ball) ball.style.display = checked ? 'block' : 'none';
+    const wrapper = document.getElementById('disco-ball-wrapper');
+    if (wrapper) wrapper.style.display = checked ? 'block' : 'none';
 }
 
-// Crée l'élément lui-même s'il n'existe pas déjà dans le HTML (sécurité supplémentaire)
+// Crée la structure (boule fixe + rayons animés séparés) si elle n'existe pas déjà
 function ensureDiscoBallElement() {
-    let ball = document.getElementById('disco-ball');
-    if (!ball) {
-        ball = document.createElement('div');
+    let wrapper = document.getElementById('disco-ball-wrapper');
+    if (!wrapper) {
+        wrapper = document.createElement('div');
+        wrapper.id = 'disco-ball-wrapper';
+        wrapper.style.display = 'none';
+
+        const rays = document.createElement('div');
+        rays.id = 'disco-ball-rays';
+        wrapper.appendChild(rays);
+
+        const ball = document.createElement('div');
         ball.id = 'disco-ball';
         ball.innerText = '🪩';
-        ball.style.display = 'none';
-        document.body.appendChild(ball);
+        wrapper.appendChild(ball);
+
+        document.body.appendChild(wrapper);
     }
-    return ball;
+    return wrapper;
 }
 
 // Applique l'état sauvegardé au chargement (utile si la page est ouverte alors que le token est déjà valide)
 function initDiscoBallState() {
-    const ball = ensureDiscoBallElement();
-    ball.style.display = discoBallEnabled ? 'block' : 'none';
+    const wrapper = ensureDiscoBallElement();
+    wrapper.style.display = discoBallEnabled ? 'block' : 'none';
 }
 
 // ==========================================
