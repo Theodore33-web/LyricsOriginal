@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.36";
+const APP_VERSION = "v1.1.37";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -1271,46 +1271,50 @@ function toggleAutoScrollLyricsSetting(checked) {
 // La boule elle-même reste totalement fixe (aucune rotation) : seuls les rayons
 // lumineux qui l'entourent tournent, via un dégradé conique animé en arrière-plan.
 function injectDiscoBallStyles() {
-    if (document.getElementById('disco-ball-inline-style')) return; // déjà injecté
+    // On retire toute ancienne version du style (au cas où l'ancien CSS externe traîne encore)
+    const oldStyle = document.getElementById('disco-ball-inline-style');
+    if (oldStyle) oldStyle.remove();
+
     const styleTag = document.createElement('style');
     styleTag.id = 'disco-ball-inline-style';
     styleTag.textContent = `
         #disco-ball-wrapper {
-            position: fixed;
-            top: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 70px;
-            height: 70px;
-            z-index: 500;
-            pointer-events: none;
+            position: fixed !important;
+            top: -18px !important; /* remonté : seuls ~80% de la boule restent visibles */
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+            width: 100px !important;
+            height: 100px !important;
+            z-index: 500 !important;
+            pointer-events: none !important;
         }
         #disco-ball-rays {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 160px;
-            height: 160px;
-            transform: translate(-50%, -50%) rotate(0deg);
-            border-radius: 50%;
+            position: absolute !important;
+            top: 50% !important;
+            left: 50% !important;
+            width: 220px !important;
+            height: 220px !important;
+            transform: translate(-50%, -50%) rotate(0deg) !important;
+            border-radius: 50% !important;
             background: conic-gradient(
                 from 0deg,
-                transparent 0deg, rgba(255,255,255,0.55) 8deg, transparent 18deg,
-                transparent 85deg, rgba(29,185,84,0.55) 93deg, transparent 103deg,
-                transparent 175deg, rgba(255,255,255,0.55) 183deg, transparent 193deg,
-                transparent 265deg, rgba(29,185,84,0.55) 273deg, transparent 283deg,
+                transparent 0deg, rgba(255,255,255,0.6) 8deg, transparent 18deg,
+                transparent 85deg, rgba(255,255,255,0.6) 93deg, transparent 103deg,
+                transparent 175deg, rgba(255,255,255,0.6) 183deg, transparent 193deg,
+                transparent 265deg, rgba(255,255,255,0.6) 273deg, transparent 283deg,
                 transparent 360deg
-            );
-            filter: blur(3px);
-            animation: disco-rays-spin 4s linear infinite;
+            ) !important;
+            filter: blur(3px) !important;
+            animation: disco-rays-spin 4s linear infinite !important;
         }
         #disco-ball {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%); /* fixe : aucune rotation, aucun mouvement */
-            font-size: 2.2rem;
-            line-height: 1;
+            position: absolute !important;
+            top: 50% !important;
+            left: 50% !important;
+            transform: translate(-50%, -50%) !important; /* fixe : aucune rotation, aucun mouvement */
+            font-size: 3.4rem !important;
+            line-height: 1 !important;
+            animation: none !important; /* neutralise toute ancienne animation résiduelle */
         }
         @keyframes disco-rays-spin {
             from { transform: translate(-50%, -50%) rotate(0deg); }
