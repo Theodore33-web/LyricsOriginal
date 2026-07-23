@@ -60,6 +60,14 @@
             <span class="slider"></span>
         </label>
     </div>
+      <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+        <span style="font-size: 0.85rem; color: var(--text-grey);">Boule à facettes animée</span>
+
+        <label class="switch">
+            <input type="checkbox" id="discoball-toggle" onchange="toggleDiscoBallSetting(this.checked)">
+            <span class="slider"></span>
+        </label>
+    </div>
         <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
         <span style="font-size: 0.85rem; color: var(--text-grey);">Défilement automatique des paroles</span>
 
@@ -140,6 +148,9 @@
 </body>
 </html>
     </script>
+
+<!-- Boule à facettes : enfant direct de <body>, en dehors de toute carte (même logique que le canvas du spectre) -->
+<div id="disco-ball" style="display: none;">🪩</div>
 
 <!-- 2. Canvas du spectre : à placer en ENFANT DIRECT de <body>, tout à la fin du fichier
      (juste avant la fermeture </body>), PAS à l'intérieur de la carte du lecteur.
