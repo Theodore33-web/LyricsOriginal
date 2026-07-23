@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.34";
+const APP_VERSION = "v1.1.35";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -138,27 +138,40 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
         let driveSecondsElapsed = 0;
         let finalAudioBlob = null;
         
-        // --- EASTER EGG : couleur des paroles aléatoire au chargement du site ---
+        // --- EASTER EGG : couleur des paroles aléatoire, tirée au clic sur "Se connecter à Spotify" ---
         // 9 fois sur 10 : blanc (couleur actuelle). 1 fois sur 10 : vert clair façon Spotify.
-        function applyLyricsColorEasterEgg() {
+        // Le tirage est mémorisé dans localStorage puis appliqué après le retour de Spotify,
+        // pour éviter tout effet de cache/rechargement qui fausserait la probabilité perçue.
+        function rollLyricsColorChoice() {
             const isGreen = Math.random() < 0.10; // 10% de chances
-            const color = isGreen ? '#7CFFB2' : '#FFFFFF';
-            const styleTag = document.createElement('style');
-            styleTag.id = 'lyrics-easter-egg-style';
-            // La ligne active (.lyric-line.active) est plus spécifique et garde donc sa propre couleur de surbrillance
-            styleTag.textContent = `.lyric-line { color: ${color} !important; }`;
-            document.head.appendChild(styleTag);
+            localStorage.setItem('lyricsColorChoice', isGreen ? 'green' : 'white');
         }
-        applyLyricsColorEasterEgg();
+
+        function applyLyricsColorEasterEgg() {
+            const choice = localStorage.getItem('lyricsColorChoice');
+            // Cas "blanc" (90%) : on ne touche à RIEN, la couleur d'origine du site (gris/blanc sombre) reste intacte.
+            // Cas "vert" (10%) : on injecte une surcharge avec le vrai vert Spotify (plus foncé que la version précédente).
+            if (choice === 'green') {
+                const styleTag = document.createElement('style');
+                styleTag.id = 'lyrics-easter-egg-style';
+                // La ligne active (.lyric-line.active) est plus spécifique et garde donc sa propre couleur de surbrillance
+                styleTag.textContent = `.lyric-line { color: #1DB954 !important; }`;
+                document.head.appendChild(styleTag);
+            }
+        }
 
         const params = new URLSearchParams(window.location.search);
         const code = params.get("code");
         const scope = "user-read-private user-read-email user-modify-playback-state user-read-playback-state user-library-read user-library-modify playlist-read-private user-read-recently-played user-read-currently-playing";
         if (code) {
             document.getElementById('login-section').style.display = 'none';
+            applyLyricsColorEasterEgg(); // applique le choix tiré avant la redirection
             handleCallback(code);
         } else {
-            document.getElementById('login-btn').onclick = () => redirectToSpotify();
+            document.getElementById('login-btn').onclick = () => {
+                rollLyricsColorChoice(); // tirage au moment exact du clic
+                redirectToSpotify();
+            };
         }
 
 
@@ -227,6 +240,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 
                 updateNowPlaying();
                 initSpectrum();
+                initDiscoBallState();
             } catch (e) {
                 console.error("Impossible de récupérer le profil : ", e);
             }
@@ -1214,6 +1228,7 @@ function renderTopTracksSection() {
 // ==========================================
 let spectrumEnabled = localStorage.getItem('spectrumEnabled') === 'true'; // désactivé par défaut
 let autoScrollLyricsEnabled = localStorage.getItem('autoScrollLyricsEnabled') !== 'false'; // activé par défaut
+let discoBallEnabled = localStorage.getItem('discoBallEnabled') === 'true'; // désactivé par défaut
 
 function toggleSettings() {
     document.getElementById('profile-card-zone').style.display = 'none';
@@ -1234,6 +1249,8 @@ function toggleSettings() {
         if (toggle) toggle.checked = spectrumEnabled;
         const scrollToggle = document.getElementById('autoscroll-lyrics-toggle');
         if (scrollToggle) scrollToggle.checked = autoScrollLyricsEnabled;
+        const discoToggle = document.getElementById('discoball-toggle');
+        if (discoToggle) discoToggle.checked = discoBallEnabled;
     } else {
         settingsZone.style.display = 'none';
     }
@@ -1247,6 +1264,63 @@ function toggleSpectrumSetting(checked) {
 function toggleAutoScrollLyricsSetting(checked) {
     autoScrollLyricsEnabled = checked;
     localStorage.setItem('autoScrollLyricsEnabled', checked ? 'true' : 'false');
+}
+
+// Injecte le style de la boule à facettes directement en JS — fonctionne même si le
+// fichier CSS séparé n'a pas été correctement copié dans la page.
+function injectDiscoBallStyles() {
+    if (document.getElementById('disco-ball-inline-style')) return; // déjà injecté
+    const styleTag = document.createElement('style');
+    styleTag.id = 'disco-ball-inline-style';
+    styleTag.textContent = `
+        #disco-ball {
+            position: fixed;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 2.2rem;
+            z-index: 500;
+            pointer-events: none;
+            animation: disco-spin 3s linear infinite, disco-glow 1.2s ease-in-out infinite alternate;
+        }
+        @keyframes disco-spin {
+            from { transform: translateX(-50%) rotate(0deg); }
+            to   { transform: translateX(-50%) rotate(360deg); }
+        }
+        @keyframes disco-glow {
+            from { filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 4px #1DB954); }
+            to   { filter: drop-shadow(0 0 10px #fff) drop-shadow(0 0 18px #1DB954); }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectDiscoBallStyles();
+
+function toggleDiscoBallSetting(checked) {
+    discoBallEnabled = checked;
+    localStorage.setItem('discoBallEnabled', checked ? 'true' : 'false');
+    ensureDiscoBallElement();
+    const ball = document.getElementById('disco-ball');
+    if (ball) ball.style.display = checked ? 'block' : 'none';
+}
+
+// Crée l'élément lui-même s'il n'existe pas déjà dans le HTML (sécurité supplémentaire)
+function ensureDiscoBallElement() {
+    let ball = document.getElementById('disco-ball');
+    if (!ball) {
+        ball = document.createElement('div');
+        ball.id = 'disco-ball';
+        ball.innerText = '🪩';
+        ball.style.display = 'none';
+        document.body.appendChild(ball);
+    }
+    return ball;
+}
+
+// Applique l'état sauvegardé au chargement (utile si la page est ouverte alors que le token est déjà valide)
+function initDiscoBallState() {
+    const ball = ensureDiscoBallElement();
+    ball.style.display = discoBallEnabled ? 'block' : 'none';
 }
 
 // ==========================================
