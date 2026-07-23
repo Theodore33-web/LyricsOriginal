@@ -373,7 +373,30 @@
     pointer-events: none; /* n'intercepte pas les clics, purement visuel */
     background: transparent;
 }
+/* ============================================
+   BOULE À FACETTES ANIMÉE
+   ============================================ */
+#disco-ball {
+    position: fixed;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 2.2rem;
+    z-index: 500;
+    pointer-events: none; /* purement visuel, n'intercepte pas les clics */
+    animation:
+        disco-spin 3s linear infinite,
+        disco-glow 1.2s ease-in-out infinite alternate;
+}
 
+@keyframes disco-spin {
+    from { transform: translateX(-50%) rotate(0deg); }
+    to   { transform: translateX(-50%) rotate(360deg); }
+}
 
+@keyframes disco-glow {
+    from { filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 4px #1DB954); }
+    to   { filter: drop-shadow(0 0 10px #fff) drop-shadow(0 0 18px #1DB954); }
+}
 
 
