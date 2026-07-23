@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.38";
+const APP_VERSION = "v1.1.39";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -1296,7 +1296,7 @@ function injectDiscoBallStyles() {
             left: 50% !important;
             width: 300px !important;
             height: 300px !important;
-            transform: translate(-50%, -50%) rotate(0deg) !important;
+            transform: translate(-50%, -50%) rotate(0deg); /* PAS de !important ici : bloquerait l'animation */
             border-radius: 50% !important;
             background: conic-gradient(
                 from 0deg,
@@ -1318,7 +1318,7 @@ function injectDiscoBallStyles() {
             top: 50% !important;
             left: 50% !important;
             transform: translate(-50%, -50%) !important; /* fixe : aucune rotation, aucun mouvement */
-            font-size: 4.4rem !important;
+            font-size: 5.2rem !important;
             line-height: 1 !important;
             animation: none !important; /* neutralise toute ancienne animation résiduelle */
         }
