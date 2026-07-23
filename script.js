@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.37";
+const APP_VERSION = "v1.1.38";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -1280,28 +1280,34 @@ function injectDiscoBallStyles() {
     styleTag.textContent = `
         #disco-ball-wrapper {
             position: fixed !important;
-            top: -18px !important; /* remonté : seuls ~80% de la boule restent visibles */
+            top: -34px !important; /* encore plus haut */
             left: 50% !important;
             transform: translateX(-50%) !important;
-            width: 100px !important;
-            height: 100px !important;
+            width: 130px !important;
+            height: 130px !important;
             z-index: 500 !important;
             pointer-events: none !important;
         }
+        /* Les rayons sont un élément TOTALEMENT séparé de la boule : ils tournent seuls,
+           la boule (#disco-ball plus bas) ne fait partie d'aucune animation. */
         #disco-ball-rays {
             position: absolute !important;
             top: 50% !important;
             left: 50% !important;
-            width: 220px !important;
-            height: 220px !important;
+            width: 300px !important;
+            height: 300px !important;
             transform: translate(-50%, -50%) rotate(0deg) !important;
             border-radius: 50% !important;
             background: conic-gradient(
                 from 0deg,
-                transparent 0deg, rgba(255,255,255,0.6) 8deg, transparent 18deg,
-                transparent 85deg, rgba(255,255,255,0.6) 93deg, transparent 103deg,
-                transparent 175deg, rgba(255,255,255,0.6) 183deg, transparent 193deg,
-                transparent 265deg, rgba(255,255,255,0.6) 273deg, transparent 283deg,
+                transparent 0deg,   rgba(255,255,255,0.6) 8deg,   transparent 18deg,
+                transparent 45deg,  rgba(255,255,255,0.6) 53deg,  transparent 63deg,
+                transparent 90deg,  rgba(255,255,255,0.6) 98deg,  transparent 108deg,
+                transparent 135deg, rgba(255,255,255,0.6) 143deg, transparent 153deg,
+                transparent 180deg, rgba(255,255,255,0.6) 188deg, transparent 198deg,
+                transparent 225deg, rgba(255,255,255,0.6) 233deg, transparent 243deg,
+                transparent 270deg, rgba(255,255,255,0.6) 278deg, transparent 288deg,
+                transparent 315deg, rgba(255,255,255,0.6) 323deg, transparent 333deg,
                 transparent 360deg
             ) !important;
             filter: blur(3px) !important;
@@ -1312,7 +1318,7 @@ function injectDiscoBallStyles() {
             top: 50% !important;
             left: 50% !important;
             transform: translate(-50%, -50%) !important; /* fixe : aucune rotation, aucun mouvement */
-            font-size: 3.4rem !important;
+            font-size: 4.4rem !important;
             line-height: 1 !important;
             animation: none !important; /* neutralise toute ancienne animation résiduelle */
         }
