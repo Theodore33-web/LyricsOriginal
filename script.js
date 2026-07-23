@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.30";
+const APP_VERSION = "v1.1.31";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -720,7 +720,9 @@ function highlightLyrics(currentTime) {
             if (!el.classList.contains('active')) {
                 document.querySelectorAll('.lyric-line').forEach(l => l.classList.remove('active'));
                 el.classList.add('active');
-                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                if (autoScrollLyricsEnabled) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
             }
         }
     });
@@ -1198,6 +1200,7 @@ function renderTopTracksSection() {
 // PARAMÈTRES — bouton ⚙️ (activer/désactiver le spectre audio animé)
 // ==========================================
 let spectrumEnabled = localStorage.getItem('spectrumEnabled') === 'true'; // désactivé par défaut
+let autoScrollLyricsEnabled = localStorage.getItem('autoScrollLyricsEnabled') !== 'false'; // activé par défaut
 
 function toggleSettings() {
     document.getElementById('profile-card-zone').style.display = 'none';
@@ -1216,6 +1219,8 @@ function toggleSettings() {
         settingsZone.style.display = 'flex';
         const toggle = document.getElementById('spectrum-toggle');
         if (toggle) toggle.checked = spectrumEnabled;
+        const scrollToggle = document.getElementById('autoscroll-lyrics-toggle');
+        if (scrollToggle) scrollToggle.checked = autoScrollLyricsEnabled;
     } else {
         settingsZone.style.display = 'none';
     }
@@ -1224,6 +1229,11 @@ function toggleSettings() {
 function toggleSpectrumSetting(checked) {
     spectrumEnabled = checked;
     localStorage.setItem('spectrumEnabled', checked ? 'true' : 'false');
+}
+
+function toggleAutoScrollLyricsSetting(checked) {
+    autoScrollLyricsEnabled = checked;
+    localStorage.setItem('autoScrollLyricsEnabled', checked ? 'true' : 'false');
 }
 
 // ==========================================
