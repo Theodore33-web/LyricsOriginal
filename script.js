@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.41";
+const APP_VERSION = "v1.1.42";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -1299,8 +1299,8 @@ function injectDiscoBallStyles() {
             position: absolute !important;
             top: 50% !important;
             left: 50% !important;
-            width: clamp(270px, 60vw, 460px) !important;
-            height: clamp(270px, 60vw, 460px) !important;
+            width: clamp(320px, 75vw, 560px) !important;
+            height: clamp(320px, 75vw, 560px) !important;
             transform: translate(-50%, -50%) rotate(0deg); /* PAS de !important ici : bloquerait l'animation */
             border-radius: 50% !important;
             background: conic-gradient(
@@ -1392,12 +1392,16 @@ function injectPartyPopperStyles() {
             background: rgba(0,0,0,0.55) !important;
             border: none !important;
             font-size: 1.8rem !important;
-            display: flex !important;
+            display: none; /* PAS de !important : sinon le JS ne peut jamais le cacher par défaut */
             align-items: center !important;
             justify-content: center !important;
             cursor: pointer !important;
             z-index: 500 !important;
             box-shadow: 0 4px 14px rgba(0,0,0,0.4) !important;
+            transition: transform 0.15s ease !important;
+        }
+        #party-popper-btn.pressed {
+            transform: scale(0.82) !important;
         }
         .party-popper-particle {
             position: fixed !important;
@@ -1406,11 +1410,18 @@ function injectPartyPopperStyles() {
             font-size: 1.4rem !important;
             pointer-events: none !important;
             z-index: 501 !important;
-            animation: party-popper-fly 1.1s ease-out forwards;
+            animation: party-popper-fly 1.3s cubic-bezier(0.25, 0.75, 0.4, 1) forwards;
         }
         @keyframes party-popper-fly {
             0% {
-                transform: translate(0, 0) rotate(0deg) scale(1);
+                transform: translate(0, 0) rotate(0deg) scale(0.4);
+                opacity: 0;
+            }
+            12% {
+                transform: translate(calc(var(--party-mid-x)), calc(var(--party-mid-y))) rotate(120deg) scale(1.15);
+                opacity: 1;
+            }
+            70% {
                 opacity: 1;
             }
             100% {
@@ -1451,6 +1462,13 @@ function initPartyPopperState() {
 
 // Lance une volée de particules qui s'envolent depuis le bouton, façon feu d'artifice/confettis
 function launchPartyPopper() {
+    // Petit effet d'appui visuel sur le bouton au clic
+    const btn = document.getElementById('party-popper-btn');
+    if (btn) {
+        btn.classList.add('pressed');
+        setTimeout(() => btn.classList.remove('pressed'), 150);
+    }
+
     const emojis = ['🎉', '✨', '🎊', '⭐'];
     const particleCount = 22;
 
@@ -1467,11 +1485,17 @@ function launchPartyPopper() {
         const y = Math.sin(angleRad) * distance;
         const rotation = Math.random() * 720 - 360;
 
+        // Point intermédiaire (12% du trajet) : donne un léger effet de "jaillissement" avant l'envol
+        const midX = x * 0.15;
+        const midY = y * 0.15;
+
+        particle.style.setProperty('--party-mid-x', `${midX}px`);
+        particle.style.setProperty('--party-mid-y', `${midY}px`);
         particle.style.setProperty('--party-end-transform', `translate(${x}px, ${y}px) rotate(${rotation}deg) scale(0.6)`);
         particle.style.animationDelay = `${Math.random() * 0.15}s`;
 
         document.body.appendChild(particle);
-        setTimeout(() => particle.remove(), 1400);
+        setTimeout(() => particle.remove(), 1600);
     }
 }
 
