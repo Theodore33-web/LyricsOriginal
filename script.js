@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.39";
+const APP_VERSION = "v1.1.40";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -1280,11 +1280,13 @@ function injectDiscoBallStyles() {
     styleTag.textContent = `
         #disco-ball-wrapper {
             position: fixed !important;
-            top: -34px !important; /* encore plus haut */
+            /* clamp(min, valeur fluide en vw, max) : remonte davantage sur grand écran (tablette),
+               reste raisonnable sur petit écran (téléphone) pour ne pas disparaître complètement */
+            top: clamp(-70px, -9vw, -42px) !important;
             left: 50% !important;
             transform: translateX(-50%) !important;
-            width: 130px !important;
-            height: 130px !important;
+            width: clamp(100px, 22vw, 170px) !important;
+            height: clamp(100px, 22vw, 170px) !important;
             z-index: 500 !important;
             pointer-events: none !important;
         }
@@ -1294,8 +1296,8 @@ function injectDiscoBallStyles() {
             position: absolute !important;
             top: 50% !important;
             left: 50% !important;
-            width: 300px !important;
-            height: 300px !important;
+            width: clamp(240px, 55vw, 420px) !important;
+            height: clamp(240px, 55vw, 420px) !important;
             transform: translate(-50%, -50%) rotate(0deg); /* PAS de !important ici : bloquerait l'animation */
             border-radius: 50% !important;
             background: conic-gradient(
@@ -1318,7 +1320,7 @@ function injectDiscoBallStyles() {
             top: 50% !important;
             left: 50% !important;
             transform: translate(-50%, -50%) !important; /* fixe : aucune rotation, aucun mouvement */
-            font-size: 5.2rem !important;
+            font-size: clamp(3.6rem, 9vw, 6.5rem) !important;
             line-height: 1 !important;
             animation: none !important; /* neutralise toute ancienne animation résiduelle */
         }
