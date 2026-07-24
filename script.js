@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.43";
+const APP_VERSION = "v1.1.44";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -1570,96 +1570,137 @@ function toggleVoiceCommand() {
     }
 }
 
-function handleVoiceCommand(rawText) {
+async function handleVoiceCommand(rawText) {
     const text = rawText.toLowerCase().trim();
     const resultsContainer = document.getElementById('search-results');
 
-    function feedback(msg) {
-        if (resultsContainer) {
-            resultsContainer.dataset.view = '';
-            resultsContainer.dataset.topTracksOpen = '';
-            resultsContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--spotify-green); margin:5px;'>Commande : " + rawText + " -> " + msg + "</p>";
+    // Affiche le message ET programme son effacement automatique après 6s,
+    // sans effacer un autre panneau que l'utilisateur aurait ouvert entre-temps.
+    function feedback(msg, isError) {
+        if (!resultsContainer) return;
+        resultsContainer.dataset.view = '';
+        resultsContainer.dataset.topTracksOpen = '';
+        const html = "<p style='font-size:0.85rem; color:" + (isError ? '#ef4444' : 'var(--spotify-green)') + "; margin:5px;'>Commande : " + rawText + " -> " + msg + "</p>";
+        resultsContainer.innerHTML = html;
+
+        setTimeout(() => {
+            // Ne vide que si ce message est TOUJOURS affiché (sinon l'utilisateur a navigué ailleurs entre-temps)
+            if (resultsContainer.innerHTML === html) {
+                resultsContainer.innerHTML = "";
+            }
+        }, 6000);
+    }
+
+    try {
+        if (/(chanson|titre|piste)?\s*suivant[e]?/.test(text) || text.indexOf('next') !== -1) {
+            await nextTrack();
+            feedback("titre suivant");
+            return;
         }
-    }
+        if (/(chanson|titre|piste)?\s*pr[ée]c[ée]dent[e]?/.test(text)) {
+            await previousTrack();
+            feedback("titre precedent");
+            return;
+        }
+        if (/pause|mets? en pause|arr[êe]te/.test(text)) {
+            const newState = await forcePlaybackState('pause');
+            feedback(newState ? "mise en pause" : "echec (aucun appareil actif ?)", !newState);
+            return;
+        }
+        if (text === 'joue' || text === 'reprends' || text === 'lecture' || text === 'play') {
+            const newState = await forcePlaybackState('play');
+            feedback(newState ? "reprise de la lecture" : "echec (aucun appareil actif ?)", !newState);
+            return;
+        }
+        if (/(monte|augmente)\s+(le\s+)?volume/.test(text)) {
+            const slider = document.getElementById('volume-slider');
+            const newVal = slider ? Math.min(100, parseInt(slider.value, 10) + 15) : 70;
+            await changeVolume(newVal);
+            if (slider) slider.value = newVal;
+            feedback("volume augmente");
+            return;
+        }
+        if (/(baisse|diminue)\s+(le\s+)?volume/.test(text)) {
+            const slider = document.getElementById('volume-slider');
+            const newVal = slider ? Math.max(0, parseInt(slider.value, 10) - 15) : 30;
+            await changeVolume(newVal);
+            if (slider) slider.value = newVal;
+            feedback("volume baisse");
+            return;
+        }
+        if (/coupe le son|mute|silence/.test(text)) {
+            await changeVolume(0);
+            const slider = document.getElementById('volume-slider');
+            if (slider) slider.value = 0;
+            feedback("son coupe");
+            return;
+        }
+        if (/j'aime|like|ajoute.*favoris/.test(text)) {
+            await toggleLikeCurrentTrack();
+            feedback("ajoute aux favoris");
+            return;
+        }
+        if (/playlists?|mes playlists/.test(text)) {
+            togglePlaylistsView();
+            feedback("ouverture des playlists");
+            return;
+        }
+        if (text.indexOf("file d'attente") !== -1) {
+            toggleQueue();
+            feedback("ouverture de la file d'attente");
+            return;
+        }
 
-    if (/(chanson|titre|piste)?\s*suivant[e]?/.test(text) || text.indexOf('next') !== -1) {
-        nextTrack();
-        feedback("titre suivant");
-        return;
-    }
-    if (/(chanson|titre|piste)?\s*pr[ée]c[ée]dent[e]?/.test(text)) {
-        previousTrack();
-        feedback("titre precedent");
-        return;
-    }
-    if (/pause|mets? en pause|arr[êe]te/.test(text)) {
-        togglePlay();
-        feedback("mise en pause");
-        return;
-    }
-    if (text === 'joue' || text === 'reprends' || text === 'lecture' || text === 'play') {
-        togglePlay();
-        feedback("reprise de la lecture");
-        return;
-    }
-    if (/(monte|augmente)\s+(le\s+)?volume/.test(text)) {
-        const slider = document.getElementById('volume-slider');
-        const newVal = slider ? Math.min(100, parseInt(slider.value, 10) + 15) : 70;
-        changeVolume(newVal);
-        if (slider) slider.value = newVal;
-        feedback("volume augmente");
-        return;
-    }
-    if (/(baisse|diminue)\s+(le\s+)?volume/.test(text)) {
-        const slider = document.getElementById('volume-slider');
-        const newVal = slider ? Math.max(0, parseInt(slider.value, 10) - 15) : 30;
-        changeVolume(newVal);
-        if (slider) slider.value = newVal;
-        feedback("volume baisse");
-        return;
-    }
-    if (/coupe le son|mute|silence/.test(text)) {
-        changeVolume(0);
-        const slider = document.getElementById('volume-slider');
-        if (slider) slider.value = 0;
-        feedback("son coupe");
-        return;
-    }
-    if (/j'aime|like|ajoute.*favoris/.test(text)) {
-        toggleLikeCurrentTrack();
-        feedback("ajoute aux favoris");
-        return;
-    }
-    if (/playlists?|mes playlists/.test(text)) {
-        togglePlaylistsView();
-        feedback("ouverture des playlists");
-        return;
-    }
-    if (text.indexOf("file d'attente") !== -1) {
-        toggleQueue();
-        feedback("ouverture de la file d'attente");
-        return;
-    }
+        let playMatch = text.match(/^joue\s+(.+)$/);
+        if (!playMatch) playMatch = text.match(/^mets?\s+(?:de la musique de\s+|du\s+)?(.+)$/);
+        if (playMatch && playMatch[1]) {
+            const query = playMatch[1].trim();
+            document.getElementById('search-input').value = query;
+            feedback("recherche de " + query + "...");
+            await searchAndPlayFirstResult(query);
+            return;
+        }
 
-    let playMatch = text.match(/^joue\s+(.+)$/);
-    if (!playMatch) playMatch = text.match(/^mets?\s+(?:de la musique de\s+|du\s+)?(.+)$/);
-    if (playMatch && playMatch[1]) {
-        const query = playMatch[1].trim();
-        document.getElementById('search-input').value = query;
-        feedback("recherche de " + query + "...");
-        searchAndPlayFirstResult(query);
-        return;
-    }
+        const searchMatch = text.match(/^(recherche|cherche)\s+(.+)$/);
+        if (searchMatch && searchMatch[2]) {
+            document.getElementById('search-input').value = searchMatch[2].trim();
+            await searchTrack();
+            feedback("resultats pour " + searchMatch[2].trim());
+            return;
+        }
 
-    const searchMatch = text.match(/^(recherche|cherche)\s+(.+)$/);
-    if (searchMatch && searchMatch[2]) {
-        document.getElementById('search-input').value = searchMatch[2].trim();
-        searchTrack();
-        feedback("resultats pour " + searchMatch[2].trim());
-        return;
+        feedback("commande non reconnue", true);
+    } catch (e) {
+        console.error("Erreur commande vocale :", e);
+        feedback("erreur lors de l'execution", true);
     }
+}
 
-    feedback("commande non reconnue");
+// Force explicitement play OU pause (contrairement à togglePlay qui inverse l'état actuel) —
+// plus fiable pour une commande vocale où l'intention est explicite ("pause" doit toujours mettre en pause,
+// jamais relancer la lecture par erreur si l'état réel diffère de ce qu'on pense).
+// Retourne true si la commande a bien été acceptée par Spotify, false sinon.
+async function forcePlaybackState(desiredState) {
+    if (!currentToken) return false;
+    try {
+        const response = await fetch('https://api.spotify.com/v1/me/player/' + desiredState, {
+            method: 'PUT',
+            headers: { 'Authorization': 'Bearer ' + currentToken }
+        });
+
+        if (response.status === 404) {
+            return false; // aucun appareil actif
+        }
+        if (!response.ok && response.status !== 204) {
+            return false;
+        }
+
+        setTimeout(updateNowPlaying, 500);
+        return true;
+    } catch (e) {
+        console.error("Erreur forcePlaybackState :", e);
+        return false;
+    }
 }
 
 async function searchAndPlayFirstResult(query) {
