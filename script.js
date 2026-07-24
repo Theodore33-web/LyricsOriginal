@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.44";
+const APP_VERSION = "v1.1.45";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -1580,13 +1580,22 @@ async function handleVoiceCommand(rawText) {
         if (!resultsContainer) return;
         resultsContainer.dataset.view = '';
         resultsContainer.dataset.topTracksOpen = '';
-        const html = "<p style='font-size:0.85rem; color:" + (isError ? '#ef4444' : 'var(--spotify-green)') + "; margin:5px;'>Commande : " + rawText + " -> " + msg + "</p>";
-        resultsContainer.innerHTML = html;
+
+        const msgEl = document.createElement('p');
+        msgEl.style.fontSize = '0.85rem';
+        msgEl.style.color = isError ? '#ef4444' : 'var(--spotify-green)';
+        msgEl.style.margin = '5px';
+        msgEl.innerText = "Commande : " + rawText + " -> " + msg;
+
+        resultsContainer.innerHTML = "";
+        resultsContainer.appendChild(msgEl);
 
         setTimeout(() => {
-            // Ne vide que si ce message est TOUJOURS affiché (sinon l'utilisateur a navigué ailleurs entre-temps)
-            if (resultsContainer.innerHTML === html) {
-                resultsContainer.innerHTML = "";
+            // Ne retire QUE cet élément précis, et seulement s'il est toujours affiché
+            // (isConnected = encore présent dans la page). Si l'utilisateur a ouvert un autre
+            // panneau entre-temps, msgEl a été détaché du DOM par ce panneau : on ne touche à rien.
+            if (msgEl.isConnected) {
+                msgEl.remove();
             }
         }, 6000);
     }
