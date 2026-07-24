@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.45";
+const APP_VERSION = "v1.1.46";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -1732,7 +1732,235 @@ async function searchAndPlayFirstResult(query) {
 }
 
 // ==========================================
-// SPECTRE AUDIO ANIMÉ (décoratif — voir explication : pas de vraie analyse
+// STATISTIQUES D'ÉCOUTE 📊 — Chart.js, basé sur /me/player/recently-played
+// (accumulé en local car Spotify n'expose pas d'historique long terme)
+// ==========================================
+let statsChartInstance = null;
+let statsCurrentMode = 'day'; // 'day' ou 'week'
+
+// Charge Chart.js depuis un CDN si pas déjà présent sur la page
+function loadChartJsIfNeeded() {
+    if (window.Chart) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js';
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error("Impossible de charger Chart.js"));
+        document.head.appendChild(script);
+    });
+}
+
+// Fusionne les nouvelles écoutes récentes dans l'historique local (dédoublonné par horodatage précis)
+function mergeListeningHistory(items) {
+    let history = [];
+    try {
+        history = JSON.parse(localStorage.getItem('listeningHistory') || '[]');
+    } catch (e) {
+        history = [];
+    }
+
+    const existingTimestamps = new Set(history.map(h => h.playedAt));
+
+    items.forEach(item => {
+        const track = item.track;
+        if (!track || !item.played_at) return;
+        if (existingTimestamps.has(item.played_at)) return; // déjà enregistré
+
+        history.push({
+            playedAt: item.played_at,
+            durationMs: track.duration_ms || 0
+        });
+    });
+
+    // Garde un historique raisonnable (1 an max) pour ne pas faire grossir localStorage indéfiniment
+    const oneYearAgo = Date.now() - (365 * 24 * 60 * 60 * 1000);
+    history = history.filter(h => new Date(h.playedAt).getTime() > oneYearAgo);
+
+    localStorage.setItem('listeningHistory', JSON.stringify(history));
+    return history;
+}
+
+async function fetchListeningStats() {
+    if (!currentToken) return [];
+    try {
+        const response = await fetch('https://api.spotify.com/v1/me/player/recently-played?limit=50', {
+            headers: { 'Authorization': 'Bearer ' + currentToken }
+        });
+        const data = await response.json();
+        return mergeListeningHistory(data.items || []);
+    } catch (e) {
+        console.error("Erreur recuperation stats :", e);
+        try {
+            return JSON.parse(localStorage.getItem('listeningHistory') || '[]');
+        } catch (e2) {
+            return [];
+        }
+    }
+}
+
+// Regroupe l'historique par jour (14 derniers jours) ou par semaine (12 dernières semaines)
+function aggregateListeningHistory(history, mode) {
+    const buckets = {}; // clé -> minutes cumulées
+
+    history.forEach(entry => {
+        const date = new Date(entry.playedAt);
+        let key;
+        if (mode === 'week') {
+            // Numéro de semaine ISO approximatif (lundi comme premier jour)
+            const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+            const dayNum = (d.getUTCDay() + 6) % 7;
+            d.setUTCDate(d.getUTCDate() - dayNum + 3);
+            const firstThursday = new Date(Date.UTC(d.getUTCFullYear(), 0, 4));
+            const weekNum = 1 + Math.round(((d - firstThursday) / 86400000 - 3 + ((firstThursday.getUTCDay() + 6) % 7)) / 7);
+            key = d.getUTCFullYear() + '-S' + weekNum;
+        } else {
+            key = date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+        }
+        buckets[key] = (buckets[key] || 0) + (entry.durationMs / 60000);
+    });
+
+    const sortedKeys = Object.keys(buckets).sort((a, b) => {
+        // Tri par date réelle plutôt que par ordre alphabétique du libellé
+        const entryA = history.find(h => (mode === 'week' ? aggregateKeyFor(h, 'week') : aggregateKeyFor(h, 'day')) === a);
+        const entryB = history.find(h => (mode === 'week' ? aggregateKeyFor(h, 'week') : aggregateKeyFor(h, 'day')) === b);
+        return new Date(entryA ? entryA.playedAt : 0) - new Date(entryB ? entryB.playedAt : 0);
+    });
+
+    // Limite le nombre de colonnes affichées (14 jours ou 12 semaines max)
+    const limit = mode === 'week' ? 12 : 14;
+    const limitedKeys = sortedKeys.slice(-limit);
+
+    return {
+        labels: limitedKeys,
+        values: limitedKeys.map(k => Math.round(buckets[k]))
+    };
+}
+
+function aggregateKeyFor(entry, mode) {
+    const date = new Date(entry.playedAt);
+    if (mode === 'week') {
+        const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+        const dayNum = (d.getUTCDay() + 6) % 7;
+        d.setUTCDate(d.getUTCDate() - dayNum + 3);
+        const firstThursday = new Date(Date.UTC(d.getUTCFullYear(), 0, 4));
+        const weekNum = 1 + Math.round(((d - firstThursday) / 86400000 - 3 + ((firstThursday.getUTCDay() + 6) % 7)) / 7);
+        return d.getUTCFullYear() + '-S' + weekNum;
+    }
+    return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+}
+
+async function toggleStats() {
+    document.getElementById('profile-card-zone').style.display = 'none';
+    document.getElementById('device-control-zone').style.display = 'none';
+    document.getElementById('volume-control-zone').style.display = 'none';
+    const plContainer = document.getElementById('playlist-container');
+    if (plContainer) { plContainer.style.display = 'none'; plContainer.innerHTML = ''; }
+
+    const resultsContainer = document.getElementById('search-results');
+    resultsContainer.dataset.topTracksOpen = '';
+    stopQueueAutoRefresh();
+
+    if (resultsContainer.dataset.view === 'stats') {
+        resultsContainer.innerHTML = '';
+        resultsContainer.dataset.view = '';
+        return;
+    }
+
+    resultsContainer.dataset.view = 'stats';
+    resultsContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--text-grey); margin:5px;'>Chargement des statistiques...</p>";
+
+    try {
+        await loadChartJsIfNeeded();
+        const history = await fetchListeningStats();
+        renderStatsPanel(history);
+    } catch (e) {
+        console.error(e);
+        resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur lors du chargement des statistiques.</p>";
+    }
+}
+
+function renderStatsPanel(history) {
+    const resultsContainer = document.getElementById('search-results');
+    resultsContainer.innerHTML = "";
+    resultsContainer.style.textAlign = 'left';
+
+    const titleHeader = document.createElement('p');
+    titleHeader.style = "color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;";
+    titleHeader.innerText = "STATISTIQUES D'ÉCOUTE";
+    resultsContainer.appendChild(titleHeader);
+
+    if (history.length === 0) {
+        const emptyMsg = document.createElement('p');
+        emptyMsg.style = "font-size:0.9rem; color:var(--text-grey); margin:5px;";
+        emptyMsg.innerText = "Pas encore assez de données. Reviens après avoir écouté de la musique.";
+        resultsContainer.appendChild(emptyMsg);
+        return;
+    }
+
+    // Boutons Jour / Semaine
+    const tabWrapper = document.createElement('div');
+    tabWrapper.style.cssText = "display:flex; gap:8px; margin: 0 5px 12px 5px;";
+
+    ['day', 'week'].forEach(mode => {
+        const tabBtn = document.createElement('button');
+        tabBtn.innerText = mode === 'day' ? 'Par jour' : 'Par semaine';
+        tabBtn.style.cssText = `
+            flex: 1;
+            padding: 6px;
+            border-radius: 14px;
+            border: 1px solid var(--spotify-green);
+            background: ${statsCurrentMode === mode ? 'var(--spotify-green)' : 'none'};
+            color: ${statsCurrentMode === mode ? '#000' : 'var(--spotify-green)'};
+            font-size: 0.75rem;
+            font-weight: bold;
+            cursor: pointer;
+        `;
+        tabBtn.onclick = () => {
+            statsCurrentMode = mode;
+            renderStatsPanel(history);
+        };
+        tabWrapper.appendChild(tabBtn);
+    });
+    resultsContainer.appendChild(tabWrapper);
+
+    // Canvas du graphique
+    const canvasWrapper = document.createElement('div');
+    canvasWrapper.style.cssText = "width: 100%; height: 220px; padding: 0 5px; box-sizing: border-box;";
+    const canvas = document.createElement('canvas');
+    canvas.id = 'stats-chart-canvas';
+    canvasWrapper.appendChild(canvas);
+    resultsContainer.appendChild(canvasWrapper);
+
+    const { labels, values } = aggregateListeningHistory(history, statsCurrentMode);
+
+    if (statsChartInstance) {
+        statsChartInstance.destroy();
+        statsChartInstance = null;
+    }
+
+    statsChartInstance = new Chart(canvas.getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Minutes écoutées',
+                data: values,
+                backgroundColor: '#1DB954',
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { ticks: { color: '#b3b3b3', font: { size: 10 } }, grid: { display: false } },
+                y: { ticks: { color: '#b3b3b3', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.08)' } }
+            }
+        }
+    });
+}
+
 // audio possible via l'API Spotify, le flux étant protégé par DRM)
 // ==========================================
 let spectrumBars = [];
