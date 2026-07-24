@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.42";
+const APP_VERSION = "v1.1.43";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -242,6 +242,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 initSpectrum();
                 initDiscoBallState();
                 initPartyPopperState();
+                initVoiceCommand();
             } catch (e) {
                 console.error("Impossible de récupérer le profil : ", e);
             }
@@ -1496,6 +1497,187 @@ function launchPartyPopper() {
 
         document.body.appendChild(particle);
         setTimeout(() => particle.remove(), 1600);
+    }
+}
+
+// ==========================================
+// COMMANDE VOCALE — SpeechRecognition native du navigateur
+// ==========================================
+let voiceRecognition = null;
+let isListeningVoiceCommand = false;
+
+function injectVoiceCommandStyles() {
+    if (document.getElementById('voice-command-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'voice-command-inline-style';
+    styleTag.textContent = `
+        #voice-command-btn.listening {
+            animation: voice-command-pulse 1s ease-in-out infinite;
+        }
+        @keyframes voice-command-pulse {
+            0%   { box-shadow: 0 0 0 0 rgba(29,185,84,0.6); }
+            70%  { box-shadow: 0 0 0 14px rgba(29,185,84,0); }
+            100% { box-shadow: 0 0 0 0 rgba(29,185,84,0); }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectVoiceCommandStyles();
+
+function initVoiceCommand() {
+    const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognitionAPI) {
+        console.warn("SpeechRecognition non supportee par ce navigateur.");
+        return;
+    }
+    voiceRecognition = new SpeechRecognitionAPI();
+    voiceRecognition.lang = 'fr-FR';
+    voiceRecognition.continuous = false;
+    voiceRecognition.interimResults = false;
+    voiceRecognition.maxAlternatives = 1;
+
+    voiceRecognition.onstart = () => {
+        isListeningVoiceCommand = true;
+        const btn = document.getElementById('voice-command-btn');
+        if (btn) btn.classList.add('listening');
+    };
+    voiceRecognition.onend = () => {
+        isListeningVoiceCommand = false;
+        const btn = document.getElementById('voice-command-btn');
+        if (btn) btn.classList.remove('listening');
+    };
+    voiceRecognition.onerror = (event) => {
+        console.error("Erreur reconnaissance vocale :", event.error);
+        isListeningVoiceCommand = false;
+        const btn = document.getElementById('voice-command-btn');
+        if (btn) btn.classList.remove('listening');
+    };
+    voiceRecognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        handleVoiceCommand(transcript);
+    };
+}
+
+function toggleVoiceCommand() {
+    if (!voiceRecognition) {
+        alert("La commande vocale n'est pas supportee par ce navigateur.");
+        return;
+    }
+    if (isListeningVoiceCommand) {
+        voiceRecognition.stop();
+    } else {
+        voiceRecognition.start();
+    }
+}
+
+function handleVoiceCommand(rawText) {
+    const text = rawText.toLowerCase().trim();
+    const resultsContainer = document.getElementById('search-results');
+
+    function feedback(msg) {
+        if (resultsContainer) {
+            resultsContainer.dataset.view = '';
+            resultsContainer.dataset.topTracksOpen = '';
+            resultsContainer.innerHTML = "<p style='font-size:0.85rem; color:var(--spotify-green); margin:5px;'>Commande : " + rawText + " -> " + msg + "</p>";
+        }
+    }
+
+    if (/(chanson|titre|piste)?\s*suivant[e]?/.test(text) || text.indexOf('next') !== -1) {
+        nextTrack();
+        feedback("titre suivant");
+        return;
+    }
+    if (/(chanson|titre|piste)?\s*pr[ée]c[ée]dent[e]?/.test(text)) {
+        previousTrack();
+        feedback("titre precedent");
+        return;
+    }
+    if (/pause|mets? en pause|arr[êe]te/.test(text)) {
+        togglePlay();
+        feedback("mise en pause");
+        return;
+    }
+    if (text === 'joue' || text === 'reprends' || text === 'lecture' || text === 'play') {
+        togglePlay();
+        feedback("reprise de la lecture");
+        return;
+    }
+    if (/(monte|augmente)\s+(le\s+)?volume/.test(text)) {
+        const slider = document.getElementById('volume-slider');
+        const newVal = slider ? Math.min(100, parseInt(slider.value, 10) + 15) : 70;
+        changeVolume(newVal);
+        if (slider) slider.value = newVal;
+        feedback("volume augmente");
+        return;
+    }
+    if (/(baisse|diminue)\s+(le\s+)?volume/.test(text)) {
+        const slider = document.getElementById('volume-slider');
+        const newVal = slider ? Math.max(0, parseInt(slider.value, 10) - 15) : 30;
+        changeVolume(newVal);
+        if (slider) slider.value = newVal;
+        feedback("volume baisse");
+        return;
+    }
+    if (/coupe le son|mute|silence/.test(text)) {
+        changeVolume(0);
+        const slider = document.getElementById('volume-slider');
+        if (slider) slider.value = 0;
+        feedback("son coupe");
+        return;
+    }
+    if (/j'aime|like|ajoute.*favoris/.test(text)) {
+        toggleLikeCurrentTrack();
+        feedback("ajoute aux favoris");
+        return;
+    }
+    if (/playlists?|mes playlists/.test(text)) {
+        togglePlaylistsView();
+        feedback("ouverture des playlists");
+        return;
+    }
+    if (text.indexOf("file d'attente") !== -1) {
+        toggleQueue();
+        feedback("ouverture de la file d'attente");
+        return;
+    }
+
+    let playMatch = text.match(/^joue\s+(.+)$/);
+    if (!playMatch) playMatch = text.match(/^mets?\s+(?:de la musique de\s+|du\s+)?(.+)$/);
+    if (playMatch && playMatch[1]) {
+        const query = playMatch[1].trim();
+        document.getElementById('search-input').value = query;
+        feedback("recherche de " + query + "...");
+        searchAndPlayFirstResult(query);
+        return;
+    }
+
+    const searchMatch = text.match(/^(recherche|cherche)\s+(.+)$/);
+    if (searchMatch && searchMatch[2]) {
+        document.getElementById('search-input').value = searchMatch[2].trim();
+        searchTrack();
+        feedback("resultats pour " + searchMatch[2].trim());
+        return;
+    }
+
+    feedback("commande non reconnue");
+}
+
+async function searchAndPlayFirstResult(query) {
+    if (!currentToken) return;
+    try {
+        const response = await fetch('https://api.spotify.com/v1/search?q=' + encodeURIComponent(query) + '&type=track&limit=1', {
+            headers: { 'Authorization': 'Bearer ' + currentToken }
+        });
+        const data = await response.json();
+        const track = data.tracks && data.tracks.items && data.tracks.items.length > 0 ? data.tracks.items[0] : null;
+        if (track) {
+            playTrack(track.uri);
+        } else {
+            const resultsContainer = document.getElementById('search-results');
+            if (resultsContainer) resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Aucun resultat pour " + query + ".</p>";
+        }
+    } catch (e) {
+        console.error(e);
     }
 }
 
