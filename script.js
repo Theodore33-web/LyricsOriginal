@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.40";
+const APP_VERSION = "v1.1.41";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -241,6 +241,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 updateNowPlaying();
                 initSpectrum();
                 initDiscoBallState();
+                initPartyPopperState();
             } catch (e) {
                 console.error("Impossible de récupérer le profil : ", e);
             }
@@ -1251,6 +1252,8 @@ function toggleSettings() {
         if (scrollToggle) scrollToggle.checked = autoScrollLyricsEnabled;
         const discoToggle = document.getElementById('discoball-toggle');
         if (discoToggle) discoToggle.checked = discoBallEnabled;
+        const popperToggle = document.getElementById('party-popper-toggle');
+        if (popperToggle) popperToggle.checked = partyPopperEnabled;
     } else {
         settingsZone.style.display = 'none';
     }
@@ -1285,8 +1288,8 @@ function injectDiscoBallStyles() {
             top: clamp(-70px, -9vw, -42px) !important;
             left: 50% !important;
             transform: translateX(-50%) !important;
-            width: clamp(100px, 22vw, 170px) !important;
-            height: clamp(100px, 22vw, 170px) !important;
+            width: clamp(140px, 30vw, 230px) !important;
+            height: clamp(140px, 30vw, 230px) !important;
             z-index: 500 !important;
             pointer-events: none !important;
         }
@@ -1296,8 +1299,8 @@ function injectDiscoBallStyles() {
             position: absolute !important;
             top: 50% !important;
             left: 50% !important;
-            width: clamp(240px, 55vw, 420px) !important;
-            height: clamp(240px, 55vw, 420px) !important;
+            width: clamp(270px, 60vw, 460px) !important;
+            height: clamp(270px, 60vw, 460px) !important;
             transform: translate(-50%, -50%) rotate(0deg); /* PAS de !important ici : bloquerait l'animation */
             border-radius: 50% !important;
             background: conic-gradient(
@@ -1320,7 +1323,7 @@ function injectDiscoBallStyles() {
             top: 50% !important;
             left: 50% !important;
             transform: translate(-50%, -50%) !important; /* fixe : aucune rotation, aucun mouvement */
-            font-size: clamp(3.6rem, 9vw, 6.5rem) !important;
+            font-size: clamp(5.5rem, 15vw, 9.5rem) !important;
             line-height: 1 !important;
             animation: none !important; /* neutralise toute ancienne animation résiduelle */
         }
@@ -1367,6 +1370,109 @@ function ensureDiscoBallElement() {
 function initDiscoBallState() {
     const wrapper = ensureDiscoBallElement();
     wrapper.style.display = discoBallEnabled ? 'block' : 'none';
+}
+
+// ==========================================
+// BOUTON PÉTARD 🎉 — réglage désactivé par défaut, bouton fixe qui lance une animation d'envol au clic
+// ==========================================
+let partyPopperEnabled = localStorage.getItem('partyPopperEnabled') === 'true'; // désactivé par défaut
+
+function injectPartyPopperStyles() {
+    if (document.getElementById('party-popper-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'party-popper-inline-style';
+    styleTag.textContent = `
+        #party-popper-btn {
+            position: fixed !important;
+            left: 16px !important;
+            bottom: 16px !important;
+            width: 60px !important;
+            height: 60px !important;
+            border-radius: 50% !important;
+            background: rgba(0,0,0,0.55) !important;
+            border: none !important;
+            font-size: 1.8rem !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            cursor: pointer !important;
+            z-index: 500 !important;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.4) !important;
+        }
+        .party-popper-particle {
+            position: fixed !important;
+            left: 46px !important;
+            bottom: 46px !important;
+            font-size: 1.4rem !important;
+            pointer-events: none !important;
+            z-index: 501 !important;
+            animation: party-popper-fly 1.1s ease-out forwards;
+        }
+        @keyframes party-popper-fly {
+            0% {
+                transform: translate(0, 0) rotate(0deg) scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: var(--party-end-transform);
+                opacity: 0;
+            }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectPartyPopperStyles();
+
+function ensurePartyPopperButton() {
+    let btn = document.getElementById('party-popper-btn');
+    if (!btn) {
+        btn = document.createElement('button');
+        btn.id = 'party-popper-btn';
+        btn.innerText = '🎉';
+        btn.title = "Lancer un petit feu d'artifice";
+        btn.style.display = 'none';
+        btn.onclick = launchPartyPopper;
+        document.body.appendChild(btn);
+    }
+    return btn;
+}
+
+function togglePartyPopperSetting(checked) {
+    partyPopperEnabled = checked;
+    localStorage.setItem('partyPopperEnabled', checked ? 'true' : 'false');
+    const btn = ensurePartyPopperButton();
+    btn.style.display = checked ? 'flex' : 'none';
+}
+
+function initPartyPopperState() {
+    const btn = ensurePartyPopperButton();
+    btn.style.display = partyPopperEnabled ? 'flex' : 'none';
+}
+
+// Lance une volée de particules qui s'envolent depuis le bouton, façon feu d'artifice/confettis
+function launchPartyPopper() {
+    const emojis = ['🎉', '✨', '🎊', '⭐'];
+    const particleCount = 22;
+
+    for (let i = 0; i < particleCount; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'party-popper-particle';
+        particle.innerText = emojis[Math.floor(Math.random() * emojis.length)];
+
+        // Direction aléatoire vers le haut (angle entre -70° et -110°, donc globalement vers le ciel)
+        const angleDeg = -90 + (Math.random() * 80 - 40);
+        const angleRad = angleDeg * (Math.PI / 180);
+        const distance = 150 + Math.random() * 220;
+        const x = Math.cos(angleRad) * distance;
+        const y = Math.sin(angleRad) * distance;
+        const rotation = Math.random() * 720 - 360;
+
+        particle.style.setProperty('--party-end-transform', `translate(${x}px, ${y}px) rotate(${rotation}deg) scale(0.6)`);
+        particle.style.animationDelay = `${Math.random() * 0.15}s`;
+
+        document.body.appendChild(particle);
+        setTimeout(() => particle.remove(), 1400);
+    }
 }
 
 // ==========================================
