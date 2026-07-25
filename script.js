@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.46";
+const APP_VERSION = "v1.1.47";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -2234,6 +2234,46 @@ async function checkIfTrackIsLiked(trackId) {
 }
 
 // --- ACTION AU CLIC : PUT (ENREGISTRER) OU DELETE (SUPPRIMER) ---
+// --- LECTURE ALÉATOIRE 🔀 : tire un titre au hasard dans TOUT le catalogue Spotify ---
+// Technique : Spotify n'a pas d'endpoint "titre au hasard", donc on cherche avec un terme
+// totalement aléatoire (lettre, mot courant, genre) pour obtenir un lot large et varié
+// de résultats (jusqu'à 50), puis on pioche un titre au hasard dedans. Offset aléatoire
+// en plus pour éviter de toujours retomber sur les mêmes résultats les plus "populaires".
+const RANDOM_SEED_TERMS = [
+    'a', 'e', 'i', 'o', 'u', 'love', 'life', 'night', 'dance', 'rock', 'jazz',
+    'pop', 'rap', 'the', 'you', 'feel', 'dream', 'fire', 'sun', 'rain', 'blue',
+    'gold', 'run', 'party', 'summer', 'heart', 'time', 'world', 'baby', 'good'
+];
+
+async function playRandomTrack() {
+    if (!currentToken) return;
+    const randomBtn = document.getElementById('random-track-btn');
+    if (randomBtn) randomBtn.disabled = true;
+
+    try {
+        const seed = RANDOM_SEED_TERMS[Math.floor(Math.random() * RANDOM_SEED_TERMS.length)];
+        const randomOffset = Math.floor(Math.random() * 200); // Spotify limite la recherche à un offset raisonnable
+        const response = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(seed)}&type=track&limit=50&offset=${randomOffset}`, {
+            headers: { 'Authorization': 'Bearer ' + currentToken }
+        });
+        const data = await response.json();
+        const items = data.tracks && data.tracks.items ? data.tracks.items.filter(t => t) : [];
+
+        if (items.length === 0) {
+            // Repli si ce tirage n'a rien donné : on retente une fois avec un autre terme/offset
+            return playRandomTrack();
+        }
+
+        const track = items[Math.floor(Math.random() * items.length)];
+        await playTrack(track.uri);
+    } catch (e) {
+        console.error("Erreur lecture aleatoire :", e);
+        alert("Erreur lors du tirage aléatoire.");
+    } finally {
+        if (randomBtn) randomBtn.disabled = false;
+    }
+}
+
 async function toggleLikeCurrentTrack() {
     if (!currentToken || !lastTrackId) return;
 
