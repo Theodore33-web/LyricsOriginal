@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.30";
+const APP_VERSION = "v1.1.56";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -1505,6 +1505,122 @@ function launchPartyPopper() {
 // ==========================================
 let voiceRecognition = null;
 let isListeningVoiceCommand = false;
+
+// ==========================================
+// BOUTON CRÉDIT — ouvre une fenêtre d'explication du site
+// ==========================================
+function injectCreditsStyles() {
+    if (document.getElementById('credits-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'credits-inline-style';
+    styleTag.textContent = `
+        #credits-btn {
+            display: block;
+            margin: 14px auto 0 auto;
+            background-color: #000;
+            color: #fff;
+            border: none;
+            padding: 8px 22px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            border-radius: 25px;
+            cursor: pointer;
+        }
+        #credits-btn:hover {
+            background-color: #222;
+        }
+        #credits-modal-overlay {
+            position: fixed;
+            top: 24px;
+            left: 24px;
+            right: 24px;
+            bottom: 24px;
+            background: #111111;
+            border-radius: 20px;
+            z-index: 1000;
+            padding: 24px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            color: #dddddd;
+            display: none;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+        }
+        #credits-close-btn {
+            position: absolute;
+            top: 14px;
+            right: 18px;
+            background: none;
+            border: none;
+            color: #ffffff;
+            font-size: 1.6rem;
+            line-height: 1;
+            cursor: pointer;
+        }
+        #credits-modal-overlay h2 {
+            color: var(--spotify-green, #1DB954);
+            font-size: 1.3rem;
+            margin: 0 0 16px 0;
+        }
+        #credits-modal-overlay h3 {
+            color: var(--spotify-green, #1DB954);
+            font-size: 0.95rem;
+            margin: 20px 0 8px 0;
+        }
+        #credits-modal-overlay p, #credits-modal-overlay li {
+            font-size: 0.85rem;
+            line-height: 1.5;
+            color: #cccccc;
+        }
+        #credits-modal-overlay ul {
+            padding-left: 20px;
+            margin: 6px 0;
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectCreditsStyles();
+
+function ensureCreditsModal() {
+    let overlay = document.getElementById('credits-modal-overlay');
+    if (overlay) return overlay;
+
+    overlay = document.createElement('div');
+    overlay.id = 'credits-modal-overlay';
+    overlay.innerHTML = `
+        <button id="credits-close-btn" onclick="toggleCreditsModal()">✕</button>
+        <h2>À propos de Lyrics Original</h2>
+        <p>Lyrics Original est une application web compagnon pour Spotify, pensée pour enrichir ton écoute au quotidien avec des paroles synchronisées et des outils pratiques réunis au même endroit.</p>
+
+        <h3>🎵 Fonctionnalités principales</h3>
+        <ul>
+            <li><strong>Paroles synchronisées</strong> — s'affichent et défilent en rythme avec le titre en cours.</li>
+            <li><strong>Recherche</strong> — trouve n'importe quel titre ou artiste sur Spotify.</li>
+            <li><strong>Favoris</strong> — ajoute/retire un titre en un clic, retrouve toute ta bibliothèque likée.</li>
+            <li><strong>Playlists</strong> — parcours tes playlists et lance un titre directement.</li>
+            <li><strong>File d'attente</strong> — consulte et alimente ce qui va être joué ensuite.</li>
+            <li><strong>Écoutes récentes</strong> — retrouve les titres que tu as écoutés dernièrement.</li>
+            <li><strong>Top titres</strong> — classement France basé sur les tendances Last.fm.</li>
+            <li><strong>Lecture aléatoire 🔀</strong> — tire un titre au hasard dans tes favoris ou tes playlists.</li>
+            <li><strong>Commande vocale 🗣️</strong> — pilote la lecture à la voix ("chanson suivante", "mets en pause"...).</li>
+            <li><strong>Soundboard 📣</strong> — 20 petits sons rigolos synthétisés, juste pour le plaisir.</li>
+            <li><strong>Statistiques 📊</strong> — visualise ton temps d'écoute par jour ou par semaine.</li>
+            <li><strong>Réglages ⚙️</strong> — spectre audio animé, défilement des paroles, boule à facettes, bouton pétard.</li>
+        </ul>
+
+        <h3>🔒 Confidentialité</h3>
+        <p>Tes réglages, ton historique d'écoute affiché dans les statistiques, et quelques préférences sont stockés uniquement dans ton navigateur (localStorage) — rien n'est envoyé ni partagé sur un serveur externe, à l'exception des appels nécessaires à l'API Spotify elle-même pour faire fonctionner l'app.</p>
+
+        <h3>⚠️ Avertissement</h3>
+        <p>Ce site est un projet personnel non officiel, développé pour un usage personnel. Il n'est ni affilié à, ni approuvé par Spotify AB. Toutes les marques et contenus musicaux appartiennent à leurs ayants droit respectifs.</p>
+    `;
+    document.body.appendChild(overlay);
+    return overlay;
+}
+
+function toggleCreditsModal() {
+    const overlay = ensureCreditsModal();
+    overlay.style.display = (overlay.style.display === 'none' || overlay.style.display === '') ? 'block' : 'none';
+}
 
 function injectVoiceCommandStyles() {
     if (document.getElementById('voice-command-inline-style')) return;
