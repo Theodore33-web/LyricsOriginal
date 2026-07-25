@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.48";
+const APP_VERSION = "v1.1.49";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -2259,9 +2259,25 @@ async function playRandomTrack(attempt = 1) {
             headers: { 'Authorization': 'Bearer ' + currentToken }
         });
 
+        if (response.status === 429) {
+            const retryAfter = response.headers.get('Retry-After');
+            const waitSeconds = retryAfter ? parseInt(retryAfter, 10) : 2;
+            console.warn(`Recherche aleatoire : 429, nouvelle tentative dans ${waitSeconds}s`);
+
+            if (attempt < 4) {
+                await new Promise(resolve => setTimeout(resolve, waitSeconds * 1000));
+                return playRandomTrack(attempt + 1);
+            }
+            alert(`Trop de requêtes envoyées à Spotify, réessaie dans ${waitSeconds} secondes.`);
+            return;
+        }
+
         if (!response.ok) {
             console.error("Recherche aleatoire : statut HTTP", response.status);
-            if (attempt < 5) return playRandomTrack(attempt + 1);
+            if (attempt < 4) {
+                await new Promise(resolve => setTimeout(resolve, 500 * attempt));
+                return playRandomTrack(attempt + 1);
+            }
             alert("Impossible de tirer un titre aléatoire pour le moment, réessaie.");
             return;
         }
@@ -2270,8 +2286,11 @@ async function playRandomTrack(attempt = 1) {
         const items = data.tracks && data.tracks.items ? data.tracks.items.filter(t => t) : [];
 
         if (items.length === 0) {
-            // Repli si ce tirage n'a rien donné : on retente avec un autre terme/offset (max 5 essais)
-            if (attempt < 5) return playRandomTrack(attempt + 1);
+            // Repli si ce tirage n'a rien donné : on retente avec un autre terme/offset (max 4 essais)
+            if (attempt < 4) {
+                await new Promise(resolve => setTimeout(resolve, 400));
+                return playRandomTrack(attempt + 1);
+            }
             alert("Aucun titre trouvé après plusieurs essais, réessaie.");
             return;
         }
