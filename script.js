@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.47";
+const APP_VERSION = "v1.1.48";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -2245,23 +2245,35 @@ const RANDOM_SEED_TERMS = [
     'gold', 'run', 'party', 'summer', 'heart', 'time', 'world', 'baby', 'good'
 ];
 
-async function playRandomTrack() {
+async function playRandomTrack(attempt = 1) {
     if (!currentToken) return;
     const randomBtn = document.getElementById('random-track-btn');
     if (randomBtn) randomBtn.disabled = true;
 
     try {
         const seed = RANDOM_SEED_TERMS[Math.floor(Math.random() * RANDOM_SEED_TERMS.length)];
-        const randomOffset = Math.floor(Math.random() * 200); // Spotify limite la recherche à un offset raisonnable
-        const response = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(seed)}&type=track&limit=50&offset=${randomOffset}`, {
+        // "limit" est plafonné à 10 par Spotify depuis février 2026 (auparavant 50) — au-delà,
+        // la requête est rejetée et échoue silencieusement, ce qui bloquait complètement le bouton.
+        const randomOffset = Math.floor(Math.random() * 90);
+        const response = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(seed)}&type=track&limit=10&offset=${randomOffset}`, {
             headers: { 'Authorization': 'Bearer ' + currentToken }
         });
+
+        if (!response.ok) {
+            console.error("Recherche aleatoire : statut HTTP", response.status);
+            if (attempt < 5) return playRandomTrack(attempt + 1);
+            alert("Impossible de tirer un titre aléatoire pour le moment, réessaie.");
+            return;
+        }
+
         const data = await response.json();
         const items = data.tracks && data.tracks.items ? data.tracks.items.filter(t => t) : [];
 
         if (items.length === 0) {
-            // Repli si ce tirage n'a rien donné : on retente une fois avec un autre terme/offset
-            return playRandomTrack();
+            // Repli si ce tirage n'a rien donné : on retente avec un autre terme/offset (max 5 essais)
+            if (attempt < 5) return playRandomTrack(attempt + 1);
+            alert("Aucun titre trouvé après plusieurs essais, réessaie.");
+            return;
         }
 
         const track = items[Math.floor(Math.random() * items.length)];
