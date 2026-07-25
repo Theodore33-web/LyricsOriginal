@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.53";
+const APP_VERSION = "v1.1.54";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -2290,8 +2290,8 @@ async function playRandomTrack() {
     if (randomBtn) randomBtn.disabled = true;
 
     try {
-        // 50/50 entre favoris et une playlist au hasard (si aucune playlist, retombe sur les favoris)
-        const useLiked = Math.random() < 0.5;
+        // 20% titres likés / 80% une playlist au hasard (tu as bien plus de titres cumulés dans tes playlists)
+        const useLiked = Math.random() < 0.2;
         let track = useLiked ? await getRandomLikedTrack() : await getRandomPlaylistTrack();
 
         // Filet de sécurité : si la première tentative échoue, on essaie l'autre source avant d'abandonner
@@ -2310,6 +2310,171 @@ async function playRandomTrack() {
     } finally {
         if (randomBtn) randomBtn.disabled = false;
     }
+}
+
+// ==========================================
+// SOUNDBOARD 🎵 — 8 boutons de sons courts, synthétisés en JS (aucun fichier externe)
+// ==========================================
+let soundboardAudioCtx = null;
+
+function getSoundboardAudioContext() {
+    if (!soundboardAudioCtx) {
+        soundboardAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (soundboardAudioCtx.state === 'suspended') {
+        soundboardAudioCtx.resume();
+    }
+    return soundboardAudioCtx;
+}
+
+// Joue une note simple (oscillateur + enveloppe de volume)
+function playTone(freq, duration, type, startTime, volume) {
+    const ctx = getSoundboardAudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type || 'sine';
+    osc.frequency.setValueAtTime(freq, ctx.currentTime + (startTime || 0));
+    gain.gain.setValueAtTime(0, ctx.currentTime + (startTime || 0));
+    gain.gain.linearRampToValueAtTime(volume || 0.3, ctx.currentTime + (startTime || 0) + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + (startTime || 0) + duration);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(ctx.currentTime + (startTime || 0));
+    osc.stop(ctx.currentTime + (startTime || 0) + duration + 0.05);
+}
+
+// Joue un court éclat de bruit blanc (percussions/cymbale)
+function playNoiseBurst(duration, volume, filterFreq) {
+    const ctx = getSoundboardAudioContext();
+    const bufferSize = ctx.sampleRate * duration;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(volume || 0.25, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = filterFreq ? 'highpass' : 'lowpass';
+    filter.frequency.value = filterFreq || 800;
+
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    noise.start();
+}
+
+const SOUND_EFFECTS = {
+    trompette: () => {
+        playTone(440, 0.15, 'sawtooth', 0, 0.35);
+        playTone(660, 0.25, 'sawtooth', 0.1, 0.3);
+    },
+    guitare: () => {
+        playTone(330, 0.4, 'triangle', 0, 0.3);
+        playTone(494, 0.3, 'triangle', 0.02, 0.15);
+    },
+    tambour: () => {
+        playTone(90, 0.15, 'sine', 0, 0.5);
+        playNoiseBurst(0.08, 0.25, 0);
+    },
+    cloche: () => {
+        playTone(880, 0.8, 'sine', 0, 0.25);
+        playTone(1320, 0.6, 'sine', 0, 0.12);
+    },
+    saxophone: () => {
+        playTone(220, 0.35, 'sawtooth', 0, 0.3);
+        playTone(233, 0.35, 'sawtooth', 0.05, 0.2);
+    },
+    cymbale: () => {
+        playNoiseBurst(0.6, 0.2, 3000);
+    },
+    corne: () => {
+        playTone(150, 0.5, 'square', 0, 0.3);
+    },
+    piano: () => {
+        playTone(523, 0.5, 'triangle', 0, 0.3);
+        playTone(659, 0.5, 'sine', 0, 0.15);
+    }
+};
+
+const SOUND_BUTTONS = [
+    { key: 'trompette', label: '🎺 Trompette' },
+    { key: 'guitare', label: '🎸 Guitare' },
+    { key: 'tambour', label: '🥁 Tambour' },
+    { key: 'cloche', label: '🔔 Cloche' },
+    { key: 'saxophone', label: '🎷 Sax' },
+    { key: 'cymbale', label: '🪘 Cymbale' },
+    { key: 'corne', label: '📯 Corne' },
+    { key: 'piano', label: '🎹 Piano' }
+];
+
+function playSoundEffect(key) {
+    const fn = SOUND_EFFECTS[key];
+    if (fn) fn();
+}
+
+function toggleSoundboard() {
+    document.getElementById('profile-card-zone').style.display = 'none';
+    document.getElementById('device-control-zone').style.display = 'none';
+    document.getElementById('volume-control-zone').style.display = 'none';
+    const plContainer = document.getElementById('playlist-container');
+    if (plContainer) { plContainer.style.display = 'none'; plContainer.innerHTML = ''; }
+
+    const resultsContainer = document.getElementById('search-results');
+    resultsContainer.dataset.topTracksOpen = '';
+    stopQueueAutoRefresh();
+
+    if (resultsContainer.dataset.view === 'soundboard') {
+        resultsContainer.innerHTML = '';
+        resultsContainer.dataset.view = '';
+        return;
+    }
+
+    resultsContainer.dataset.view = 'soundboard';
+    renderSoundboard();
+}
+
+function renderSoundboard() {
+    const resultsContainer = document.getElementById('search-results');
+    resultsContainer.innerHTML = '';
+    resultsContainer.style.textAlign = 'left';
+
+    const titleHeader = document.createElement('p');
+    titleHeader.style = "color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;";
+    titleHeader.innerText = "SONS";
+    resultsContainer.appendChild(titleHeader);
+
+    const grid = document.createElement('div');
+    grid.style.cssText = "display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 0 5px;";
+
+    SOUND_BUTTONS.forEach(({ key, label }) => {
+        const btn = document.createElement('button');
+        btn.innerText = label;
+        btn.style.cssText = `
+            background: none;
+            border: 1px solid var(--spotify-green);
+            color: var(--spotify-green);
+            border-radius: 8px;
+            padding: 14px 8px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.15s;
+        `;
+        btn.onmouseenter = () => { btn.style.background = 'var(--spotify-green)'; btn.style.color = '#000'; };
+        btn.onmouseleave = () => { btn.style.background = 'none'; btn.style.color = 'var(--spotify-green)'; };
+        btn.onclick = () => {
+            playSoundEffect(key);
+            btn.style.transform = 'scale(0.92)';
+            setTimeout(() => { btn.style.transform = 'scale(1)'; }, 100);
+        };
+        grid.appendChild(btn);
+    });
+
+    resultsContainer.appendChild(grid);
 }
 
 async function toggleLikeCurrentTrack() {
