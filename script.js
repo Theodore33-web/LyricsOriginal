@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.54";
+const APP_VERSION = "v1.1.30";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -2344,18 +2344,19 @@ function playTone(freq, duration, type, startTime, volume) {
 }
 
 // Joue un court éclat de bruit blanc (percussions/cymbale)
-function playNoiseBurst(duration, volume, filterFreq) {
+function playNoiseBurst(duration, volume, filterFreq, startTime) {
     const ctx = getSoundboardAudioContext();
     const bufferSize = ctx.sampleRate * duration;
     const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
     const data = buffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
 
+    const t0 = ctx.currentTime + (startTime || 0);
     const noise = ctx.createBufferSource();
     noise.buffer = buffer;
     const gain = ctx.createGain();
-    gain.gain.setValueAtTime(volume || 0.25, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+    gain.gain.setValueAtTime(volume || 0.25, t0);
+    gain.gain.exponentialRampToValueAtTime(0.001, t0 + duration);
 
     const filter = ctx.createBiquadFilter();
     filter.type = filterFreq ? 'highpass' : 'lowpass';
@@ -2364,7 +2365,25 @@ function playNoiseBurst(duration, volume, filterFreq) {
     noise.connect(filter);
     filter.connect(gain);
     gain.connect(ctx.destination);
-    noise.start();
+    noise.start(t0);
+}
+
+// Joue une note dont la fréquence glisse d'un point à un autre (sifflet, laser, boing...)
+function playSweep(startFreq, endFreq, duration, type, volume, startTime) {
+    const ctx = getSoundboardAudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const t0 = ctx.currentTime + (startTime || 0);
+    osc.type = type || 'sine';
+    osc.frequency.setValueAtTime(startFreq, t0);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(endFreq, 1), t0 + duration);
+    gain.gain.setValueAtTime(0, t0);
+    gain.gain.linearRampToValueAtTime(volume || 0.3, t0 + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, t0 + duration);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(t0);
+    osc.stop(t0 + duration + 0.05);
 }
 
 const SOUND_EFFECTS = {
@@ -2397,6 +2416,52 @@ const SOUND_EFFECTS = {
     piano: () => {
         playTone(523, 0.5, 'triangle', 0, 0.3);
         playTone(659, 0.5, 'sine', 0, 0.15);
+    },
+    violon: () => {
+        playTone(587, 0.45, 'sawtooth', 0, 0.22);
+        playTone(590, 0.45, 'sawtooth', 0.03, 0.15); // léger désaccord = effet de vibrato
+    },
+    flute: () => {
+        playTone(784, 0.35, 'sine', 0, 0.22);
+    },
+    banjo: () => {
+        playTone(392, 0.18, 'sawtooth', 0, 0.28);
+        playTone(494, 0.15, 'triangle', 0.03, 0.15);
+    },
+    xylophone: () => {
+        playTone(1047, 0.18, 'triangle', 0, 0.3);
+    },
+    harpe: () => {
+        [523, 659, 784, 988].forEach((freq, i) => playTone(freq, 0.3, 'sine', i * 0.06, 0.18));
+    },
+    orgue: () => {
+        playTone(261, 0.5, 'sine', 0, 0.15);
+        playTone(392, 0.5, 'sine', 0, 0.12);
+        playTone(523, 0.5, 'sine', 0, 0.1);
+    },
+    maracas: () => {
+        playNoiseBurst(0.05, 0.2, 4000);
+        playNoiseBurst(0.05, 0.18, 4000, 0.08);
+        playNoiseBurst(0.05, 0.15, 4000, 0.16);
+    },
+    gong: () => {
+        playTone(80, 1.4, 'sine', 0, 0.3);
+        playNoiseBurst(0.3, 0.1, 0);
+    },
+    sifflet: () => {
+        playSweep(400, 1400, 0.35, 'sine', 0.3, 0);
+    },
+    laser: () => {
+        playSweep(1600, 100, 0.3, 'sawtooth', 0.25, 0);
+    },
+    boing: () => {
+        playSweep(600, 100, 0.15, 'sine', 0.3, 0);
+        playSweep(200, 500, 0.2, 'sine', 0.2, 0.15);
+    },
+    applaudissements: () => {
+        for (let i = 0; i < 6; i++) {
+            playNoiseBurst(0.04, 0.18, 3500 + Math.random() * 1500, i * 0.09 + Math.random() * 0.02);
+        }
     }
 };
 
@@ -2408,7 +2473,19 @@ const SOUND_BUTTONS = [
     { key: 'saxophone', label: '🎷 Sax' },
     { key: 'cymbale', label: '🪘 Cymbale' },
     { key: 'corne', label: '📯 Corne' },
-    { key: 'piano', label: '🎹 Piano' }
+    { key: 'piano', label: '🎹 Piano' },
+    { key: 'violon', label: '🎻 Violon' },
+    { key: 'flute', label: '🪈 Flûte' },
+    { key: 'banjo', label: '🪕 Banjo' },
+    { key: 'xylophone', label: '🎼 Xylophone' },
+    { key: 'harpe', label: '🎶 Harpe' },
+    { key: 'orgue', label: '⛪ Orgue' },
+    { key: 'maracas', label: '🪇 Maracas' },
+    { key: 'gong', label: '🛎️ Gong' },
+    { key: 'sifflet', label: '😙 Sifflet' },
+    { key: 'laser', label: '👽 Laser' },
+    { key: 'boing', label: '🐸 Boing' },
+    { key: 'applaudissements', label: '👏 Clap' }
 ];
 
 function playSoundEffect(key) {
