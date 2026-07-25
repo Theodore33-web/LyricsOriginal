@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.52";
+const APP_VERSION = "v1.1.53";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -2235,68 +2235,75 @@ async function checkIfTrackIsLiked(trackId) {
 
 // --- ACTION AU CLIC : PUT (ENREGISTRER) OU DELETE (SUPPRIMER) ---
 // --- LECTURE ALÉATOIRE 🔀 : tire un titre au hasard dans TOUT le catalogue Spotify ---
-// Technique : Spotify n'a pas d'endpoint "titre au hasard", donc on cherche avec un terme
-// totalement aléatoire (lettre, mot courant, genre) pour obtenir un lot large et varié
-// de résultats (jusqu'à 50), puis on pioche un titre au hasard dedans. Offset aléatoire
-// en plus pour éviter de toujours retomber sur les mêmes résultats les plus "populaires".
-const RANDOM_SEED_TERMS = [
-    'a', 'e', 'i', 'o', 'u', 'love', 'life', 'night', 'dance', 'rock', 'jazz',
-    'pop', 'rap', 'the', 'you', 'feel', 'dream', 'fire', 'sun', 'rain', 'blue',
-    'gold', 'run', 'party', 'summer', 'heart', 'time', 'world', 'baby', 'good'
-];
+// --- LECTURE ALÉATOIRE 🔀 : pioche dans TES titres likés OU une de tes playlists (au hasard) ---
+// On évite volontairement l'endpoint /search (trop instable / rate-limité), au profit de
+// /me/tracks et /playlists/{id}/items qui fonctionnent déjà de façon fiable ailleurs dans l'app.
 
-async function playRandomTrack(attempt = 1) {
+// Tire un titre au hasard dans les titres likés (1 requête pour le total, 1 requête ciblée)
+async function getRandomLikedTrack() {
+    const countResponse = await fetch('https://api.spotify.com/v1/me/tracks?limit=1', {
+        headers: { 'Authorization': 'Bearer ' + currentToken }
+    });
+    if (!countResponse.ok) return null;
+    const countData = await countResponse.json();
+    const total = countData.total || 0;
+    if (total === 0) return null;
+
+    const randomOffset = Math.floor(Math.random() * total);
+    const trackResponse = await fetch(`https://api.spotify.com/v1/me/tracks?limit=1&offset=${randomOffset}`, {
+        headers: { 'Authorization': 'Bearer ' + currentToken }
+    });
+    if (!trackResponse.ok) return null;
+    const trackData = await trackResponse.json();
+    return trackData.items && trackData.items.length > 0 ? trackData.items[0].track : null;
+}
+
+// Tire un titre au hasard dans une playlist choisie au hasard parmi les tiennes
+async function getRandomPlaylistTrack() {
+    const playlistsResponse = await fetch('https://api.spotify.com/v1/me/playlists?limit=50', {
+        headers: { 'Authorization': 'Bearer ' + currentToken }
+    });
+    if (!playlistsResponse.ok) return null;
+    const playlistsData = await playlistsResponse.json();
+    const playlists = playlistsData.items ? playlistsData.items.filter(p => p) : [];
+    if (playlists.length === 0) return null;
+
+    const randomPlaylist = playlists[Math.floor(Math.random() * playlists.length)];
+    const totalTracks = (randomPlaylist.tracks && randomPlaylist.tracks.total !== undefined)
+        ? randomPlaylist.tracks.total
+        : (randomPlaylist.items && randomPlaylist.items.total !== undefined ? randomPlaylist.items.total : 0);
+    if (!totalTracks || totalTracks === 0) return null;
+
+    const randomOffset = Math.floor(Math.random() * totalTracks);
+    const itemsResponse = await fetch(`https://api.spotify.com/v1/playlists/${randomPlaylist.id}/items?limit=1&offset=${randomOffset}`, {
+        headers: { 'Authorization': 'Bearer ' + currentToken }
+    });
+    if (!itemsResponse.ok) return null;
+    const itemsData = await itemsResponse.json();
+    const entry = itemsData.items && itemsData.items.length > 0 ? itemsData.items[0] : null;
+    return entry ? (entry.item || entry.track) : null;
+}
+
+async function playRandomTrack() {
     if (!currentToken) return;
     const randomBtn = document.getElementById('random-track-btn');
     if (randomBtn) randomBtn.disabled = true;
 
     try {
-        const seed = RANDOM_SEED_TERMS[Math.floor(Math.random() * RANDOM_SEED_TERMS.length)];
-        // "limit" est plafonné à 10 par Spotify depuis février 2026 (auparavant 50) — au-delà,
-        // la requête est rejetée et échoue silencieusement, ce qui bloquait complètement le bouton.
-        const randomOffset = Math.floor(Math.random() * 90);
-        const response = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(seed)}&type=track&limit=10&offset=${randomOffset}`, {
-            headers: { 'Authorization': 'Bearer ' + currentToken }
-        });
+        // 50/50 entre favoris et une playlist au hasard (si aucune playlist, retombe sur les favoris)
+        const useLiked = Math.random() < 0.5;
+        let track = useLiked ? await getRandomLikedTrack() : await getRandomPlaylistTrack();
 
-        if (response.status === 429) {
-            const retryAfter = response.headers.get('Retry-After');
-            const waitSeconds = retryAfter ? parseInt(retryAfter, 10) : 2;
-            console.warn(`Recherche aleatoire : 429, nouvelle tentative dans ${waitSeconds}s`);
-
-            if (attempt < 4) {
-                await new Promise(resolve => setTimeout(resolve, waitSeconds * 1000));
-                return playRandomTrack(attempt + 1);
-            }
-            alert(`Trop de requêtes envoyées à Spotify, réessaie dans ${waitSeconds} secondes.`);
-            return;
+        // Filet de sécurité : si la première tentative échoue, on essaie l'autre source avant d'abandonner
+        if (!track) {
+            track = useLiked ? await getRandomPlaylistTrack() : await getRandomLikedTrack();
         }
 
-        if (!response.ok) {
-            console.error("Recherche aleatoire : statut HTTP", response.status);
-            if (attempt < 4) {
-                await new Promise(resolve => setTimeout(resolve, 500 * attempt));
-                return playRandomTrack(attempt + 1);
-            }
-            alert("Impossible de tirer un titre aléatoire pour le moment, réessaie.");
-            return;
+        if (track && track.uri) {
+            await playTrack(track.uri);
+        } else {
+            alert("Aucun titre trouvé (vérifie que tu as des favoris ou des playlists non vides).");
         }
-
-        const data = await response.json();
-        const items = data.tracks && data.tracks.items ? data.tracks.items.filter(t => t) : [];
-
-        if (items.length === 0) {
-            // Repli si ce tirage n'a rien donné : on retente avec un autre terme/offset (max 4 essais)
-            if (attempt < 4) {
-                await new Promise(resolve => setTimeout(resolve, 400));
-                return playRandomTrack(attempt + 1);
-            }
-            alert("Aucun titre trouvé après plusieurs essais, réessaie.");
-            return;
-        }
-
-        const track = items[Math.floor(Math.random() * items.length)];
-        await playTrack(track.uri);
     } catch (e) {
         console.error("Erreur lecture aleatoire :", e);
         alert("Erreur lors du tirage aléatoire.");
