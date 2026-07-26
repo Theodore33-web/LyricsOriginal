@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.56";
+const APP_VERSION = "v1.1.57";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -851,6 +851,11 @@ function highlightLyrics(currentTime) {
                         } else {
                             fetchLyrics(data.item.artists[0].name, data.item.name, data.item.album.name, data.item.duration_ms / 1000);
                             checkIfTrackIsLiked(data.item.id);
+                        }
+
+                        // Nouveau titre : reprogramme l'annonce DJ sur la durée du titre qui vient de démarrer
+                        if (djModeEnabled) {
+                            scheduleDjAnnouncement(data.item.duration_ms - data.progress_ms);
                         }
                     }
                 }
@@ -2668,6 +2673,216 @@ function renderSoundboard() {
     });
 
     resultsContainer.appendChild(grid);
+}
+
+// ==========================================
+// MODE DJ 🎧 — annonce vocale du prochain titre via Gemini TTS (relais Apps Script)
+// ==========================================
+let djModeEnabled = false;
+let djAnnounceTimeoutId = null;
+
+function injectDjModeStyles() {
+    if (document.getElementById('dj-mode-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'dj-mode-inline-style';
+    styleTag.textContent = `
+        #dj-mode-btn.active {
+            color: #2b7cff !important;
+            filter: drop-shadow(0 0 6px rgba(43,124,255,0.7));
+        }
+        #dj-visual {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            margin-top: 10px;
+            padding: 10px;
+        }
+        #dj-visual .dj-disc {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #2b7cff 0%, #111 70%);
+            border: 3px solid #2b7cff;
+            position: relative;
+            animation: dj-spin 1.4s linear infinite;
+        }
+        #dj-visual .dj-disc::after {
+            content: '';
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 6px; height: 6px;
+            background: #fff;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
+        @keyframes dj-spin {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+        }
+        #dj-visual .dj-bars {
+            display: flex;
+            align-items: flex-end;
+            gap: 3px;
+            height: 30px;
+        }
+        #dj-visual .dj-bars span {
+            width: 5px;
+            background: #2b7cff;
+            border-radius: 2px;
+            animation: dj-bar-bounce 0.9s ease-in-out infinite;
+        }
+        #dj-visual .dj-bars span:nth-child(1) { animation-delay: 0s; }
+        #dj-visual .dj-bars span:nth-child(2) { animation-delay: 0.15s; }
+        #dj-visual .dj-bars span:nth-child(3) { animation-delay: 0.3s; }
+        #dj-visual .dj-bars span:nth-child(4) { animation-delay: 0.45s; }
+        @keyframes dj-bar-bounce {
+            0%, 100% { height: 6px; }
+            50% { height: 28px; }
+        }
+        #dj-visual.speaking .dj-disc {
+            animation-duration: 0.4s;
+            box-shadow: 0 0 14px 4px rgba(43,124,255,0.7);
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectDjModeStyles();
+
+function ensureDjVisual() {
+    let visual = document.getElementById('dj-visual');
+    if (!visual) {
+        visual = document.createElement('div');
+        visual.id = 'dj-visual';
+        visual.innerHTML = `
+            <div class="dj-disc"></div>
+            <div class="dj-bars"><span></span><span></span><span></span><span></span></div>
+            <div class="dj-disc"></div>
+        `;
+        const djBtn = document.getElementById('dj-mode-btn');
+        if (djBtn && djBtn.parentElement) {
+            djBtn.parentElement.insertAdjacentElement('afterend', visual);
+        } else {
+            document.body.appendChild(visual);
+        }
+    }
+    return visual;
+}
+
+function toggleDjMode() {
+    djModeEnabled = !djModeEnabled;
+    const btn = document.getElementById('dj-mode-btn');
+    if (btn) btn.classList.toggle('active', djModeEnabled);
+
+    const visual = ensureDjVisual();
+    visual.style.display = djModeEnabled ? 'flex' : 'none';
+
+    if (djModeEnabled && trackDurationMs > 0) {
+        scheduleDjAnnouncement(trackDurationMs - currentProgressMs);
+    }
+    if (!djModeEnabled && djAnnounceTimeoutId) {
+        clearTimeout(djAnnounceTimeoutId);
+        djAnnounceTimeoutId = null;
+    }
+}
+
+// Programme l'annonce entre 5 et 10 secondes (aléatoire) avant la fin du titre en cours
+function scheduleDjAnnouncement(remainingMs) {
+    if (djAnnounceTimeoutId) {
+        clearTimeout(djAnnounceTimeoutId);
+        djAnnounceTimeoutId = null;
+    }
+    if (!djModeEnabled) return;
+
+    const leadMs = 5000 + Math.random() * 5000; // entre 5 et 10s avant la fin
+    const delay = Math.max(0, remainingMs - leadMs);
+
+    djAnnounceTimeoutId = setTimeout(() => {
+        triggerDjAnnouncement();
+    }, delay);
+}
+
+// Récupère le titre suivant dans la file d'attente au moment précis de l'annonce
+async function getNextQueuedTrackInfo() {
+    if (!currentToken) return null;
+    try {
+        const response = await fetch('https://api.spotify.com/v1/me/player/queue', {
+            headers: { 'Authorization': 'Bearer ' + currentToken }
+        });
+        if (!response.ok) return null;
+        const data = await response.json();
+        const next = data.queue && data.queue.length > 0 ? data.queue[0] : null;
+        if (!next) return null;
+        return {
+            name: next.name,
+            artist: next.artists && next.artists.length > 0
+                ? next.artists.map(a => a.name).join(', ')
+                : (next.show ? next.show.name : 'Artiste inconnu')
+        };
+    } catch (e) {
+        console.error("Erreur recuperation prochain titre :", e);
+        return null;
+    }
+}
+
+// Convertit l'audio PCM brut (16 bits, mono, 24kHz) renvoyé par Gemini en son jouable
+async function playPcmAudio(base64Data) {
+    const ctx = getSoundboardAudioContext();
+    const binary = atob(base64Data);
+    const len = binary.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+
+    const sampleCount = Math.floor(len / 2);
+    const audioBuffer = ctx.createBuffer(1, sampleCount, 24000);
+    const channelData = audioBuffer.getChannelData(0);
+    const dataView = new DataView(bytes.buffer);
+
+    for (let i = 0; i < sampleCount; i++) {
+        channelData[i] = dataView.getInt16(i * 2, true) / 32768;
+    }
+
+    return new Promise((resolve) => {
+        const source = ctx.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(ctx.destination);
+        source.onended = resolve;
+        source.start();
+    });
+}
+
+async function triggerDjAnnouncement() {
+    if (!djModeEnabled) return;
+
+    const nextTrack = await getNextQueuedTrackInfo();
+    if (!nextTrack) return; // rien en file d'attente : on ne dit rien
+
+    const visual = ensureDjVisual();
+    visual.classList.add('speaking');
+
+    try {
+        const response = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({
+                action: 'dj_announce',
+                secret: APPS_SCRIPT_SECRET,
+                trackName: nextTrack.name,
+                artistName: nextTrack.artist
+            })
+        });
+        const result = await response.json();
+
+        if (result.success && result.audioBase64) {
+            await playPcmAudio(result.audioBase64);
+        } else {
+            console.error("Echec annonce DJ :", result.error);
+        }
+    } catch (e) {
+        console.error("Erreur annonce DJ :", e);
+    } finally {
+        visual.classList.remove('speaking');
+    }
 }
 
 async function toggleLikeCurrentTrack() {
