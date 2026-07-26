@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.57";
+const APP_VERSION = "v1.1.58";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -2777,8 +2777,12 @@ function toggleDjMode() {
     const visual = ensureDjVisual();
     visual.style.display = djModeEnabled ? 'flex' : 'none';
 
-    if (djModeEnabled && trackDurationMs > 0) {
-        scheduleDjAnnouncement(trackDurationMs - currentProgressMs);
+    if (djModeEnabled) {
+        if (trackDurationMs > 0) {
+            scheduleDjAnnouncement(trackDurationMs - currentProgressMs, true);
+        } else {
+            console.warn("Mode DJ activé, mais aucun titre en cours détecté pour le moment.");
+        }
     }
     if (!djModeEnabled && djAnnounceTimeoutId) {
         clearTimeout(djAnnounceTimeoutId);
@@ -2787,7 +2791,7 @@ function toggleDjMode() {
 }
 
 // Programme l'annonce entre 5 et 10 secondes (aléatoire) avant la fin du titre en cours
-function scheduleDjAnnouncement(remainingMs) {
+function scheduleDjAnnouncement(remainingMs, showFeedback) {
     if (djAnnounceTimeoutId) {
         clearTimeout(djAnnounceTimeoutId);
         djAnnounceTimeoutId = null;
@@ -2796,6 +2800,11 @@ function scheduleDjAnnouncement(remainingMs) {
 
     const leadMs = 5000 + Math.random() * 5000; // entre 5 et 10s avant la fin
     const delay = Math.max(0, remainingMs - leadMs);
+
+    console.log(`Mode DJ : prochaine annonce programmée dans ${Math.round(delay / 1000)}s`);
+    if (showFeedback) {
+        showDjFeedback(`🎧 Mode DJ activé — prochaine annonce dans environ ${Math.round(delay / 1000)}s.`, false);
+    }
 
     djAnnounceTimeoutId = setTimeout(() => {
         triggerDjAnnouncement();
@@ -2852,15 +2861,25 @@ async function playPcmAudio(base64Data) {
 }
 
 async function triggerDjAnnouncement() {
-    if (!djModeEnabled) return;
+    console.log("Mode DJ : declenchement de l'annonce...");
+    if (!djModeEnabled) {
+        console.log("Mode DJ : annulé, le mode a été désactivé entre-temps.");
+        return;
+    }
 
     const nextTrack = await getNextQueuedTrackInfo();
-    if (!nextTrack) return; // rien en file d'attente : on ne dit rien
+    if (!nextTrack) {
+        console.warn("Mode DJ : aucun titre dans la file d'attente, rien à annoncer. Ajoute un titre via 📥 pour tester.");
+        showDjFeedback("Aucun titre dans la file d'attente, rien à annoncer.", true);
+        return;
+    }
+    console.log("Mode DJ : prochain titre en file =", nextTrack.name, "-", nextTrack.artist);
 
     const visual = ensureDjVisual();
     visual.classList.add('speaking');
 
     try {
+        console.log("Mode DJ : appel du relais Apps Script...");
         const response = await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -2871,18 +2890,42 @@ async function triggerDjAnnouncement() {
                 artistName: nextTrack.artist
             })
         });
+
+        if (!response.ok) {
+            console.error("Mode DJ : le relais Apps Script a répondu avec le statut", response.status);
+            showDjFeedback(`Erreur relais (statut ${response.status}).`, true);
+            return;
+        }
+
         const result = await response.json();
+        console.log("Mode DJ : reponse du relais =", result);
 
         if (result.success && result.audioBase64) {
+            console.log("Mode DJ : audio recu, lecture en cours.");
+            showDjFeedback(`🎧 Annonce : ${nextTrack.name} — ${nextTrack.artist}`, false);
             await playPcmAudio(result.audioBase64);
         } else {
-            console.error("Echec annonce DJ :", result.error);
+            console.error("Mode DJ : echec, pas d'audio dans la reponse :", result.error, result.raw);
+            showDjFeedback("Échec : " + (result.error || "réponse invalide de Gemini"), true);
         }
     } catch (e) {
-        console.error("Erreur annonce DJ :", e);
+        console.error("Mode DJ : erreur reseau/JS :", e);
+        showDjFeedback("Erreur réseau lors de l'annonce.", true);
     } finally {
         visual.classList.remove('speaking');
     }
+}
+
+// Petit message temporaire (6s) pour visualiser ce qui se passe sans avoir à ouvrir la console
+function showDjFeedback(msg, isError) {
+    const resultsContainer = document.getElementById('search-results');
+    if (!resultsContainer) return;
+    const msgEl = document.createElement('p');
+    msgEl.style.cssText = "font-size:0.85rem; color:" + (isError ? '#ef4444' : '#2b7cff') + "; margin:5px;";
+    msgEl.innerText = msg;
+    resultsContainer.innerHTML = "";
+    resultsContainer.appendChild(msgEl);
+    setTimeout(() => { if (msgEl.isConnected) msgEl.remove(); }, 6000);
 }
 
 async function toggleLikeCurrentTrack() {
