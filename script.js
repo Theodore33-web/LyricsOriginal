@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.59";
+const APP_VERSION = "v1.1.60";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -241,6 +241,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 updateNowPlaying();
                 initSpectrum();
                 initDiscoBallState();
+                requestWakeLock();
                 initPartyPopperState();
                 initVoiceCommand();
             } catch (e) {
@@ -1644,6 +1645,36 @@ function injectVoiceCommandStyles() {
     document.head.appendChild(styleTag);
 }
 injectVoiceCommandStyles();
+
+// ==========================================
+// WAKE LOCK — empêche l'écran de s'éteindre tant que la page reste active
+// (nécessaire notamment pour que le Mode DJ continue de fonctionner en arrière-plan)
+// ==========================================
+let wakeLockSentinel = null;
+
+async function requestWakeLock() {
+    if (!('wakeLock' in navigator)) {
+        console.warn("Wake Lock non supporté par ce navigateur.");
+        return;
+    }
+    try {
+        wakeLockSentinel = await navigator.wakeLock.request('screen');
+        console.log("Wake Lock actif : l'écran ne s'éteindra pas automatiquement.");
+        wakeLockSentinel.addEventListener('release', () => {
+            console.log("Wake Lock relâché (page en arrière-plan ou verrouillée manuellement).");
+        });
+    } catch (e) {
+        console.warn("Impossible d'activer le Wake Lock :", e);
+    }
+}
+
+// Le Wake Lock est automatiquement relâché quand l'onglet passe en arrière-plan —
+// il faut le redemander explicitement à chaque retour sur la page.
+document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState === 'visible' && currentToken) {
+        await requestWakeLock();
+    }
+});
 
 function initVoiceCommand() {
     const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
