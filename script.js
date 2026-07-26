@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.60";
+const APP_VERSION = "v1.1.61";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -669,6 +669,16 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
     // Convertit ce ratio en millisecondes selon la durée totale du morceau
     const targetPositionMs = Math.floor(clickPositionRatio * trackDurationMs);
 
+    // Mise à jour INSTANTANÉE et locale, sans attendre le réseau — évite que la barre
+    // locale (qui avance toute seule chaque seconde) écrase visuellement ton clic
+    // pendant le court délai avant la confirmation de Spotify.
+    currentProgressMs = targetPositionMs;
+    const progressPercent = (targetPositionMs / trackDurationMs) * 100;
+    const fillEl = document.getElementById('progress-fill');
+    const timeEl = document.getElementById('time-current');
+    if (fillEl) fillEl.style.width = `${progressPercent}%`;
+    if (timeEl) timeEl.innerText = formatTime(targetPositionMs);
+
     try {
         // ✅ Version sans proxy : On contacte directement l'API officielle de Spotify
         // Le paramètre ?position_ms= est requis par Spotify pour savoir où aller.
@@ -677,7 +687,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
             headers: { 'Authorization': 'Bearer ' + currentToken }
         });
         
-        // Force la mise à jour visuelle juste après le saut dans le morceau
+        // Resynchronise avec la vraie position Spotify peu après (corrige toute dérive)
         setTimeout(updateNowPlaying, 300);
     } catch (e) { 
         console.error("Erreur de navigation dans le morceau :", e); 
@@ -2926,34 +2936,22 @@ async function triggerDjAnnouncement() {
     visual.classList.add('speaking');
 
     try {
-        console.log("Mode DJ : appel du relais Apps Script...");
-        const response = await fetch(APPS_SCRIPT_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify({
-                action: 'dj_announce',
-                secret: APPS_SCRIPT_SECRET,
-                trackName: nextTrack.name,
-                artistName: nextTrack.artist
-            })
-        });
+        let result = await callDjAnnounceRelay(nextTrack);
 
-        if (!response.ok) {
-            console.error("Mode DJ : le relais Apps Script a répondu avec le statut", response.status);
-            showDjFeedback(`Erreur relais (statut ${response.status}).`, true);
-            return;
+        // Si pas d'audio reçu, on retente une deuxième fois avant d'abandonner
+        if (!result.success || !result.audioBase64) {
+            console.warn("Mode DJ : premier essai sans audio, nouvelle tentative...", result.error);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            result = await callDjAnnounceRelay(nextTrack);
         }
-
-        const result = await response.json();
-        console.log("Mode DJ : reponse du relais =", result);
 
         if (result.success && result.audioBase64) {
             console.log("Mode DJ : audio recu, lecture en cours.");
             showDjFeedback(`🎧 Annonce : ${nextTrack.name} — ${nextTrack.artist}`, false);
             await playPcmAudio(result.audioBase64);
         } else {
-            console.error("Mode DJ : echec, pas d'audio dans la reponse :", result.error, result.raw);
-            showDjFeedback("Échec : " + (result.error || "réponse invalide de Gemini"), true);
+            console.error("Mode DJ : echec apres 2 tentatives, pas d'audio dans la reponse :", result.error, result.raw);
+            showDjFeedback("Échec après 2 tentatives : " + (result.error || "réponse invalide de Gemini"), true);
         }
     } catch (e) {
         console.error("Mode DJ : erreur reseau/JS :", e);
@@ -2961,6 +2959,30 @@ async function triggerDjAnnouncement() {
     } finally {
         visual.classList.remove('speaking');
     }
+}
+
+// Un seul appel au relais Apps Script — factorisé pour pouvoir être retenté facilement
+async function callDjAnnounceRelay(nextTrack) {
+    console.log("Mode DJ : appel du relais Apps Script...");
+    const response = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+            action: 'dj_announce',
+            secret: APPS_SCRIPT_SECRET,
+            trackName: nextTrack.name,
+            artistName: nextTrack.artist
+        })
+    });
+
+    if (!response.ok) {
+        console.error("Mode DJ : le relais Apps Script a répondu avec le statut", response.status);
+        return { success: false, error: `Erreur relais (statut ${response.status}).` };
+    }
+
+    const result = await response.json();
+    console.log("Mode DJ : reponse du relais =", result);
+    return result;
 }
 
 // Petit message temporaire (6s) pour visualiser ce qui se passe sans avoir à ouvrir la console
