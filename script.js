@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.58";
+const APP_VERSION = "v1.1.59";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -2798,7 +2798,7 @@ function scheduleDjAnnouncement(remainingMs, showFeedback) {
     }
     if (!djModeEnabled) return;
 
-    const leadMs = 5000 + Math.random() * 5000; // entre 5 et 10s avant la fin
+    const leadMs = 8000 + Math.random() * 4000; // entre 8 et 12s avant la fin (laisse le temps à Gemini de répondre)
     const delay = Math.max(0, remainingMs - leadMs);
 
     console.log(`Mode DJ : prochaine annonce programmée dans ${Math.round(delay / 1000)}s`);
@@ -2854,7 +2854,23 @@ async function playPcmAudio(base64Data) {
     return new Promise((resolve) => {
         const source = ctx.createBufferSource();
         source.buffer = audioBuffer;
-        source.connect(ctx.destination);
+
+        // Amplifie le volume du DJ (voix superposée à Spotify, sinon trop faible),
+        // avec un compresseur pour éviter la saturation/distorsion à fort gain.
+        const gainNode = ctx.createGain();
+        gainNode.gain.value = 3.2;
+
+        const compressor = ctx.createDynamicsCompressor();
+        compressor.threshold.setValueAtTime(-14, ctx.currentTime);
+        compressor.knee.setValueAtTime(20, ctx.currentTime);
+        compressor.ratio.setValueAtTime(8, ctx.currentTime);
+        compressor.attack.setValueAtTime(0.003, ctx.currentTime);
+        compressor.release.setValueAtTime(0.15, ctx.currentTime);
+
+        source.connect(gainNode);
+        gainNode.connect(compressor);
+        compressor.connect(ctx.destination);
+
         source.onended = resolve;
         source.start();
     });
