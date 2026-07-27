@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.62";
+const APP_VERSION = "v1.1.63";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -687,6 +687,13 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
     const timeEl = document.getElementById('time-current');
     if (fillEl) fillEl.style.width = `${progressPercent}%`;
     if (timeEl) timeEl.innerText = formatTime(targetPositionMs);
+
+    // Le déplacement manuel change le temps restant réel : il faut reprogrammer
+    // le minuteur DJ en conséquence, sinon il reste calé sur l'ancienne planification.
+    if (djModeEnabled) {
+        console.log("seekTrack() : reprogrammation du minuteur DJ apres deplacement manuel");
+        scheduleDjAnnouncement(trackDurationMs - targetPositionMs);
+    }
 
     try {
         console.log("seekTrack() : envoi PUT /me/player/seek...");
