@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.61";
+const APP_VERSION = "v1.1.62";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -660,7 +660,15 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
         });
 
    async function seekTrack(event) {
-    if (!currentToken || !trackDurationMs) return;
+    console.log("seekTrack() appelée", { currentToken: !!currentToken, trackDurationMs, event });
+    if (!currentToken || !trackDurationMs) {
+        console.warn("seekTrack() : sortie anticipée —", !currentToken ? "pas de token" : "trackDurationMs = 0 (aucun titre chargé ?)");
+        return;
+    }
+    if (!event || !event.currentTarget) {
+        console.error("seekTrack() : 'event' ou 'event.currentTarget' manquant — vérifie que le HTML appelle bien onclick=\"seekTrack(event)\" (avec le mot event en paramètre).");
+        return;
+    }
     
     // Calcule la position du clic en pixels par rapport à la largeur totale de la barre
     const rect = event.currentTarget.getBoundingClientRect();
@@ -668,6 +676,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
     
     // Convertit ce ratio en millisecondes selon la durée totale du morceau
     const targetPositionMs = Math.floor(clickPositionRatio * trackDurationMs);
+    console.log("seekTrack() : position ciblee =", targetPositionMs, "ms sur", trackDurationMs, "ms");
 
     // Mise à jour INSTANTANÉE et locale, sans attendre le réseau — évite que la barre
     // locale (qui avance toute seule chaque seconde) écrase visuellement ton clic
@@ -680,13 +689,13 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
     if (timeEl) timeEl.innerText = formatTime(targetPositionMs);
 
     try {
-        // ✅ Version sans proxy : On contacte directement l'API officielle de Spotify
-        // Le paramètre ?position_ms= est requis par Spotify pour savoir où aller.
-        await fetch(`https://api.spotify.com/v1/me/player/seek?position_ms=${targetPositionMs}`, {
+        console.log("seekTrack() : envoi PUT /me/player/seek...");
+        const response = await fetch(`https://api.spotify.com/v1/me/player/seek?position_ms=${targetPositionMs}`, {
             method: 'PUT',
             headers: { 'Authorization': 'Bearer ' + currentToken }
         });
-        
+        console.log("seekTrack() : reponse Spotify statut =", response.status);
+
         // Resynchronise avec la vraie position Spotify peu après (corrige toute dérive)
         setTimeout(updateNowPlaying, 300);
     } catch (e) { 
@@ -866,6 +875,7 @@ function highlightLyrics(currentTime) {
 
                         // Nouveau titre : reprogramme l'annonce DJ sur la durée du titre qui vient de démarrer
                         if (djModeEnabled) {
+                            djLastKnownPlayingState = data.is_playing;
                             scheduleDjAnnouncement(data.item.duration_ms - data.progress_ms);
                         }
                     }
@@ -876,6 +886,8 @@ function highlightLyrics(currentTime) {
         // Fait avancer la barre de progression et le chrono chaque seconde, SANS appeler l'API.
         // La vraie valeur est resynchronisée par updateNowPlaying() toutes les 3s.
         function tickLocalProgress() {
+            checkDjPauseState(); // doit tourner même en pause, donc placé AVANT le return anticipé
+
             if (!isCurrentlyPlaying || trackDurationMs === 0) return;
 
             currentProgressMs += 1000;
@@ -2721,6 +2733,7 @@ function renderSoundboard() {
 // ==========================================
 let djModeEnabled = false;
 let djAnnounceTimeoutId = null;
+let djLastKnownPlayingState = true;
 
 function injectDjModeStyles() {
     if (document.getElementById('dj-mode-inline-style')) return;
@@ -2819,6 +2832,7 @@ function toggleDjMode() {
     visual.style.display = djModeEnabled ? 'flex' : 'none';
 
     if (djModeEnabled) {
+        djLastKnownPlayingState = isCurrentlyPlaying; // évite un faux déclenchement pause/reprise juste après activation
         if (trackDurationMs > 0) {
             scheduleDjAnnouncement(trackDurationMs - currentProgressMs, true);
         } else {
@@ -2831,6 +2845,29 @@ function toggleDjMode() {
     }
 }
 
+// Détecte les transitions pause/lecture et gèle/relance le minuteur DJ en conséquence.
+// Appelée chaque seconde depuis tickLocalProgress (qui tourne même quand la lecture est en pause).
+function checkDjPauseState() {
+    if (!djModeEnabled) return;
+
+    if (djLastKnownPlayingState && !isCurrentlyPlaying) {
+        // Vient de passer en pause : on gèle le minuteur (annule le setTimeout en cours)
+        djLastKnownPlayingState = false;
+        if (djAnnounceTimeoutId) {
+            clearTimeout(djAnnounceTimeoutId);
+            djAnnounceTimeoutId = null;
+            console.log("Mode DJ : lecture en pause, minuteur d'annonce gelé.");
+        }
+    } else if (!djLastKnownPlayingState && isCurrentlyPlaying) {
+        // Vient de reprendre : on reprogramme avec le VRAI temps restant actuel
+        djLastKnownPlayingState = true;
+        if (trackDurationMs > 0) {
+            console.log("Mode DJ : lecture reprise, minuteur d'annonce relancé.");
+            scheduleDjAnnouncement(trackDurationMs - currentProgressMs);
+        }
+    }
+}
+
 // Programme l'annonce entre 5 et 10 secondes (aléatoire) avant la fin du titre en cours
 function scheduleDjAnnouncement(remainingMs, showFeedback) {
     if (djAnnounceTimeoutId) {
@@ -2839,16 +2876,20 @@ function scheduleDjAnnouncement(remainingMs, showFeedback) {
     }
     if (!djModeEnabled) return;
 
-    const leadMs = 8000 + Math.random() * 4000; // entre 8 et 12s avant la fin (laisse le temps à Gemini de répondre)
-    const delay = Math.max(0, remainingMs - leadMs);
+    const CALL_LEAD_MS = 15000; // on lance l'appel à Gemini 15s avant la fin
+    const PLAY_LEAD_MS = 5000;  // mais on ne LANCE l'audio que 5s avant la fin (effet transition)
 
-    console.log(`Mode DJ : prochaine annonce programmée dans ${Math.round(delay / 1000)}s`);
+    const delay = Math.max(0, remainingMs - CALL_LEAD_MS);
+    // Timestamp absolu (horloge réelle) auquel l'audio doit démarrer, calculé une fois pour toutes
+    const targetPlayTimestamp = Date.now() + remainingMs - PLAY_LEAD_MS;
+
+    console.log(`Mode DJ : appel programmé dans ${Math.round(delay / 1000)}s, lecture visée ${PLAY_LEAD_MS/1000}s avant la fin`);
     if (showFeedback) {
-        showDjFeedback(`🎧 Mode DJ activé — prochaine annonce dans environ ${Math.round(delay / 1000)}s.`, false);
+        showDjFeedback(`🎧 Mode DJ activé — appel dans ~${Math.round(delay / 1000)}s.`, false);
     }
 
     djAnnounceTimeoutId = setTimeout(() => {
-        triggerDjAnnouncement();
+        triggerDjAnnouncement(targetPlayTimestamp);
     }, delay);
 }
 
@@ -2917,7 +2958,7 @@ async function playPcmAudio(base64Data) {
     });
 }
 
-async function triggerDjAnnouncement() {
+async function triggerDjAnnouncement(targetPlayTimestamp) {
     console.log("Mode DJ : declenchement de l'annonce...");
     if (!djModeEnabled) {
         console.log("Mode DJ : annulé, le mode a été désactivé entre-temps.");
@@ -2933,9 +2974,9 @@ async function triggerDjAnnouncement() {
     console.log("Mode DJ : prochain titre en file =", nextTrack.name, "-", nextTrack.artist);
 
     const visual = ensureDjVisual();
-    visual.classList.add('speaking');
 
     try {
+        const callStartedAt = Date.now();
         let result = await callDjAnnounceRelay(nextTrack);
 
         // Si pas d'audio reçu, on retente une deuxième fois avant d'abandonner
@@ -2945,13 +2986,31 @@ async function triggerDjAnnouncement() {
             result = await callDjAnnounceRelay(nextTrack);
         }
 
+        const totalCallDurationMs = Date.now() - callStartedAt;
+        console.log(`Mode DJ : duree totale de l'appel (avec retry eventuel) = ${totalCallDurationMs}ms`);
+
         if (result.success && result.audioBase64) {
-            console.log("Mode DJ : audio recu, lecture en cours.");
+            // On attend le moment précis visé (5s avant la fin) avant de jouer, même si l'audio
+            // est arrivé plus tôt — sinon on joue dès que prêt si on a déjà dépassé ce moment.
+            const waitMs = targetPlayTimestamp ? Math.max(0, targetPlayTimestamp - Date.now()) : 0;
+            if (waitMs > 0) {
+                console.log(`Mode DJ : audio pret, attente de ${Math.round(waitMs / 1000)}s avant lecture (pour la transition)`);
+                await new Promise(resolve => setTimeout(resolve, waitMs));
+            }
+            if (!djModeEnabled) return; // vérifie que le mode n'a pas été désactivé pendant l'attente
+
+            console.log("Mode DJ : lecture en cours.");
+            visual.classList.add('speaking');
             showDjFeedback(`🎧 Annonce : ${nextTrack.name} — ${nextTrack.artist}`, false);
             await playPcmAudio(result.audioBase64);
         } else {
-            console.error("Mode DJ : echec apres 2 tentatives, pas d'audio dans la reponse :", result.error, result.raw);
-            showDjFeedback("Échec après 2 tentatives : " + (result.error || "réponse invalide de Gemini"), true);
+            // Indique clairement si l'échec ressemble à un manque de temps (réponse lente) ou autre chose
+            const likelyTimeout = totalCallDurationMs > 8000;
+            console.error(`Mode DJ : echec apres 2 tentatives (${totalCallDurationMs}ms, ${likelyTimeout ? 'probable manque de temps' : 'pas un souci de délai'}) :`, result.error, result.raw);
+            showDjFeedback(
+                `Échec après 2 tentatives (${(totalCallDurationMs/1000).toFixed(1)}s${likelyTimeout ? ', probablement trop lent' : ''}) : ` + (result.error || "réponse invalide de Gemini"),
+                true
+            );
         }
     } catch (e) {
         console.error("Mode DJ : erreur reseau/JS :", e);
