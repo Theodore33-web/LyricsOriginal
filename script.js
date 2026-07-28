@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.63";
+const APP_VERSION = "v1.1.64";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -933,7 +933,11 @@ function highlightLyrics(currentTime) {
             method: 'PUT', 
             headers: { 'Authorization': 'Bearer ' + currentToken } 
         });
-        
+
+        // Mise à jour immédiate et locale (sans attendre le réseau), pour que le Mode DJ
+        // détecte la pause/reprise instantanément au lieu d'attendre le prochain sondage.
+        isCurrentlyPlaying = (endpoint === 'play');
+
         // Rafraîchit l'affichage du bouton (▶️ ou ⏸) juste après
         setTimeout(updateNowPlaying, 500);
         
@@ -1884,6 +1888,9 @@ async function forcePlaybackState(desiredState) {
         if (!response.ok && response.status !== 204) {
             return false;
         }
+
+        // Mise à jour immédiate et locale, pour que le Mode DJ réagisse tout de suite
+        isCurrentlyPlaying = (desiredState === 'play');
 
         setTimeout(updateNowPlaying, 500);
         return true;
@@ -2984,17 +2991,21 @@ async function triggerDjAnnouncement(targetPlayTimestamp) {
 
     try {
         const callStartedAt = Date.now();
-        let result = await callDjAnnounceRelay(nextTrack);
+        const MAX_ATTEMPTS = 4; // ~2s par appel Gemini en moyenne, donc jusqu'à ~8s au total
+        let result = { success: false };
 
-        // Si pas d'audio reçu, on retente une deuxième fois avant d'abandonner
-        if (!result.success || !result.audioBase64) {
-            console.warn("Mode DJ : premier essai sans audio, nouvelle tentative...", result.error);
-            await new Promise(resolve => setTimeout(resolve, 1000));
+        for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
             result = await callDjAnnounceRelay(nextTrack);
+            if (result.success && result.audioBase64) break;
+
+            console.warn(`Mode DJ : tentative ${attempt}/${MAX_ATTEMPTS} sans audio`, result.error);
+            if (attempt < MAX_ATTEMPTS) {
+                await new Promise(resolve => setTimeout(resolve, 800));
+            }
         }
 
         const totalCallDurationMs = Date.now() - callStartedAt;
-        console.log(`Mode DJ : duree totale de l'appel (avec retry eventuel) = ${totalCallDurationMs}ms`);
+        console.log(`Mode DJ : duree totale de l'appel (avec tentatives) = ${totalCallDurationMs}ms`);
 
         if (result.success && result.audioBase64) {
             // On attend le moment précis visé (5s avant la fin) avant de jouer, même si l'audio
@@ -3013,9 +3024,9 @@ async function triggerDjAnnouncement(targetPlayTimestamp) {
         } else {
             // Indique clairement si l'échec ressemble à un manque de temps (réponse lente) ou autre chose
             const likelyTimeout = totalCallDurationMs > 8000;
-            console.error(`Mode DJ : echec apres 2 tentatives (${totalCallDurationMs}ms, ${likelyTimeout ? 'probable manque de temps' : 'pas un souci de délai'}) :`, result.error, result.raw);
+            console.error(`Mode DJ : echec apres ${MAX_ATTEMPTS} tentatives (${totalCallDurationMs}ms, ${likelyTimeout ? 'probable manque de temps' : 'pas un souci de délai'}) :`, result.error, result.raw);
             showDjFeedback(
-                `Échec après 2 tentatives (${(totalCallDurationMs/1000).toFixed(1)}s${likelyTimeout ? ', probablement trop lent' : ''}) : ` + (result.error || "réponse invalide de Gemini"),
+                `Échec après ${MAX_ATTEMPTS} tentatives (${(totalCallDurationMs/1000).toFixed(1)}s${likelyTimeout ? ', probablement trop lent' : ''}) : ` + (result.error || "réponse invalide de Gemini"),
                 true
             );
         }
