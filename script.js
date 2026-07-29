@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.64";
+const APP_VERSION = "v1.1.65";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -3072,6 +3072,107 @@ function showDjFeedback(msg, isError) {
     resultsContainer.innerHTML = "";
     resultsContainer.appendChild(msgEl);
     setTimeout(() => { if (msgEl.isConnected) msgEl.remove(); }, 6000);
+}
+
+// ==========================================
+// ANECDOTE DJ 🎭 — le DJ raconte un fait amusant sur le titre EN COURS (pas le suivant)
+// Bouton passe en bleu "surveillance" jusqu'à la fin de l'audio ou l'échec après 4 tentatives.
+// ==========================================
+function injectDjAnecdoteStyles() {
+    if (document.getElementById('dj-anecdote-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'dj-anecdote-inline-style';
+    styleTag.textContent = `
+        #dj-anecdote-btn.watching {
+            color: #2b7cff !important;
+            filter: drop-shadow(0 0 6px rgba(43,124,255,0.7));
+            animation: dj-anecdote-pulse 1.2s ease-in-out infinite;
+        }
+        @keyframes dj-anecdote-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectDjAnecdoteStyles();
+
+let djAnecdoteInProgress = false;
+
+async function triggerDjAnecdote() {
+    if (djAnecdoteInProgress) {
+        console.log("Anecdote DJ : deja en cours, ignore le nouveau clic.");
+        return;
+    }
+    if (!currentToken) return;
+
+    const trackName = document.getElementById('track-title') ? document.getElementById('track-title').innerText : null;
+    const artistName = document.getElementById('track-artist') ? document.getElementById('track-artist').innerText : null;
+
+    if (!trackName || !artistName || trackName === 'Aucun titre') {
+        showDjFeedback("Aucun titre en cours pour générer une anecdote.", true);
+        return;
+    }
+
+    const btn = document.getElementById('dj-anecdote-btn');
+    djAnecdoteInProgress = true;
+    if (btn) btn.classList.add('watching'); // passe en bleu "surveillance"
+
+    try {
+        const callStartedAt = Date.now();
+        const MAX_ATTEMPTS = 4;
+        let result = { success: false };
+
+        for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+            console.log(`Anecdote DJ : tentative ${attempt}/${MAX_ATTEMPTS}...`);
+            result = await callDjAnecdoteRelay(trackName, artistName);
+            if (result.success && result.audioBase64) break;
+
+            console.warn(`Anecdote DJ : tentative ${attempt}/${MAX_ATTEMPTS} sans audio`, result.error);
+            if (attempt < MAX_ATTEMPTS) {
+                await new Promise(resolve => setTimeout(resolve, 800));
+            }
+        }
+
+        const totalDurationMs = Date.now() - callStartedAt;
+        console.log(`Anecdote DJ : duree totale = ${totalDurationMs}ms`);
+
+        if (result.success && result.audioBase64) {
+            showDjFeedback(`🎭 Anecdote sur : ${trackName} — ${artistName}`, false);
+            await playPcmAudio(result.audioBase64); // le bouton reste bleu jusqu'à la fin de la lecture
+        } else {
+            const likelyTimeout = totalDurationMs > 8000;
+            console.error(`Anecdote DJ : echec apres ${MAX_ATTEMPTS} tentatives :`, result.error, result.raw);
+            showDjFeedback(
+                `Anecdote : échec après ${MAX_ATTEMPTS} tentatives${likelyTimeout ? ' (probablement trop lent)' : ''}.`,
+                true
+            );
+        }
+    } catch (e) {
+        console.error("Anecdote DJ : erreur reseau/JS :", e);
+        showDjFeedback("Erreur réseau lors de l'anecdote.", true);
+    } finally {
+        djAnecdoteInProgress = false;
+        if (btn) btn.classList.remove('watching'); // fin de la surveillance, qu'il y ait eu succès ou échec
+    }
+}
+
+async function callDjAnecdoteRelay(trackName, artistName) {
+    const response = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+            action: 'dj_anecdote',
+            secret: APPS_SCRIPT_SECRET,
+            trackName: trackName,
+            artistName: artistName
+        })
+    });
+
+    if (!response.ok) {
+        return { success: false, error: `Erreur relais (statut ${response.status}).` };
+    }
+    return await response.json();
 }
 
 async function toggleLikeCurrentTrack() {
