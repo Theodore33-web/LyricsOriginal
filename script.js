@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.65";
+const APP_VERSION = "v1.1.66";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -3144,7 +3144,7 @@ async function triggerDjAnecdote() {
             const likelyTimeout = totalDurationMs > 8000;
             console.error(`Anecdote DJ : echec apres ${MAX_ATTEMPTS} tentatives :`, result.error, result.raw);
             showDjFeedback(
-                `Anecdote : échec après ${MAX_ATTEMPTS} tentatives${likelyTimeout ? ' (probablement trop lent)' : ''}.`,
+                `Anecdote : échec après ${MAX_ATTEMPTS} tentatives${likelyTimeout ? ' (probablement trop lent)' : ''}. ${result.error || ''}`,
                 true
             );
         }
