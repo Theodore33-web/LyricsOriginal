@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.66";
+const APP_VERSION = "v1.1.67";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -3173,6 +3173,308 @@ async function callDjAnecdoteRelay(trackName, artistName) {
         return { success: false, error: `Erreur relais (statut ${response.status}).` };
     }
     return await response.json();
+}
+
+// ==========================================
+// PUZZLE POCHETTE 🧩 — reconstitue la pochette du titre en cours, découpée en 4x4
+// ==========================================
+let puzzleGameOpen = false;
+let puzzleTrackId = null;
+let puzzleBoard = new Array(16).fill(null); // index case -> correctIndex de la pièce posée, ou null
+let puzzleTray = []; // correctIndex des pièces encore disponibles à droite
+let puzzleSelectedPiece = null; // correctIndex actuellement sélectionné dans le plateau
+let puzzleTimerIntervalId = null;
+let puzzleImageUrl = '';
+let puzzleTrackName = '';
+
+function injectPuzzleStyles() {
+    if (document.getElementById('puzzle-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'puzzle-inline-style';
+    styleTag.textContent = `
+        #puzzle-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: #0d0d0d;
+            z-index: 2000;
+            flex-direction: column;
+            padding: 14px;
+            box-sizing: border-box;
+        }
+        #puzzle-topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+        }
+        #puzzle-score {
+            color: var(--spotify-green, #1DB954);
+            font-weight: bold;
+            font-size: 0.95rem;
+        }
+        #puzzle-timer {
+            color: #fff;
+            font-weight: bold;
+            font-size: 0.95rem;
+        }
+        #puzzle-close-btn {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 1.6rem;
+            cursor: pointer;
+            line-height: 1;
+        }
+        #puzzle-main {
+            display: flex;
+            flex: 1;
+            gap: 12px;
+            align-items: flex-start;
+            justify-content: center;
+            position: relative;
+            flex-wrap: wrap;
+        }
+        #puzzle-board {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(4, 1fr);
+            width: 260px;
+            height: 260px;
+            gap: 2px;
+            background: #222;
+            border: 2px solid var(--spotify-green, #1DB954);
+            flex-shrink: 0;
+        }
+        .puzzle-slot {
+            background-color: #1a1a1a;
+            background-repeat: no-repeat;
+            background-size: 400% 400%; /* pourcentage = relatif à la taille de CETTE case, indépendant des pixels réels */
+            cursor: pointer;
+        }
+        .puzzle-slot.filled.correct {
+            outline: 2px solid var(--spotify-green, #1DB954);
+        }
+        .puzzle-slot.filled.wrong {
+            outline: 2px solid #ef4444;
+        }
+        #puzzle-tray {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 4px;
+            width: 140px;
+            flex-shrink: 0;
+        }
+        .puzzle-piece {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            background-repeat: no-repeat;
+            background-size: 400% 400%; /* même principe : relatif à la taille de CETTE pièce */
+            cursor: pointer;
+            border: 2px solid transparent;
+            box-sizing: border-box;
+        }
+        .puzzle-piece.selected {
+            border-color: #fff;
+            transform: scale(1.05);
+        }
+        #puzzle-complete-msg {
+            display: none;
+            position: absolute;
+            top: 0; left: 0;
+            width: 260px;
+            height: 260px;
+            background: rgba(0,0,0,0.9);
+            color: var(--spotify-green, #1DB954);
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-size: 0.85rem;
+            font-weight: bold;
+            padding: 14px;
+            box-sizing: border-box;
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectPuzzleStyles();
+
+function ensurePuzzleOverlay() {
+    let overlay = document.getElementById('puzzle-overlay');
+    if (overlay) return overlay;
+
+    overlay = document.createElement('div');
+    overlay.id = 'puzzle-overlay';
+    overlay.innerHTML = `
+        <div id="puzzle-topbar">
+            <span id="puzzle-score">Score : 0/16</span>
+            <span id="puzzle-timer">--:--</span>
+            <button id="puzzle-close-btn" onclick="togglePuzzleGame()">✕</button>
+        </div>
+        <div id="puzzle-main">
+            <div id="puzzle-board"></div>
+            <div id="puzzle-complete-msg"></div>
+            <div id="puzzle-tray"></div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    return overlay;
+}
+
+function togglePuzzleGame() {
+    const overlay = ensurePuzzleOverlay();
+    const isCurrentlyClosed = (overlay.style.display === 'none' || overlay.style.display === '');
+    puzzleGameOpen = isCurrentlyClosed;
+
+    if (puzzleGameOpen) {
+        overlay.style.display = 'flex';
+        initPuzzleForCurrentTrack();
+        if (puzzleTimerIntervalId) clearInterval(puzzleTimerIntervalId);
+        puzzleTimerIntervalId = setInterval(updatePuzzleTimerDisplay, 1000);
+        updatePuzzleTimerDisplay();
+    } else {
+        overlay.style.display = 'none';
+        if (puzzleTimerIntervalId) {
+            clearInterval(puzzleTimerIntervalId);
+            puzzleTimerIntervalId = null;
+        }
+    }
+}
+
+function shufflePuzzleArray(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+}
+
+function initPuzzleForCurrentTrack() {
+    const artEl = document.getElementById('track-art');
+    const titleEl = document.getElementById('track-title');
+    puzzleImageUrl = artEl ? artEl.src : '';
+    puzzleTrackName = titleEl ? titleEl.innerText : 'ce titre';
+    puzzleTrackId = lastTrackId;
+
+    puzzleBoard = new Array(16).fill(null);
+    puzzleTray = shufflePuzzleArray([...Array(16).keys()]);
+    puzzleSelectedPiece = null;
+
+    const completeMsg = document.getElementById('puzzle-complete-msg');
+    if (completeMsg) completeMsg.style.display = 'none';
+
+    renderPuzzleBoard();
+    renderPuzzleTray();
+    updatePuzzleScore();
+}
+
+// Position en % pour chaque pièce (0,1,2,3 en ligne/colonne sur une grille 4x4)
+function pieceBackgroundStyle(pieceIndex) {
+    const row = Math.floor(pieceIndex / 4);
+    const col = pieceIndex % 4;
+    const posX = (col / 3) * 100;
+    const posY = (row / 3) * 100;
+    return `background-image: url('${puzzleImageUrl}'); background-position: ${posX}% ${posY}%;`;
+}
+
+function renderPuzzleBoard() {
+    const board = document.getElementById('puzzle-board');
+    if (!board) return;
+    board.innerHTML = '';
+
+    for (let slotIndex = 0; slotIndex < 16; slotIndex++) {
+        const slot = document.createElement('div');
+        slot.className = 'puzzle-slot';
+        const placedPiece = puzzleBoard[slotIndex];
+
+        if (placedPiece !== null) {
+            slot.style.cssText += pieceBackgroundStyle(placedPiece);
+            slot.classList.add('filled');
+            slot.classList.add(placedPiece === slotIndex ? 'correct' : 'wrong');
+            slot.onclick = () => removePieceFromSlot(slotIndex);
+        } else {
+            slot.onclick = () => placeSelectedPieceInSlot(slotIndex);
+        }
+        board.appendChild(slot);
+    }
+}
+
+function renderPuzzleTray() {
+    const tray = document.getElementById('puzzle-tray');
+    if (!tray) return;
+    tray.innerHTML = '';
+
+    puzzleTray.forEach(pieceIndex => {
+        const piece = document.createElement('div');
+        piece.className = 'puzzle-piece';
+        piece.style.cssText = pieceBackgroundStyle(pieceIndex);
+        if (puzzleSelectedPiece === pieceIndex) piece.classList.add('selected');
+        piece.onclick = () => selectTrayPiece(pieceIndex);
+        tray.appendChild(piece);
+    });
+}
+
+function selectTrayPiece(pieceIndex) {
+    puzzleSelectedPiece = (puzzleSelectedPiece === pieceIndex) ? null : pieceIndex;
+    renderPuzzleTray();
+}
+
+function placeSelectedPieceInSlot(slotIndex) {
+    if (puzzleSelectedPiece === null) return;
+    puzzleBoard[slotIndex] = puzzleSelectedPiece;
+    puzzleTray = puzzleTray.filter(p => p !== puzzleSelectedPiece);
+    puzzleSelectedPiece = null;
+
+    renderPuzzleBoard();
+    renderPuzzleTray();
+    updatePuzzleScore();
+    checkPuzzleCompletion();
+}
+
+function removePieceFromSlot(slotIndex) {
+    const pieceIndex = puzzleBoard[slotIndex];
+    if (pieceIndex === null) return;
+    puzzleBoard[slotIndex] = null;
+    puzzleTray.push(pieceIndex);
+
+    renderPuzzleBoard();
+    renderPuzzleTray();
+    updatePuzzleScore();
+}
+
+function updatePuzzleScore() {
+    const scoreEl = document.getElementById('puzzle-score');
+    if (!scoreEl) return;
+    const correctCount = puzzleBoard.filter((val, idx) => val === idx).length;
+    scoreEl.innerText = `Score : ${correctCount}/16`;
+}
+
+function checkPuzzleCompletion() {
+    const allCorrect = puzzleBoard.every((val, idx) => val === idx);
+    if (!allCorrect) return;
+
+    const completeMsg = document.getElementById('puzzle-complete-msg');
+    if (completeMsg) {
+        completeMsg.innerText = `Bravo, vous avez réussi à terminer le puzzle de "${puzzleTrackName}" ! Veuillez attendre le titre suivant.`;
+        completeMsg.style.display = 'flex';
+    }
+}
+
+function updatePuzzleTimerDisplay() {
+    const timerEl = document.getElementById('puzzle-timer');
+    if (!timerEl) return;
+
+    if (!trackDurationMs) {
+        timerEl.innerText = '--:--';
+        return;
+    }
+    const remainingMs = Math.max(0, trackDurationMs - currentProgressMs);
+    timerEl.innerText = formatTime(remainingMs);
+
+    // Si le titre a changé pendant que le puzzle est ouvert, on regénère automatiquement un nouveau puzzle
+    if (puzzleGameOpen && lastTrackId !== puzzleTrackId) {
+        initPuzzleForCurrentTrack();
+    }
 }
 
 async function toggleLikeCurrentTrack() {
