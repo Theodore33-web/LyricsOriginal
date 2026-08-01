@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.67";
+const APP_VERSION = "v1.1.68";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -3235,16 +3235,22 @@ function injectPuzzleStyles() {
             position: relative;
             flex-wrap: wrap;
         }
+        #puzzle-board-wrapper {
+            position: relative;
+            width: 260px;
+            height: 260px;
+            flex-shrink: 0;
+        }
         #puzzle-board {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             grid-template-rows: repeat(4, 1fr);
-            width: 260px;
-            height: 260px;
+            width: 100%;
+            height: 100%;
             gap: 2px;
             background: #222;
             border: 2px solid var(--spotify-green, #1DB954);
-            flex-shrink: 0;
+            box-sizing: border-box;
         }
         .puzzle-slot {
             background-color: #1a1a1a;
@@ -3282,8 +3288,7 @@ function injectPuzzleStyles() {
             display: none;
             position: absolute;
             top: 0; left: 0;
-            width: 260px;
-            height: 260px;
+            width: 100%; height: 100%;
             background: rgba(0,0,0,0.9);
             color: var(--spotify-green, #1DB954);
             align-items: center;
@@ -3312,8 +3317,10 @@ function ensurePuzzleOverlay() {
             <button id="puzzle-close-btn" onclick="togglePuzzleGame()">✕</button>
         </div>
         <div id="puzzle-main">
-            <div id="puzzle-board"></div>
-            <div id="puzzle-complete-msg"></div>
+            <div id="puzzle-board-wrapper">
+                <div id="puzzle-board"></div>
+                <div id="puzzle-complete-msg"></div>
+            </div>
             <div id="puzzle-tray"></div>
         </div>
     `;
@@ -3475,6 +3482,236 @@ function updatePuzzleTimerDisplay() {
     if (puzzleGameOpen && lastTrackId !== puzzleTrackId) {
         initPuzzleForCurrentTrack();
     }
+}
+
+// ==========================================
+// BLIND TEST EXPRESS 🎯 — devine le titre/artiste via la pochette floutée
+// (pas d'extrait audio possible : preview_url est mort côté Spotify pour les nouvelles apps)
+// ==========================================
+let blindTestOpen = false;
+let blindTestScore = 0;
+let blindTestCurrentTrack = null;
+let blindTestBlurLevel = 20;
+let blindTestBlurIntervalId = null;
+let blindTestFound = false;
+
+function injectBlindTestStyles() {
+    if (document.getElementById('blindtest-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'blindtest-inline-style';
+    styleTag.textContent = `
+        #blindtest-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: #0d0d0d;
+            z-index: 2000;
+            flex-direction: column;
+            align-items: center;
+            padding: 14px;
+            box-sizing: border-box;
+        }
+        #blindtest-topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 320px;
+            margin-bottom: 16px;
+        }
+        #blindtest-score {
+            color: var(--spotify-green, #1DB954);
+            font-weight: bold;
+            font-size: 0.95rem;
+        }
+        #blindtest-close-btn {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 1.6rem;
+            cursor: pointer;
+            line-height: 1;
+        }
+        #blindtest-cover {
+            width: 220px;
+            height: 220px;
+            border-radius: 8px;
+            background-size: cover;
+            background-position: center;
+            background-color: #222;
+            transition: filter 0.5s ease;
+            margin-bottom: 18px;
+        }
+        #blindtest-input-row {
+            display: flex;
+            gap: 8px;
+            width: 100%;
+            max-width: 320px;
+            margin-bottom: 10px;
+        }
+        #blindtest-guess-input {
+            flex: 1;
+            padding: 10px 12px;
+            border-radius: 20px;
+            border: 1px solid var(--spotify-green, #1DB954);
+            background: #1a1a1a;
+            color: #fff;
+            font-size: 0.9rem;
+        }
+        #blindtest-submit-btn {
+            background: var(--spotify-green, #1DB954);
+            color: #000;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        #blindtest-feedback {
+            min-height: 24px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        #blindtest-next-btn {
+            background: none;
+            border: 1px solid var(--text-grey, #b3b3b3);
+            color: var(--text-grey, #b3b3b3);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectBlindTestStyles();
+
+function ensureBlindTestOverlay() {
+    let overlay = document.getElementById('blindtest-overlay');
+    if (overlay) return overlay;
+
+    overlay = document.createElement('div');
+    overlay.id = 'blindtest-overlay';
+    overlay.innerHTML = `
+        <div id="blindtest-topbar">
+            <span id="blindtest-score">Score : 0</span>
+            <button id="blindtest-close-btn" onclick="toggleBlindTest()">✕</button>
+        </div>
+        <div id="blindtest-cover"></div>
+        <div id="blindtest-feedback"></div>
+        <div id="blindtest-input-row">
+            <input type="text" id="blindtest-guess-input" placeholder="Titre ou artiste ?">
+            <button id="blindtest-submit-btn" onclick="submitBlindTestGuess()">Valider</button>
+        </div>
+        <button id="blindtest-next-btn" onclick="startNewBlindTestRound()">Titre suivant ➜</button>
+    `;
+    document.body.appendChild(overlay);
+
+    // Valider avec la touche Entrée du clavier (mobile ou physique)
+    overlay.querySelector('#blindtest-guess-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') submitBlindTestGuess();
+    });
+
+    return overlay;
+}
+
+function toggleBlindTest() {
+    const overlay = ensureBlindTestOverlay();
+    blindTestOpen = (overlay.style.display === 'none' || overlay.style.display === '');
+
+    if (blindTestOpen) {
+        overlay.style.display = 'flex';
+        startNewBlindTestRound();
+    } else {
+        overlay.style.display = 'none';
+        if (blindTestBlurIntervalId) {
+            clearInterval(blindTestBlurIntervalId);
+            blindTestBlurIntervalId = null;
+        }
+    }
+}
+
+async function startNewBlindTestRound() {
+    if (blindTestBlurIntervalId) {
+        clearInterval(blindTestBlurIntervalId);
+        blindTestBlurIntervalId = null;
+    }
+
+    const feedbackEl = document.getElementById('blindtest-feedback');
+    const coverEl = document.getElementById('blindtest-cover');
+    const inputEl = document.getElementById('blindtest-guess-input');
+    if (feedbackEl) { feedbackEl.innerText = "Chargement..."; feedbackEl.style.color = 'var(--text-grey)'; }
+    if (inputEl) inputEl.value = '';
+    blindTestFound = false;
+
+    // Réutilise le même tirage que le bouton 🔀 (20% favoris / 80% playlist)
+    const useLiked = Math.random() < 0.2;
+    let track = useLiked ? await getRandomLikedTrack() : await getRandomPlaylistTrack();
+    if (!track) track = useLiked ? await getRandomPlaylistTrack() : await getRandomLikedTrack();
+
+    if (!track) {
+        if (feedbackEl) { feedbackEl.innerText = "Impossible de tirer un titre, réessaie."; feedbackEl.style.color = '#ef4444'; }
+        return;
+    }
+
+    blindTestCurrentTrack = track;
+    blindTestBlurLevel = 20;
+
+    const imgUrl = track.album && track.album.images && track.album.images.length > 0 ? track.album.images[0].url : '';
+    if (coverEl) {
+        coverEl.style.backgroundImage = `url('${imgUrl}')`;
+        coverEl.style.filter = `blur(${blindTestBlurLevel}px)`;
+    }
+    if (feedbackEl) { feedbackEl.innerText = ''; }
+
+    // La pochette se démasque progressivement toutes les 2s si le joueur ne trouve pas
+    blindTestBlurIntervalId = setInterval(() => {
+        if (blindTestFound) return;
+        blindTestBlurLevel = Math.max(0, blindTestBlurLevel - 3);
+        if (coverEl) coverEl.style.filter = `blur(${blindTestBlurLevel}px)`;
+        if (blindTestBlurLevel === 0) {
+            clearInterval(blindTestBlurIntervalId);
+            blindTestBlurIntervalId = null;
+        }
+    }, 2000);
+}
+
+function normalizeGuessText(str) {
+    return str.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // retire les accents
+}
+
+function submitBlindTestGuess() {
+    if (!blindTestCurrentTrack || blindTestFound) return;
+    const inputEl = document.getElementById('blindtest-guess-input');
+    const feedbackEl = document.getElementById('blindtest-feedback');
+    const coverEl = document.getElementById('blindtest-cover');
+    if (!inputEl || !inputEl.value.trim()) return;
+
+    const guess = normalizeGuessText(inputEl.value);
+    const trackTitle = normalizeGuessText(blindTestCurrentTrack.name || '');
+    const artistNames = (blindTestCurrentTrack.artists || []).map(a => normalizeGuessText(a.name));
+
+    const isCorrect = (trackTitle && (guess.includes(trackTitle) || trackTitle.includes(guess)))
+        || artistNames.some(a => a && (guess.includes(a) || a.includes(guess)));
+
+    if (isCorrect) {
+        blindTestFound = true;
+        blindTestScore++;
+        if (blindTestBlurIntervalId) { clearInterval(blindTestBlurIntervalId); blindTestBlurIntervalId = null; }
+        if (coverEl) coverEl.style.filter = 'blur(0px)';
+        const artistDisplay = (blindTestCurrentTrack.artists || []).map(a => a.name).join(', ');
+        if (feedbackEl) {
+            feedbackEl.innerText = `✅ Bravo ! C'était "${blindTestCurrentTrack.name}" — ${artistDisplay}`;
+            feedbackEl.style.color = 'var(--spotify-green)';
+        }
+        document.getElementById('blindtest-score').innerText = `Score : ${blindTestScore}`;
+    } else {
+        if (feedbackEl) { feedbackEl.innerText = "❌ Pas encore, réessaie !"; feedbackEl.style.color = '#ef4444'; }
+    }
+    inputEl.value = '';
 }
 
 async function toggleLikeCurrentTrack() {
