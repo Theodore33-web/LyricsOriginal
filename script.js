@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.30";
+const APP_VERSION = "v1.1.test";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -241,8 +241,6 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 updateNowPlaying();
                 initSpectrum();
                 initDiscoBallState();
-                initSpotlightsState();
-                initGarlandState();
                 requestWakeLock();
                 initPartyPopperState();
                 initVoiceCommand();
@@ -764,41 +762,9 @@ function parseLyrics(lrc) {
     
     // On ajoute aussi le titre en vert pour le mode synchronisé
     const titleHeader = `<p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;">PAROLES</p>`;
-    const linesHtml = currentLyrics.map((l, i) => `<div id="line-${i}" class="lyric-line" onclick="seekToLyricLine(${i})" style="cursor: pointer;">${l.text}</div>`).join('');
+    const linesHtml = currentLyrics.map((l, i) => `<div id="line-${i}" class="lyric-line">${l.text}</div>`).join('');
     
     document.getElementById('lyrics-content').innerHTML = titleHeader + linesHtml;
-}
-
-// Clic sur une ligne de paroles = navigue directement à ce moment du titre (comme la barre de progression)
-async function seekToLyricLine(lineIndex) {
-    if (!clickableLyricsEnabled) return; // fonctionnalité désactivée par défaut, via les réglages
-    if (!currentToken || !trackDurationMs || !currentLyrics[lineIndex]) return;
-
-    const targetPositionMs = Math.floor(currentLyrics[lineIndex].time * 1000);
-
-    // Mise à jour instantanée et locale, même logique que le clic sur la barre de progression
-    currentProgressMs = targetPositionMs;
-    const progressPercent = (targetPositionMs / trackDurationMs) * 100;
-    const fillEl = document.getElementById('progress-fill');
-    const timeEl = document.getElementById('time-current');
-    if (fillEl) fillEl.style.width = `${progressPercent}%`;
-    if (timeEl) timeEl.innerText = formatTime(targetPositionMs);
-    highlightLyrics(currentLyrics[lineIndex].time);
-
-    // Reprogramme le Mode DJ avec le nouveau temps restant, comme pour la barre de progression
-    if (djModeEnabled) {
-        scheduleDjAnnouncement(trackDurationMs - targetPositionMs);
-    }
-
-    try {
-        await fetch(`https://api.spotify.com/v1/me/player/seek?position_ms=${targetPositionMs}`, {
-            method: 'PUT',
-            headers: { 'Authorization': 'Bearer ' + currentToken }
-        });
-        setTimeout(updateNowPlaying, 300);
-    } catch (e) {
-        console.error("Erreur de navigation via les paroles :", e);
-    }
 }
 
 function highlightLyrics(currentTime) {
@@ -1304,9 +1270,6 @@ function renderTopTracksSection() {
 let spectrumEnabled = localStorage.getItem('spectrumEnabled') === 'true'; // désactivé par défaut
 let autoScrollLyricsEnabled = localStorage.getItem('autoScrollLyricsEnabled') !== 'false'; // activé par défaut
 let discoBallEnabled = localStorage.getItem('discoBallEnabled') === 'true'; // désactivé par défaut
-let spotlightsEnabled = localStorage.getItem('spotlightsEnabled') === 'true'; // désactivé par défaut
-let garlandEnabled = localStorage.getItem('garlandEnabled') === 'true'; // désactivé par défaut
-let clickableLyricsEnabled = localStorage.getItem('clickableLyricsEnabled') === 'true'; // désactivé par défaut
 
 function toggleSettings() {
     document.getElementById('profile-card-zone').style.display = 'none';
@@ -1331,12 +1294,6 @@ function toggleSettings() {
         if (discoToggle) discoToggle.checked = discoBallEnabled;
         const popperToggle = document.getElementById('party-popper-toggle');
         if (popperToggle) popperToggle.checked = partyPopperEnabled;
-        const spotlightsToggle = document.getElementById('spotlights-toggle');
-        if (spotlightsToggle) spotlightsToggle.checked = spotlightsEnabled;
-        const garlandToggle = document.getElementById('garland-toggle');
-        if (garlandToggle) garlandToggle.checked = garlandEnabled;
-        const clickableLyricsToggle = document.getElementById('clickable-lyrics-toggle');
-        if (clickableLyricsToggle) clickableLyricsToggle.checked = clickableLyricsEnabled;
     } else {
         settingsZone.style.display = 'none';
     }
@@ -1453,204 +1410,6 @@ function ensureDiscoBallElement() {
 function initDiscoBallState() {
     const wrapper = ensureDiscoBallElement();
     wrapper.style.display = discoBallEnabled ? 'block' : 'none';
-}
-
-// ==========================================
-// PROJECTEURS 🔦 — deux projecteurs RGB (haut gauche / haut droite), faisceaux orientés vers
-// le bas, couleur qui change en boucle, léger balancement. Désactivé par défaut.
-// ==========================================
-function injectSpotlightsStyles() {
-    if (document.getElementById('spotlights-inline-style')) return;
-    const styleTag = document.createElement('style');
-    styleTag.id = 'spotlights-inline-style';
-    styleTag.textContent = `
-        .spotlight-wrapper {
-            position: fixed;
-            top: 0;
-            width: 0;
-            height: 0;
-            z-index: 400;
-            pointer-events: none;
-        }
-        #spotlight-left { left: 20px; }
-        #spotlight-right { right: 20px; }
-
-        .spotlight-housing {
-            position: absolute;
-            top: 0;
-            width: 22px;
-            height: 16px;
-            background: #222;
-            border-radius: 4px;
-            transform: translateX(-50%);
-        }
-        #spotlight-left .spotlight-housing { transform-origin: top center; }
-        #spotlight-right .spotlight-housing { transform-origin: top center; }
-
-        .spotlight-beam {
-            position: absolute;
-            top: 14px;
-            left: 50%;
-            width: 0;
-            height: 0;
-            border-left: 60px solid transparent;
-            border-right: 60px solid transparent;
-            border-top: 240px solid hsl(0, 90%, 60%);
-            transform: translateX(-50%) rotate(0deg);
-            transform-origin: top center;
-            opacity: 0.28;
-            filter: blur(6px);
-            mix-blend-mode: screen;
-            animation: spotlight-color-cycle 6s linear infinite, spotlight-sway 3.5s ease-in-out infinite;
-        }
-        #spotlight-right .spotlight-beam {
-            animation: spotlight-color-cycle 6s linear infinite reverse, spotlight-sway-right 3.5s ease-in-out infinite;
-        }
-
-        @keyframes spotlight-color-cycle {
-            0%   { border-top-color: hsl(0, 90%, 60%); }
-            16%  { border-top-color: hsl(60, 90%, 60%); }
-            33%  { border-top-color: hsl(120, 90%, 55%); }
-            50%  { border-top-color: hsl(180, 90%, 55%); }
-            66%  { border-top-color: hsl(240, 90%, 60%); }
-            83%  { border-top-color: hsl(300, 90%, 60%); }
-            100% { border-top-color: hsl(360, 90%, 60%); }
-        }
-        @keyframes spotlight-sway {
-            0%, 100% { transform: translateX(-50%) rotate(-10deg); }
-            50%      { transform: translateX(-50%) rotate(8deg); }
-        }
-        @keyframes spotlight-sway-right {
-            0%, 100% { transform: translateX(-50%) rotate(10deg); }
-            50%      { transform: translateX(-50%) rotate(-8deg); }
-        }
-    `;
-    document.head.appendChild(styleTag);
-}
-injectSpotlightsStyles();
-
-function ensureSpotlightsElements() {
-    let left = document.getElementById('spotlight-left');
-    if (!left) {
-        left = document.createElement('div');
-        left.id = 'spotlight-left';
-        left.className = 'spotlight-wrapper';
-        left.innerHTML = `<div class="spotlight-housing"></div><div class="spotlight-beam"></div>`;
-        document.body.appendChild(left);
-    }
-    let right = document.getElementById('spotlight-right');
-    if (!right) {
-        right = document.createElement('div');
-        right.id = 'spotlight-right';
-        right.className = 'spotlight-wrapper';
-        right.innerHTML = `<div class="spotlight-housing"></div><div class="spotlight-beam"></div>`;
-        document.body.appendChild(right);
-    }
-    return { left, right };
-}
-
-function toggleSpotlightsSetting(checked) {
-    spotlightsEnabled = checked;
-    localStorage.setItem('spotlightsEnabled', checked ? 'true' : 'false');
-    const { left, right } = ensureSpotlightsElements();
-    left.style.display = checked ? 'block' : 'none';
-    right.style.display = checked ? 'block' : 'none';
-}
-
-function initSpotlightsState() {
-    const { left, right } = ensureSpotlightsElements();
-    left.style.display = spotlightsEnabled ? 'block' : 'none';
-    right.style.display = spotlightsEnabled ? 'block' : 'none';
-}
-
-// ==========================================
-// GUIRLANDE 🪔 — ampoules jaune chaud sur câble noir, en haut de l'écran, scintillement doux.
-// Désactivée par défaut.
-// ==========================================
-function injectGarlandStyles() {
-    if (document.getElementById('garland-inline-style')) return;
-    const styleTag = document.createElement('style');
-    styleTag.id = 'garland-inline-style';
-    styleTag.textContent = `
-        #garland-wrapper {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 46px;
-            z-index: 400;
-            pointer-events: none;
-        }
-        #garland-cable {
-            position: absolute;
-            top: 6px;
-            left: 0;
-            width: 100%;
-            height: 2px;
-            background: #1a1a1a;
-        }
-        .garland-bulb {
-            position: absolute;
-            top: 8px;
-            width: 10px;
-            height: 14px;
-            background: radial-gradient(circle at 50% 35%, #fff6d5 0%, #ffd45e 55%, #e8a832 100%);
-            border-radius: 50% 50% 45% 45%;
-            box-shadow: 0 0 8px 2px rgba(255, 212, 94, 0.75);
-            animation: garland-twinkle 2.4s ease-in-out infinite;
-        }
-        @keyframes garland-twinkle {
-            0%, 100% { opacity: 1; box-shadow: 0 0 8px 2px rgba(255, 212, 94, 0.75); }
-            50%      { opacity: 0.55; box-shadow: 0 0 4px 1px rgba(255, 212, 94, 0.4); }
-        }
-    `;
-    document.head.appendChild(styleTag);
-}
-injectGarlandStyles();
-
-function ensureGarlandElement() {
-    let wrapper = document.getElementById('garland-wrapper');
-    if (!wrapper) {
-        wrapper = document.createElement('div');
-        wrapper.id = 'garland-wrapper';
-
-        const cable = document.createElement('div');
-        cable.id = 'garland-cable';
-        wrapper.appendChild(cable);
-
-        const BULB_COUNT = 18;
-        for (let i = 0; i < BULB_COUNT; i++) {
-            const bulb = document.createElement('div');
-            bulb.className = 'garland-bulb';
-            bulb.style.left = `${(i / (BULB_COUNT - 1)) * 100}%`;
-            bulb.style.animationDelay = `${Math.random() * 2.4}s`; // scintillement décalé, pas synchronisé
-            wrapper.appendChild(bulb);
-        }
-
-        document.body.appendChild(wrapper);
-    }
-    return wrapper;
-}
-
-function toggleGarlandSetting(checked) {
-    garlandEnabled = checked;
-    localStorage.setItem('garlandEnabled', checked ? 'true' : 'false');
-    const wrapper = ensureGarlandElement();
-    wrapper.style.display = checked ? 'block' : 'none';
-}
-
-function initGarlandState() {
-    const wrapper = ensureGarlandElement();
-    wrapper.style.display = garlandEnabled ? 'block' : 'none';
-}
-
-// ==========================================
-// PAROLES CLIQUABLES ⏱️ — activer/désactiver la navigation dans le titre au clic sur une ligne
-// ==========================================
-function toggleClickableLyricsSetting(checked) {
-    clickableLyricsEnabled = checked;
-    localStorage.setItem('clickableLyricsEnabled', checked ? 'true' : 'false');
 }
 
 // ==========================================
