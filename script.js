@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.TEST";
+const APP_VERSION = "v1.1.TEST2";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
