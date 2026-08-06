@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.70";
+const APP_VERSION = "v1.1.71";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -1624,7 +1624,7 @@ function injectGarlandStyles() {
             top: 6px;
             left: 0;
             width: 100%;
-            height: 2px;
+            height: 3.6px;
             background: #1a1a1a;
         }
         .garland-bulb {
@@ -1656,7 +1656,10 @@ function ensureGarlandElement() {
         cable.id = 'garland-cable';
         wrapper.appendChild(cable);
 
-        const BULB_COUNT = 18;
+        // Espacement physique cible entre 2 ampoules (~55px) — le nombre d'ampoules
+        // s'adapte à la largeur réelle de l'écran pour garder cet espacement constant.
+        const TARGET_SPACING_PX = 55;
+        const BULB_COUNT = Math.max(6, Math.round(window.innerWidth / TARGET_SPACING_PX) + 1);
         for (let i = 0; i < BULB_COUNT; i++) {
             const bulb = document.createElement('div');
             bulb.className = 'garland-bulb';
@@ -1816,8 +1819,8 @@ function injectFireworksStyles() {
     styleTag.textContent = `
         .firework-spark {
             position: fixed;
-            width: 6px;
-            height: 6px;
+            width: 14px;
+            height: 14px;
             border-radius: 50%;
             pointer-events: none;
             z-index: 600;
@@ -1846,7 +1849,7 @@ function launchAutoFirework() {
         spark.style.background = colors[Math.floor(Math.random() * colors.length)];
 
         const angle = (i / sparkCount) * 2 * Math.PI;
-        const distance = 60 + Math.random() * 50;
+        const distance = 132 + Math.random() * 110;
         const x = Math.cos(angle) * distance;
         const y = Math.sin(angle) * distance;
         spark.style.setProperty('--fw-end-transform', `translate(${x}px, ${y}px) scale(0.3)`);
@@ -1943,10 +1946,11 @@ function injectStarrySkyStyles() {
         }
         .sky-star {
             position: absolute;
-            width: 2px;
-            height: 2px;
+            width: 5px;
+            height: 5px;
             background: #fff;
             border-radius: 50%;
+            box-shadow: 0 0 4px 1px rgba(255,255,255,0.6);
             animation: star-twinkle 3s ease-in-out infinite;
         }
         @keyframes star-twinkle {
@@ -2000,27 +2004,33 @@ function injectShootingStarsStyles() {
     styleTag.textContent = `
         .shooting-star {
             position: fixed;
-            width: 3px;
-            height: 3px;
+            width: 4px;
+            height: 4px;
             background: #fff;
             border-radius: 50%;
             z-index: 450;
             pointer-events: none;
-            box-shadow: 0 0 6px 2px #fff;
+            box-shadow: 0 0 8px 3px #fff;
+            animation: shooting-star-fly 1.6s linear forwards;
         }
         .shooting-star::before {
             content: '';
             position: absolute;
             top: 50%;
             right: 0;
-            width: 90px;
-            height: 1px;
-            background: linear-gradient(to left, rgba(255,255,255,0.9), transparent);
-            transform: translateY(-50%);
+            width: 130px;
+            height: 2px;
+            background: linear-gradient(to left, rgba(255,255,255,0.95), transparent);
+            transform-origin: right center;
+            /* Angle aligné avec la trajectoire (2:1, diagonale bas-droite) : la traînée
+               pointe donc vers le haut-gauche, c'est-à-dire "derrière" l'étoile qui file vers la droite. */
+            transform: translateY(-50%) rotate(26.6deg);
         }
         @keyframes shooting-star-fly {
-            0%   { transform: translate(0, 0); opacity: 1; }
-            100% { transform: translate(-320px, 320px); opacity: 0; }
+            0%   { transform: translate(0, 0); opacity: 0; }
+            8%   { opacity: 1; }
+            85%  { opacity: 1; }
+            100% { transform: var(--shoot-end); opacity: 0; }
         }
     `;
     document.head.appendChild(styleTag);
@@ -2030,11 +2040,16 @@ injectShootingStarsStyles();
 function launchShootingStar() {
     const star = document.createElement('div');
     star.className = 'shooting-star';
+    // Départ côté gauche de l'écran, zone haute — trajectoire vers le bas-droit (gauche → droite)
     star.style.top = `${Math.random() * 30}%`;
-    star.style.left = `${40 + Math.random() * 55}%`;
-    star.style.animation = 'shooting-star-fly 1.4s linear forwards';
+    star.style.left = `${-5 + Math.random() * 15}%`;
+
+    // Distance de vol variable d'une étoile à l'autre, en gardant le même ratio d'angle (2:1)
+    const distance = 300 + Math.random() * 140;
+    star.style.setProperty('--shoot-end', `translate(${distance}px, ${distance / 2}px)`);
+
     document.body.appendChild(star);
-    setTimeout(() => star.remove(), 1500);
+    setTimeout(() => star.remove(), 1700);
 }
 
 function scheduleNextShootingStar() {
