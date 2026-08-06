@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.71";
+const APP_VERSION = "v1.1.30";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -243,12 +243,6 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 initDiscoBallState();
                 initSpotlightsState();
                 initGarlandState();
-                initRainbowBgState();
-                initFlamesState();
-                initFireworksState();
-                initNeonBorderState();
-                initStarrySkyState();
-                initShootingStarsState();
                 requestWakeLock();
                 initPartyPopperState();
                 initVoiceCommand();
@@ -1313,27 +1307,8 @@ let discoBallEnabled = localStorage.getItem('discoBallEnabled') === 'true'; // d
 let spotlightsEnabled = localStorage.getItem('spotlightsEnabled') === 'true'; // désactivé par défaut
 let garlandEnabled = localStorage.getItem('garlandEnabled') === 'true'; // désactivé par défaut
 let clickableLyricsEnabled = localStorage.getItem('clickableLyricsEnabled') === 'true'; // désactivé par défaut
-let rainbowBgEnabled = localStorage.getItem('rainbowBgEnabled') === 'true'; // désactivé par défaut
-let flamesEnabled = localStorage.getItem('flamesEnabled') === 'true'; // désactivé par défaut
-let fireworksEnabled = localStorage.getItem('fireworksEnabled') === 'true'; // désactivé par défaut
-let neonBorderEnabled = localStorage.getItem('neonBorderEnabled') === 'true'; // désactivé par défaut
-let starrySkyEnabled = localStorage.getItem('starrySkyEnabled') === 'true'; // désactivé par défaut
-let shootingStarsEnabled = localStorage.getItem('shootingStarsEnabled') === 'true'; // désactivé par défaut
 
 function toggleSettings() {
-    // Force le panneau réglages à défiler verticalement plutôt que de prendre toute la hauteur
-    if (!document.getElementById('settings-scroll-inline-style')) {
-        const scrollStyle = document.createElement('style');
-        scrollStyle.id = 'settings-scroll-inline-style';
-        scrollStyle.textContent = `
-            #settings-zone {
-                max-height: 260px !important;
-                overflow-y: auto !important;
-            }
-        `;
-        document.head.appendChild(scrollStyle);
-    }
-
     document.getElementById('profile-card-zone').style.display = 'none';
     document.getElementById('device-control-zone').style.display = 'none';
     document.getElementById('volume-control-zone').style.display = 'none';
@@ -1362,18 +1337,6 @@ function toggleSettings() {
         if (garlandToggle) garlandToggle.checked = garlandEnabled;
         const clickableLyricsToggle = document.getElementById('clickable-lyrics-toggle');
         if (clickableLyricsToggle) clickableLyricsToggle.checked = clickableLyricsEnabled;
-        const rainbowToggle = document.getElementById('rainbow-bg-toggle');
-        if (rainbowToggle) rainbowToggle.checked = rainbowBgEnabled;
-        const flamesToggle = document.getElementById('flames-toggle');
-        if (flamesToggle) flamesToggle.checked = flamesEnabled;
-        const fireworksToggle = document.getElementById('fireworks-toggle');
-        if (fireworksToggle) fireworksToggle.checked = fireworksEnabled;
-        const neonToggle = document.getElementById('neon-border-toggle');
-        if (neonToggle) neonToggle.checked = neonBorderEnabled;
-        const starrySkyToggle = document.getElementById('starry-sky-toggle');
-        if (starrySkyToggle) starrySkyToggle.checked = starrySkyEnabled;
-        const shootingStarsToggle = document.getElementById('shooting-stars-toggle');
-        if (shootingStarsToggle) shootingStarsToggle.checked = shootingStarsEnabled;
     } else {
         settingsZone.style.display = 'none';
     }
@@ -1515,10 +1478,10 @@ function injectSpotlightsStyles() {
         .spotlight-housing {
             position: absolute;
             top: 0;
-            width: 66px;
-            height: 48px;
+            width: 22px;
+            height: 16px;
             background: #222;
-            border-radius: 8px;
+            border-radius: 4px;
             transform: translateX(-50%);
         }
         #spotlight-left .spotlight-housing { transform-origin: top center; }
@@ -1526,13 +1489,13 @@ function injectSpotlightsStyles() {
 
         .spotlight-beam {
             position: absolute;
-            top: 42px;
+            top: 14px;
             left: 50%;
             width: 0;
             height: 0;
-            border-left: 180px solid transparent;
-            border-right: 180px solid transparent;
-            border-top: 720px solid hsl(0, 90%, 60%);
+            border-left: 60px solid transparent;
+            border-right: 60px solid transparent;
+            border-top: 240px solid hsl(0, 90%, 60%);
             transform: translateX(-50%) rotate(0deg);
             transform-origin: top center;
             opacity: 0.28;
@@ -1615,7 +1578,7 @@ function injectGarlandStyles() {
             top: 0;
             left: 0;
             width: 100%;
-            height: 60px;
+            height: 46px;
             z-index: 400;
             pointer-events: none;
         }
@@ -1624,22 +1587,22 @@ function injectGarlandStyles() {
             top: 6px;
             left: 0;
             width: 100%;
-            height: 3.6px;
+            height: 2px;
             background: #1a1a1a;
         }
         .garland-bulb {
             position: absolute;
             top: 8px;
-            width: 20px;
-            height: 28px;
+            width: 10px;
+            height: 14px;
             background: radial-gradient(circle at 50% 35%, #fff6d5 0%, #ffd45e 55%, #e8a832 100%);
             border-radius: 50% 50% 45% 45%;
-            box-shadow: 0 0 16px 4px rgba(255, 212, 94, 0.75);
+            box-shadow: 0 0 8px 2px rgba(255, 212, 94, 0.75);
             animation: garland-twinkle 2.4s ease-in-out infinite;
         }
         @keyframes garland-twinkle {
-            0%, 100% { opacity: 1; box-shadow: 0 0 16px 4px rgba(255, 212, 94, 0.75); }
-            50%      { opacity: 0.55; box-shadow: 0 0 8px 2px rgba(255, 212, 94, 0.4); }
+            0%, 100% { opacity: 1; box-shadow: 0 0 8px 2px rgba(255, 212, 94, 0.75); }
+            50%      { opacity: 0.55; box-shadow: 0 0 4px 1px rgba(255, 212, 94, 0.4); }
         }
     `;
     document.head.appendChild(styleTag);
@@ -1656,10 +1619,7 @@ function ensureGarlandElement() {
         cable.id = 'garland-cable';
         wrapper.appendChild(cable);
 
-        // Espacement physique cible entre 2 ampoules (~55px) — le nombre d'ampoules
-        // s'adapte à la largeur réelle de l'écran pour garder cet espacement constant.
-        const TARGET_SPACING_PX = 55;
-        const BULB_COUNT = Math.max(6, Math.round(window.innerWidth / TARGET_SPACING_PX) + 1);
+        const BULB_COUNT = 18;
         for (let i = 0; i < BULB_COUNT; i++) {
             const bulb = document.createElement('div');
             bulb.className = 'garland-bulb';
@@ -1691,385 +1651,6 @@ function initGarlandState() {
 function toggleClickableLyricsSetting(checked) {
     clickableLyricsEnabled = checked;
     localStorage.setItem('clickableLyricsEnabled', checked ? 'true' : 'false');
-}
-
-// ==========================================
-// 🌈 FOND ARC-EN-CIEL ANIMÉ
-// ==========================================
-function injectRainbowBgStyles() {
-    if (document.getElementById('rainbow-bg-inline-style')) return;
-    const styleTag = document.createElement('style');
-    styleTag.id = 'rainbow-bg-inline-style';
-    styleTag.textContent = `
-        #rainbow-bg {
-            display: none;
-            position: fixed;
-            inset: 0;
-            z-index: -1;
-            background: linear-gradient(270deg, #ff0040, #ff8a00, #ffe600, #21d19f, #00aeff, #7b2ff7, #ff0040);
-            background-size: 1400% 1400%;
-            animation: rainbow-shift 18s ease infinite;
-        }
-        @keyframes rainbow-shift {
-            0%   { background-position: 0% 50%; }
-            50%  { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
-    `;
-    document.head.appendChild(styleTag);
-}
-injectRainbowBgStyles();
-
-function ensureRainbowBgElement() {
-    let el = document.getElementById('rainbow-bg');
-    if (!el) {
-        el = document.createElement('div');
-        el.id = 'rainbow-bg';
-        document.body.appendChild(el);
-    }
-    return el;
-}
-
-function toggleRainbowBgSetting(checked) {
-    rainbowBgEnabled = checked;
-    localStorage.setItem('rainbowBgEnabled', checked ? 'true' : 'false');
-    ensureRainbowBgElement().style.display = checked ? 'block' : 'none';
-}
-
-function initRainbowBgState() {
-    ensureRainbowBgElement().style.display = rainbowBgEnabled ? 'block' : 'none';
-}
-
-// ==========================================
-// 🔥 FLAMMES EN BAS D'ÉCRAN
-// ==========================================
-function injectFlamesStyles() {
-    if (document.getElementById('flames-inline-style')) return;
-    const styleTag = document.createElement('style');
-    styleTag.id = 'flames-inline-style';
-    styleTag.textContent = `
-        #flames-wrapper {
-            display: none;
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 60px;
-            z-index: 400;
-            pointer-events: none;
-            overflow: hidden;
-        }
-        .flame-item {
-            position: absolute;
-            bottom: -10px;
-            font-size: 2.4rem;
-            transform-origin: bottom center;
-            animation: flame-flicker 0.6s ease-in-out infinite alternate;
-            filter: drop-shadow(0 0 8px rgba(255,120,0,0.7));
-        }
-        @keyframes flame-flicker {
-            0%   { transform: scaleY(1) scaleX(1) rotate(-2deg); opacity: 0.9; }
-            50%  { transform: scaleY(1.15) scaleX(0.95) rotate(1deg); opacity: 1; }
-            100% { transform: scaleY(0.95) scaleX(1.05) rotate(-1deg); opacity: 0.85; }
-        }
-    `;
-    document.head.appendChild(styleTag);
-}
-injectFlamesStyles();
-
-function ensureFlamesElement() {
-    let wrapper = document.getElementById('flames-wrapper');
-    if (!wrapper) {
-        wrapper = document.createElement('div');
-        wrapper.id = 'flames-wrapper';
-        const FLAME_COUNT = 14;
-        for (let i = 0; i < FLAME_COUNT; i++) {
-            const flame = document.createElement('div');
-            flame.className = 'flame-item';
-            flame.innerText = '🔥';
-            flame.style.left = `${(i / (FLAME_COUNT - 1)) * 100}%`;
-            flame.style.animationDelay = `${Math.random() * 0.6}s`;
-            flame.style.animationDuration = `${0.5 + Math.random() * 0.4}s`;
-            wrapper.appendChild(flame);
-        }
-        document.body.appendChild(wrapper);
-    }
-    return wrapper;
-}
-
-function toggleFlamesSetting(checked) {
-    flamesEnabled = checked;
-    localStorage.setItem('flamesEnabled', checked ? 'true' : 'false');
-    ensureFlamesElement().style.display = checked ? 'block' : 'none';
-}
-
-function initFlamesState() {
-    ensureFlamesElement().style.display = flamesEnabled ? 'block' : 'none';
-}
-
-// ==========================================
-// 🎆 FEU D'ARTIFICE PÉRIODIQUE (déclenché seul, à intervalles aléatoires)
-// ==========================================
-let fireworksIntervalId = null;
-
-function injectFireworksStyles() {
-    if (document.getElementById('fireworks-inline-style')) return;
-    const styleTag = document.createElement('style');
-    styleTag.id = 'fireworks-inline-style';
-    styleTag.textContent = `
-        .firework-spark {
-            position: fixed;
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
-            pointer-events: none;
-            z-index: 600;
-            animation: firework-burst 1.1s ease-out forwards;
-        }
-        @keyframes firework-burst {
-            0%   { transform: translate(0, 0) scale(1); opacity: 1; }
-            100% { transform: var(--fw-end-transform); opacity: 0; }
-        }
-    `;
-    document.head.appendChild(styleTag);
-}
-injectFireworksStyles();
-
-function launchAutoFirework() {
-    const colors = ['#ff5252', '#ffd452', '#52ff8a', '#52c8ff', '#c452ff', '#ffffff'];
-    const originX = 15 + Math.random() * 70; // % de la largeur d'écran
-    const originY = 15 + Math.random() * 40; // % de la hauteur d'écran
-    const sparkCount = 20;
-
-    for (let i = 0; i < sparkCount; i++) {
-        const spark = document.createElement('div');
-        spark.className = 'firework-spark';
-        spark.style.left = `${originX}vw`;
-        spark.style.top = `${originY}vh`;
-        spark.style.background = colors[Math.floor(Math.random() * colors.length)];
-
-        const angle = (i / sparkCount) * 2 * Math.PI;
-        const distance = 132 + Math.random() * 110;
-        const x = Math.cos(angle) * distance;
-        const y = Math.sin(angle) * distance;
-        spark.style.setProperty('--fw-end-transform', `translate(${x}px, ${y}px) scale(0.3)`);
-
-        document.body.appendChild(spark);
-        setTimeout(() => spark.remove(), 1200);
-    }
-}
-
-function scheduleNextAutoFirework() {
-    if (!fireworksEnabled) return;
-    const delay = 4000 + Math.random() * 8000; // entre 4 et 12s
-    fireworksIntervalId = setTimeout(() => {
-        if (fireworksEnabled) launchAutoFirework();
-        scheduleNextAutoFirework();
-    }, delay);
-}
-
-function toggleFireworksSetting(checked) {
-    fireworksEnabled = checked;
-    localStorage.setItem('fireworksEnabled', checked ? 'true' : 'false');
-    if (fireworksIntervalId) { clearTimeout(fireworksIntervalId); fireworksIntervalId = null; }
-    if (checked) scheduleNextAutoFirework();
-}
-
-function initFireworksState() {
-    if (fireworksEnabled) scheduleNextAutoFirework();
-}
-
-// ==========================================
-// 🟩 BORDURE NÉON ANIMÉE (tout autour de l'écran)
-// ==========================================
-function injectNeonBorderStyles() {
-    if (document.getElementById('neon-border-inline-style')) return;
-    const styleTag = document.createElement('style');
-    styleTag.id = 'neon-border-inline-style';
-    styleTag.textContent = `
-        #neon-border {
-            display: none;
-            position: fixed;
-            inset: 0;
-            z-index: 450;
-            pointer-events: none;
-            box-shadow: inset 0 0 18px 4px hsl(140, 100%, 55%), inset 0 0 34px 10px hsla(140, 100%, 55%, 0.4);
-            animation: neon-border-cycle 5s linear infinite;
-        }
-        @keyframes neon-border-cycle {
-            0%   { box-shadow: inset 0 0 18px 4px hsl(0, 100%, 55%), inset 0 0 34px 10px hsla(0, 100%, 55%, 0.4); }
-            25%  { box-shadow: inset 0 0 18px 4px hsl(90, 100%, 55%), inset 0 0 34px 10px hsla(90, 100%, 55%, 0.4); }
-            50%  { box-shadow: inset 0 0 18px 4px hsl(180, 100%, 55%), inset 0 0 34px 10px hsla(180, 100%, 55%, 0.4); }
-            75%  { box-shadow: inset 0 0 18px 4px hsl(270, 100%, 55%), inset 0 0 34px 10px hsla(270, 100%, 55%, 0.4); }
-            100% { box-shadow: inset 0 0 18px 4px hsl(360, 100%, 55%), inset 0 0 34px 10px hsla(360, 100%, 55%, 0.4); }
-        }
-    `;
-    document.head.appendChild(styleTag);
-}
-injectNeonBorderStyles();
-
-function ensureNeonBorderElement() {
-    let el = document.getElementById('neon-border');
-    if (!el) {
-        el = document.createElement('div');
-        el.id = 'neon-border';
-        document.body.appendChild(el);
-    }
-    return el;
-}
-
-function toggleNeonBorderSetting(checked) {
-    neonBorderEnabled = checked;
-    localStorage.setItem('neonBorderEnabled', checked ? 'true' : 'false');
-    ensureNeonBorderElement().style.display = checked ? 'block' : 'none';
-}
-
-function initNeonBorderState() {
-    ensureNeonBorderElement().style.display = neonBorderEnabled ? 'block' : 'none';
-}
-
-// ==========================================
-// ⭐ CIEL ÉTOILÉ SCINTILLANT
-// ==========================================
-function injectStarrySkyStyles() {
-    if (document.getElementById('starry-sky-inline-style')) return;
-    const styleTag = document.createElement('style');
-    styleTag.id = 'starry-sky-inline-style';
-    styleTag.textContent = `
-        #starry-sky {
-            display: none;
-            position: fixed;
-            inset: 0;
-            z-index: 0;
-            pointer-events: none;
-            overflow: hidden;
-        }
-        .sky-star {
-            position: absolute;
-            width: 5px;
-            height: 5px;
-            background: #fff;
-            border-radius: 50%;
-            box-shadow: 0 0 4px 1px rgba(255,255,255,0.6);
-            animation: star-twinkle 3s ease-in-out infinite;
-        }
-        @keyframes star-twinkle {
-            0%, 100% { opacity: 0.2; }
-            50%      { opacity: 1; }
-        }
-    `;
-    document.head.appendChild(styleTag);
-}
-injectStarrySkyStyles();
-
-function ensureStarrySkyElement() {
-    let sky = document.getElementById('starry-sky');
-    if (!sky) {
-        sky = document.createElement('div');
-        sky.id = 'starry-sky';
-        const STAR_COUNT = 60;
-        for (let i = 0; i < STAR_COUNT; i++) {
-            const star = document.createElement('div');
-            star.className = 'sky-star';
-            star.style.left = `${Math.random() * 100}%`;
-            star.style.top = `${Math.random() * 100}%`;
-            star.style.animationDelay = `${Math.random() * 3}s`;
-            star.style.animationDuration = `${2 + Math.random() * 2}s`;
-            sky.appendChild(star);
-        }
-        document.body.appendChild(sky);
-    }
-    return sky;
-}
-
-function toggleStarrySkySetting(checked) {
-    starrySkyEnabled = checked;
-    localStorage.setItem('starrySkyEnabled', checked ? 'true' : 'false');
-    ensureStarrySkyElement().style.display = checked ? 'block' : 'none';
-}
-
-function initStarrySkyState() {
-    ensureStarrySkyElement().style.display = starrySkyEnabled ? 'block' : 'none';
-}
-
-// ==========================================
-// 🌟 ÉTOILES FILANTES (périodiques, à intervalles aléatoires)
-// ==========================================
-let shootingStarsIntervalId = null;
-
-function injectShootingStarsStyles() {
-    if (document.getElementById('shooting-stars-inline-style')) return;
-    const styleTag = document.createElement('style');
-    styleTag.id = 'shooting-stars-inline-style';
-    styleTag.textContent = `
-        .shooting-star {
-            position: fixed;
-            width: 4px;
-            height: 4px;
-            background: #fff;
-            border-radius: 50%;
-            z-index: 450;
-            pointer-events: none;
-            box-shadow: 0 0 8px 3px #fff;
-            animation: shooting-star-fly 1.6s linear forwards;
-        }
-        .shooting-star::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            right: 0;
-            width: 130px;
-            height: 2px;
-            background: linear-gradient(to left, rgba(255,255,255,0.95), transparent);
-            transform-origin: right center;
-            /* Angle aligné avec la trajectoire (2:1, diagonale bas-droite) : la traînée
-               pointe donc vers le haut-gauche, c'est-à-dire "derrière" l'étoile qui file vers la droite. */
-            transform: translateY(-50%) rotate(26.6deg);
-        }
-        @keyframes shooting-star-fly {
-            0%   { transform: translate(0, 0); opacity: 0; }
-            8%   { opacity: 1; }
-            85%  { opacity: 1; }
-            100% { transform: var(--shoot-end); opacity: 0; }
-        }
-    `;
-    document.head.appendChild(styleTag);
-}
-injectShootingStarsStyles();
-
-function launchShootingStar() {
-    const star = document.createElement('div');
-    star.className = 'shooting-star';
-    // Départ côté gauche de l'écran, zone haute — trajectoire vers le bas-droit (gauche → droite)
-    star.style.top = `${Math.random() * 30}%`;
-    star.style.left = `${-5 + Math.random() * 15}%`;
-
-    // Distance de vol variable d'une étoile à l'autre, en gardant le même ratio d'angle (2:1)
-    const distance = 300 + Math.random() * 140;
-    star.style.setProperty('--shoot-end', `translate(${distance}px, ${distance / 2}px)`);
-
-    document.body.appendChild(star);
-    setTimeout(() => star.remove(), 1700);
-}
-
-function scheduleNextShootingStar() {
-    if (!shootingStarsEnabled) return;
-    const delay = 3000 + Math.random() * 7000; // entre 3 et 10s
-    shootingStarsIntervalId = setTimeout(() => {
-        if (shootingStarsEnabled) launchShootingStar();
-        scheduleNextShootingStar();
-    }, delay);
-}
-
-function toggleShootingStarsSetting(checked) {
-    shootingStarsEnabled = checked;
-    localStorage.setItem('shootingStarsEnabled', checked ? 'true' : 'false');
-    if (shootingStarsIntervalId) { clearTimeout(shootingStarsIntervalId); shootingStarsIntervalId = null; }
-    if (checked) scheduleNextShootingStar();
-}
-
-function initShootingStarsState() {
-    if (shootingStarsEnabled) scheduleNextShootingStar();
 }
 
 // ==========================================
