@@ -1,6 +1,6 @@
 
 
-const APP_VERSION = "v1.1.test";
+const APP_VERSION = "v1.1.TEST";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -241,6 +241,14 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 updateNowPlaying();
                 initSpectrum();
                 initDiscoBallState();
+                initSpotlightsState();
+                initGarlandState();
+                initRainbowBgState();
+                initFlamesState();
+                initFireworksState();
+                initNeonBorderState();
+                initStarrySkyState();
+                initShootingStarsState();
                 requestWakeLock();
                 initPartyPopperState();
                 initVoiceCommand();
@@ -762,9 +770,41 @@ function parseLyrics(lrc) {
     
     // On ajoute aussi le titre en vert pour le mode synchronisé
     const titleHeader = `<p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;">PAROLES</p>`;
-    const linesHtml = currentLyrics.map((l, i) => `<div id="line-${i}" class="lyric-line">${l.text}</div>`).join('');
+    const linesHtml = currentLyrics.map((l, i) => `<div id="line-${i}" class="lyric-line" onclick="seekToLyricLine(${i})" style="cursor: pointer;">${l.text}</div>`).join('');
     
     document.getElementById('lyrics-content').innerHTML = titleHeader + linesHtml;
+}
+
+// Clic sur une ligne de paroles = navigue directement à ce moment du titre (comme la barre de progression)
+async function seekToLyricLine(lineIndex) {
+    if (!clickableLyricsEnabled) return; // fonctionnalité désactivée par défaut, via les réglages
+    if (!currentToken || !trackDurationMs || !currentLyrics[lineIndex]) return;
+
+    const targetPositionMs = Math.floor(currentLyrics[lineIndex].time * 1000);
+
+    // Mise à jour instantanée et locale, même logique que le clic sur la barre de progression
+    currentProgressMs = targetPositionMs;
+    const progressPercent = (targetPositionMs / trackDurationMs) * 100;
+    const fillEl = document.getElementById('progress-fill');
+    const timeEl = document.getElementById('time-current');
+    if (fillEl) fillEl.style.width = `${progressPercent}%`;
+    if (timeEl) timeEl.innerText = formatTime(targetPositionMs);
+    highlightLyrics(currentLyrics[lineIndex].time);
+
+    // Reprogramme le Mode DJ avec le nouveau temps restant, comme pour la barre de progression
+    if (djModeEnabled) {
+        scheduleDjAnnouncement(trackDurationMs - targetPositionMs);
+    }
+
+    try {
+        await fetch(`https://api.spotify.com/v1/me/player/seek?position_ms=${targetPositionMs}`, {
+            method: 'PUT',
+            headers: { 'Authorization': 'Bearer ' + currentToken }
+        });
+        setTimeout(updateNowPlaying, 300);
+    } catch (e) {
+        console.error("Erreur de navigation via les paroles :", e);
+    }
 }
 
 function highlightLyrics(currentTime) {
@@ -1270,8 +1310,30 @@ function renderTopTracksSection() {
 let spectrumEnabled = localStorage.getItem('spectrumEnabled') === 'true'; // désactivé par défaut
 let autoScrollLyricsEnabled = localStorage.getItem('autoScrollLyricsEnabled') !== 'false'; // activé par défaut
 let discoBallEnabled = localStorage.getItem('discoBallEnabled') === 'true'; // désactivé par défaut
+let spotlightsEnabled = localStorage.getItem('spotlightsEnabled') === 'true'; // désactivé par défaut
+let garlandEnabled = localStorage.getItem('garlandEnabled') === 'true'; // désactivé par défaut
+let clickableLyricsEnabled = localStorage.getItem('clickableLyricsEnabled') === 'true'; // désactivé par défaut
+let rainbowBgEnabled = localStorage.getItem('rainbowBgEnabled') === 'true'; // désactivé par défaut
+let flamesEnabled = localStorage.getItem('flamesEnabled') === 'true'; // désactivé par défaut
+let fireworksEnabled = localStorage.getItem('fireworksEnabled') === 'true'; // désactivé par défaut
+let neonBorderEnabled = localStorage.getItem('neonBorderEnabled') === 'true'; // désactivé par défaut
+let starrySkyEnabled = localStorage.getItem('starrySkyEnabled') === 'true'; // désactivé par défaut
+let shootingStarsEnabled = localStorage.getItem('shootingStarsEnabled') === 'true'; // désactivé par défaut
 
 function toggleSettings() {
+    // Force le panneau réglages à défiler verticalement plutôt que de prendre toute la hauteur
+    if (!document.getElementById('settings-scroll-inline-style')) {
+        const scrollStyle = document.createElement('style');
+        scrollStyle.id = 'settings-scroll-inline-style';
+        scrollStyle.textContent = `
+            #settings-zone {
+                max-height: 260px !important;
+                overflow-y: auto !important;
+            }
+        `;
+        document.head.appendChild(scrollStyle);
+    }
+
     document.getElementById('profile-card-zone').style.display = 'none';
     document.getElementById('device-control-zone').style.display = 'none';
     document.getElementById('volume-control-zone').style.display = 'none';
@@ -1294,6 +1356,24 @@ function toggleSettings() {
         if (discoToggle) discoToggle.checked = discoBallEnabled;
         const popperToggle = document.getElementById('party-popper-toggle');
         if (popperToggle) popperToggle.checked = partyPopperEnabled;
+        const spotlightsToggle = document.getElementById('spotlights-toggle');
+        if (spotlightsToggle) spotlightsToggle.checked = spotlightsEnabled;
+        const garlandToggle = document.getElementById('garland-toggle');
+        if (garlandToggle) garlandToggle.checked = garlandEnabled;
+        const clickableLyricsToggle = document.getElementById('clickable-lyrics-toggle');
+        if (clickableLyricsToggle) clickableLyricsToggle.checked = clickableLyricsEnabled;
+        const rainbowToggle = document.getElementById('rainbow-bg-toggle');
+        if (rainbowToggle) rainbowToggle.checked = rainbowBgEnabled;
+        const flamesToggle = document.getElementById('flames-toggle');
+        if (flamesToggle) flamesToggle.checked = flamesEnabled;
+        const fireworksToggle = document.getElementById('fireworks-toggle');
+        if (fireworksToggle) fireworksToggle.checked = fireworksEnabled;
+        const neonToggle = document.getElementById('neon-border-toggle');
+        if (neonToggle) neonToggle.checked = neonBorderEnabled;
+        const starrySkyToggle = document.getElementById('starry-sky-toggle');
+        if (starrySkyToggle) starrySkyToggle.checked = starrySkyEnabled;
+        const shootingStarsToggle = document.getElementById('shooting-stars-toggle');
+        if (shootingStarsToggle) shootingStarsToggle.checked = shootingStarsEnabled;
     } else {
         settingsZone.style.display = 'none';
     }
@@ -1410,6 +1490,571 @@ function ensureDiscoBallElement() {
 function initDiscoBallState() {
     const wrapper = ensureDiscoBallElement();
     wrapper.style.display = discoBallEnabled ? 'block' : 'none';
+}
+
+// ==========================================
+// PROJECTEURS 🔦 — deux projecteurs RGB (haut gauche / haut droite), faisceaux orientés vers
+// le bas, couleur qui change en boucle, léger balancement. Désactivé par défaut.
+// ==========================================
+function injectSpotlightsStyles() {
+    if (document.getElementById('spotlights-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'spotlights-inline-style';
+    styleTag.textContent = `
+        .spotlight-wrapper {
+            position: fixed;
+            top: 0;
+            width: 0;
+            height: 0;
+            z-index: 400;
+            pointer-events: none;
+        }
+        #spotlight-left { left: 20px; }
+        #spotlight-right { right: 20px; }
+
+        .spotlight-housing {
+            position: absolute;
+            top: 0;
+            width: 66px;
+            height: 48px;
+            background: #222;
+            border-radius: 8px;
+            transform: translateX(-50%);
+        }
+        #spotlight-left .spotlight-housing { transform-origin: top center; }
+        #spotlight-right .spotlight-housing { transform-origin: top center; }
+
+        .spotlight-beam {
+            position: absolute;
+            top: 42px;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-left: 180px solid transparent;
+            border-right: 180px solid transparent;
+            border-top: 720px solid hsl(0, 90%, 60%);
+            transform: translateX(-50%) rotate(0deg);
+            transform-origin: top center;
+            opacity: 0.28;
+            filter: blur(6px);
+            mix-blend-mode: screen;
+            animation: spotlight-color-cycle 6s linear infinite, spotlight-sway 3.5s ease-in-out infinite;
+        }
+        #spotlight-right .spotlight-beam {
+            animation: spotlight-color-cycle 6s linear infinite reverse, spotlight-sway-right 3.5s ease-in-out infinite;
+        }
+
+        @keyframes spotlight-color-cycle {
+            0%   { border-top-color: hsl(0, 90%, 60%); }
+            16%  { border-top-color: hsl(60, 90%, 60%); }
+            33%  { border-top-color: hsl(120, 90%, 55%); }
+            50%  { border-top-color: hsl(180, 90%, 55%); }
+            66%  { border-top-color: hsl(240, 90%, 60%); }
+            83%  { border-top-color: hsl(300, 90%, 60%); }
+            100% { border-top-color: hsl(360, 90%, 60%); }
+        }
+        @keyframes spotlight-sway {
+            0%, 100% { transform: translateX(-50%) rotate(-10deg); }
+            50%      { transform: translateX(-50%) rotate(8deg); }
+        }
+        @keyframes spotlight-sway-right {
+            0%, 100% { transform: translateX(-50%) rotate(10deg); }
+            50%      { transform: translateX(-50%) rotate(-8deg); }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectSpotlightsStyles();
+
+function ensureSpotlightsElements() {
+    let left = document.getElementById('spotlight-left');
+    if (!left) {
+        left = document.createElement('div');
+        left.id = 'spotlight-left';
+        left.className = 'spotlight-wrapper';
+        left.innerHTML = `<div class="spotlight-housing"></div><div class="spotlight-beam"></div>`;
+        document.body.appendChild(left);
+    }
+    let right = document.getElementById('spotlight-right');
+    if (!right) {
+        right = document.createElement('div');
+        right.id = 'spotlight-right';
+        right.className = 'spotlight-wrapper';
+        right.innerHTML = `<div class="spotlight-housing"></div><div class="spotlight-beam"></div>`;
+        document.body.appendChild(right);
+    }
+    return { left, right };
+}
+
+function toggleSpotlightsSetting(checked) {
+    spotlightsEnabled = checked;
+    localStorage.setItem('spotlightsEnabled', checked ? 'true' : 'false');
+    const { left, right } = ensureSpotlightsElements();
+    left.style.display = checked ? 'block' : 'none';
+    right.style.display = checked ? 'block' : 'none';
+}
+
+function initSpotlightsState() {
+    const { left, right } = ensureSpotlightsElements();
+    left.style.display = spotlightsEnabled ? 'block' : 'none';
+    right.style.display = spotlightsEnabled ? 'block' : 'none';
+}
+
+// ==========================================
+// GUIRLANDE 🪔 — ampoules jaune chaud sur câble noir, en haut de l'écran, scintillement doux.
+// Désactivée par défaut.
+// ==========================================
+function injectGarlandStyles() {
+    if (document.getElementById('garland-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'garland-inline-style';
+    styleTag.textContent = `
+        #garland-wrapper {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 60px;
+            z-index: 400;
+            pointer-events: none;
+        }
+        #garland-cable {
+            position: absolute;
+            top: 6px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: #1a1a1a;
+        }
+        .garland-bulb {
+            position: absolute;
+            top: 8px;
+            width: 20px;
+            height: 28px;
+            background: radial-gradient(circle at 50% 35%, #fff6d5 0%, #ffd45e 55%, #e8a832 100%);
+            border-radius: 50% 50% 45% 45%;
+            box-shadow: 0 0 16px 4px rgba(255, 212, 94, 0.75);
+            animation: garland-twinkle 2.4s ease-in-out infinite;
+        }
+        @keyframes garland-twinkle {
+            0%, 100% { opacity: 1; box-shadow: 0 0 16px 4px rgba(255, 212, 94, 0.75); }
+            50%      { opacity: 0.55; box-shadow: 0 0 8px 2px rgba(255, 212, 94, 0.4); }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectGarlandStyles();
+
+function ensureGarlandElement() {
+    let wrapper = document.getElementById('garland-wrapper');
+    if (!wrapper) {
+        wrapper = document.createElement('div');
+        wrapper.id = 'garland-wrapper';
+
+        const cable = document.createElement('div');
+        cable.id = 'garland-cable';
+        wrapper.appendChild(cable);
+
+        const BULB_COUNT = 18;
+        for (let i = 0; i < BULB_COUNT; i++) {
+            const bulb = document.createElement('div');
+            bulb.className = 'garland-bulb';
+            bulb.style.left = `${(i / (BULB_COUNT - 1)) * 100}%`;
+            bulb.style.animationDelay = `${Math.random() * 2.4}s`; // scintillement décalé, pas synchronisé
+            wrapper.appendChild(bulb);
+        }
+
+        document.body.appendChild(wrapper);
+    }
+    return wrapper;
+}
+
+function toggleGarlandSetting(checked) {
+    garlandEnabled = checked;
+    localStorage.setItem('garlandEnabled', checked ? 'true' : 'false');
+    const wrapper = ensureGarlandElement();
+    wrapper.style.display = checked ? 'block' : 'none';
+}
+
+function initGarlandState() {
+    const wrapper = ensureGarlandElement();
+    wrapper.style.display = garlandEnabled ? 'block' : 'none';
+}
+
+// ==========================================
+// PAROLES CLIQUABLES ⏱️ — activer/désactiver la navigation dans le titre au clic sur une ligne
+// ==========================================
+function toggleClickableLyricsSetting(checked) {
+    clickableLyricsEnabled = checked;
+    localStorage.setItem('clickableLyricsEnabled', checked ? 'true' : 'false');
+}
+
+// ==========================================
+// 🌈 FOND ARC-EN-CIEL ANIMÉ
+// ==========================================
+function injectRainbowBgStyles() {
+    if (document.getElementById('rainbow-bg-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'rainbow-bg-inline-style';
+    styleTag.textContent = `
+        #rainbow-bg {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            background: linear-gradient(270deg, #ff0040, #ff8a00, #ffe600, #21d19f, #00aeff, #7b2ff7, #ff0040);
+            background-size: 1400% 1400%;
+            animation: rainbow-shift 18s ease infinite;
+        }
+        @keyframes rainbow-shift {
+            0%   { background-position: 0% 50%; }
+            50%  { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectRainbowBgStyles();
+
+function ensureRainbowBgElement() {
+    let el = document.getElementById('rainbow-bg');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'rainbow-bg';
+        document.body.appendChild(el);
+    }
+    return el;
+}
+
+function toggleRainbowBgSetting(checked) {
+    rainbowBgEnabled = checked;
+    localStorage.setItem('rainbowBgEnabled', checked ? 'true' : 'false');
+    ensureRainbowBgElement().style.display = checked ? 'block' : 'none';
+}
+
+function initRainbowBgState() {
+    ensureRainbowBgElement().style.display = rainbowBgEnabled ? 'block' : 'none';
+}
+
+// ==========================================
+// 🔥 FLAMMES EN BAS D'ÉCRAN
+// ==========================================
+function injectFlamesStyles() {
+    if (document.getElementById('flames-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'flames-inline-style';
+    styleTag.textContent = `
+        #flames-wrapper {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 60px;
+            z-index: 400;
+            pointer-events: none;
+            overflow: hidden;
+        }
+        .flame-item {
+            position: absolute;
+            bottom: -10px;
+            font-size: 2.4rem;
+            transform-origin: bottom center;
+            animation: flame-flicker 0.6s ease-in-out infinite alternate;
+            filter: drop-shadow(0 0 8px rgba(255,120,0,0.7));
+        }
+        @keyframes flame-flicker {
+            0%   { transform: scaleY(1) scaleX(1) rotate(-2deg); opacity: 0.9; }
+            50%  { transform: scaleY(1.15) scaleX(0.95) rotate(1deg); opacity: 1; }
+            100% { transform: scaleY(0.95) scaleX(1.05) rotate(-1deg); opacity: 0.85; }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectFlamesStyles();
+
+function ensureFlamesElement() {
+    let wrapper = document.getElementById('flames-wrapper');
+    if (!wrapper) {
+        wrapper = document.createElement('div');
+        wrapper.id = 'flames-wrapper';
+        const FLAME_COUNT = 14;
+        for (let i = 0; i < FLAME_COUNT; i++) {
+            const flame = document.createElement('div');
+            flame.className = 'flame-item';
+            flame.innerText = '🔥';
+            flame.style.left = `${(i / (FLAME_COUNT - 1)) * 100}%`;
+            flame.style.animationDelay = `${Math.random() * 0.6}s`;
+            flame.style.animationDuration = `${0.5 + Math.random() * 0.4}s`;
+            wrapper.appendChild(flame);
+        }
+        document.body.appendChild(wrapper);
+    }
+    return wrapper;
+}
+
+function toggleFlamesSetting(checked) {
+    flamesEnabled = checked;
+    localStorage.setItem('flamesEnabled', checked ? 'true' : 'false');
+    ensureFlamesElement().style.display = checked ? 'block' : 'none';
+}
+
+function initFlamesState() {
+    ensureFlamesElement().style.display = flamesEnabled ? 'block' : 'none';
+}
+
+// ==========================================
+// 🎆 FEU D'ARTIFICE PÉRIODIQUE (déclenché seul, à intervalles aléatoires)
+// ==========================================
+let fireworksIntervalId = null;
+
+function injectFireworksStyles() {
+    if (document.getElementById('fireworks-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'fireworks-inline-style';
+    styleTag.textContent = `
+        .firework-spark {
+            position: fixed;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 600;
+            animation: firework-burst 1.1s ease-out forwards;
+        }
+        @keyframes firework-burst {
+            0%   { transform: translate(0, 0) scale(1); opacity: 1; }
+            100% { transform: var(--fw-end-transform); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectFireworksStyles();
+
+function launchAutoFirework() {
+    const colors = ['#ff5252', '#ffd452', '#52ff8a', '#52c8ff', '#c452ff', '#ffffff'];
+    const originX = 15 + Math.random() * 70; // % de la largeur d'écran
+    const originY = 15 + Math.random() * 40; // % de la hauteur d'écran
+    const sparkCount = 20;
+
+    for (let i = 0; i < sparkCount; i++) {
+        const spark = document.createElement('div');
+        spark.className = 'firework-spark';
+        spark.style.left = `${originX}vw`;
+        spark.style.top = `${originY}vh`;
+        spark.style.background = colors[Math.floor(Math.random() * colors.length)];
+
+        const angle = (i / sparkCount) * 2 * Math.PI;
+        const distance = 60 + Math.random() * 50;
+        const x = Math.cos(angle) * distance;
+        const y = Math.sin(angle) * distance;
+        spark.style.setProperty('--fw-end-transform', `translate(${x}px, ${y}px) scale(0.3)`);
+
+        document.body.appendChild(spark);
+        setTimeout(() => spark.remove(), 1200);
+    }
+}
+
+function scheduleNextAutoFirework() {
+    if (!fireworksEnabled) return;
+    const delay = 4000 + Math.random() * 8000; // entre 4 et 12s
+    fireworksIntervalId = setTimeout(() => {
+        if (fireworksEnabled) launchAutoFirework();
+        scheduleNextAutoFirework();
+    }, delay);
+}
+
+function toggleFireworksSetting(checked) {
+    fireworksEnabled = checked;
+    localStorage.setItem('fireworksEnabled', checked ? 'true' : 'false');
+    if (fireworksIntervalId) { clearTimeout(fireworksIntervalId); fireworksIntervalId = null; }
+    if (checked) scheduleNextAutoFirework();
+}
+
+function initFireworksState() {
+    if (fireworksEnabled) scheduleNextAutoFirework();
+}
+
+// ==========================================
+// 🟩 BORDURE NÉON ANIMÉE (tout autour de l'écran)
+// ==========================================
+function injectNeonBorderStyles() {
+    if (document.getElementById('neon-border-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'neon-border-inline-style';
+    styleTag.textContent = `
+        #neon-border {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 450;
+            pointer-events: none;
+            box-shadow: inset 0 0 18px 4px hsl(140, 100%, 55%), inset 0 0 34px 10px hsla(140, 100%, 55%, 0.4);
+            animation: neon-border-cycle 5s linear infinite;
+        }
+        @keyframes neon-border-cycle {
+            0%   { box-shadow: inset 0 0 18px 4px hsl(0, 100%, 55%), inset 0 0 34px 10px hsla(0, 100%, 55%, 0.4); }
+            25%  { box-shadow: inset 0 0 18px 4px hsl(90, 100%, 55%), inset 0 0 34px 10px hsla(90, 100%, 55%, 0.4); }
+            50%  { box-shadow: inset 0 0 18px 4px hsl(180, 100%, 55%), inset 0 0 34px 10px hsla(180, 100%, 55%, 0.4); }
+            75%  { box-shadow: inset 0 0 18px 4px hsl(270, 100%, 55%), inset 0 0 34px 10px hsla(270, 100%, 55%, 0.4); }
+            100% { box-shadow: inset 0 0 18px 4px hsl(360, 100%, 55%), inset 0 0 34px 10px hsla(360, 100%, 55%, 0.4); }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectNeonBorderStyles();
+
+function ensureNeonBorderElement() {
+    let el = document.getElementById('neon-border');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'neon-border';
+        document.body.appendChild(el);
+    }
+    return el;
+}
+
+function toggleNeonBorderSetting(checked) {
+    neonBorderEnabled = checked;
+    localStorage.setItem('neonBorderEnabled', checked ? 'true' : 'false');
+    ensureNeonBorderElement().style.display = checked ? 'block' : 'none';
+}
+
+function initNeonBorderState() {
+    ensureNeonBorderElement().style.display = neonBorderEnabled ? 'block' : 'none';
+}
+
+// ==========================================
+// ⭐ CIEL ÉTOILÉ SCINTILLANT
+// ==========================================
+function injectStarrySkyStyles() {
+    if (document.getElementById('starry-sky-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'starry-sky-inline-style';
+    styleTag.textContent = `
+        #starry-sky {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            overflow: hidden;
+        }
+        .sky-star {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: #fff;
+            border-radius: 50%;
+            animation: star-twinkle 3s ease-in-out infinite;
+        }
+        @keyframes star-twinkle {
+            0%, 100% { opacity: 0.2; }
+            50%      { opacity: 1; }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectStarrySkyStyles();
+
+function ensureStarrySkyElement() {
+    let sky = document.getElementById('starry-sky');
+    if (!sky) {
+        sky = document.createElement('div');
+        sky.id = 'starry-sky';
+        const STAR_COUNT = 60;
+        for (let i = 0; i < STAR_COUNT; i++) {
+            const star = document.createElement('div');
+            star.className = 'sky-star';
+            star.style.left = `${Math.random() * 100}%`;
+            star.style.top = `${Math.random() * 100}%`;
+            star.style.animationDelay = `${Math.random() * 3}s`;
+            star.style.animationDuration = `${2 + Math.random() * 2}s`;
+            sky.appendChild(star);
+        }
+        document.body.appendChild(sky);
+    }
+    return sky;
+}
+
+function toggleStarrySkySetting(checked) {
+    starrySkyEnabled = checked;
+    localStorage.setItem('starrySkyEnabled', checked ? 'true' : 'false');
+    ensureStarrySkyElement().style.display = checked ? 'block' : 'none';
+}
+
+function initStarrySkyState() {
+    ensureStarrySkyElement().style.display = starrySkyEnabled ? 'block' : 'none';
+}
+
+// ==========================================
+// 🌟 ÉTOILES FILANTES (périodiques, à intervalles aléatoires)
+// ==========================================
+let shootingStarsIntervalId = null;
+
+function injectShootingStarsStyles() {
+    if (document.getElementById('shooting-stars-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'shooting-stars-inline-style';
+    styleTag.textContent = `
+        .shooting-star {
+            position: fixed;
+            width: 3px;
+            height: 3px;
+            background: #fff;
+            border-radius: 50%;
+            z-index: 450;
+            pointer-events: none;
+            box-shadow: 0 0 6px 2px #fff;
+        }
+        .shooting-star::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            right: 0;
+            width: 90px;
+            height: 1px;
+            background: linear-gradient(to left, rgba(255,255,255,0.9), transparent);
+            transform: translateY(-50%);
+        }
+        @keyframes shooting-star-fly {
+            0%   { transform: translate(0, 0); opacity: 1; }
+            100% { transform: translate(-320px, 320px); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectShootingStarsStyles();
+
+function launchShootingStar() {
+    const star = document.createElement('div');
+    star.className = 'shooting-star';
+    star.style.top = `${Math.random() * 30}%`;
+    star.style.left = `${40 + Math.random() * 55}%`;
+    star.style.animation = 'shooting-star-fly 1.4s linear forwards';
+    document.body.appendChild(star);
+    setTimeout(() => star.remove(), 1500);
+}
+
+function scheduleNextShootingStar() {
+    if (!shootingStarsEnabled) return;
+    const delay = 3000 + Math.random() * 7000; // entre 3 et 10s
+    shootingStarsIntervalId = setTimeout(() => {
+        if (shootingStarsEnabled) launchShootingStar();
+        scheduleNextShootingStar();
+    }, delay);
+}
+
+function toggleShootingStarsSetting(checked) {
+    shootingStarsEnabled = checked;
+    localStorage.setItem('shootingStarsEnabled', checked ? 'true' : 'false');
+    if (shootingStarsIntervalId) { clearTimeout(shootingStarsIntervalId); shootingStarsIntervalId = null; }
+    if (checked) scheduleNextShootingStar();
+}
+
+function initShootingStarsState() {
+    if (shootingStarsEnabled) scheduleNextShootingStar();
 }
 
 // ==========================================
