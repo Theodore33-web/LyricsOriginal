@@ -1,6 +1,4 @@
-
-
-const APP_VERSION = "v1.1.TEST2";
+const APP_VERSION = "v1.1.30";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -1624,7 +1622,7 @@ function injectGarlandStyles() {
             top: 6px;
             left: 0;
             width: 100%;
-            height: 2px;
+            height: 3.6px;
             background: #1a1a1a;
         }
         .garland-bulb {
@@ -1656,7 +1654,10 @@ function ensureGarlandElement() {
         cable.id = 'garland-cable';
         wrapper.appendChild(cable);
 
-        const BULB_COUNT = 18;
+        // Espacement physique cible entre 2 ampoules (~55px) — le nombre d'ampoules
+        // s'adapte à la largeur réelle de l'écran pour garder cet espacement constant.
+        const TARGET_SPACING_PX = 55;
+        const BULB_COUNT = Math.max(6, Math.round(window.innerWidth / TARGET_SPACING_PX) + 1);
         for (let i = 0; i < BULB_COUNT; i++) {
             const bulb = document.createElement('div');
             bulb.className = 'garland-bulb';
@@ -1816,8 +1817,8 @@ function injectFireworksStyles() {
     styleTag.textContent = `
         .firework-spark {
             position: fixed;
-            width: 6px;
-            height: 6px;
+            width: 14px;
+            height: 14px;
             border-radius: 50%;
             pointer-events: none;
             z-index: 600;
@@ -1846,7 +1847,7 @@ function launchAutoFirework() {
         spark.style.background = colors[Math.floor(Math.random() * colors.length)];
 
         const angle = (i / sparkCount) * 2 * Math.PI;
-        const distance = 60 + Math.random() * 50;
+        const distance = 132 + Math.random() * 110;
         const x = Math.cos(angle) * distance;
         const y = Math.sin(angle) * distance;
         spark.style.setProperty('--fw-end-transform', `translate(${x}px, ${y}px) scale(0.3)`);
@@ -1943,10 +1944,11 @@ function injectStarrySkyStyles() {
         }
         .sky-star {
             position: absolute;
-            width: 2px;
-            height: 2px;
+            width: 5px;
+            height: 5px;
             background: #fff;
             border-radius: 50%;
+            box-shadow: 0 0 4px 1px rgba(255,255,255,0.6);
             animation: star-twinkle 3s ease-in-out infinite;
         }
         @keyframes star-twinkle {
@@ -2000,27 +2002,33 @@ function injectShootingStarsStyles() {
     styleTag.textContent = `
         .shooting-star {
             position: fixed;
-            width: 3px;
-            height: 3px;
+            width: 4px;
+            height: 4px;
             background: #fff;
             border-radius: 50%;
             z-index: 450;
             pointer-events: none;
-            box-shadow: 0 0 6px 2px #fff;
+            box-shadow: 0 0 8px 3px #fff;
+            animation: shooting-star-fly 1.6s linear forwards;
         }
         .shooting-star::before {
             content: '';
             position: absolute;
             top: 50%;
             right: 0;
-            width: 90px;
-            height: 1px;
-            background: linear-gradient(to left, rgba(255,255,255,0.9), transparent);
-            transform: translateY(-50%);
+            width: 130px;
+            height: 2px;
+            background: linear-gradient(to left, rgba(255,255,255,0.95), transparent);
+            transform-origin: right center;
+            /* Angle aligné avec la trajectoire (2:1, diagonale bas-droite) : la traînée
+               pointe donc vers le haut-gauche, c'est-à-dire "derrière" l'étoile qui file vers la droite. */
+            transform: translateY(-50%) rotate(26.6deg);
         }
         @keyframes shooting-star-fly {
-            0%   { transform: translate(0, 0); opacity: 1; }
-            100% { transform: translate(-320px, 320px); opacity: 0; }
+            0%   { transform: translate(0, 0); opacity: 0; }
+            8%   { opacity: 1; }
+            85%  { opacity: 1; }
+            100% { transform: var(--shoot-end); opacity: 0; }
         }
     `;
     document.head.appendChild(styleTag);
@@ -2030,11 +2038,16 @@ injectShootingStarsStyles();
 function launchShootingStar() {
     const star = document.createElement('div');
     star.className = 'shooting-star';
+    // Départ côté gauche de l'écran, zone haute — trajectoire vers le bas-droit (gauche → droite)
     star.style.top = `${Math.random() * 30}%`;
-    star.style.left = `${40 + Math.random() * 55}%`;
-    star.style.animation = 'shooting-star-fly 1.4s linear forwards';
+    star.style.left = `${-5 + Math.random() * 15}%`;
+
+    // Distance de vol variable d'une étoile à l'autre, en gardant le même ratio d'angle (2:1)
+    const distance = 300 + Math.random() * 140;
+    star.style.setProperty('--shoot-end', `translate(${distance}px, ${distance / 2}px)`);
+
     document.body.appendChild(star);
-    setTimeout(() => star.remove(), 1500);
+    setTimeout(() => star.remove(), 1700);
 }
 
 function scheduleNextShootingStar() {
@@ -4359,6 +4372,222 @@ function submitBlindTestGuess() {
     inputEl.value = '';
 }
 
+// ==========================================
+// QUIZ MUSICAL 🧠 — devine le titre (+1) ET l'artiste (+1) du titre EN COURS
+// ==========================================
+let quizOpen = false;
+let quizScore = 0;
+let quizStep = 'title'; // 'title' puis 'artist'
+let quizTitleFound = false;
+let quizArtistFound = false;
+
+function injectQuizStyles() {
+    if (document.getElementById('quiz-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'quiz-inline-style';
+    styleTag.textContent = `
+        #quiz-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: #0d0d0d;
+            z-index: 2000;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 14px;
+            box-sizing: border-box;
+        }
+        #quiz-topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 320px;
+            position: absolute;
+            top: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        #quiz-score {
+            color: var(--spotify-green, #1DB954);
+            font-weight: bold;
+            font-size: 0.95rem;
+        }
+        #quiz-close-btn {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 1.6rem;
+            cursor: pointer;
+            line-height: 1;
+        }
+        #quiz-icon {
+            font-size: 3rem;
+            margin-bottom: 10px;
+        }
+        #quiz-prompt {
+            color: #fff;
+            font-size: 1rem;
+            font-weight: bold;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        #quiz-input-row {
+            display: flex;
+            gap: 8px;
+            width: 100%;
+            max-width: 320px;
+            margin-bottom: 10px;
+        }
+        #quiz-guess-input {
+            flex: 1;
+            padding: 10px 12px;
+            border-radius: 20px;
+            border: 1px solid var(--spotify-green, #1DB954);
+            background: #1a1a1a;
+            color: #fff;
+            font-size: 0.9rem;
+        }
+        #quiz-submit-btn {
+            background: var(--spotify-green, #1DB954);
+            color: #000;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        #quiz-feedback {
+            min-height: 24px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        #quiz-next-btn {
+            background: none;
+            border: 1px solid var(--text-grey, #b3b3b3);
+            color: var(--text-grey, #b3b3b3);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            margin-top: 6px;
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectQuizStyles();
+
+function ensureQuizOverlay() {
+    let overlay = document.getElementById('quiz-overlay');
+    if (overlay) return overlay;
+
+    overlay = document.createElement('div');
+    overlay.id = 'quiz-overlay';
+    overlay.innerHTML = `
+        <div id="quiz-topbar">
+            <span id="quiz-score">Score : 0</span>
+            <button id="quiz-close-btn" onclick="toggleQuiz()">✕</button>
+        </div>
+        <div id="quiz-icon">🧠</div>
+        <div id="quiz-prompt">Quel est le titre en cours d'écoute ?</div>
+        <div id="quiz-feedback"></div>
+        <div id="quiz-input-row">
+            <input type="text" id="quiz-guess-input" placeholder="Ta réponse...">
+            <button id="quiz-submit-btn" onclick="submitQuizGuess()">Valider</button>
+        </div>
+        <button id="quiz-next-btn" onclick="quizGoToNextTrack()">Titre suivant ➜</button>
+    `;
+    document.body.appendChild(overlay);
+
+    overlay.querySelector('#quiz-guess-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') submitQuizGuess();
+    });
+
+    return overlay;
+}
+
+function toggleQuiz() {
+    const overlay = ensureQuizOverlay();
+    quizOpen = (overlay.style.display === 'none' || overlay.style.display === '');
+
+    if (quizOpen) {
+        overlay.style.display = 'flex';
+        startNewQuizRound();
+    } else {
+        overlay.style.display = 'none';
+    }
+}
+
+function startNewQuizRound() {
+    quizStep = 'title';
+    quizTitleFound = false;
+    quizArtistFound = false;
+
+    const promptEl = document.getElementById('quiz-prompt');
+    const feedbackEl = document.getElementById('quiz-feedback');
+    const inputEl = document.getElementById('quiz-guess-input');
+
+    if (promptEl) promptEl.innerText = "Quel est le titre en cours d'écoute ?";
+    if (feedbackEl) feedbackEl.innerText = '';
+    if (inputEl) { inputEl.value = ''; inputEl.disabled = false; inputEl.focus(); }
+}
+
+function submitQuizGuess() {
+    const inputEl = document.getElementById('quiz-guess-input');
+    const feedbackEl = document.getElementById('quiz-feedback');
+    const promptEl = document.getElementById('quiz-prompt');
+    if (!inputEl || !inputEl.value.trim()) return;
+
+    const guess = normalizeGuessText(inputEl.value);
+    const trackTitleEl = document.getElementById('track-title');
+    const trackArtistEl = document.getElementById('track-artist');
+    const trackTitle = trackTitleEl ? normalizeGuessText(trackTitleEl.innerText) : '';
+    const trackArtists = trackArtistEl ? trackArtistEl.innerText.split(',').map(a => normalizeGuessText(a)) : [];
+
+    if (quizStep === 'title') {
+        const isCorrect = trackTitle && (guess.includes(trackTitle) || trackTitle.includes(guess));
+        if (isCorrect) {
+            quizTitleFound = true;
+            quizScore++;
+            document.getElementById('quiz-score').innerText = `Score : ${quizScore}`;
+            if (feedbackEl) { feedbackEl.innerText = "✅ Bon titre !"; feedbackEl.style.color = 'var(--spotify-green)'; }
+        } else {
+            if (feedbackEl) { feedbackEl.innerText = "❌ Pas ce titre, mais on passe à l'artiste !"; feedbackEl.style.color = '#ef4444'; }
+        }
+        quizStep = 'artist';
+        if (promptEl) promptEl.innerText = "Et quel est l'artiste ?";
+        inputEl.value = '';
+        inputEl.focus();
+
+    } else if (quizStep === 'artist') {
+        const isCorrect = trackArtists.some(a => a && (guess.includes(a) || a.includes(guess)));
+        if (isCorrect) {
+            quizArtistFound = true;
+            quizScore++;
+            document.getElementById('quiz-score').innerText = `Score : ${quizScore}`;
+            if (feedbackEl) { feedbackEl.innerText = "✅ Bon artiste ! Tour terminé."; feedbackEl.style.color = 'var(--spotify-green)'; }
+        } else {
+            const artistDisplay = trackArtistEl ? trackArtistEl.innerText : '';
+            if (feedbackEl) { feedbackEl.innerText = `❌ C'était "${artistDisplay}". Tour terminé.`; feedbackEl.style.color = '#ef4444'; }
+        }
+        quizStep = 'done';
+        if (promptEl) promptEl.innerText = "Tour terminé — passe au titre suivant pour continuer.";
+        inputEl.value = '';
+        inputEl.disabled = true;
+    }
+}
+
+async function quizGoToNextTrack() {
+    await nextTrack();
+    setTimeout(() => {
+        startNewQuizRound();
+    }, 900);
+}
+
 async function toggleLikeCurrentTrack() {
     if (!currentToken || !lastTrackId) return;
 
@@ -4764,8 +4993,3 @@ function buildQueueItem(track) {
     `;
     return item;
 }
-
-
-
-
-
