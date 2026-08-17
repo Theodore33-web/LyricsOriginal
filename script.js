@@ -1,4 +1,4 @@
-const APP_VERSION = "v1.1.30";
+const APP_VERSION = "v1.1.80";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -4377,7 +4377,7 @@ function submitBlindTestGuess() {
 // ==========================================
 let quizOpen = false;
 let quizScore = 0;
-let quizStep = 'title'; // 'title' puis 'artist'
+let quizAttemptsRemaining = 3;
 let quizTitleFound = false;
 let quizArtistFound = false;
 
@@ -4431,6 +4431,12 @@ function injectQuizStyles() {
             font-size: 1rem;
             font-weight: bold;
             margin-bottom: 16px;
+            text-align: center;
+        }
+        #quiz-attempts {
+            color: var(--text-grey, #b3b3b3);
+            font-size: 0.8rem;
+            margin-bottom: 10px;
             text-align: center;
         }
         #quiz-input-row {
@@ -4493,10 +4499,11 @@ function ensureQuizOverlay() {
             <button id="quiz-close-btn" onclick="toggleQuiz()">✕</button>
         </div>
         <div id="quiz-icon">🧠</div>
-        <div id="quiz-prompt">Quel est le titre en cours d'écoute ?</div>
+        <div id="quiz-prompt">Devine le titre OU l'artiste du morceau en cours !</div>
+        <div id="quiz-attempts">Tentatives restantes : 3</div>
         <div id="quiz-feedback"></div>
         <div id="quiz-input-row">
-            <input type="text" id="quiz-guess-input" placeholder="Ta réponse...">
+            <input type="text" id="quiz-guess-input" placeholder="Titre ou artiste...">
             <button id="quiz-submit-btn" onclick="submitQuizGuess()">Valider</button>
         </div>
         <button id="quiz-next-btn" onclick="quizGoToNextTrack()">Titre suivant ➜</button>
@@ -4523,24 +4530,47 @@ function toggleQuiz() {
 }
 
 function startNewQuizRound() {
-    quizStep = 'title';
     quizTitleFound = false;
     quizArtistFound = false;
+    quizAttemptsRemaining = 3;
 
     const promptEl = document.getElementById('quiz-prompt');
+    const attemptsEl = document.getElementById('quiz-attempts');
     const feedbackEl = document.getElementById('quiz-feedback');
     const inputEl = document.getElementById('quiz-guess-input');
 
-    if (promptEl) promptEl.innerText = "Quel est le titre en cours d'écoute ?";
+    if (promptEl) promptEl.innerText = "Devine le titre OU l'artiste du morceau en cours !";
+    if (attemptsEl) attemptsEl.innerText = `Tentatives restantes : ${quizAttemptsRemaining}`;
     if (feedbackEl) feedbackEl.innerText = '';
     if (inputEl) { inputEl.value = ''; inputEl.disabled = false; inputEl.focus(); }
+}
+
+function endQuizRound(success) {
+    const promptEl = document.getElementById('quiz-prompt');
+    const inputEl = document.getElementById('quiz-guess-input');
+    const feedbackEl = document.getElementById('quiz-feedback');
+
+    if (inputEl) inputEl.disabled = true;
+
+    if (!success) {
+        const trackTitleEl = document.getElementById('track-title');
+        const trackArtistEl = document.getElementById('track-artist');
+        const missing = [];
+        if (!quizTitleFound) missing.push(`le titre ("${trackTitleEl ? trackTitleEl.innerText : '?'}")`);
+        if (!quizArtistFound) missing.push(`l'artiste ("${trackArtistEl ? trackArtistEl.innerText : '?'}")`);
+        if (feedbackEl) {
+            feedbackEl.innerText = `Plus de tentatives ! Il manquait ${missing.join(' et ')}.`;
+            feedbackEl.style.color = '#ef4444';
+        }
+    }
+    if (promptEl) promptEl.innerText = "Tour terminé — passe au titre suivant pour continuer.";
 }
 
 function submitQuizGuess() {
     const inputEl = document.getElementById('quiz-guess-input');
     const feedbackEl = document.getElementById('quiz-feedback');
-    const promptEl = document.getElementById('quiz-prompt');
-    if (!inputEl || !inputEl.value.trim()) return;
+    const attemptsEl = document.getElementById('quiz-attempts');
+    if (!inputEl || !inputEl.value.trim() || quizAttemptsRemaining <= 0) return;
 
     const guess = normalizeGuessText(inputEl.value);
     const trackTitleEl = document.getElementById('track-title');
@@ -4548,37 +4578,37 @@ function submitQuizGuess() {
     const trackTitle = trackTitleEl ? normalizeGuessText(trackTitleEl.innerText) : '';
     const trackArtists = trackArtistEl ? trackArtistEl.innerText.split(',').map(a => normalizeGuessText(a)) : [];
 
-    if (quizStep === 'title') {
-        const isCorrect = trackTitle && (guess.includes(trackTitle) || trackTitle.includes(guess));
-        if (isCorrect) {
-            quizTitleFound = true;
-            quizScore++;
-            document.getElementById('quiz-score').innerText = `Score : ${quizScore}`;
-            if (feedbackEl) { feedbackEl.innerText = "✅ Bon titre !"; feedbackEl.style.color = 'var(--spotify-green)'; }
-        } else {
-            if (feedbackEl) { feedbackEl.innerText = "❌ Pas ce titre, mais on passe à l'artiste !"; feedbackEl.style.color = '#ef4444'; }
-        }
-        quizStep = 'artist';
-        if (promptEl) promptEl.innerText = "Et quel est l'artiste ?";
-        inputEl.value = '';
-        inputEl.focus();
+    inputEl.value = '';
 
-    } else if (quizStep === 'artist') {
-        const isCorrect = trackArtists.some(a => a && (guess.includes(a) || a.includes(guess)));
-        if (isCorrect) {
-            quizArtistFound = true;
-            quizScore++;
-            document.getElementById('quiz-score').innerText = `Score : ${quizScore}`;
-            if (feedbackEl) { feedbackEl.innerText = "✅ Bon artiste ! Tour terminé."; feedbackEl.style.color = 'var(--spotify-green)'; }
+    // Réponse libre : on vérifie si ça correspond au titre OU à l'artiste, dans n'importe quel ordre
+    const matchesTitle = !quizTitleFound && trackTitle && (guess.includes(trackTitle) || trackTitle.includes(guess));
+    const matchesArtist = !quizArtistFound && trackArtists.some(a => a && (guess.includes(a) || a.includes(guess)));
+
+    if (matchesTitle || matchesArtist) {
+        if (matchesTitle) quizTitleFound = true;
+        if (matchesArtist) quizArtistFound = true;
+        quizScore++;
+        document.getElementById('quiz-score').innerText = `Score : ${quizScore}`;
+
+        if (quizTitleFound && quizArtistFound) {
+            if (feedbackEl) { feedbackEl.innerText = "✅ Titre ET artiste trouvés, bravo !"; feedbackEl.style.color = 'var(--spotify-green)'; }
+            endQuizRound(true);
+            return;
         } else {
-            const artistDisplay = trackArtistEl ? trackArtistEl.innerText : '';
-            if (feedbackEl) { feedbackEl.innerText = `❌ C'était "${artistDisplay}". Tour terminé.`; feedbackEl.style.color = '#ef4444'; }
+            const restant = quizTitleFound ? "il manque encore l'artiste" : "il manque encore le titre";
+            if (feedbackEl) { feedbackEl.innerText = `✅ Bonne réponse ! Mais ${restant}.`; feedbackEl.style.color = 'var(--spotify-green)'; }
         }
-        quizStep = 'done';
-        if (promptEl) promptEl.innerText = "Tour terminé — passe au titre suivant pour continuer.";
-        inputEl.value = '';
-        inputEl.disabled = true;
+    } else {
+        quizAttemptsRemaining--;
+        if (feedbackEl) { feedbackEl.innerText = "❌ Pas ça, réessaie !"; feedbackEl.style.color = '#ef4444'; }
+        if (attemptsEl) attemptsEl.innerText = `Tentatives restantes : ${quizAttemptsRemaining}`;
+
+        if (quizAttemptsRemaining <= 0) {
+            endQuizRound(false);
+            return;
+        }
     }
+    inputEl.focus();
 }
 
 async function quizGoToNextTrack() {
