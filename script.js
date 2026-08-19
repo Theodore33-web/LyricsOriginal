@@ -1,4 +1,4 @@
-const APP_VERSION = "v1.1.81";
+const APP_VERSION = "v1.1.82";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -5156,6 +5156,16 @@ function injectTexteParolesStyles() {
             flex-direction: column;
             gap: 4px;
         }
+        /* Encadrés réutilisant le même style que le reste du site (bordure verte, fond légèrement
+           surélevé) : un encadré pour la recherche, un pour pochette/titre/artiste/chrono, un pour les paroles */
+        .tp-panel {
+            border: 1px solid var(--spotify-green, #1DB954);
+            background: #1a1a1a;
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 14px;
+            box-sizing: border-box;
+        }
         #tp-track-detail {
             display: none;
             flex-direction: column;
@@ -5165,7 +5175,6 @@ function injectTexteParolesStyles() {
             display: flex;
             align-items: center;
             gap: 14px;
-            margin-bottom: 12px;
         }
         #tp-track-cover {
             width: 72px;
@@ -5178,6 +5187,7 @@ function injectTexteParolesStyles() {
             display: flex;
             flex-direction: column;
             min-width: 0;
+            flex: 1;
         }
         #tp-track-title {
             color: #fff;
@@ -5202,19 +5212,29 @@ function injectTexteParolesStyles() {
             text-align: left;
             padding: 0 0 10px 0;
         }
+        /* Bloc chrono + pause/reprendre + bouton slide, à droite de la pochette/titre/artiste,
+           centré verticalement sur la même ligne */
+        #tp-timer-controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            margin-left: auto;
+            flex-shrink: 0;
+        }
         #tp-timer-toggle-row {
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            font-size: 0.85rem;
+            gap: 6px;
+            font-size: 0.7rem;
             color: var(--text-grey, #b3b3b3);
-            margin-bottom: 8px;
+            white-space: nowrap;
         }
         .tp-switch {
             position: relative;
             display: inline-block;
-            width: 40px;
-            height: 22px;
+            width: 36px;
+            height: 20px;
             flex-shrink: 0;
         }
         .tp-switch input {
@@ -5233,8 +5253,8 @@ function injectTexteParolesStyles() {
         .tp-switch-slider::before {
             content: "";
             position: absolute;
-            height: 16px;
-            width: 16px;
+            height: 14px;
+            width: 14px;
             left: 3px;
             bottom: 3px;
             background-color: #fff;
@@ -5245,29 +5265,25 @@ function injectTexteParolesStyles() {
             background-color: var(--spotify-green, #1DB954);
         }
         .tp-switch input:checked + .tp-switch-slider::before {
-            transform: translateX(18px);
+            transform: translateX(16px);
         }
         #tp-timer-zone {
             display: none;
             align-items: center;
             justify-content: center;
-            gap: 14px;
-            margin-bottom: 12px;
-            padding: 8px;
-            background: #1a1a1a;
-            border-radius: 10px;
+            gap: 10px;
         }
         #tp-timer-display {
             color: #fff;
             font-weight: bold;
-            font-size: 1rem;
-            min-width: 44px;
+            font-size: 0.95rem;
+            min-width: 70px;
             text-align: center;
         }
         #tp-playpause-btn {
             background: none;
             border: none;
-            font-size: 1.4rem;
+            font-size: 1.3rem;
             cursor: pointer;
             color: var(--spotify-green, #1DB954);
         }
@@ -5308,7 +5324,7 @@ function ensureTexteParolesOverlay() {
             <button id="tp-close-btn" onclick="texteparoles()">✕</button>
         </div>
 
-        <div id="tp-search-zone">
+        <div id="tp-search-zone" class="tp-panel">
             <div id="tp-search-buttons-row">
                 <button id="tp-mic-btn" onclick="toggleMicrophoneListen()" title="Identifier via AudD">🎙️</button>
                 <button id="tp-voice-command-btn" onclick="toggleVoiceCommand()" title="Recherche vocale">🗣️</button>
@@ -5323,28 +5339,33 @@ function ensureTexteParolesOverlay() {
 
         <div id="tp-track-detail">
             <button id="tp-back-btn" onclick="tpResetToSearchZone()">← Nouvelle recherche</button>
-            <div id="tp-track-header">
-                <img id="tp-track-cover" src="" alt="">
-                <div id="tp-track-infos">
-                    <strong id="tp-track-title"></strong>
-                    <span id="tp-track-artist"></span>
+
+            <div class="tp-panel" id="tp-track-panel">
+                <div id="tp-track-header">
+                    <img id="tp-track-cover" src="" alt="">
+                    <div id="tp-track-infos">
+                        <strong id="tp-track-title"></strong>
+                        <span id="tp-track-artist"></span>
+                    </div>
+                    <div id="tp-timer-controls">
+                        <div id="tp-timer-zone">
+                            <span id="tp-timer-display">0:00/0:00</span>
+                            <button id="tp-playpause-btn" onclick="tpTogglePlayPause()">▶️</button>
+                        </div>
+                        <div id="tp-timer-toggle-row">
+                            <label class="tp-switch">
+                                <input type="checkbox" id="tp-timer-toggle" onchange="tpToggleTimerDisplay(this.checked)">
+                                <span class="tp-switch-slider"></span>
+                            </label>
+                            <span>Activé les paroles synchronisées</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div id="tp-timer-toggle-row">
-                <span>Afficher le chrono</span>
-                <label class="tp-switch">
-                    <input type="checkbox" id="tp-timer-toggle" onchange="tpToggleTimerDisplay(this.checked)">
-                    <span class="tp-switch-slider"></span>
-                </label>
+            <div class="tp-panel" id="tp-lyrics-panel">
+                <div id="tp-lyrics-content"></div>
             </div>
-
-            <div id="tp-timer-zone">
-                <span id="tp-timer-display">0:00</span>
-                <button id="tp-playpause-btn" onclick="tpTogglePlayPause()">▶️</button>
-            </div>
-
-            <div id="tp-lyrics-content"></div>
         </div>
     `;
     document.body.appendChild(overlay);
@@ -5562,7 +5583,9 @@ function tpHighlightLyrics() {
 
 function tpUpdateTimerDisplay() {
     const el = document.getElementById('tp-timer-display');
-    if (el) el.innerText = formatTime(texteparolesElapsedMs);
+    if (!el) return;
+    const totalMs = texteparolesTrack ? texteparolesTrack.durationMs : 0;
+    el.innerText = `${formatTime(texteparolesElapsedMs)}/${formatTime(totalMs)}`;
 }
 
 // Bouton pause/reprendre INDÉPENDANT de la lecture Spotify : il contrôle uniquement l'avancée
