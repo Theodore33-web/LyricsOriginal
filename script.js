@@ -1,4 +1,4 @@
-const APP_VERSION = "v1.1.83";
+const APP_VERSION = "v1.1.84";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -5302,11 +5302,14 @@ function injectTexteParolesStyles() {
         #tp-lyrics-content {
             flex: 1;
             overflow-y: auto;
+            overflow-x: visible;
+            padding-left: 6px;
         }
         .tp-lyric-line {
             cursor: pointer;
             transition: color 0.2s, transform 0.2s;
             border-radius: 6px;
+            transform-origin: left center;
         }
         .tp-lyric-line:hover {
             background: rgba(255,255,255,0.05);
