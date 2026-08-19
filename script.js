@@ -1,4 +1,4 @@
-const APP_VERSION = "v1.1.82";
+const APP_VERSION = "v1.1.83";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -137,6 +137,15 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
         let texteparolesLocalInterval = null;
         let texteparolesLocalRunning = false;
         let texteparolesTimerVisible = localStorage.getItem('texteparolesTimerVisible') === 'true'; // désactivé par défaut
+
+        // --- MODE MUSIQUE GOOGLE DRIVE (lecture directe des fichiers audio stockés sur le Drive) ---
+        let driveMusicModeActive = false;
+        let driveMusicItems = [];
+        let driveMusicDisplayedCount = 10;
+        let driveMusicAudioEl = null; // élément <audio> caché utilisé pour la lecture locale
+        let driveMusicCurrentIndex = -1;
+        let driveMusicProgressInterval = null;
+        const DRIVE_LOGO_URL = "logodrive.png"; // ⚠️ à remplacer par l'URL réelle de l'image "logodrive"
      
         // --- CONFIGURATION GOOGLE DRIVE (via Apps Script, sans connexion utilisateur) ---
         const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzUHHl2qp1kLzl3rF5rkHb-qpGiajuYmXJvNsvFzhRHsHz613CmRSknswkXR0ijVJg7Ig/exec";
@@ -840,7 +849,7 @@ function highlightLyrics(currentTime) {
         const next = currentLyrics[i+1];
         if (currentTime >= line.time && (!next || currentTime < next.time)) {
             if (!el.classList.contains('active')) {
-                document.querySelectorAll('.lyric-line').forEach(l => l.classList.remove('active'));
+                document.querySelectorAll('#lyrics-content .lyric-line').forEach(l => l.classList.remove('active'));
                 el.classList.add('active');
                 if (autoScrollLyricsEnabled) {
                     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -977,6 +986,12 @@ function highlightLyrics(currentTime) {
         localProgressInterval = setInterval(tickLocalProgress, 1000);
 
      async function togglePlay() {
+    // Mode Musique Drive actif : le bouton pause/reprendre pilote la lecture audio locale, pas Spotify.
+    if (driveMusicModeActive) {
+        toggleDriveMusicPlayPause();
+        return;
+    }
+
     if (!currentToken) return;
 
     try {
@@ -5192,16 +5207,12 @@ function injectTexteParolesStyles() {
         #tp-track-title {
             color: #fff;
             font-size: 1rem;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            word-break: break-word;
         }
         #tp-track-artist {
             color: var(--text-grey, #b3b3b3);
             font-size: 0.85rem;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            word-break: break-word;
         }
         #tp-back-btn {
             background: none;
@@ -5224,8 +5235,9 @@ function injectTexteParolesStyles() {
         }
         #tp-timer-toggle-row {
             display: flex;
+            flex-direction: column;
             align-items: center;
-            gap: 6px;
+            gap: 3px;
             font-size: 0.7rem;
             color: var(--text-grey, #b3b3b3);
             white-space: nowrap;
@@ -5292,9 +5304,6 @@ function injectTexteParolesStyles() {
             overflow-y: auto;
         }
         .tp-lyric-line {
-            padding: 6px 4px;
-            font-size: 0.95rem;
-            color: var(--text-grey, #b3b3b3);
             cursor: pointer;
             transition: color 0.2s, transform 0.2s;
             border-radius: 6px;
@@ -5357,7 +5366,7 @@ function ensureTexteParolesOverlay() {
                                 <input type="checkbox" id="tp-timer-toggle" onchange="tpToggleTimerDisplay(this.checked)">
                                 <span class="tp-switch-slider"></span>
                             </label>
-                            <span>Activé les paroles synchronisées</span>
+                            <span>Paroles synchronisées</span>
                         </div>
                     </div>
                 </div>
@@ -5516,7 +5525,7 @@ async function tpFetchLyricsForTrack() {
     const lyricsContentEl = document.getElementById('tp-lyrics-content');
     if (!t || !lyricsContentEl) return;
 
-    lyricsContentEl.innerHTML = "<div class='tp-lyric-line'>Chargement des paroles...</div>";
+    lyricsContentEl.innerHTML = "<div class='lyric-line tp-lyric-line'>Chargement des paroles...</div>";
     texteparolesLyrics = [];
 
     try {
@@ -5528,14 +5537,14 @@ async function tpFetchLyricsForTrack() {
             tpParseLyrics(data.syncedLyrics);
         } else if (data.plainLyrics) {
             const plainLines = data.plainLyrics.split('\n');
-            lyricsContentEl.innerHTML = plainLines.map(line => `<div class="tp-lyric-line">${line.trim()}</div>`).join('');
+            lyricsContentEl.innerHTML = plainLines.map(line => `<div class="lyric-line tp-lyric-line">${line.trim()}</div>`).join('');
             texteparolesLyrics = [];
         } else {
-            lyricsContentEl.innerHTML = "<div class='tp-lyric-line'>Paroles indisponibles.</div>";
+            lyricsContentEl.innerHTML = "<div class='lyric-line tp-lyric-line'>Paroles indisponibles.</div>";
         }
     } catch (e) {
         console.error(e);
-        lyricsContentEl.innerHTML = "<div class='tp-lyric-line'>Erreur de chargement des paroles.</div>";
+        lyricsContentEl.innerHTML = "<div class='lyric-line tp-lyric-line'>Erreur de chargement des paroles.</div>";
     }
 }
 
@@ -5550,7 +5559,7 @@ function tpParseLyrics(lrc) {
     }).filter(l => l && l.text !== "");
 
     const linesHtml = texteparolesLyrics
-        .map((l, i) => `<div id="tp-line-${i}" class="tp-lyric-line" onclick="tpSeekToLyricLine(${i})">${l.text}</div>`)
+        .map((l, i) => `<div id="tp-line-${i}" class="lyric-line tp-lyric-line" onclick="tpSeekToLyricLine(${i})">${l.text}</div>`)
         .join('');
     document.getElementById('tp-lyrics-content').innerHTML = linesHtml;
 }
@@ -5614,4 +5623,222 @@ function tpStopLocalTimer() {
     }
     const btn = document.getElementById('tp-playpause-btn');
     if (btn) btn.innerText = '▶️';
+}
+
+// ==========================================
+// MODE MUSIQUE GOOGLE DRIVE — bouton dédié
+// Lit directement les fichiers audio stockés sur le Drive, à la place de Spotify.
+// Réutilise l'interface "lecture en cours" classique (pochette, titre, timer) : aucun nouvel
+// affichage créé pour ça, comme demandé.
+//
+// ⚠️ IMPORTANT : nécessite une action "list_drive_music" côté Google Apps Script (celui déjà
+// utilisé pour APPS_SCRIPT_URL / identify_song). Elle doit renvoyer :
+//   { success: true, files: [ { id: "...", name: "Titre.mp3", url: "(optionnel) lien de lecture direct" }, ... ] }
+// Si "url" n'est pas fourni, on reconstruit un lien de téléchargement direct Drive à partir de l'id
+// (le fichier doit être partagé "Tous les utilisateurs disposant du lien").
+// ==========================================
+
+function injectDriveMusicStyles() {
+    if (document.getElementById('drive-music-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'drive-music-inline-style';
+    styleTag.textContent = `
+        #drive-music-btn.active {
+            color: #2b7cff !important;
+            filter: drop-shadow(0 0 6px rgba(43,124,255,0.7));
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectDriveMusicStyles();
+
+// Active/désactive le mode. Appelé par le bouton principal :
+// <button id="drive-music-btn" onclick="toggleDriveMusicMode()" title="Lire les musiques Google Drive">📁</button>
+async function toggleDriveMusicMode() {
+    const btn = document.getElementById('drive-music-btn');
+
+    if (driveMusicModeActive) {
+        // --- DÉSACTIVATION : on enlève tout et on remet l'interface normale ---
+        driveMusicModeActive = false;
+        if (btn) btn.classList.remove('active');
+        stopDriveMusicPlayback();
+
+        const resultsContainer = document.getElementById('search-results');
+        if (resultsContainer) resultsContainer.innerHTML = '';
+
+        // Force une resynchronisation complète : pochette, titre, artiste, bon timer, ET les paroles
+        // (en vidant lastTrackId, updateNowPlaying() est obligé de re-déclencher fetchLyrics())
+        lastTrackId = "";
+        await updateNowPlaying();
+        return;
+    }
+
+    // --- ACTIVATION ---
+    driveMusicModeActive = true;
+    if (btn) btn.classList.add('active');
+
+    // Met en pause la musique Spotify en cours, comme pour l'interface Paroles
+    if (isCurrentlyPlaying) {
+        await forcePlaybackState('pause');
+    }
+
+    // Remplace la pochette par le logo Drive, et masque tout ce qui concerne le titre en cours
+    // (titre, artiste, paroles, timer) puisqu'aucun titre Drive n'est encore sélectionné
+    const art = document.getElementById('track-art');
+    if (art) { art.src = DRIVE_LOGO_URL; art.style.display = 'block'; }
+    document.getElementById('track-title').innerText = '';
+    document.getElementById('track-artist').innerText = '';
+    document.getElementById('lyrics-content').innerHTML = '';
+    document.getElementById('time-current').innerText = '0:00';
+    document.getElementById('time-max').innerText = '0:00';
+    document.getElementById('progress-fill').style.width = '0%';
+    document.getElementById('play-pause-btn').innerText = '▶️';
+
+    await fetchDriveMusicList();
+}
+
+async function fetchDriveMusicList() {
+    const resultsContainer = document.getElementById('search-results');
+    resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:var(--text-grey); margin:5px;'>Chargement des fichiers Drive...</p>";
+
+    try {
+        const response = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({
+                action: 'list_drive_music',
+                secret: APPS_SCRIPT_SECRET
+            })
+        });
+        const relayResult = await response.json();
+
+        if (!relayResult.success || !relayResult.files) {
+            resultsContainer.innerHTML = `<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur : ${relayResult.error || 'liste Drive indisponible.'}</p>`;
+            return;
+        }
+
+        driveMusicItems = relayResult.files;
+        driveMusicDisplayedCount = 10;
+        renderDriveMusicSection();
+    } catch (e) {
+        console.error(e);
+        resultsContainer.innerHTML = "<p style='font-size:0.9rem; color:red; margin:5px;'>Erreur réseau lors du chargement des fichiers Drive.</p>";
+    }
+}
+
+// Affichage classique (identique aux autres listes du site) : 10 premiers titres + bouton
+// "Afficher plus (+10)" qui réutilise createMoreButton(), déjà utilisé partout ailleurs.
+function renderDriveMusicSection() {
+    const resultsContainer = document.getElementById('search-results');
+    resultsContainer.innerHTML = "";
+
+    const titleHeader = document.createElement('p');
+    titleHeader.style = "color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;";
+    titleHeader.innerText = "MUSIQUES GOOGLE DRIVE";
+    resultsContainer.appendChild(titleHeader);
+
+    if (driveMusicItems.length === 0) {
+        const emptyMsg = document.createElement('p');
+        emptyMsg.style = "font-size:0.9rem; color:var(--text-grey); margin:5px;";
+        emptyMsg.innerText = "Aucun fichier audio trouvé sur le Drive.";
+        resultsContainer.appendChild(emptyMsg);
+        return;
+    }
+
+    const itemsToDisplay = driveMusicItems.slice(0, driveMusicDisplayedCount);
+
+    itemsToDisplay.forEach((file, index) => {
+        const item = document.createElement('div');
+        item.className = 'search-item';
+        item.innerHTML = `
+            <div>
+                <strong style="display:block; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${file.name}</strong>
+            </div>
+        `;
+        item.onclick = () => playDriveMusicTrack(index);
+        resultsContainer.appendChild(item);
+    });
+
+    if (driveMusicItems.length > driveMusicDisplayedCount) {
+        const moreBtn = createMoreButton(() => {
+            driveMusicDisplayedCount += 10;
+            renderDriveMusicSection();
+        });
+        resultsContainer.appendChild(moreBtn);
+    }
+}
+
+// Clic sur un titre Drive : affiche le titre et le timer à l'endroit habituel de "lecture en cours"
+function playDriveMusicTrack(index) {
+    const file = driveMusicItems[index];
+    if (!file) return;
+    driveMusicCurrentIndex = index;
+
+    document.getElementById('track-title').innerText = file.name;
+    document.getElementById('track-artist').innerText = '';
+
+    stopDriveMusicPlayback(false); // coupe une éventuelle lecture précédente sans réinitialiser l'affichage
+
+    // Lien de lecture directe : celui renvoyé par le backend, sinon reconstruit à partir de l'id
+    const playUrl = file.url || `https://drive.google.com/uc?export=download&id=${file.id}`;
+
+    driveMusicAudioEl = new Audio(playUrl);
+
+    driveMusicAudioEl.addEventListener('loadedmetadata', () => {
+        const maxEl = document.getElementById('time-max');
+        if (maxEl) maxEl.innerText = formatTime(driveMusicAudioEl.duration * 1000);
+    });
+
+    driveMusicAudioEl.addEventListener('ended', () => {
+        stopDriveMusicPlayback(false);
+        document.getElementById('play-pause-btn').innerText = '▶️';
+    });
+
+    driveMusicAudioEl.play().catch(e => console.error("Lecture Drive impossible :", e));
+    document.getElementById('play-pause-btn').innerText = '⏸';
+
+    if (driveMusicProgressInterval) clearInterval(driveMusicProgressInterval);
+    driveMusicProgressInterval = setInterval(() => {
+        if (!driveMusicAudioEl) return;
+        const currentMs = driveMusicAudioEl.currentTime * 1000;
+        const durationMs = driveMusicAudioEl.duration ? driveMusicAudioEl.duration * 1000 : 1;
+        const currentEl = document.getElementById('time-current');
+        const fillEl = document.getElementById('progress-fill');
+        if (currentEl) currentEl.innerText = formatTime(currentMs);
+        if (fillEl) fillEl.style.width = `${(currentMs / durationMs) * 100}%`;
+    }, 500);
+}
+
+// Bouton pause/reprendre classique (#play-pause-btn), réutilisé via togglePlay() quand le mode est actif
+function toggleDriveMusicPlayPause() {
+    if (!driveMusicAudioEl) return;
+    const btn = document.getElementById('play-pause-btn');
+    if (driveMusicAudioEl.paused) {
+        driveMusicAudioEl.play().catch(e => console.error(e));
+        if (btn) btn.innerText = '⏸';
+    } else {
+        driveMusicAudioEl.pause();
+        if (btn) btn.innerText = '▶️';
+    }
+}
+
+function stopDriveMusicPlayback(clearDisplay = true) {
+    if (driveMusicProgressInterval) {
+        clearInterval(driveMusicProgressInterval);
+        driveMusicProgressInterval = null;
+    }
+    if (driveMusicAudioEl) {
+        driveMusicAudioEl.pause();
+        driveMusicAudioEl = null;
+    }
+    if (clearDisplay) {
+        const currentEl = document.getElementById('time-current');
+        const maxEl = document.getElementById('time-max');
+        const fillEl = document.getElementById('progress-fill');
+        const btn = document.getElementById('play-pause-btn');
+        if (currentEl) currentEl.innerText = '0:00';
+        if (maxEl) maxEl.innerText = '0:00';
+        if (fillEl) fillEl.style.width = '0%';
+        if (btn) btn.innerText = '▶️';
+    }
 }
