@@ -1,4 +1,4 @@
-const APP_VERSION = "v1.1.80";
+const APP_VERSION = "v1.1.81";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -125,6 +125,18 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
         let displayedRecentCount = 10; 
         let recommendedItems = [];
         let displayedRecommendedCount = 10;
+
+        // --- MODE PAROLES (bouton dédié, pour lire les paroles pendant une écoute externe, ex. vinyle) ---
+        // Ce booléen permet à toutes les fonctions déjà existantes (recherche texte, vocale, identification
+        // audio) de savoir si elles doivent afficher leurs résultats dans l'interface "Paroles" plutôt que
+        // dans l'interface normale, sans dupliquer ces fonctions.
+        let texteparolesActive = false;
+        let texteparolesTrack = null; // { uri, name, artist, album, image, durationMs }
+        let texteparolesLyrics = []; // paroles synchronisées du titre sélectionné dans l'interface Paroles
+        let texteparolesElapsedMs = 0; // horloge locale indépendante (pas liée à Spotify, pas de son)
+        let texteparolesLocalInterval = null;
+        let texteparolesLocalRunning = false;
+        let texteparolesTimerVisible = localStorage.getItem('texteparolesTimerVisible') === 'true'; // désactivé par défaut
      
         // --- CONFIGURATION GOOGLE DRIVE (via Apps Script, sans connexion utilisateur) ---
         const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzUHHl2qp1kLzl3rF5rkHb-qpGiajuYmXJvNsvFzhRHsHz613CmRSknswkXR0ijVJg7Ig/exec";
@@ -453,9 +465,10 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
         }
 
         async function toggleMicrophoneListen() {
-            document.getElementById('profile-card-zone').style.display = 'none';
-            const micBtn = document.getElementById('mic-btn');
-            const resultsContainer = document.getElementById('search-results');
+            // Mode Paroles actif : on cible le bouton et la zone de résultats de l'interface Paroles.
+            if (!texteparolesActive) document.getElementById('profile-card-zone').style.display = 'none';
+            const micBtn = document.getElementById(texteparolesActive ? 'tp-mic-btn' : 'mic-btn');
+            const resultsContainer = document.getElementById(texteparolesActive ? 'tp-search-results' : 'search-results');
 
             if (isRecording) {
                 if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
@@ -505,7 +518,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
         }
 
         async function identifyWithACRCloud(blob) {
-            const GlassContainer = document.getElementById('search-results');
+            const GlassContainer = document.getElementById(texteparolesActive ? 'tp-search-results' : 'search-results');
 
             try {
                 // Convertit le blob audio en base64 pour l'envoyer au relais Apps Script
@@ -568,10 +581,16 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 `;
 
                 if (entry.spotifyUri) {
-                    item.onclick = () => playTrack(entry.spotifyUri);
+                    item.onclick = () => {
+                        if (texteparolesActive) {
+                            tpSelectTrackByUri(entry.spotifyUri, { name: title, artist: artist, image: entry.spotifyImage });
+                        } else {
+                            playTrack(entry.spotifyUri);
+                        }
+                    };
                 } else {
                     item.onclick = () => {
-                        document.getElementById('search-input').value = `${title} ${artist}`;
+                        document.getElementById(texteparolesActive ? 'tp-search-input' : 'search-input').value = `${title} ${artist}`;
                         searchTrack();
                     };
                 }
@@ -584,8 +603,11 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
         }
 
         async function searchTrack() {
-            document.getElementById('profile-card-zone').style.display = 'none';
-            const query = document.getElementById('search-input').value;
+            // Mode Paroles actif : on utilise le champ et la zone de résultats de l'interface Paroles,
+            // sinon on garde le comportement normal (recherche principale du site).
+            const inputEl = document.getElementById(texteparolesActive ? 'tp-search-input' : 'search-input');
+            if (!texteparolesActive) document.getElementById('profile-card-zone').style.display = 'none';
+            const query = inputEl ? inputEl.value : '';
             if (!query || !currentToken) return;
 
             try {
@@ -593,11 +615,13 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                     headers: { 'Authorization': 'Bearer ' + currentToken }
                 });
                 const data = await response.json();
-                const resultsContainer = document.getElementById('search-results');
+                const resultsContainer = document.getElementById(texteparolesActive ? 'tp-search-results' : 'search-results');
                 resultsContainer.innerHTML = "";
-                resultsContainer.dataset.view = '';
-                resultsContainer.dataset.topTracksOpen = '';
-                stopQueueAutoRefresh();
+                if (!texteparolesActive) {
+                    resultsContainer.dataset.view = '';
+                    resultsContainer.dataset.topTracksOpen = '';
+                    stopQueueAutoRefresh();
+                }
 
                 if (data.tracks && data.tracks.items.length > 0) {
                     data.tracks.items.forEach(track => {
@@ -610,8 +634,12 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                                 <span style="font-size: 0.8rem; color: var(--text-grey);">${track.artists[0].name}</span>
                             </div>
                         `;
-                        item.onclick = () => playTrack(track.uri);
-                        item.appendChild(buildQueueButton(track.uri));
+                        if (texteparolesActive) {
+                            item.onclick = () => tpSelectTrackObject(track);
+                        } else {
+                            item.onclick = () => playTrack(track.uri);
+                            item.appendChild(buildQueueButton(track.uri));
+                        }
                         resultsContainer.appendChild(item);
                     });
                 } else {
@@ -2381,18 +2409,18 @@ function initVoiceCommand() {
 
     voiceRecognition.onstart = () => {
         isListeningVoiceCommand = true;
-        const btn = document.getElementById('voice-command-btn');
+        const btn = document.getElementById(texteparolesActive ? 'tp-voice-command-btn' : 'voice-command-btn');
         if (btn) btn.classList.add('listening');
     };
     voiceRecognition.onend = () => {
         isListeningVoiceCommand = false;
-        const btn = document.getElementById('voice-command-btn');
+        const btn = document.getElementById(texteparolesActive ? 'tp-voice-command-btn' : 'voice-command-btn');
         if (btn) btn.classList.remove('listening');
     };
     voiceRecognition.onerror = (event) => {
         console.error("Erreur reconnaissance vocale :", event.error);
         isListeningVoiceCommand = false;
-        const btn = document.getElementById('voice-command-btn');
+        const btn = document.getElementById(texteparolesActive ? 'tp-voice-command-btn' : 'voice-command-btn');
         if (btn) btn.classList.remove('listening');
     };
     voiceRecognition.onresult = (event) => {
@@ -2414,6 +2442,15 @@ function toggleVoiceCommand() {
 }
 
 async function handleVoiceCommand(rawText) {
+    // Mode Paroles actif : on ne passe PAS par l'analyseur de commandes ("chanson suivante", "pause"...).
+    // Tout ce qui est dit est considéré comme le titre recherché, directement.
+    if (texteparolesActive) {
+        const tpInput = document.getElementById('tp-search-input');
+        if (tpInput) tpInput.value = rawText;
+        await searchTrack();
+        return;
+    }
+
     const text = rawText.toLowerCase().trim();
     const resultsContainer = document.getElementById('search-results');
 
@@ -5022,4 +5059,536 @@ function buildQueueItem(track) {
         </div>
     `;
     return item;
+}
+
+// ==========================================
+// INTERFACE "PAROLES" — bouton dédié (icône 📃)
+// Permet de retrouver rapidement les paroles d'un titre écouté sur un
+// appareil externe (ex. vinyle) : pas de son ici, la synchronisation se
+// fait manuellement en cliquant sur les lignes, avec une horloge locale
+// indépendante de Spotify.
+// ==========================================
+
+function injectTexteParolesStyles() {
+    if (document.getElementById('texteparoles-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'texteparoles-inline-style';
+    styleTag.textContent = `
+        #texteparoles-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: #0d0d0d;
+            z-index: 2000;
+            flex-direction: column;
+            padding: 14px;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+        #tp-topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+            flex-shrink: 0;
+        }
+        #tp-topbar-title {
+            color: var(--spotify-green, #1DB954);
+            font-weight: bold;
+            font-size: 1rem;
+        }
+        #tp-close-btn {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 1.6rem;
+            cursor: pointer;
+            line-height: 1;
+        }
+        #tp-search-buttons-row {
+            display: flex;
+            justify-content: center;
+            gap: 18px;
+            margin-bottom: 10px;
+        }
+        #tp-search-buttons-row button {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 6px;
+        }
+        #tp-mic-btn.recording,
+        #tp-voice-command-btn.listening {
+            animation: tp-pulse 1s ease-in-out infinite;
+            border-radius: 50%;
+        }
+        @keyframes tp-pulse {
+            0%   { box-shadow: 0 0 0 0 rgba(29,185,84,0.6); }
+            70%  { box-shadow: 0 0 0 14px rgba(29,185,84,0); }
+            100% { box-shadow: 0 0 0 0 rgba(29,185,84,0); }
+        }
+        #tp-text-search-row {
+            display: none;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        #tp-search-input {
+            flex: 1;
+            padding: 8px 10px;
+            border-radius: 20px;
+            border: 1px solid #333;
+            background: #1a1a1a;
+            color: #fff;
+            font-size: 0.9rem;
+        }
+        #tp-text-search-row button {
+            background: var(--spotify-green, #1DB954);
+            border: none;
+            color: #000;
+            font-weight: bold;
+            border-radius: 20px;
+            padding: 8px 16px;
+            cursor: pointer;
+        }
+        #tp-search-results {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        #tp-track-detail {
+            display: none;
+            flex-direction: column;
+            flex: 1;
+        }
+        #tp-track-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 12px;
+        }
+        #tp-track-cover {
+            width: 72px;
+            height: 72px;
+            border-radius: 6px;
+            object-fit: cover;
+            flex-shrink: 0;
+        }
+        #tp-track-infos {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+        #tp-track-title {
+            color: #fff;
+            font-size: 1rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        #tp-track-artist {
+            color: var(--text-grey, #b3b3b3);
+            font-size: 0.85rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        #tp-back-btn {
+            background: none;
+            border: none;
+            color: var(--text-grey, #b3b3b3);
+            font-size: 0.85rem;
+            cursor: pointer;
+            text-align: left;
+            padding: 0 0 10px 0;
+        }
+        #tp-timer-toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: var(--text-grey, #b3b3b3);
+            margin-bottom: 8px;
+        }
+        .tp-switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 22px;
+            flex-shrink: 0;
+        }
+        .tp-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .tp-switch-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #333;
+            border-radius: 22px;
+            transition: 0.2s;
+        }
+        .tp-switch-slider::before {
+            content: "";
+            position: absolute;
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background-color: #fff;
+            border-radius: 50%;
+            transition: 0.2s;
+        }
+        .tp-switch input:checked + .tp-switch-slider {
+            background-color: var(--spotify-green, #1DB954);
+        }
+        .tp-switch input:checked + .tp-switch-slider::before {
+            transform: translateX(18px);
+        }
+        #tp-timer-zone {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            margin-bottom: 12px;
+            padding: 8px;
+            background: #1a1a1a;
+            border-radius: 10px;
+        }
+        #tp-timer-display {
+            color: #fff;
+            font-weight: bold;
+            font-size: 1rem;
+            min-width: 44px;
+            text-align: center;
+        }
+        #tp-playpause-btn {
+            background: none;
+            border: none;
+            font-size: 1.4rem;
+            cursor: pointer;
+            color: var(--spotify-green, #1DB954);
+        }
+        #tp-lyrics-content {
+            flex: 1;
+            overflow-y: auto;
+        }
+        .tp-lyric-line {
+            padding: 6px 4px;
+            font-size: 0.95rem;
+            color: var(--text-grey, #b3b3b3);
+            cursor: pointer;
+            transition: color 0.2s, transform 0.2s;
+            border-radius: 6px;
+        }
+        .tp-lyric-line:hover {
+            background: rgba(255,255,255,0.05);
+        }
+        .tp-lyric-line.active {
+            color: var(--spotify-green, #1DB954);
+            font-weight: bold;
+            transform: scale(1.03);
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectTexteParolesStyles();
+
+function ensureTexteParolesOverlay() {
+    let overlay = document.getElementById('texteparoles-overlay');
+    if (overlay) return overlay;
+
+    overlay = document.createElement('div');
+    overlay.id = 'texteparoles-overlay';
+    overlay.innerHTML = `
+        <div id="tp-topbar">
+            <span id="tp-topbar-title">📃 Paroles</span>
+            <button id="tp-close-btn" onclick="texteparoles()">✕</button>
+        </div>
+
+        <div id="tp-search-zone">
+            <div id="tp-search-buttons-row">
+                <button id="tp-mic-btn" onclick="toggleMicrophoneListen()" title="Identifier via AudD">🎙️</button>
+                <button id="tp-voice-command-btn" onclick="toggleVoiceCommand()" title="Recherche vocale">🗣️</button>
+                <button onclick="tpToggleTextSearchRow()" title="Rechercher par texte">🔍</button>
+            </div>
+            <div id="tp-text-search-row">
+                <input type="text" id="tp-search-input" placeholder="Titre, artiste...">
+                <button onclick="searchTrack()">OK</button>
+            </div>
+            <div id="tp-search-results"></div>
+        </div>
+
+        <div id="tp-track-detail">
+            <button id="tp-back-btn" onclick="tpResetToSearchZone()">← Nouvelle recherche</button>
+            <div id="tp-track-header">
+                <img id="tp-track-cover" src="" alt="">
+                <div id="tp-track-infos">
+                    <strong id="tp-track-title"></strong>
+                    <span id="tp-track-artist"></span>
+                </div>
+            </div>
+
+            <div id="tp-timer-toggle-row">
+                <span>Afficher le chrono</span>
+                <label class="tp-switch">
+                    <input type="checkbox" id="tp-timer-toggle" onchange="tpToggleTimerDisplay(this.checked)">
+                    <span class="tp-switch-slider"></span>
+                </label>
+            </div>
+
+            <div id="tp-timer-zone">
+                <span id="tp-timer-display">0:00</span>
+                <button id="tp-playpause-btn" onclick="tpTogglePlayPause()">▶️</button>
+            </div>
+
+            <div id="tp-lyrics-content"></div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    return overlay;
+}
+
+// Ouvre/ferme l'interface Paroles. Appelé par le bouton principal :
+// <button onclick="texteparoles()" title="Paroles">📃</button>
+function texteparoles() {
+    const overlay = ensureTexteParolesOverlay();
+    const isCurrentlyClosed = overlay.style.display === 'none' || overlay.style.display === '';
+
+    if (isCurrentlyClosed) {
+        // Met en pause la musique Spotify en cours avant d'ouvrir l'interface (réutilise forcePlaybackState,
+        // déjà utilisé par la commande vocale — cohérent avec le reste du site)
+        if (isCurrentlyPlaying) {
+            forcePlaybackState('pause');
+        }
+        texteparolesActive = true;
+        overlay.style.display = 'flex';
+        tpResetToSearchZone();
+    } else {
+        tpCloseTexteParoles();
+    }
+}
+
+function tpCloseTexteParoles() {
+    const overlay = document.getElementById('texteparoles-overlay');
+    if (overlay) overlay.style.display = 'none';
+    texteparolesActive = false;
+    tpStopLocalTimer();
+
+    // Coupe proprement le micro / la reconnaissance vocale si jamais restés actifs en quittant l'interface
+    if (isRecording && mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+    }
+    if (isListeningVoiceCommand && voiceRecognition) {
+        voiceRecognition.stop();
+    }
+}
+
+function tpToggleTextSearchRow() {
+    const row = document.getElementById('tp-text-search-row');
+    if (!row) return;
+    row.style.display = (row.style.display === 'none' || row.style.display === '') ? 'flex' : 'none';
+}
+
+// Revient à l'écran de recherche (les 3 boutons d'identification), depuis l'écran des paroles
+// ou à la (ré)ouverture de l'interface.
+function tpResetToSearchZone() {
+    tpStopLocalTimer();
+    texteparolesLyrics = [];
+    texteparolesElapsedMs = 0;
+    texteparolesTrack = null;
+
+    const searchInput = document.getElementById('tp-search-input');
+    if (searchInput) searchInput.value = '';
+    const resultsEl = document.getElementById('tp-search-results');
+    if (resultsEl) resultsEl.innerHTML = '';
+    const textRow = document.getElementById('tp-text-search-row');
+    if (textRow) textRow.style.display = 'none';
+
+    const searchZone = document.getElementById('tp-search-zone');
+    if (searchZone) searchZone.style.display = 'block';
+    const detailZone = document.getElementById('tp-track-detail');
+    if (detailZone) detailZone.style.display = 'none';
+}
+
+// Sélection d'un titre trouvé via la recherche texte ou vocale (objet Spotify complet déjà disponible)
+function tpSelectTrackObject(track) {
+    texteparolesTrack = {
+        uri: track.uri,
+        name: track.name,
+        artist: track.artists.map(a => a.name).join(', '),
+        album: track.album ? track.album.name : '',
+        image: track.album && track.album.images && track.album.images.length > 0 ? track.album.images[0].url : 'https://via.placeholder.com/72',
+        durationMs: track.duration_ms || 0
+    };
+    tpShowTrackDetail();
+}
+
+// Sélection d'un titre trouvé via l'identification audio (AudD/ACRCloud) : on ne connaît que l'URI et
+// quelques infos de repli, donc on va chercher les infos complètes (notamment la durée) sur Spotify.
+async function tpSelectTrackByUri(uri, fallback = {}) {
+    if (!uri) return;
+    const parts = uri.split(':');
+    const trackId = parts.length === 3 ? parts[2] : null;
+    let track = null;
+
+    try {
+        if (trackId && currentToken) {
+            const resp = await fetch(`https://api.spotify.com/v1/tracks/${trackId}`, {
+                headers: { 'Authorization': 'Bearer ' + currentToken }
+            });
+            if (resp.ok) track = await resp.json();
+        }
+    } catch (e) {
+        console.error("Erreur récupération du titre pour le mode Paroles :", e);
+    }
+
+    texteparolesTrack = {
+        uri: uri,
+        name: track ? track.name : (fallback.name || 'Titre inconnu'),
+        artist: track ? track.artists.map(a => a.name).join(', ') : (fallback.artist || 'Artiste inconnu'),
+        album: track ? track.album.name : (fallback.album || ''),
+        image: track && track.album.images && track.album.images.length > 0 ? track.album.images[0].url : (fallback.image || 'https://via.placeholder.com/72'),
+        durationMs: track ? track.duration_ms : (fallback.durationMs || 0)
+    };
+    tpShowTrackDetail();
+}
+
+function tpShowTrackDetail() {
+    const t = texteparolesTrack;
+    if (!t) return;
+
+    document.getElementById('tp-search-zone').style.display = 'none';
+    document.getElementById('tp-track-detail').style.display = 'flex';
+
+    document.getElementById('tp-track-cover').src = t.image;
+    document.getElementById('tp-track-title').innerText = t.name;
+    document.getElementById('tp-track-artist').innerText = t.artist;
+
+    // Chrono masqué par défaut, restaure la préférence mémorisée
+    const timerToggle = document.getElementById('tp-timer-toggle');
+    if (timerToggle) timerToggle.checked = texteparolesTimerVisible;
+    const timerZone = document.getElementById('tp-timer-zone');
+    if (timerZone) timerZone.style.display = texteparolesTimerVisible ? 'flex' : 'none';
+
+    texteparolesElapsedMs = 0;
+    tpUpdateTimerDisplay();
+    tpStopLocalTimer();
+
+    tpFetchLyricsForTrack();
+}
+
+// Affiche/masque le chrono + bouton pause/reprendre (bouton "slide", désactivé par défaut)
+function tpToggleTimerDisplay(checked) {
+    texteparolesTimerVisible = checked;
+    localStorage.setItem('texteparolesTimerVisible', checked ? 'true' : 'false');
+    const zone = document.getElementById('tp-timer-zone');
+    if (zone) zone.style.display = checked ? 'flex' : 'none';
+    if (!checked) tpStopLocalTimer(); // masquer le chrono arrête aussi le défilement local
+}
+
+// Récupère les paroles synchronisées (lrclib, même source que fetchLyrics) pour le titre sélectionné
+async function tpFetchLyricsForTrack() {
+    const t = texteparolesTrack;
+    const lyricsContentEl = document.getElementById('tp-lyrics-content');
+    if (!t || !lyricsContentEl) return;
+
+    lyricsContentEl.innerHTML = "<div class='tp-lyric-line'>Chargement des paroles...</div>";
+    texteparolesLyrics = [];
+
+    try {
+        const url = `https://lrclib.net/api/get?artist_name=${encodeURIComponent(t.artist)}&track_name=${encodeURIComponent(t.name)}&album_name=${encodeURIComponent(t.album)}&duration=${Math.round(t.durationMs / 1000)}`;
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.syncedLyrics) {
+            tpParseLyrics(data.syncedLyrics);
+        } else if (data.plainLyrics) {
+            const plainLines = data.plainLyrics.split('\n');
+            lyricsContentEl.innerHTML = plainLines.map(line => `<div class="tp-lyric-line">${line.trim()}</div>`).join('');
+            texteparolesLyrics = [];
+        } else {
+            lyricsContentEl.innerHTML = "<div class='tp-lyric-line'>Paroles indisponibles.</div>";
+        }
+    } catch (e) {
+        console.error(e);
+        lyricsContentEl.innerHTML = "<div class='tp-lyric-line'>Erreur de chargement des paroles.</div>";
+    }
+}
+
+function tpParseLyrics(lrc) {
+    const lines = lrc.split('\n');
+    texteparolesLyrics = lines.map(line => {
+        const match = line.match(/\[(\d+):(\d+\.\d+)\](.*)/);
+        if (match) {
+            return { time: parseInt(match[1]) * 60 + parseFloat(match[2]), text: match[3].trim() };
+        }
+        return null;
+    }).filter(l => l && l.text !== "");
+
+    const linesHtml = texteparolesLyrics
+        .map((l, i) => `<div id="tp-line-${i}" class="tp-lyric-line" onclick="tpSeekToLyricLine(${i})">${l.text}</div>`)
+        .join('');
+    document.getElementById('tp-lyrics-content').innerHTML = linesHtml;
+}
+
+// Clic sur une ligne de paroles = resynchronisation manuelle de l'horloge locale sur ce moment précis.
+// Il n'y a pas de son ici (musique écoutée sur un appareil externe) : c'est juste un repère de départ,
+// à partir duquel les paroles continuent d'avancer toutes seules si le chrono est en cours de lecture.
+function tpSeekToLyricLine(index) {
+    if (!texteparolesLyrics[index]) return;
+    texteparolesElapsedMs = Math.floor(texteparolesLyrics[index].time * 1000);
+    tpUpdateTimerDisplay();
+    tpHighlightLyrics();
+}
+
+function tpHighlightLyrics() {
+    const currentTimeSec = texteparolesElapsedMs / 1000;
+    texteparolesLyrics.forEach((line, i) => {
+        const el = document.getElementById(`tp-line-${i}`);
+        if (!el) return;
+        const next = texteparolesLyrics[i + 1];
+        if (currentTimeSec >= line.time && (!next || currentTimeSec < next.time)) {
+            if (!el.classList.contains('active')) {
+                document.querySelectorAll('.tp-lyric-line').forEach(l => l.classList.remove('active'));
+                el.classList.add('active');
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+    });
+}
+
+function tpUpdateTimerDisplay() {
+    const el = document.getElementById('tp-timer-display');
+    if (el) el.innerText = formatTime(texteparolesElapsedMs);
+}
+
+// Bouton pause/reprendre INDÉPENDANT de la lecture Spotify : il contrôle uniquement l'avancée
+// de l'horloge locale (et donc le défilement automatique des paroles synchronisées).
+function tpTogglePlayPause() {
+    if (texteparolesLocalRunning) {
+        tpStopLocalTimer();
+    } else {
+        texteparolesLocalRunning = true;
+        const btn = document.getElementById('tp-playpause-btn');
+        if (btn) btn.innerText = '⏸';
+        texteparolesLocalInterval = setInterval(() => {
+            texteparolesElapsedMs += 1000;
+            tpUpdateTimerDisplay();
+            tpHighlightLyrics();
+        }, 1000);
+    }
+}
+
+// Arrête le défilement automatique SANS réinitialiser la position atteinte (garde le texte synchro en pause)
+function tpStopLocalTimer() {
+    texteparolesLocalRunning = false;
+    if (texteparolesLocalInterval) {
+        clearInterval(texteparolesLocalInterval);
+        texteparolesLocalInterval = null;
+    }
+    const btn = document.getElementById('tp-playpause-btn');
+    if (btn) btn.innerText = '▶️';
 }
