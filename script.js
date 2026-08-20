@@ -1,4 +1,4 @@
-const APP_VERSION = "v1.1.84";
+const APP_VERSION = "v1.1.85";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -268,6 +268,20 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 initNeonBorderState();
                 initStarrySkyState();
                 initShootingStarsState();
+                initSerpentinsState();
+                initSilhouettesState();
+                initGuirlandeCycliqueState();
+                initGuirlandeCroiseeState();
+                initVaguesBassesState();
+                initAuroreBorealeState();
+                initGrandeRoueState();
+                initPopcornState();
+                initBallonsStandState();
+                initFanionsState();
+                initChambouleToutState();
+                initFeuillesPalmierState();
+                initPapillonsState();
+                initCoucherSoleilState();
                 requestWakeLock();
                 initPartyPopperState();
                 initVoiceCommand();
@@ -1361,6 +1375,22 @@ let neonBorderEnabled = localStorage.getItem('neonBorderEnabled') === 'true'; //
 let starrySkyEnabled = localStorage.getItem('starrySkyEnabled') === 'true'; // désactivé par défaut
 let shootingStarsEnabled = localStorage.getItem('shootingStarsEnabled') === 'true'; // désactivé par défaut
 
+// --- NOUVEAUX EFFETS D'AMBIANCE (paramètres) ---
+let serpentinsEnabled = localStorage.getItem('serpentinsEnabled') === 'true';
+let silhouettesEnabled = localStorage.getItem('silhouettesEnabled') === 'true';
+let guirlandeCycliqueEnabled = localStorage.getItem('guirlandeCycliqueEnabled') === 'true';
+let guirlandeCroiseeEnabled = localStorage.getItem('guirlandeCroiseeEnabled') === 'true';
+let vaguesBassesEnabled = localStorage.getItem('vaguesBassesEnabled') === 'true';
+let auroreBorealeEnabled = localStorage.getItem('auroreBorealeEnabled') === 'true';
+let grandeRoueEnabled = localStorage.getItem('grandeRoueEnabled') === 'true';
+let popcornEnabled = localStorage.getItem('popcornEnabled') === 'true';
+let ballonsStandEnabled = localStorage.getItem('ballonsStandEnabled') === 'true';
+let fanionsEnabled = localStorage.getItem('fanionsEnabled') === 'true';
+let chambouleToutEnabled = localStorage.getItem('chambouleToutEnabled') === 'true';
+let feuillesPalmierEnabled = localStorage.getItem('feuillesPalmierEnabled') === 'true';
+let papillonsEnabled = localStorage.getItem('papillonsEnabled') === 'true';
+let coucherSoleilEnabled = localStorage.getItem('coucherSoleilEnabled') === 'true';
+
 function toggleSettings() {
     // Force le panneau réglages à défiler verticalement plutôt que de prendre toute la hauteur
     if (!document.getElementById('settings-scroll-inline-style')) {
@@ -1415,6 +1445,35 @@ function toggleSettings() {
         if (starrySkyToggle) starrySkyToggle.checked = starrySkyEnabled;
         const shootingStarsToggle = document.getElementById('shooting-stars-toggle');
         if (shootingStarsToggle) shootingStarsToggle.checked = shootingStarsEnabled;
+
+        const serpentinsToggle = document.getElementById('serpentins-toggle');
+        if (serpentinsToggle) serpentinsToggle.checked = serpentinsEnabled;
+        const silhouettesToggle = document.getElementById('silhouettes-toggle');
+        if (silhouettesToggle) silhouettesToggle.checked = silhouettesEnabled;
+        const guirlandeCycliqueToggle = document.getElementById('guirlande-cyclique-toggle');
+        if (guirlandeCycliqueToggle) guirlandeCycliqueToggle.checked = guirlandeCycliqueEnabled;
+        const guirlandeCroiseeToggle = document.getElementById('guirlande-croisee-toggle');
+        if (guirlandeCroiseeToggle) guirlandeCroiseeToggle.checked = guirlandeCroiseeEnabled;
+        const vaguesBassesToggle = document.getElementById('vagues-basses-toggle');
+        if (vaguesBassesToggle) vaguesBassesToggle.checked = vaguesBassesEnabled;
+        const auroreBorealeToggle = document.getElementById('aurore-boreale-toggle');
+        if (auroreBorealeToggle) auroreBorealeToggle.checked = auroreBorealeEnabled;
+        const grandeRoueToggle = document.getElementById('grande-roue-toggle');
+        if (grandeRoueToggle) grandeRoueToggle.checked = grandeRoueEnabled;
+        const popcornToggle = document.getElementById('popcorn-toggle');
+        if (popcornToggle) popcornToggle.checked = popcornEnabled;
+        const ballonsStandToggle = document.getElementById('ballons-stand-toggle');
+        if (ballonsStandToggle) ballonsStandToggle.checked = ballonsStandEnabled;
+        const fanionsToggle = document.getElementById('fanions-toggle');
+        if (fanionsToggle) fanionsToggle.checked = fanionsEnabled;
+        const chambouleToutToggle = document.getElementById('chamboule-tout-toggle');
+        if (chambouleToutToggle) chambouleToutToggle.checked = chambouleToutEnabled;
+        const feuillesPalmierToggle = document.getElementById('feuilles-palmier-toggle');
+        if (feuillesPalmierToggle) feuillesPalmierToggle.checked = feuillesPalmierEnabled;
+        const papillonsToggle = document.getElementById('papillons-toggle');
+        if (papillonsToggle) papillonsToggle.checked = papillonsEnabled;
+        const coucherSoleilToggle = document.getElementById('coucher-soleil-toggle');
+        if (coucherSoleilToggle) coucherSoleilToggle.checked = coucherSoleilEnabled;
     } else {
         settingsZone.style.display = 'none';
     }
@@ -5844,4 +5903,853 @@ function stopDriveMusicPlayback(clearDisplay = true) {
         if (fillEl) fillEl.style.width = '0%';
         if (btn) btn.innerText = '▶️';
     }
+}
+
+// ==========================================
+// 14 NOUVEAUX EFFETS D'AMBIANCE (paramètres > nouveaux sliders)
+// Même convention que les effets existants (garland, flames, fireworks...) :
+// injectXStyles() + ensureXElement() (ou launchX() pour les effets ponctuels)
+// + toggleXSetting(checked) + initXState().
+// ==========================================
+
+// --- 1. SERPENTINS ONDULANTS ---
+function injectSerpentinsStyles() {
+    if (document.getElementById('serpentins-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'serpentins-inline-style';
+    styleTag.textContent = `
+        #serpentins-wrapper {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 160px;
+            z-index: 400;
+            pointer-events: none;
+            overflow: hidden;
+        }
+        .serpentin-strip {
+            position: absolute;
+            top: -10px;
+            width: 12px;
+            height: 170px;
+            border-radius: 6px;
+            transform-origin: top center;
+            animation: serpentin-sway 2.4s ease-in-out infinite;
+            opacity: 0.85;
+        }
+        @keyframes serpentin-sway {
+            0%, 100% { transform: rotate(-9deg); }
+            50%      { transform: rotate(9deg); }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectSerpentinsStyles();
+
+function ensureSerpentinsElement() {
+    let wrapper = document.getElementById('serpentins-wrapper');
+    if (!wrapper) {
+        wrapper = document.createElement('div');
+        wrapper.id = 'serpentins-wrapper';
+        const colors = ['#c452ff', '#ffd452', '#52ff8a', '#ff5252', '#52c8ff'];
+        const STRIP_COUNT = Math.max(8, Math.round(window.innerWidth / 70));
+        for (let i = 0; i < STRIP_COUNT; i++) {
+            const strip = document.createElement('div');
+            strip.className = 'serpentin-strip';
+            strip.style.left = `${(i / (STRIP_COUNT - 1)) * 100}%`;
+            strip.style.background = colors[i % colors.length];
+            strip.style.animationDelay = `${Math.random() * 2.4}s`;
+            strip.style.animationDuration = `${2 + Math.random()}s`;
+            wrapper.appendChild(strip);
+        }
+        document.body.appendChild(wrapper);
+    }
+    return wrapper;
+}
+
+function toggleSerpentinsSetting(checked) {
+    serpentinsEnabled = checked;
+    localStorage.setItem('serpentinsEnabled', checked ? 'true' : 'false');
+    ensureSerpentinsElement().style.display = checked ? 'block' : 'none';
+}
+
+function initSerpentinsState() {
+    ensureSerpentinsElement().style.display = serpentinsEnabled ? 'block' : 'none';
+}
+
+// --- 2. DÉFILÉ DE SILHOUETTES ---
+let silhouettesIntervalId = null;
+
+function injectSilhouettesStyles() {
+    if (document.getElementById('silhouettes-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'silhouettes-inline-style';
+    styleTag.textContent = `
+        .silhouette-item {
+            position: fixed;
+            bottom: 0;
+            font-size: 2.4rem;
+            z-index: 400;
+            pointer-events: none;
+            opacity: 0.5;
+            filter: brightness(0);
+            animation: silhouette-walk 7s linear forwards;
+        }
+        @keyframes silhouette-walk {
+            0%   { transform: translateX(-60px); }
+            100% { transform: translateX(110vw); }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectSilhouettesStyles();
+
+function launchSilhouette() {
+    const shapes = ['🕺', '💃', '🚶'];
+    const el = document.createElement('div');
+    el.className = 'silhouette-item';
+    el.innerText = shapes[Math.floor(Math.random() * shapes.length)];
+    el.style.animationDuration = `${5 + Math.random() * 4}s`;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 9500);
+}
+
+function scheduleNextSilhouette() {
+    if (!silhouettesEnabled) return;
+    const delay = 2500 + Math.random() * 4000;
+    silhouettesIntervalId = setTimeout(() => {
+        if (silhouettesEnabled) launchSilhouette();
+        scheduleNextSilhouette();
+    }, delay);
+}
+
+function toggleSilhouettesSetting(checked) {
+    silhouettesEnabled = checked;
+    localStorage.setItem('silhouettesEnabled', checked ? 'true' : 'false');
+    if (silhouettesIntervalId) { clearTimeout(silhouettesIntervalId); silhouettesIntervalId = null; }
+    if (checked) scheduleNextSilhouette();
+}
+
+function initSilhouettesState() {
+    if (silhouettesEnabled) scheduleNextSilhouette();
+}
+
+// --- 3. GUIRLANDE MULTICOLORE CYCLIQUE ---
+function injectGuirlandeCycliqueStyles() {
+    if (document.getElementById('guirlande-cyclique-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'guirlande-cyclique-inline-style';
+    styleTag.textContent = `
+        #guirlande-cyclique-wrapper {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 40px;
+            z-index: 400;
+            pointer-events: none;
+        }
+        .gc-bulb {
+            position: absolute;
+            top: 8px;
+            width: 16px; height: 16px;
+            border-radius: 50%;
+            background: hsl(0, 90%, 60%);
+            box-shadow: 0 0 14px 4px hsla(0, 90%, 60%, 0.7);
+            animation: gc-hue-cycle 5s linear infinite;
+        }
+        @keyframes gc-hue-cycle {
+            0%   { filter: hue-rotate(0deg); }
+            100% { filter: hue-rotate(360deg); }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectGuirlandeCycliqueStyles();
+
+function ensureGuirlandeCycliqueElement() {
+    let wrapper = document.getElementById('guirlande-cyclique-wrapper');
+    if (!wrapper) {
+        wrapper = document.createElement('div');
+        wrapper.id = 'guirlande-cyclique-wrapper';
+        const BULB_COUNT = Math.max(6, Math.round(window.innerWidth / 55));
+        for (let i = 0; i < BULB_COUNT; i++) {
+            const bulb = document.createElement('div');
+            bulb.className = 'gc-bulb';
+            bulb.style.left = `${(i / (BULB_COUNT - 1)) * 100}%`;
+            bulb.style.animationDelay = `-${Math.random() * 5}s`;
+            wrapper.appendChild(bulb);
+        }
+        document.body.appendChild(wrapper);
+    }
+    return wrapper;
+}
+
+function toggleGuirlandeCycliqueSetting(checked) {
+    guirlandeCycliqueEnabled = checked;
+    localStorage.setItem('guirlandeCycliqueEnabled', checked ? 'true' : 'false');
+    ensureGuirlandeCycliqueElement().style.display = checked ? 'block' : 'none';
+}
+
+function initGuirlandeCycliqueState() {
+    ensureGuirlandeCycliqueElement().style.display = guirlandeCycliqueEnabled ? 'block' : 'none';
+}
+
+// --- 4. DOUBLE RANGÉE CROISÉE ---
+function injectGuirlandeCroiseeStyles() {
+    if (document.getElementById('guirlande-croisee-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'guirlande-croisee-inline-style';
+    styleTag.textContent = `
+        #guirlande-croisee-wrapper {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 90px;
+            z-index: 400;
+            pointer-events: none;
+        }
+        .gc2-row {
+            position: absolute;
+            top: 20px; left: -5%; width: 110%; height: 0;
+        }
+        .gc2-row.row-a { transform: rotate(6deg); }
+        .gc2-row.row-b { top: 40px; transform: rotate(-6deg); }
+        .gc2-bulb {
+            position: absolute;
+            top: -6px;
+            width: 12px; height: 12px;
+            border-radius: 50%;
+            background: #fff5c0;
+            box-shadow: 0 0 10px 3px rgba(255, 220, 120, 0.8);
+            animation: gc2-twinkle 2s ease-in-out infinite;
+        }
+        @keyframes gc2-twinkle {
+            0%, 100% { opacity: 1; }
+            50%      { opacity: 0.35; }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectGuirlandeCroiseeStyles();
+
+function buildGuirlandeCroiseeRow(className) {
+    const row = document.createElement('div');
+    row.className = `gc2-row ${className}`;
+    const BULB_COUNT = 18;
+    for (let i = 0; i < BULB_COUNT; i++) {
+        const bulb = document.createElement('div');
+        bulb.className = 'gc2-bulb';
+        bulb.style.left = `${(i / (BULB_COUNT - 1)) * 100}%`;
+        bulb.style.animationDelay = `${Math.random() * 2}s`;
+        row.appendChild(bulb);
+    }
+    return row;
+}
+
+function ensureGuirlandeCroiseeElement() {
+    let wrapper = document.getElementById('guirlande-croisee-wrapper');
+    if (!wrapper) {
+        wrapper = document.createElement('div');
+        wrapper.id = 'guirlande-croisee-wrapper';
+        wrapper.appendChild(buildGuirlandeCroiseeRow('row-a'));
+        wrapper.appendChild(buildGuirlandeCroiseeRow('row-b'));
+        document.body.appendChild(wrapper);
+    }
+    return wrapper;
+}
+
+function toggleGuirlandeCroiseeSetting(checked) {
+    guirlandeCroiseeEnabled = checked;
+    localStorage.setItem('guirlandeCroiseeEnabled', checked ? 'true' : 'false');
+    ensureGuirlandeCroiseeElement().style.display = checked ? 'block' : 'none';
+}
+
+function initGuirlandeCroiseeState() {
+    ensureGuirlandeCroiseeElement().style.display = guirlandeCroiseeEnabled ? 'block' : 'none';
+}
+
+// --- 5. VAGUES DE BASSES (equalizer visuel — pas de vraie analyse audio, voir note plus bas) ---
+// ⚠️ Le navigateur n'a pas accès au flux audio réel de Spotify (lecture via l'API sur un
+// appareil externe) : impossible d'analyser les vraies basses. Cet effet est donc une
+// animation procédurale qui DONNE L'IMPRESSION d'un equalizer réactif, sans l'être réellement.
+function injectVaguesBassesStyles() {
+    if (document.getElementById('vagues-basses-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'vagues-basses-inline-style';
+    styleTag.textContent = `
+        #vagues-basses-wrapper {
+            display: none;
+            position: fixed;
+            bottom: 0; left: 0; width: 100%; height: 70px;
+            z-index: 400;
+            pointer-events: none;
+            align-items: flex-end;
+            justify-content: center;
+            gap: 4px;
+        }
+        .vb-bar {
+            width: 6px;
+            height: 10px;
+            background: linear-gradient(to top, var(--spotify-green, #1DB954), #52ffb0);
+            border-radius: 3px 3px 0 0;
+            animation: vb-pulse 0.7s ease-in-out infinite;
+        }
+        @keyframes vb-pulse {
+            0%, 100% { height: 8px; }
+            50%      { height: 55px; }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectVaguesBassesStyles();
+
+function ensureVaguesBassesElement() {
+    let wrapper = document.getElementById('vagues-basses-wrapper');
+    if (!wrapper) {
+        wrapper = document.createElement('div');
+        wrapper.id = 'vagues-basses-wrapper';
+        const BAR_COUNT = 40;
+        for (let i = 0; i < BAR_COUNT; i++) {
+            const bar = document.createElement('div');
+            bar.className = 'vb-bar';
+            bar.style.animationDelay = `${Math.random() * 0.7}s`;
+            bar.style.animationDuration = `${0.5 + Math.random() * 0.6}s`;
+            wrapper.appendChild(bar);
+        }
+        document.body.appendChild(wrapper);
+    }
+    return wrapper;
+}
+
+function toggleVaguesBassesSetting(checked) {
+    vaguesBassesEnabled = checked;
+    localStorage.setItem('vaguesBassesEnabled', checked ? 'true' : 'false');
+    ensureVaguesBassesElement().style.display = checked ? 'flex' : 'none';
+}
+
+function initVaguesBassesState() {
+    ensureVaguesBassesElement().style.display = vaguesBassesEnabled ? 'flex' : 'none';
+}
+
+// --- 6. AURORE BORÉALE ---
+function injectAuroreBorealeStyles() {
+    if (document.getElementById('aurore-boreale-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'aurore-boreale-inline-style';
+    styleTag.textContent = `
+        #aurore-boreale-wrapper {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            pointer-events: none;
+            overflow: hidden;
+        }
+        .aurore-veil {
+            position: absolute;
+            left: -20%;
+            width: 140%;
+            height: 60%;
+            filter: blur(40px);
+            opacity: 0.5;
+            animation: aurore-drift 14s ease-in-out infinite;
+        }
+        .aurore-veil.v1 { top: -20%; background: linear-gradient(120deg, #00ffa2, #00c8ff); }
+        .aurore-veil.v2 { top: -10%; background: linear-gradient(120deg, #7b2ff7, #00ffa2); animation-delay: -5s; }
+        .aurore-veil.v3 { top: -28%; background: linear-gradient(120deg, #00c8ff, #7b2ff7); animation-delay: -9s; }
+        @keyframes aurore-drift {
+            0%, 100% { transform: translateX(-5%) scaleY(1); opacity: 0.35; }
+            50%      { transform: translateX(5%) scaleY(1.3); opacity: 0.6; }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectAuroreBorealeStyles();
+
+function ensureAuroreBorealeElement() {
+    let wrapper = document.getElementById('aurore-boreale-wrapper');
+    if (!wrapper) {
+        wrapper = document.createElement('div');
+        wrapper.id = 'aurore-boreale-wrapper';
+        ['v1', 'v2', 'v3'].forEach(cls => {
+            const veil = document.createElement('div');
+            veil.className = `aurore-veil ${cls}`;
+            wrapper.appendChild(veil);
+        });
+        document.body.appendChild(wrapper);
+    }
+    return wrapper;
+}
+
+function toggleAuroreBorealeSetting(checked) {
+    auroreBorealeEnabled = checked;
+    localStorage.setItem('auroreBorealeEnabled', checked ? 'true' : 'false');
+    ensureAuroreBorealeElement().style.display = checked ? 'block' : 'none';
+}
+
+function initAuroreBorealeState() {
+    ensureAuroreBorealeElement().style.display = auroreBorealeEnabled ? 'block' : 'none';
+}
+
+// --- 7. GRANDE ROUE EN FOND ---
+function injectGrandeRoueStyles() {
+    if (document.getElementById('grande-roue-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'grande-roue-inline-style';
+    styleTag.textContent = `
+        #grande-roue-wrapper {
+            display: none;
+            position: fixed;
+            bottom: -60px; right: -60px;
+            width: 220px; height: 220px;
+            z-index: 0;
+            pointer-events: none;
+            opacity: 0.25;
+        }
+        #grande-roue-wrapper svg {
+            width: 100%; height: 100%;
+            animation: grande-roue-spin 30s linear infinite;
+        }
+        @keyframes grande-roue-spin {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectGrandeRoueStyles();
+
+function ensureGrandeRoueElement() {
+    let wrapper = document.getElementById('grande-roue-wrapper');
+    if (!wrapper) {
+        wrapper = document.createElement('div');
+        wrapper.id = 'grande-roue-wrapper';
+
+        let spokes = '';
+        let nacelles = '';
+        const SPOKE_COUNT = 8;
+        for (let i = 0; i < SPOKE_COUNT; i++) {
+            const angle = (i / SPOKE_COUNT) * 2 * Math.PI;
+            const x2 = 100 + Math.cos(angle) * 90;
+            const y2 = 100 + Math.sin(angle) * 90;
+            spokes += `<line x1="100" y1="100" x2="${x2}" y2="${y2}" stroke="#fff" stroke-width="2" />`;
+            const colors = ['#ff5252', '#ffd452', '#52ff8a', '#52c8ff'];
+            nacelles += `<circle cx="${x2}" cy="${y2}" r="7" fill="${colors[i % colors.length]}" />`;
+        }
+
+        wrapper.innerHTML = `
+            <svg viewBox="0 0 200 200">
+                <circle cx="100" cy="100" r="90" fill="none" stroke="#fff" stroke-width="3" />
+                ${spokes}
+                ${nacelles}
+                <circle cx="100" cy="100" r="8" fill="#fff" />
+            </svg>
+        `;
+        document.body.appendChild(wrapper);
+    }
+    return wrapper;
+}
+
+function toggleGrandeRoueSetting(checked) {
+    grandeRoueEnabled = checked;
+    localStorage.setItem('grandeRoueEnabled', checked ? 'true' : 'false');
+    ensureGrandeRoueElement().style.display = checked ? 'block' : 'none';
+}
+
+function initGrandeRoueState() {
+    ensureGrandeRoueElement().style.display = grandeRoueEnabled ? 'block' : 'none';
+}
+
+// --- 8. POP-CORN QUI SAUTE ---
+let popcornIntervalId = null;
+
+function injectPopcornStyles() {
+    if (document.getElementById('popcorn-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'popcorn-inline-style';
+    styleTag.textContent = `
+        .popcorn-item {
+            position: fixed;
+            bottom: 0;
+            font-size: 1.8rem;
+            z-index: 400;
+            pointer-events: none;
+            animation: popcorn-bounce 2.2s ease-out forwards;
+        }
+        @keyframes popcorn-bounce {
+            0%   { transform: translateY(0) scale(0.8); opacity: 1; }
+            20%  { transform: translateY(-90px) scale(1); }
+            40%  { transform: translateY(0) scale(1); }
+            55%  { transform: translateY(-45px) scale(1); }
+            70%  { transform: translateY(0) scale(1); }
+            85%  { transform: translateY(-18px) scale(1); }
+            100% { transform: translateY(0) scale(0.9); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectPopcornStyles();
+
+function launchPopcorn() {
+    const el = document.createElement('div');
+    el.className = 'popcorn-item';
+    el.innerText = '🍿';
+    el.style.left = `${Math.random() * 92}%`;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 2300);
+}
+
+function scheduleNextPopcorn() {
+    if (!popcornEnabled) return;
+    const delay = 400 + Math.random() * 800;
+    popcornIntervalId = setTimeout(() => {
+        if (popcornEnabled) launchPopcorn();
+        scheduleNextPopcorn();
+    }, delay);
+}
+
+function togglePopcornSetting(checked) {
+    popcornEnabled = checked;
+    localStorage.setItem('popcornEnabled', checked ? 'true' : 'false');
+    if (popcornIntervalId) { clearTimeout(popcornIntervalId); popcornIntervalId = null; }
+    if (checked) scheduleNextPopcorn();
+}
+
+function initPopcornState() {
+    if (popcornEnabled) scheduleNextPopcorn();
+}
+
+// --- 9. BALLONS DE STAND DE TIR ---
+let ballonsStandIntervalId = null;
+
+function injectBallonsStandStyles() {
+    if (document.getElementById('ballons-stand-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'ballons-stand-inline-style';
+    styleTag.textContent = `
+        .ballon-item {
+            position: fixed;
+            bottom: -40px;
+            font-size: 2rem;
+            z-index: 400;
+            pointer-events: none;
+            animation: ballon-float 6s ease-in forwards;
+        }
+        @keyframes ballon-float {
+            0%   { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+            50%  { transform: translate(20px, -50vh) rotate(6deg); }
+            100% { transform: translate(-15px, -105vh) rotate(-4deg); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectBallonsStandStyles();
+
+function launchBallonStand() {
+    const el = document.createElement('div');
+    el.className = 'ballon-item';
+    el.innerText = '🎈';
+    el.style.left = `${Math.random() * 90}%`;
+    el.style.filter = `hue-rotate(${Math.floor(Math.random() * 360)}deg)`;
+    el.style.animationDuration = `${5 + Math.random() * 3}s`;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 8500);
+}
+
+function scheduleNextBallonStand() {
+    if (!ballonsStandEnabled) return;
+    const delay = 1500 + Math.random() * 3000;
+    ballonsStandIntervalId = setTimeout(() => {
+        if (ballonsStandEnabled) launchBallonStand();
+        scheduleNextBallonStand();
+    }, delay);
+}
+
+function toggleBallonsStandSetting(checked) {
+    ballonsStandEnabled = checked;
+    localStorage.setItem('ballonsStandEnabled', checked ? 'true' : 'false');
+    if (ballonsStandIntervalId) { clearTimeout(ballonsStandIntervalId); ballonsStandIntervalId = null; }
+    if (checked) scheduleNextBallonStand();
+}
+
+function initBallonsStandState() {
+    if (ballonsStandEnabled) scheduleNextBallonStand();
+}
+
+// --- 10. FANIONS TRIANGULAIRES ---
+function injectFanionsStyles() {
+    if (document.getElementById('fanions-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'fanions-inline-style';
+    styleTag.textContent = `
+        #fanions-wrapper {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 40px;
+            z-index: 400;
+            pointer-events: none;
+        }
+        .fanion-flag {
+            position: absolute;
+            top: 0;
+            width: 20px; height: 28px;
+            clip-path: polygon(0 0, 100% 0, 50% 100%);
+            animation: fanion-sway 1.8s ease-in-out infinite;
+            transform-origin: top center;
+        }
+        @keyframes fanion-sway {
+            0%, 100% { transform: rotate(-6deg); }
+            50%      { transform: rotate(6deg); }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectFanionsStyles();
+
+function ensureFanionsElement() {
+    let wrapper = document.getElementById('fanions-wrapper');
+    if (!wrapper) {
+        wrapper = document.createElement('div');
+        wrapper.id = 'fanions-wrapper';
+        const colors = ['#ff5252', '#ffd452', '#52ff8a', '#52c8ff', '#c452ff'];
+        const FLAG_COUNT = Math.max(10, Math.round(window.innerWidth / 40));
+        for (let i = 0; i < FLAG_COUNT; i++) {
+            const flag = document.createElement('div');
+            flag.className = 'fanion-flag';
+            flag.style.left = `${(i / (FLAG_COUNT - 1)) * 100}%`;
+            flag.style.background = colors[i % colors.length];
+            flag.style.animationDelay = `${Math.random() * 1.8}s`;
+            wrapper.appendChild(flag);
+        }
+        document.body.appendChild(wrapper);
+    }
+    return wrapper;
+}
+
+function toggleFanionsSetting(checked) {
+    fanionsEnabled = checked;
+    localStorage.setItem('fanionsEnabled', checked ? 'true' : 'false');
+    ensureFanionsElement().style.display = checked ? 'block' : 'none';
+}
+
+function initFanionsState() {
+    ensureFanionsElement().style.display = fanionsEnabled ? 'block' : 'none';
+}
+
+// --- 11. LUMIÈRES DE STAND CHAMBOULE-TOUT (effet "chenillard") ---
+function injectChambouleToutStyles() {
+    if (document.getElementById('chamboule-tout-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'chamboule-tout-inline-style';
+    styleTag.textContent = `
+        #chamboule-tout-wrapper {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 36px;
+            z-index: 400;
+            pointer-events: none;
+        }
+        .chamboule-bulb {
+            position: absolute;
+            top: 10px;
+            width: 14px; height: 14px;
+            border-radius: 50%;
+            background: #444;
+            animation: chamboule-chase 1.6s linear infinite;
+        }
+        @keyframes chamboule-chase {
+            0%, 88%, 100% { background: #444; box-shadow: none; }
+            8%            { background: #fff45c; box-shadow: 0 0 16px 6px rgba(255, 244, 92, 0.9); }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectChambouleToutStyles();
+
+function ensureChambouleToutElement() {
+    let wrapper = document.getElementById('chamboule-tout-wrapper');
+    if (!wrapper) {
+        wrapper = document.createElement('div');
+        wrapper.id = 'chamboule-tout-wrapper';
+        const BULB_COUNT = Math.max(10, Math.round(window.innerWidth / 45));
+        for (let i = 0; i < BULB_COUNT; i++) {
+            const bulb = document.createElement('div');
+            bulb.className = 'chamboule-bulb';
+            bulb.style.left = `${(i / (BULB_COUNT - 1)) * 100}%`;
+            // Délai proportionnel à la position : les ampoules s'allument l'une après l'autre (effet chenillard)
+            bulb.style.animationDelay = `${(i / BULB_COUNT) * 1.6}s`;
+            wrapper.appendChild(bulb);
+        }
+        document.body.appendChild(wrapper);
+    }
+    return wrapper;
+}
+
+function toggleChambouleToutSetting(checked) {
+    chambouleToutEnabled = checked;
+    localStorage.setItem('chambouleToutEnabled', checked ? 'true' : 'false');
+    ensureChambouleToutElement().style.display = checked ? 'block' : 'none';
+}
+
+function initChambouleToutState() {
+    ensureChambouleToutElement().style.display = chambouleToutEnabled ? 'block' : 'none';
+}
+
+// --- 12. FEUILLES DE PALMIER ---
+function injectFeuillesPalmierStyles() {
+    if (document.getElementById('feuilles-palmier-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'feuilles-palmier-inline-style';
+    styleTag.textContent = `
+        .palmier-item {
+            display: none;
+            position: fixed;
+            bottom: -20px;
+            font-size: 5rem;
+            z-index: 400;
+            pointer-events: none;
+            opacity: 0.85;
+            animation: palmier-sway 3s ease-in-out infinite;
+        }
+        #palmier-left  { left: -20px; transform-origin: bottom left; }
+        #palmier-right { right: -20px; transform-origin: bottom right; transform: scaleX(-1); animation-delay: -1.5s; }
+        @keyframes palmier-sway {
+            0%, 100% { transform: rotate(-4deg); }
+            50%      { transform: rotate(4deg); }
+        }
+        #palmier-right.palmier-item { }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectFeuillesPalmierStyles();
+
+function ensureFeuillesPalmierElements() {
+    let left = document.getElementById('palmier-left');
+    let right = document.getElementById('palmier-right');
+    if (!left) {
+        left = document.createElement('div');
+        left.id = 'palmier-left';
+        left.className = 'palmier-item';
+        left.innerText = '🌴';
+        document.body.appendChild(left);
+    }
+    if (!right) {
+        right = document.createElement('div');
+        right.id = 'palmier-right';
+        right.className = 'palmier-item';
+        right.innerText = '🌴';
+        document.body.appendChild(right);
+    }
+    return [left, right];
+}
+
+function toggleFeuillesPalmierSetting(checked) {
+    feuillesPalmierEnabled = checked;
+    localStorage.setItem('feuillesPalmierEnabled', checked ? 'true' : 'false');
+    ensureFeuillesPalmierElements().forEach(el => el.style.display = checked ? 'block' : 'none');
+}
+
+function initFeuillesPalmierState() {
+    ensureFeuillesPalmierElements().forEach(el => el.style.display = feuillesPalmierEnabled ? 'block' : 'none');
+}
+
+// --- 13. PAPILLONS TROPICAUX COLORÉS ---
+let papillonsIntervalId = null;
+
+function injectPapillonsStyles() {
+    if (document.getElementById('papillons-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'papillons-inline-style';
+    styleTag.textContent = `
+        .papillon-item {
+            position: fixed;
+            font-size: 1.8rem;
+            z-index: 400;
+            pointer-events: none;
+            animation: papillon-flutter 8s linear forwards;
+        }
+        @keyframes papillon-flutter {
+            0%   { transform: translate(0, 0); opacity: 1; }
+            20%  { transform: translate(20vw, -30px); }
+            40%  { transform: translate(40vw, 20px); }
+            60%  { transform: translate(60vw, -25px); }
+            80%  { transform: translate(80vw, 15px); }
+            100% { transform: translate(105vw, 0); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectPapillonsStyles();
+
+function launchPapillon() {
+    const el = document.createElement('div');
+    el.className = 'papillon-item';
+    el.innerText = '🦋';
+    el.style.top = `${10 + Math.random() * 60}%`;
+    el.style.left = `-5%`;
+    el.style.filter = `hue-rotate(${Math.floor(Math.random() * 360)}deg)`;
+    el.style.animationDuration = `${7 + Math.random() * 3}s`;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 10500);
+}
+
+function scheduleNextPapillon() {
+    if (!papillonsEnabled) return;
+    const delay = 2000 + Math.random() * 4000;
+    papillonsIntervalId = setTimeout(() => {
+        if (papillonsEnabled) launchPapillon();
+        scheduleNextPapillon();
+    }, delay);
+}
+
+function togglePapillonsSetting(checked) {
+    papillonsEnabled = checked;
+    localStorage.setItem('papillonsEnabled', checked ? 'true' : 'false');
+    if (papillonsIntervalId) { clearTimeout(papillonsIntervalId); papillonsIntervalId = null; }
+    if (checked) scheduleNextPapillon();
+}
+
+function initPapillonsState() {
+    if (papillonsEnabled) scheduleNextPapillon();
+}
+
+// --- 14. DÉGRADÉ COUCHER DE SOLEIL ---
+function injectCoucherSoleilStyles() {
+    if (document.getElementById('coucher-soleil-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'coucher-soleil-inline-style';
+    styleTag.textContent = `
+        #coucher-soleil-bg {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            background: linear-gradient(180deg, #2b0b3f 0%, #ff6a3d 45%, #ffb84d 70%, #2b0b3f 100%);
+            background-size: 100% 300%;
+            animation: coucher-soleil-shift 16s ease-in-out infinite;
+        }
+        @keyframes coucher-soleil-shift {
+            0%, 100% { background-position: 0% 0%; }
+            50%      { background-position: 0% 100%; }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectCoucherSoleilStyles();
+
+function ensureCoucherSoleilElement() {
+    let el = document.getElementById('coucher-soleil-bg');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'coucher-soleil-bg';
+        document.body.appendChild(el);
+    }
+    return el;
+}
+
+function toggleCoucherSoleilSetting(checked) {
+    coucherSoleilEnabled = checked;
+    localStorage.setItem('coucherSoleilEnabled', checked ? 'true' : 'false');
+    ensureCoucherSoleilElement().style.display = checked ? 'block' : 'none';
+}
+
+function initCoucherSoleilState() {
+    ensureCoucherSoleilElement().style.display = coucherSoleilEnabled ? 'block' : 'none';
 }
