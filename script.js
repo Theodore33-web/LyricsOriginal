@@ -1,4 +1,4 @@
-const APP_VERSION = "v1.1.87";
+const APP_VERSION = "v1.1.88";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -5836,7 +5836,9 @@ function playDriveMusicTrack(index) {
     // Lien de lecture directe : celui renvoyé par le backend, sinon reconstruit à partir de l'id.
     // ⚠️ "export=view" (et non "export=download") : "download" force un Content-Disposition:attachment
     // que la balise <audio> refuse souvent de charger silencieusement (aucun son, aucun timer).
-    const playUrl = file.url || `https://drive.google.com/uc?export=view&id=${file.id}`;
+    // Lien de lecture directe : celui renvoyé par le backend (passe par le doGet() de l'Apps Script,
+    // beaucoup plus fiable qu'un lien Drive direct pour la lecture dans <audio>)
+    const playUrl = file.url || `${APPS_SCRIPT_URL}?id=${file.id}&secret=${encodeURIComponent(APPS_SCRIPT_SECRET)}`;
 
     driveMusicAudioEl = new Audio(playUrl);
 
