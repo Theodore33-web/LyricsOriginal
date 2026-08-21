@@ -5,7 +5,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v1.91";
+        const APP_VERSION = "v1.92";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -699,14 +699,6 @@
 </div>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Guitare silhouette qui vibre</span>
-    <label class="switch">
-        <input type="checkbox" id="guitare-vibre-toggle" onchange="toggleGuitareVibreSetting(this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
         <span style="font-size: 0.85rem; color: var(--text-grey);">Défilement automatique des paroles</span>
 
         <label class="switch">
@@ -1136,7 +1128,6 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 initBassWaveState();
                 initTitleScratchState();
                 initMicroScintilleState();
-                initGuitareVibreState();
                 requestWakeLock();
                 initPartyPopperState();
                 initVoiceCommand();
@@ -2249,7 +2240,6 @@ let vinyleEnabled = localStorage.getItem('vinyleEnabled') === 'true';
 let bassWaveEnabled = localStorage.getItem('bassWaveEnabled') === 'true';
 let titleScratchEnabled = localStorage.getItem('titleScratchEnabled') === 'true';
 let microScintilleEnabled = localStorage.getItem('microScintilleEnabled') === 'true';
-let guitareVibreEnabled = localStorage.getItem('guitareVibreEnabled') === 'true';
 
 function toggleSettings() {
     // Force le panneau réglages à défiler verticalement plutôt que de prendre toute la hauteur
@@ -2339,8 +2329,6 @@ function toggleSettings() {
         if (titleScratchToggle) titleScratchToggle.checked = titleScratchEnabled;
         const microScintilleToggle = document.getElementById('micro-scintille-toggle');
         if (microScintilleToggle) microScintilleToggle.checked = microScintilleEnabled;
-        const guitareVibreToggle = document.getElementById('guitare-vibre-toggle');
-        if (guitareVibreToggle) guitareVibreToggle.checked = guitareVibreEnabled;
     } else {
         settingsZone.style.display = 'none';
     }
@@ -6711,9 +6699,14 @@ function playDriveMusicTrack(index) {
     // Lien de lecture directe : celui renvoyé par le backend, sinon reconstruit à partir de l'id.
     // ⚠️ "export=view" (et non "export=download") : "download" force un Content-Disposition:attachment
     // que la balise <audio> refuse souvent de charger silencieusement (aucun son, aucun timer).
-    // Lien de lecture directe : celui renvoyé par le backend (passe par le doGet() de l'Apps Script,
-    // beaucoup plus fiable qu'un lien Drive direct pour la lecture dans <audio>)
-    const playUrl = file.url || `${APPS_SCRIPT_URL}?id=${file.id}&secret=${encodeURIComponent(APPS_SCRIPT_SECRET)}`;
+    // Lien de lecture directe : celui renvoyé par le backend (API Drive v3, files.get avec
+    // alt=media — la bonne méthode pour du binaire, avec un vrai support du streaming/Range).
+    // Pas de fallback reconstruit ici : sans clé API côté client, impossible de le recréer proprement.
+    const playUrl = file.url;
+    if (!playUrl) {
+        document.getElementById('track-title').innerText = `⚠️ Lien de lecture manquant : ${file.name}`;
+        return;
+    }
 
     driveMusicAudioEl = new Audio(playUrl);
 
@@ -7798,82 +7791,6 @@ function initMicroScintilleState() {
     ensureMicroScintilleElement().style.display = microScintilleEnabled ? 'block' : 'none';
 }
 
-// --- GUITARE SILHOUETTE QUI VIBRE ---
-// Icône fixe en bas d'écran, avec un petit "strum" (vibration brève) périodique plutôt
-// qu'une vibration continue, plus agréable à l'œil.
-let guitareVibreIntervalId = null;
-
-function injectGuitareVibreStyles() {
-    if (document.getElementById('guitare-vibre-inline-style')) return;
-    const styleTag = document.createElement('style');
-    styleTag.id = 'guitare-vibre-inline-style';
-    styleTag.textContent = `
-        #guitare-vibre-wrapper {
-            display: none;
-            position: fixed;
-            bottom: 10px; left: 20px;
-            font-size: 3rem;
-            z-index: 400;
-            pointer-events: none;
-            opacity: 0.85;
-        }
-        .guitare-strum {
-            animation: guitare-strum-shake 0.5s ease-in-out;
-        }
-        @keyframes guitare-strum-shake {
-            0%, 100% { transform: rotate(0deg); }
-            20%      { transform: rotate(-6deg); }
-            40%      { transform: rotate(5deg); }
-            60%      { transform: rotate(-4deg); }
-            80%      { transform: rotate(3deg); }
-        }
-    `;
-    document.head.appendChild(styleTag);
-}
-injectGuitareVibreStyles();
-
-function ensureGuitareVibreElement() {
-    let el = document.getElementById('guitare-vibre-wrapper');
-    if (!el) {
-        el = document.createElement('div');
-        el.id = 'guitare-vibre-wrapper';
-        el.innerText = '🎸';
-        document.body.appendChild(el);
-    }
-    return el;
-}
-
-function triggerGuitareStrum() {
-    const el = document.getElementById('guitare-vibre-wrapper');
-    if (!el) return;
-    el.classList.remove('guitare-strum');
-    void el.offsetWidth;
-    el.classList.add('guitare-strum');
-}
-
-function scheduleNextGuitareStrum() {
-    if (!guitareVibreEnabled) return;
-    const delay = 2500 + Math.random() * 3000;
-    guitareVibreIntervalId = setTimeout(() => {
-        if (guitareVibreEnabled) triggerGuitareStrum();
-        scheduleNextGuitareStrum();
-    }, delay);
-}
-
-function toggleGuitareVibreSetting(checked) {
-    guitareVibreEnabled = checked;
-    localStorage.setItem('guitareVibreEnabled', checked ? 'true' : 'false');
-    ensureGuitareVibreElement().style.display = checked ? 'block' : 'none';
-    if (guitareVibreIntervalId) { clearTimeout(guitareVibreIntervalId); guitareVibreIntervalId = null; }
-    if (checked) scheduleNextGuitareStrum();
-}
-
-function initGuitareVibreState() {
-    ensureGuitareVibreElement().style.display = guitareVibreEnabled ? 'block' : 'none';
-    if (guitareVibreEnabled) scheduleNextGuitareStrum();
-}
-
     </script>
 </body>
 </html>
-
