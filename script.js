@@ -1,4 +1,4 @@
-const APP_VERSION = "v1.1.85";
+const APP_VERSION = "v1.1.87";
 
 // Crée un bouton "Afficher plus" avec un style forcé en JS,
 // identique à 100% partout où il est utilisé (bibliothèque, écoutes
@@ -272,10 +272,8 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 initSilhouettesState();
                 initGuirlandeCycliqueState();
                 initGuirlandeCroiseeState();
-                initVaguesBassesState();
                 initAuroreBorealeState();
                 initGrandeRoueState();
-                initPopcornState();
                 initBallonsStandState();
                 initFanionsState();
                 initChambouleToutState();
@@ -1380,10 +1378,8 @@ let serpentinsEnabled = localStorage.getItem('serpentinsEnabled') === 'true';
 let silhouettesEnabled = localStorage.getItem('silhouettesEnabled') === 'true';
 let guirlandeCycliqueEnabled = localStorage.getItem('guirlandeCycliqueEnabled') === 'true';
 let guirlandeCroiseeEnabled = localStorage.getItem('guirlandeCroiseeEnabled') === 'true';
-let vaguesBassesEnabled = localStorage.getItem('vaguesBassesEnabled') === 'true';
 let auroreBorealeEnabled = localStorage.getItem('auroreBorealeEnabled') === 'true';
 let grandeRoueEnabled = localStorage.getItem('grandeRoueEnabled') === 'true';
-let popcornEnabled = localStorage.getItem('popcornEnabled') === 'true';
 let ballonsStandEnabled = localStorage.getItem('ballonsStandEnabled') === 'true';
 let fanionsEnabled = localStorage.getItem('fanionsEnabled') === 'true';
 let chambouleToutEnabled = localStorage.getItem('chambouleToutEnabled') === 'true';
@@ -1454,14 +1450,10 @@ function toggleSettings() {
         if (guirlandeCycliqueToggle) guirlandeCycliqueToggle.checked = guirlandeCycliqueEnabled;
         const guirlandeCroiseeToggle = document.getElementById('guirlande-croisee-toggle');
         if (guirlandeCroiseeToggle) guirlandeCroiseeToggle.checked = guirlandeCroiseeEnabled;
-        const vaguesBassesToggle = document.getElementById('vagues-basses-toggle');
-        if (vaguesBassesToggle) vaguesBassesToggle.checked = vaguesBassesEnabled;
         const auroreBorealeToggle = document.getElementById('aurore-boreale-toggle');
         if (auroreBorealeToggle) auroreBorealeToggle.checked = auroreBorealeEnabled;
         const grandeRoueToggle = document.getElementById('grande-roue-toggle');
         if (grandeRoueToggle) grandeRoueToggle.checked = grandeRoueEnabled;
-        const popcornToggle = document.getElementById('popcorn-toggle');
-        if (popcornToggle) popcornToggle.checked = popcornEnabled;
         const ballonsStandToggle = document.getElementById('ballons-stand-toggle');
         if (ballonsStandToggle) ballonsStandToggle.checked = ballonsStandEnabled;
         const fanionsToggle = document.getElementById('fanions-toggle');
@@ -5841,8 +5833,10 @@ function playDriveMusicTrack(index) {
 
     stopDriveMusicPlayback(false); // coupe une éventuelle lecture précédente sans réinitialiser l'affichage
 
-    // Lien de lecture directe : celui renvoyé par le backend, sinon reconstruit à partir de l'id
-    const playUrl = file.url || `https://drive.google.com/uc?export=download&id=${file.id}`;
+    // Lien de lecture directe : celui renvoyé par le backend, sinon reconstruit à partir de l'id.
+    // ⚠️ "export=view" (et non "export=download") : "download" force un Content-Disposition:attachment
+    // que la balise <audio> refuse souvent de charger silencieusement (aucun son, aucun timer).
+    const playUrl = file.url || `https://drive.google.com/uc?export=view&id=${file.id}`;
 
     driveMusicAudioEl = new Audio(playUrl);
 
@@ -5856,7 +5850,17 @@ function playDriveMusicTrack(index) {
         document.getElementById('play-pause-btn').innerText = '▶️';
     });
 
-    driveMusicAudioEl.play().catch(e => console.error("Lecture Drive impossible :", e));
+    // Remontée d'erreur visible : sans ça, un échec de lecture ne se voit nulle part
+    driveMusicAudioEl.addEventListener('error', () => {
+        console.error("Lecture Drive impossible pour :", file.name, playUrl, driveMusicAudioEl.error);
+        document.getElementById('track-title').innerText = `⚠️ Lecture impossible : ${file.name}`;
+        stopDriveMusicPlayback(false);
+    });
+
+    driveMusicAudioEl.play().catch(e => {
+        console.error("Lecture Drive impossible :", e);
+        document.getElementById('track-title').innerText = `⚠️ Lecture impossible : ${file.name}`;
+    });
     document.getElementById('play-pause-btn').innerText = '⏸';
 
     if (driveMusicProgressInterval) clearInterval(driveMusicProgressInterval);
@@ -6046,6 +6050,14 @@ function injectGuirlandeCycliqueStyles() {
             z-index: 400;
             pointer-events: none;
         }
+        #guirlande-cyclique-cable {
+            position: absolute;
+            top: 6px;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: #1a1a1a;
+        }
         .gc-bulb {
             position: absolute;
             top: 8px;
@@ -6069,6 +6081,11 @@ function ensureGuirlandeCycliqueElement() {
     if (!wrapper) {
         wrapper = document.createElement('div');
         wrapper.id = 'guirlande-cyclique-wrapper';
+
+        const cable = document.createElement('div');
+        cable.id = 'guirlande-cyclique-cable';
+        wrapper.appendChild(cable);
+
         const BULB_COUNT = Math.max(6, Math.round(window.innerWidth / 55));
         for (let i = 0; i < BULB_COUNT; i++) {
             const bulb = document.createElement('div');
@@ -6111,6 +6128,14 @@ function injectGuirlandeCroiseeStyles() {
         }
         .gc2-row.row-a { transform: rotate(6deg); }
         .gc2-row.row-b { top: 40px; transform: rotate(-6deg); }
+        .gc2-cable {
+            position: absolute;
+            top: -2px;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: #1a1a1a;
+        }
         .gc2-bulb {
             position: absolute;
             top: -6px;
@@ -6132,6 +6157,11 @@ injectGuirlandeCroiseeStyles();
 function buildGuirlandeCroiseeRow(className) {
     const row = document.createElement('div');
     row.className = `gc2-row ${className}`;
+
+    const cable = document.createElement('div');
+    cable.className = 'gc2-cable';
+    row.appendChild(cable);
+
     const BULB_COUNT = 18;
     for (let i = 0; i < BULB_COUNT; i++) {
         const bulb = document.createElement('div');
@@ -6163,69 +6193,6 @@ function toggleGuirlandeCroiseeSetting(checked) {
 
 function initGuirlandeCroiseeState() {
     ensureGuirlandeCroiseeElement().style.display = guirlandeCroiseeEnabled ? 'block' : 'none';
-}
-
-// --- 5. VAGUES DE BASSES (equalizer visuel — pas de vraie analyse audio, voir note plus bas) ---
-// ⚠️ Le navigateur n'a pas accès au flux audio réel de Spotify (lecture via l'API sur un
-// appareil externe) : impossible d'analyser les vraies basses. Cet effet est donc une
-// animation procédurale qui DONNE L'IMPRESSION d'un equalizer réactif, sans l'être réellement.
-function injectVaguesBassesStyles() {
-    if (document.getElementById('vagues-basses-inline-style')) return;
-    const styleTag = document.createElement('style');
-    styleTag.id = 'vagues-basses-inline-style';
-    styleTag.textContent = `
-        #vagues-basses-wrapper {
-            display: none;
-            position: fixed;
-            bottom: 0; left: 0; width: 100%; height: 70px;
-            z-index: 400;
-            pointer-events: none;
-            align-items: flex-end;
-            justify-content: center;
-            gap: 4px;
-        }
-        .vb-bar {
-            width: 6px;
-            height: 10px;
-            background: linear-gradient(to top, var(--spotify-green, #1DB954), #52ffb0);
-            border-radius: 3px 3px 0 0;
-            animation: vb-pulse 0.7s ease-in-out infinite;
-        }
-        @keyframes vb-pulse {
-            0%, 100% { height: 8px; }
-            50%      { height: 55px; }
-        }
-    `;
-    document.head.appendChild(styleTag);
-}
-injectVaguesBassesStyles();
-
-function ensureVaguesBassesElement() {
-    let wrapper = document.getElementById('vagues-basses-wrapper');
-    if (!wrapper) {
-        wrapper = document.createElement('div');
-        wrapper.id = 'vagues-basses-wrapper';
-        const BAR_COUNT = 40;
-        for (let i = 0; i < BAR_COUNT; i++) {
-            const bar = document.createElement('div');
-            bar.className = 'vb-bar';
-            bar.style.animationDelay = `${Math.random() * 0.7}s`;
-            bar.style.animationDuration = `${0.5 + Math.random() * 0.6}s`;
-            wrapper.appendChild(bar);
-        }
-        document.body.appendChild(wrapper);
-    }
-    return wrapper;
-}
-
-function toggleVaguesBassesSetting(checked) {
-    vaguesBassesEnabled = checked;
-    localStorage.setItem('vaguesBassesEnabled', checked ? 'true' : 'false');
-    ensureVaguesBassesElement().style.display = checked ? 'flex' : 'none';
-}
-
-function initVaguesBassesState() {
-    ensureVaguesBassesElement().style.display = vaguesBassesEnabled ? 'flex' : 'none';
 }
 
 // --- 6. AURORE BORÉALE ---
@@ -6355,65 +6322,6 @@ function toggleGrandeRoueSetting(checked) {
 
 function initGrandeRoueState() {
     ensureGrandeRoueElement().style.display = grandeRoueEnabled ? 'block' : 'none';
-}
-
-// --- 8. POP-CORN QUI SAUTE ---
-let popcornIntervalId = null;
-
-function injectPopcornStyles() {
-    if (document.getElementById('popcorn-inline-style')) return;
-    const styleTag = document.createElement('style');
-    styleTag.id = 'popcorn-inline-style';
-    styleTag.textContent = `
-        .popcorn-item {
-            position: fixed;
-            bottom: 0;
-            font-size: 1.8rem;
-            z-index: 400;
-            pointer-events: none;
-            animation: popcorn-bounce 2.2s ease-out forwards;
-        }
-        @keyframes popcorn-bounce {
-            0%   { transform: translateY(0) scale(0.8); opacity: 1; }
-            20%  { transform: translateY(-90px) scale(1); }
-            40%  { transform: translateY(0) scale(1); }
-            55%  { transform: translateY(-45px) scale(1); }
-            70%  { transform: translateY(0) scale(1); }
-            85%  { transform: translateY(-18px) scale(1); }
-            100% { transform: translateY(0) scale(0.9); opacity: 0; }
-        }
-    `;
-    document.head.appendChild(styleTag);
-}
-injectPopcornStyles();
-
-function launchPopcorn() {
-    const el = document.createElement('div');
-    el.className = 'popcorn-item';
-    el.innerText = '🍿';
-    el.style.left = `${Math.random() * 92}%`;
-    document.body.appendChild(el);
-    setTimeout(() => el.remove(), 2300);
-}
-
-function scheduleNextPopcorn() {
-    if (!popcornEnabled) return;
-    const delay = 400 + Math.random() * 800;
-    popcornIntervalId = setTimeout(() => {
-        if (popcornEnabled) launchPopcorn();
-        scheduleNextPopcorn();
-    }, delay);
-}
-
-function togglePopcornSetting(checked) {
-    popcornEnabled = checked;
-    localStorage.setItem('popcornEnabled', checked ? 'true' : 'false');
-    if (popcornIntervalId) { clearTimeout(popcornIntervalId); popcornIntervalId = null; }
-    if (checked) scheduleNextPopcorn();
-}
-
-function initPopcornState() {
-    if (popcornEnabled) scheduleNextPopcorn();
 }
 
 // --- 9. BALLONS DE STAND DE TIR ---
@@ -6546,6 +6454,14 @@ function injectChambouleToutStyles() {
             z-index: 400;
             pointer-events: none;
         }
+        #chamboule-tout-cable {
+            position: absolute;
+            top: 8px;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: #1a1a1a;
+        }
         .chamboule-bulb {
             position: absolute;
             top: 10px;
@@ -6568,6 +6484,11 @@ function ensureChambouleToutElement() {
     if (!wrapper) {
         wrapper = document.createElement('div');
         wrapper.id = 'chamboule-tout-wrapper';
+
+        const cable = document.createElement('div');
+        cable.id = 'chamboule-tout-cable';
+        wrapper.appendChild(cable);
+
         const BULB_COUNT = Math.max(10, Math.round(window.innerWidth / 45));
         for (let i = 0; i < BULB_COUNT; i++) {
             const bulb = document.createElement('div');
