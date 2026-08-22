@@ -5,7 +5,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v1.94";
+        const APP_VERSION = "v1.95";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1027,14 +1027,63 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
         const code = params.get("code");
         const scope = "user-read-private user-read-email user-modify-playback-state user-read-playback-state user-library-read user-library-modify playlist-read-private user-read-recently-played user-read-currently-playing";
         if (code) {
+            showLoadingScreen();
             document.getElementById('login-section').style.display = 'none';
             applyLyricsColorEasterEgg(); // applique le choix tiré avant la redirection
             handleCallback(code);
         } else {
             document.getElementById('login-btn').onclick = () => {
+                showLoadingScreen();
                 rollLyricsColorChoice(); // tirage au moment exact du clic
                 redirectToSpotify();
             };
+        }
+
+        // ==== ÉCRAN DE CHARGEMENT ("chargement.gif") ====
+        // Affiché 1) dès le clic sur "Se connecter avec Spotify" (le temps de préparer la redirection
+        // PKCE) et 2) au retour de Spotify pendant l'échange du code contre un token — c'est ce
+        // deuxième moment qui dure le plus longtemps (appel réseau), donc le plus utile à couvrir.
+        function injectLoadingScreenStyles() {
+            if (document.getElementById('loading-screen-inline-style')) return;
+            const styleTag = document.createElement('style');
+            styleTag.id = 'loading-screen-inline-style';
+            styleTag.textContent = `
+                #loading-screen-overlay {
+                    display: none;
+                    position: fixed;
+                    inset: 0;
+                    background: rgba(0, 0, 0, 0.85);
+                    z-index: 99999;
+                    align-items: center;
+                    justify-content: center;
+                }
+                #loading-screen-overlay img {
+                    max-width: 200px;
+                    max-height: 200px;
+                }
+            `;
+            document.head.appendChild(styleTag);
+        }
+        injectLoadingScreenStyles();
+
+        function ensureLoadingScreenElement() {
+            let overlay = document.getElementById('loading-screen-overlay');
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.id = 'loading-screen-overlay';
+                overlay.innerHTML = `<img src="chargement.gif" alt="Chargement...">`;
+                document.body.appendChild(overlay);
+            }
+            return overlay;
+        }
+
+        function showLoadingScreen() {
+            ensureLoadingScreenElement().style.display = 'flex';
+        }
+
+        function hideLoadingScreen() {
+            const overlay = document.getElementById('loading-screen-overlay');
+            if (overlay) overlay.style.display = 'none';
         }
 
 
@@ -1078,9 +1127,13 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 if (data.access_token) {
                     window.history.replaceState({}, document.title, window.location.pathname);
                     getUserData(data.access_token);
+                } else {
+                    console.error("Pas de token reçu :", data);
+                    hideLoadingScreen();
                 }
             } catch (e) {
                 console.error("Erreur d'authentification : ", e);
+                hideLoadingScreen();
             }
         }
 
@@ -1091,6 +1144,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 const user = await response.json();
                 
                 document.getElementById('dashboard').style.display = 'flex';
+                hideLoadingScreen();
                 
                 setTimeout(() => {
                     if (document.getElementById('profile-card-name')) {
