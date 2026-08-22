@@ -5,7 +5,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v1.92";
+        const APP_VERSION = "v1.93";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -761,9 +761,9 @@
 
                 <div class="controls" style="display: flex; align-items: center; justify-content: center; position: relative;">
      <button id="random-track-btn" onclick="playRandomTrack()" title="Titre aléatoire" style="position: absolute; left: 10px; background: none; border: none; font-size: 1.4rem; cursor: pointer; padding: 5px;">🔀</button>
-    <button onclick="previousTrack()">⏮</button>
+    <button id="prev-track-btn" onclick="previousTrack()">⏮</button>
     <button id="play-pause-btn" onclick="togglePlay()">▶️</button>
-    <button onclick="nextTrack()">⏭</button>
+    <button id="next-track-btn" onclick="nextTrack()">⏭</button>
     <button id="like-btn" onclick="toggleLikeCurrentTrack()" title="Ajouter aux favoris" style="position: absolute; right: 10px; background: none; border: none; font-size: 1.4rem; cursor: pointer; padding: 5px;">🤍</button>
 </div>
             </div>
@@ -6573,12 +6573,21 @@ injectDriveMusicStyles();
 // <button id="drive-music-btn" onclick="toggleDriveMusicMode()" title="Lire les musiques Google Drive">📁</button>
 async function toggleDriveMusicMode() {
     const btn = document.getElementById('drive-music-btn');
+    const spotifyControlBtns = ['random-track-btn', 'prev-track-btn', 'next-track-btn', 'like-btn']
+        .map(id => document.getElementById(id))
+        .filter(el => el);
 
     if (driveMusicModeActive) {
         // --- DÉSACTIVATION : on enlève tout et on remet l'interface normale ---
         driveMusicModeActive = false;
         if (btn) btn.classList.remove('active');
         stopDriveMusicPlayback();
+
+        // Boutons de contrôle Spotify (aléatoire, précédent, suivant, favoris) : redevenus visibles
+        spotifyControlBtns.forEach(el => {
+            el.style.opacity = '1';
+            el.style.pointerEvents = 'auto';
+        });
 
         const resultsContainer = document.getElementById('search-results');
         if (resultsContainer) resultsContainer.innerHTML = '';
@@ -6593,6 +6602,13 @@ async function toggleDriveMusicMode() {
     // --- ACTIVATION ---
     driveMusicModeActive = true;
     if (btn) btn.classList.add('active');
+
+    // Boutons de contrôle Spotify : rendus transparents ET désactivés au clic (ils n'ont plus de
+    // sens tant que la lecture Spotify est en pause et remplacée par le mode Drive)
+    spotifyControlBtns.forEach(el => {
+        el.style.opacity = '0';
+        el.style.pointerEvents = 'none';
+    });
 
     // Met en pause la musique Spotify en cours, comme pour l'interface Paroles
     if (isCurrentlyPlaying) {
@@ -7794,3 +7810,4 @@ function initMicroScintilleState() {
     </script>
 </body>
 </html>
+
