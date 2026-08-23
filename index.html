@@ -5,7 +5,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v1.96";
+        const APP_VERSION = "v1.97";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -429,9 +429,6 @@
 
     <div id="dashboard">
         <div class="lyrics-section" id="lyrics-container">
-            <div style="display: flex; justify-content: flex-end; margin-bottom: 6px;">
-                <button id="download-lyrics-gif-btn" onclick="downloadLyricsGif()" title="Télécharger les paroles en GIF" style="background: none; border: none; font-size: 1.3rem; cursor: pointer; padding: 4px;">📥</button>
-            </div>
             <div id="lyrics-content">Lancez une musique sur Spotify...</div>
         </div>
     
@@ -783,9 +780,6 @@
     <!-- ⚠️ app.js n'a pas été fourni pour cette fusion : laissé en fichier externe.
          S'il contient du code (ex. auth Spotify), garde-le à côté de ce fichier HTML. -->
     <script src="app.js"></script>
-
-    <!-- gif.js : encodage GIF côté navigateur, utilisé par le bouton "Télécharger les paroles en GIF" -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
 
 
     <script>
@@ -7868,201 +7862,6 @@ function toggleMicroScintilleSetting(checked) {
 
 function initMicroScintilleState() {
     ensureMicroScintilleElement().style.display = microScintilleEnabled ? 'block' : 'none';
-}
-
-// ==========================================
-// TÉLÉCHARGEMENT DES PAROLES SYNCHRONISÉES EN GIF (titre en cours)
-// Réutilise directement currentLyrics (déjà rempli par fetchLyrics()/parseLyrics() lors
-// d'une vraie lecture Spotify) — aucune parole n'est stockée en dur ici, tout vient du
-// titre réellement écouté au moment du clic.
-// Format léger : fond uniforme fixe (pas d'animation), 1 frame par changement de ligne
-// (pas de défilement pixel par pixel), proportions A3 réduites pour rester petit.
-// ==========================================
-
-const LYRICS_GIF_WIDTH = 420;  // proportions A3 (1:1.414), à taille réduite pour un fichier léger
-const LYRICS_GIF_HEIGHT = 594;
-
-function lyricsGifWrapText(ctx, text, maxWidth) {
-    const words = text.split(' ');
-    const lines = [];
-    let current = '';
-    words.forEach(word => {
-        const test = current ? current + ' ' + word : word;
-        if (ctx.measureText(test).width > maxWidth && current) {
-            lines.push(current);
-            current = word;
-        } else {
-            current = test;
-        }
-    });
-    if (current) lines.push(current);
-    return lines;
-}
-
-function lyricsGifTruncate(ctx, text, maxWidth) {
-    if (!text) return '';
-    if (ctx.measureText(text).width <= maxWidth) return text;
-    let truncated = text;
-    while (truncated.length > 0 && ctx.measureText(truncated + '…').width > maxWidth) {
-        truncated = truncated.slice(0, -1);
-    }
-    return truncated + '…';
-}
-
-function drawLyricsGifFrame(ctx, frameData) {
-    const W = LYRICS_GIF_WIDTH, H = LYRICS_GIF_HEIGHT;
-    const { coverImg, title, artist, prevText, currentText, nextText } = frameData;
-
-    // Fond uniforme et FIXE (mêmes teintes que le fond animé de la page d'accueil, mais figé —
-    // pas d'animation, pour garder le GIF léger)
-    const color1 = getComputedStyle(document.documentElement).getPropertyValue('--gradient-color-1').trim() || '#134e5e';
-    const color2 = getComputedStyle(document.documentElement).getPropertyValue('--gradient-color-2').trim() || '#71b280';
-    const gradient = ctx.createLinearGradient(0, 0, W, H);
-    gradient.addColorStop(0, color1);
-    gradient.addColorStop(1, color2);
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, W, H);
-    // Voile sombre pour la lisibilité du texte (même logique que les cartes semi-transparentes du site)
-    ctx.fillStyle = 'rgba(18, 18, 18, 0.55)';
-    ctx.fillRect(0, 0, W, H);
-
-    // Pochette, titre, artiste : toujours visibles en haut
-    const coverSize = 130;
-    const coverX = (W - coverSize) / 2;
-    const coverY = 30;
-    if (coverImg) {
-        ctx.save();
-        const radius = 12;
-        ctx.beginPath();
-        ctx.moveTo(coverX + radius, coverY);
-        ctx.arcTo(coverX + coverSize, coverY, coverX + coverSize, coverY + coverSize, radius);
-        ctx.arcTo(coverX + coverSize, coverY + coverSize, coverX, coverY + coverSize, radius);
-        ctx.arcTo(coverX, coverY + coverSize, coverX, coverY, radius);
-        ctx.arcTo(coverX, coverY, coverX + coverSize, coverY, radius);
-        ctx.closePath();
-        ctx.clip();
-        ctx.drawImage(coverImg, coverX, coverY, coverSize, coverSize);
-        ctx.restore();
-    }
-
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 18px "Segoe UI", sans-serif';
-    ctx.fillText(lyricsGifTruncate(ctx, title, W - 40), W / 2, coverY + coverSize + 32);
-    ctx.fillStyle = '#b3b3b3';
-    ctx.font = '14px "Segoe UI", sans-serif';
-    ctx.fillText(lyricsGifTruncate(ctx, artist, W - 40), W / 2, coverY + coverSize + 54);
-
-    // Paroles : ligne précédente (discrète) / ligne active (mise en avant) / ligne suivante (aperçu)
-    // — descendent ligne par ligne au fil des frames, pas de défilement continu
-    let y = coverY + coverSize + 110;
-
-    ctx.fillStyle = 'rgba(179, 179, 179, 0.5)';
-    ctx.font = '14px "Segoe UI", sans-serif';
-    ctx.fillText(lyricsGifTruncate(ctx, prevText, W - 60), W / 2, y);
-    y += 34;
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 20px "Segoe UI", sans-serif';
-    const currentLines = currentText ? lyricsGifWrapText(ctx, currentText, W - 60).slice(0, 2) : [];
-    currentLines.forEach(line => {
-        ctx.fillText(line, W / 2, y);
-        y += 28;
-    });
-
-    y += 6;
-    ctx.fillStyle = 'rgba(179, 179, 179, 0.5)';
-    ctx.font = '14px "Segoe UI", sans-serif';
-    ctx.fillText(lyricsGifTruncate(ctx, nextText, W - 60), W / 2, y);
-}
-
-async function downloadLyricsGif() {
-    if (!currentLyrics || currentLyrics.length === 0) {
-        alert("Paroles synchronisées indisponibles pour ce titre — impossible de générer le GIF.");
-        return;
-    }
-    if (typeof GIF === 'undefined') {
-        alert("La librairie de génération GIF n'a pas pu se charger. Vérifie ta connexion et réessaie.");
-        return;
-    }
-
-    const btn = document.getElementById('download-lyrics-gif-btn');
-    const originalText = btn ? btn.innerText : '📥';
-    if (btn) { btn.disabled = true; btn.innerText = '⏳'; }
-
-    try {
-        const title = (document.getElementById('track-title').innerText || 'Titre').trim();
-        const artist = (document.getElementById('track-artist').innerText || '').trim();
-        const coverEl = document.getElementById('track-art');
-        const coverSrc = coverEl ? coverEl.src : '';
-
-        let coverImg = null;
-        if (coverSrc) {
-            coverImg = await new Promise(resolve => {
-                const img = new Image();
-                img.crossOrigin = 'anonymous';
-                img.onload = () => resolve(img);
-                img.onerror = () => resolve(null); // pas bloquant si la pochette ne peut pas être chargée (CORS)
-                img.src = coverSrc;
-            });
-        }
-
-        const canvas = document.createElement('canvas');
-        canvas.width = LYRICS_GIF_WIDTH;
-        canvas.height = LYRICS_GIF_HEIGHT;
-        const ctx = canvas.getContext('2d');
-
-        const gif = new GIF({
-            workers: 2,
-            quality: 10,
-            width: LYRICS_GIF_WIDTH,
-            height: LYRICS_GIF_HEIGHT,
-            workerScript: 'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js'
-        });
-
-        currentLyrics.forEach((line, i) => {
-            const next = currentLyrics[i + 1];
-            // Une frame par changement de ligne (pas un défilement fluide) : garde le fichier léger.
-            // Délai borné entre 0.5s et 4s pour éviter qu'un grand silence instrumental ne bloque une frame trop longtemps.
-            const delay = next
-                ? Math.min(Math.max((next.time - line.time) * 1000, 500), 4000)
-                : 3000;
-
-            drawLyricsGifFrame(ctx, {
-                coverImg,
-                title,
-                artist,
-                prevText: i > 0 ? currentLyrics[i - 1].text : '',
-                currentText: line.text,
-                nextText: next ? next.text : ''
-            });
-
-            gif.addFrame(canvas, { copy: true, delay });
-        });
-
-        gif.on('progress', p => {
-            if (btn) btn.innerText = Math.round(p * 100) + '%';
-        });
-
-        gif.on('finished', blob => {
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            const safeName = `${title}-${artist}`.replace(/[^a-z0-9]+/gi, '_').toLowerCase();
-            a.download = `paroles_${safeName || 'titre'}.gif`;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            URL.revokeObjectURL(url);
-            if (btn) { btn.disabled = false; btn.innerText = originalText; }
-        });
-
-        gif.render();
-    } catch (e) {
-        console.error("Erreur génération GIF paroles :", e);
-        alert("Erreur lors de la génération du GIF.");
-        if (btn) { btn.disabled = false; btn.innerText = originalText; }
-    }
 }
 
     </script>
