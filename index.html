@@ -5,7 +5,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v1.98";
+        const APP_VERSION = "v1.99";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1034,23 +1034,16 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
             handleCallback(code, loadingStartedAt);
         } else {
             document.getElementById('login-btn').onclick = () => {
-                showLoadingScreen();
                 rollLyricsColorChoice(); // tirage au moment exact du clic
-                // Délai minimum de 2s avant de partir vers Spotify : souvent la connexion est déjà
-                // active côté Spotify (redirection quasi instantanée), sans ce délai le gif n'aurait
-                // pas le temps de s'afficher.
-                setTimeout(() => {
-                    redirectToSpotify();
-                }, 2000);
+                redirectToSpotify();
             };
         }
 
         // ==== ÉCRAN DE CHARGEMENT ("chargement.gif") ====
-        // Affiché 1) dès le clic sur "Se connecter avec Spotify" (délai de 2s avant la redirection
-        // pour laisser le temps de le voir) et 2) au retour de Spotify pendant l'échange du code
-        // contre un token — avec une durée minimum garantie de 2s là aussi, car ce retour peut être
-        // quasi instantané si la session Spotify est déjà active.
-        const LOADING_SCREEN_MIN_DURATION_MS = 2000;
+        // Affiché une seule fois : au retour de Spotify, pendant l'échange du code contre un token —
+        // avec une durée minimum garantie de 2.4s, car ce retour peut être quasi instantané si la
+        // session Spotify est déjà active.
+        const LOADING_SCREEN_MIN_DURATION_MS = 2400;
 
         function injectLoadingScreenStyles() {
             if (document.getElementById('loading-screen-inline-style')) return;
