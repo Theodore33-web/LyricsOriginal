@@ -5,7 +5,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v1.99";
+        const APP_VERSION = "v2.00";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -664,10 +664,83 @@
     </label>
 </div>
 
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Ondulation de rideau rouge</span>
+    <label class="switch">
+        <input type="checkbox" id="rideau-rouge-toggle" onchange="toggleRideauRougeSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Halo pulsé sur la pochette</span>
+    <label class="switch">
+        <input type="checkbox" id="pochette-halo-toggle" onchange="togglePochetteHaloSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Guirlande scintillement aléatoire</span>
+    <label class="switch">
+        <input type="checkbox" id="guirlande-scintillement-toggle" onchange="toggleGuirlandeScintillementSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Guirlande verticale</span>
+    <label class="switch">
+        <input type="checkbox" id="guirlande-verticale-toggle" onchange="toggleGuirlandeVerticaleSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Guirlande "orage"</span>
+    <label class="switch">
+        <input type="checkbox" id="guirlande-orage-toggle" onchange="toggleGuirlandeOrageSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Guirlande filaire fine</span>
+    <label class="switch">
+        <input type="checkbox" id="guirlande-filaire-toggle" onchange="toggleGuirlandeFilaireSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Guirlande bicolore alternée</span>
+    <label class="switch">
+        <input type="checkbox" id="guirlande-bicolore-toggle" onchange="toggleGuirlandeBicoloreSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Guirlande étoiles filantes</span>
+    <label class="switch">
+        <input type="checkbox" id="guirlande-etoiles-filantes-toggle" onchange="toggleGuirlandeEtoilesFilantesSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Boule à facettes (LED balayage)</span>
+    <label class="switch">
+        <input type="checkbox" id="boule-led-toggle" onchange="toggleBouleLedSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
 <p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 10px 0 2px 0;">STYLE DJ / MUSIQUE</p>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
     <span style="font-size: 0.85rem; color: var(--text-grey);">Vinyle qui tourne</span>
+
     <label class="switch">
         <input type="checkbox" id="vinyle-toggle" onchange="toggleVinyleSetting(this.checked)">
         <span class="slider"></span>
@@ -1186,6 +1259,15 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 initFeuillesPalmierState();
                 initPapillonsState();
                 initCoucherSoleilState();
+                initRideauRougeState();
+                initPochetteHaloState();
+                initGuirlandeScintillementState();
+                initGuirlandeVerticaleState();
+                initGuirlandeOrageState();
+                initGuirlandeFilaireState();
+                initGuirlandeBicoloreState();
+                initGuirlandeEtoilesFilantesState();
+                initBouleLedState();
                 initVinyleState();
                 initBassWaveState();
                 initTitleScratchState();
@@ -2300,6 +2382,17 @@ let feuillesPalmierEnabled = localStorage.getItem('feuillesPalmierEnabled') === 
 let papillonsEnabled = localStorage.getItem('papillonsEnabled') === 'true';
 let coucherSoleilEnabled = localStorage.getItem('coucherSoleilEnabled') === 'true';
 
+// --- 9 NOUVEAUX EFFETS (rideau, halo pochette, guirlandes, boule LED) ---
+let rideauRougeEnabled = localStorage.getItem('rideauRougeEnabled') === 'true';
+let pochetteHaloEnabled = localStorage.getItem('pochetteHaloEnabled') === 'true';
+let guirlandeScintillementEnabled = localStorage.getItem('guirlandeScintillementEnabled') === 'true';
+let guirlandeVerticaleEnabled = localStorage.getItem('guirlandeVerticaleEnabled') === 'true';
+let guirlandeOrageEnabled = localStorage.getItem('guirlandeOrageEnabled') === 'true';
+let guirlandeFilaireEnabled = localStorage.getItem('guirlandeFilaireEnabled') === 'true';
+let guirlandeBicoloreEnabled = localStorage.getItem('guirlandeBicoloreEnabled') === 'true';
+let guirlandeEtoilesFilantesEnabled = localStorage.getItem('guirlandeEtoilesFilantesEnabled') === 'true';
+let bouleLedEnabled = localStorage.getItem('bouleLedEnabled') === 'true';
+
 // --- 5 NOUVEAUX EFFETS (style DJ / musique) ---
 let vinyleEnabled = localStorage.getItem('vinyleEnabled') === 'true';
 let bassWaveEnabled = localStorage.getItem('bassWaveEnabled') === 'true';
@@ -2385,6 +2478,25 @@ function toggleSettings() {
         if (papillonsToggle) papillonsToggle.checked = papillonsEnabled;
         const coucherSoleilToggle = document.getElementById('coucher-soleil-toggle');
         if (coucherSoleilToggle) coucherSoleilToggle.checked = coucherSoleilEnabled;
+
+        const rideauRougeToggle = document.getElementById('rideau-rouge-toggle');
+        if (rideauRougeToggle) rideauRougeToggle.checked = rideauRougeEnabled;
+        const pochetteHaloToggle = document.getElementById('pochette-halo-toggle');
+        if (pochetteHaloToggle) pochetteHaloToggle.checked = pochetteHaloEnabled;
+        const guirlandeScintillementToggle = document.getElementById('guirlande-scintillement-toggle');
+        if (guirlandeScintillementToggle) guirlandeScintillementToggle.checked = guirlandeScintillementEnabled;
+        const guirlandeVerticaleToggle = document.getElementById('guirlande-verticale-toggle');
+        if (guirlandeVerticaleToggle) guirlandeVerticaleToggle.checked = guirlandeVerticaleEnabled;
+        const guirlandeOrageToggle = document.getElementById('guirlande-orage-toggle');
+        if (guirlandeOrageToggle) guirlandeOrageToggle.checked = guirlandeOrageEnabled;
+        const guirlandeFilaireToggle = document.getElementById('guirlande-filaire-toggle');
+        if (guirlandeFilaireToggle) guirlandeFilaireToggle.checked = guirlandeFilaireEnabled;
+        const guirlandeBicoloreToggle = document.getElementById('guirlande-bicolore-toggle');
+        if (guirlandeBicoloreToggle) guirlandeBicoloreToggle.checked = guirlandeBicoloreEnabled;
+        const guirlandeEtoilesFilantesToggle = document.getElementById('guirlande-etoiles-filantes-toggle');
+        if (guirlandeEtoilesFilantesToggle) guirlandeEtoilesFilantesToggle.checked = guirlandeEtoilesFilantesEnabled;
+        const bouleLedToggle = document.getElementById('boule-led-toggle');
+        if (bouleLedToggle) bouleLedToggle.checked = bouleLedEnabled;
 
         const vinyleToggle = document.getElementById('vinyle-toggle');
         if (vinyleToggle) vinyleToggle.checked = vinyleEnabled;
@@ -7870,6 +7982,657 @@ function toggleMicroScintilleSetting(checked) {
 
 function initMicroScintilleState() {
     ensureMicroScintilleElement().style.display = microScintilleEnabled ? 'block' : 'none';
+}
+
+// ==========================================
+// 9 NOUVEAUX EFFETS — rideau, halo pochette, guirlandes, boule LED
+// ==========================================
+
+// --- ONDULATION DE RIDEAU ROUGE ---
+function injectRideauRougeStyles() {
+    if (document.getElementById('rideau-rouge-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'rideau-rouge-inline-style';
+    styleTag.textContent = `
+        #rideau-rouge-wrapper {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            overflow: hidden;
+        }
+        .rideau-panel {
+            position: absolute;
+            top: -5%;
+            width: 16%;
+            height: 110%;
+            background: linear-gradient(90deg, #3a0303, #8b0000 45%, #3a0303);
+            opacity: 0.5;
+            animation: rideau-wave 4s ease-in-out infinite;
+        }
+        .rideau-panel.left  { left: -6%; transform-origin: top left; }
+        .rideau-panel.right { right: -6%; transform-origin: top right; animation-delay: -2s; }
+        @keyframes rideau-wave {
+            0%, 100% { transform: skewY(-3deg) scaleX(1); }
+            50%      { transform: skewY(3deg) scaleX(1.06); }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectRideauRougeStyles();
+
+function ensureRideauRougeElement() {
+    let wrapper = document.getElementById('rideau-rouge-wrapper');
+    if (!wrapper) {
+        wrapper = document.createElement('div');
+        wrapper.id = 'rideau-rouge-wrapper';
+        const left = document.createElement('div');
+        left.className = 'rideau-panel left';
+        const right = document.createElement('div');
+        right.className = 'rideau-panel right';
+        wrapper.appendChild(left);
+        wrapper.appendChild(right);
+        document.body.appendChild(wrapper);
+    }
+    return wrapper;
+}
+
+function toggleRideauRougeSetting(checked) {
+    rideauRougeEnabled = checked;
+    localStorage.setItem('rideauRougeEnabled', checked ? 'true' : 'false');
+    ensureRideauRougeElement().style.display = checked ? 'block' : 'none';
+}
+
+function initRideauRougeState() {
+    ensureRideauRougeElement().style.display = rideauRougeEnabled ? 'block' : 'none';
+}
+
+// --- HALO PULSÉ SUR LA POCHETTE ---
+// S'applique directement sur #track-art, pas un élément décoratif à part.
+function injectPochetteHaloStyles() {
+    if (document.getElementById('pochette-halo-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'pochette-halo-inline-style';
+    styleTag.textContent = `
+        .pochette-halo-effect {
+            animation: pochette-halo-pulse 2.5s ease-in-out infinite;
+        }
+        @keyframes pochette-halo-pulse {
+            0%, 100% { box-shadow: 0 0 15px 2px rgba(29, 185, 84, 0.4); }
+            50%      { box-shadow: 0 0 35px 10px rgba(29, 185, 84, 0.8); }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectPochetteHaloStyles();
+
+function togglePochetteHaloSetting(checked) {
+    pochetteHaloEnabled = checked;
+    localStorage.setItem('pochetteHaloEnabled', checked ? 'true' : 'false');
+    const art = document.getElementById('track-art');
+    if (art) art.classList.toggle('pochette-halo-effect', checked);
+}
+
+function initPochetteHaloState() {
+    const art = document.getElementById('track-art');
+    if (art) art.classList.toggle('pochette-halo-effect', pochetteHaloEnabled);
+}
+
+// --- GUIRLANDE À SCINTILLEMENT ALÉATOIRE INDÉPENDANT ---
+function injectGuirlandeScintillementStyles() {
+    if (document.getElementById('guirlande-scintillement-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'guirlande-scintillement-inline-style';
+    styleTag.textContent = `
+        #guirlande-scintillement-wrapper {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 40px;
+            z-index: 400;
+            pointer-events: none;
+        }
+        #guirlande-scintillement-cable {
+            position: absolute;
+            top: 6px; left: 0;
+            width: 100%; height: 3px;
+            background: #1a1a1a;
+        }
+        .gs-bulb {
+            position: absolute;
+            top: 8px;
+            width: 16px; height: 16px;
+            border-radius: 50%;
+            background: #ffe15c;
+            box-shadow: 0 0 12px 4px rgba(255, 225, 92, 0.7);
+            animation-name: gs-twinkle;
+            animation-timing-function: ease-in-out;
+            animation-iteration-count: infinite;
+        }
+        @keyframes gs-twinkle {
+            0%, 100% { opacity: 0.2; }
+            50%      { opacity: 1; }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectGuirlandeScintillementStyles();
+
+function ensureGuirlandeScintillementElement() {
+    let wrapper = document.getElementById('guirlande-scintillement-wrapper');
+    if (!wrapper) {
+        wrapper = document.createElement('div');
+        wrapper.id = 'guirlande-scintillement-wrapper';
+
+        const cable = document.createElement('div');
+        cable.id = 'guirlande-scintillement-cable';
+        wrapper.appendChild(cable);
+
+        const BULB_COUNT = Math.max(8, Math.round(window.innerWidth / 50));
+        for (let i = 0; i < BULB_COUNT; i++) {
+            const bulb = document.createElement('div');
+            bulb.className = 'gs-bulb';
+            bulb.style.left = `${(i / (BULB_COUNT - 1)) * 100}%`;
+            // Chaque ampoule a son propre rythme, complètement désynchronisé des autres
+            bulb.style.animationDuration = `${1.2 + Math.random() * 3}s`;
+            bulb.style.animationDelay = `-${Math.random() * 3}s`;
+            wrapper.appendChild(bulb);
+        }
+        document.body.appendChild(wrapper);
+    }
+    return wrapper;
+}
+
+function toggleGuirlandeScintillementSetting(checked) {
+    guirlandeScintillementEnabled = checked;
+    localStorage.setItem('guirlandeScintillementEnabled', checked ? 'true' : 'false');
+    ensureGuirlandeScintillementElement().style.display = checked ? 'block' : 'none';
+}
+
+function initGuirlandeScintillementState() {
+    ensureGuirlandeScintillementElement().style.display = guirlandeScintillementEnabled ? 'block' : 'none';
+}
+
+// --- GUIRLANDE VERTICALE ---
+function injectGuirlandeVerticaleStyles() {
+    if (document.getElementById('guirlande-verticale-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'guirlande-verticale-inline-style';
+    styleTag.textContent = `
+        #guirlande-verticale-wrapper {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 160px;
+            z-index: 400;
+            pointer-events: none;
+        }
+        .gv-strand {
+            position: absolute;
+            top: 0;
+            width: 3px;
+            height: 130px;
+            background: #1a1a1a;
+            transform-origin: top center;
+            animation: gv-sway 3s ease-in-out infinite;
+        }
+        .gv-bulb {
+            position: absolute;
+            left: -6px;
+            width: 15px; height: 15px;
+            border-radius: 50%;
+            box-shadow: 0 0 10px 3px currentColor;
+            animation: gs-twinkle 2.2s ease-in-out infinite;
+        }
+        @keyframes gv-sway {
+            0%, 100% { transform: rotate(-4deg); }
+            50%      { transform: rotate(4deg); }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectGuirlandeVerticaleStyles();
+
+function ensureGuirlandeVerticaleElement() {
+    let wrapper = document.getElementById('guirlande-verticale-wrapper');
+    if (!wrapper) {
+        wrapper = document.createElement('div');
+        wrapper.id = 'guirlande-verticale-wrapper';
+        const colors = ['#ff5252', '#ffd452', '#52ff8a', '#52c8ff', '#c452ff'];
+        const STRAND_COUNT = Math.max(6, Math.round(window.innerWidth / 90));
+        for (let i = 0; i < STRAND_COUNT; i++) {
+            const strand = document.createElement('div');
+            strand.className = 'gv-strand';
+            strand.style.left = `${(i / (STRAND_COUNT - 1)) * 100}%`;
+            strand.style.animationDelay = `-${Math.random() * 3}s`;
+
+            const BULB_PER_STRAND = 4;
+            for (let b = 0; b < BULB_PER_STRAND; b++) {
+                const bulb = document.createElement('div');
+                bulb.className = 'gv-bulb';
+                bulb.style.top = `${(b / (BULB_PER_STRAND - 1)) * 100}%`;
+                bulb.style.color = colors[(i + b) % colors.length];
+                bulb.style.background = colors[(i + b) % colors.length];
+                bulb.style.animationDelay = `-${Math.random() * 2.2}s`;
+                strand.appendChild(bulb);
+            }
+            wrapper.appendChild(strand);
+        }
+        document.body.appendChild(wrapper);
+    }
+    return wrapper;
+}
+
+function toggleGuirlandeVerticaleSetting(checked) {
+    guirlandeVerticaleEnabled = checked;
+    localStorage.setItem('guirlandeVerticaleEnabled', checked ? 'true' : 'false');
+    ensureGuirlandeVerticaleElement().style.display = checked ? 'block' : 'none';
+}
+
+function initGuirlandeVerticaleState() {
+    ensureGuirlandeVerticaleElement().style.display = guirlandeVerticaleEnabled ? 'block' : 'none';
+}
+
+// --- GUIRLANDE "ORAGE" (rafale rapide et irrégulière, puis pause) ---
+function injectGuirlandeOrageStyles() {
+    if (document.getElementById('guirlande-orage-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'guirlande-orage-inline-style';
+    styleTag.textContent = `
+        #guirlande-orage-wrapper {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 40px;
+            z-index: 400;
+            pointer-events: none;
+        }
+        #guirlande-orage-cable {
+            position: absolute;
+            top: 6px; left: 0;
+            width: 100%; height: 3px;
+            background: #1a1a1a;
+        }
+        .go-bulb {
+            position: absolute;
+            top: 8px;
+            width: 16px; height: 16px;
+            border-radius: 50%;
+            background: #444;
+            transition: background 0.05s, box-shadow 0.05s;
+        }
+        .go-bulb.flash {
+            background: #eaf2ff;
+            box-shadow: 0 0 20px 8px rgba(234, 242, 255, 0.9);
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectGuirlandeOrageStyles();
+
+let guirlandeOrageIntervalId = null;
+
+function ensureGuirlandeOrageElement() {
+    let wrapper = document.getElementById('guirlande-orage-wrapper');
+    if (!wrapper) {
+        wrapper = document.createElement('div');
+        wrapper.id = 'guirlande-orage-wrapper';
+
+        const cable = document.createElement('div');
+        cable.id = 'guirlande-orage-cable';
+        wrapper.appendChild(cable);
+
+        const BULB_COUNT = Math.max(8, Math.round(window.innerWidth / 50));
+        for (let i = 0; i < BULB_COUNT; i++) {
+            const bulb = document.createElement('div');
+            bulb.className = 'go-bulb';
+            bulb.style.left = `${(i / (BULB_COUNT - 1)) * 100}%`;
+            wrapper.appendChild(bulb);
+        }
+        document.body.appendChild(wrapper);
+    }
+    return wrapper;
+}
+
+function launchOrageBurst() {
+    const wrapper = document.getElementById('guirlande-orage-wrapper');
+    if (!wrapper) return;
+    const bulbs = wrapper.querySelectorAll('.go-bulb');
+    const flashCount = 3 + Math.floor(Math.random() * 4);
+
+    for (let f = 0; f < flashCount; f++) {
+        setTimeout(() => {
+            bulbs.forEach(b => b.classList.remove('flash'));
+            const howMany = 2 + Math.floor(Math.random() * 3);
+            for (let k = 0; k < howMany; k++) {
+                const randomBulb = bulbs[Math.floor(Math.random() * bulbs.length)];
+                randomBulb.classList.add('flash');
+            }
+            setTimeout(() => bulbs.forEach(b => b.classList.remove('flash')), 60);
+        }, f * 120);
+    }
+}
+
+function scheduleNextOrageBurst() {
+    if (!guirlandeOrageEnabled) return;
+    const delay = 3000 + Math.random() * 5000;
+    guirlandeOrageIntervalId = setTimeout(() => {
+        if (guirlandeOrageEnabled) launchOrageBurst();
+        scheduleNextOrageBurst();
+    }, delay);
+}
+
+function toggleGuirlandeOrageSetting(checked) {
+    guirlandeOrageEnabled = checked;
+    localStorage.setItem('guirlandeOrageEnabled', checked ? 'true' : 'false');
+    ensureGuirlandeOrageElement().style.display = checked ? 'block' : 'none';
+    if (guirlandeOrageIntervalId) { clearTimeout(guirlandeOrageIntervalId); guirlandeOrageIntervalId = null; }
+    if (checked) scheduleNextOrageBurst();
+}
+
+function initGuirlandeOrageState() {
+    ensureGuirlandeOrageElement().style.display = guirlandeOrageEnabled ? 'block' : 'none';
+    if (guirlandeOrageEnabled) scheduleNextOrageBurst();
+}
+
+// --- GUIRLANDE FILAIRE FINE (juste un fil lumineux ondulant, pas d'ampoules distinctes) ---
+function injectGuirlandeFilaireStyles() {
+    if (document.getElementById('guirlande-filaire-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'guirlande-filaire-inline-style';
+    styleTag.textContent = `
+        #guirlande-filaire-wrapper {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 50px;
+            z-index: 400;
+            pointer-events: none;
+        }
+        #guirlande-filaire-wrapper svg path {
+            fill: none;
+            stroke: var(--spotify-green, #1DB954);
+            stroke-width: 2.5;
+            filter: drop-shadow(0 0 6px rgba(29, 185, 84, 0.9));
+            animation: gf-glow 2.4s ease-in-out infinite;
+        }
+        @keyframes gf-glow {
+            0%, 100% { opacity: 0.5; }
+            50%      { opacity: 1; }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectGuirlandeFilaireStyles();
+
+function ensureGuirlandeFilaireElement() {
+    let wrapper = document.getElementById('guirlande-filaire-wrapper');
+    if (!wrapper) {
+        wrapper = document.createElement('div');
+        wrapper.id = 'guirlande-filaire-wrapper';
+
+        const w = Math.max(window.innerWidth, 300);
+        let d = `M0,25`;
+        const SEGMENTS = 12;
+        for (let i = 1; i <= SEGMENTS; i++) {
+            const x = (i / SEGMENTS) * w;
+            const y = i % 2 === 0 ? 12 : 38;
+            d += ` Q${x - (w / SEGMENTS) / 2},${i % 2 === 0 ? 38 : 12} ${x},${y}`;
+        }
+
+        wrapper.innerHTML = `
+            <svg viewBox="0 0 ${w} 50" width="100%" height="50" preserveAspectRatio="none">
+                <path d="${d}" />
+            </svg>
+        `;
+        document.body.appendChild(wrapper);
+    }
+    return wrapper;
+}
+
+function toggleGuirlandeFilaireSetting(checked) {
+    guirlandeFilaireEnabled = checked;
+    localStorage.setItem('guirlandeFilaireEnabled', checked ? 'true' : 'false');
+    ensureGuirlandeFilaireElement().style.display = checked ? 'block' : 'none';
+}
+
+function initGuirlandeFilaireState() {
+    ensureGuirlandeFilaireElement().style.display = guirlandeFilaireEnabled ? 'block' : 'none';
+}
+
+// --- GUIRLANDE BICOLORE ALTERNÉE ---
+function injectGuirlandeBicoloreStyles() {
+    if (document.getElementById('guirlande-bicolore-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'guirlande-bicolore-inline-style';
+    styleTag.textContent = `
+        #guirlande-bicolore-wrapper {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 40px;
+            z-index: 400;
+            pointer-events: none;
+        }
+        #guirlande-bicolore-cable {
+            position: absolute;
+            top: 6px; left: 0;
+            width: 100%; height: 3px;
+            background: #1a1a1a;
+        }
+        .gb-bulb {
+            position: absolute;
+            top: 8px;
+            width: 16px; height: 16px;
+            border-radius: 50%;
+            animation: gs-twinkle 2s ease-in-out infinite;
+        }
+        .gb-bulb.color-a { background: #d81e2c; box-shadow: 0 0 12px 4px rgba(216, 30, 44, 0.7); }
+        .gb-bulb.color-b { background: #f5f5f5; box-shadow: 0 0 12px 4px rgba(245, 245, 245, 0.7); }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectGuirlandeBicoloreStyles();
+
+function ensureGuirlandeBicoloreElement() {
+    let wrapper = document.getElementById('guirlande-bicolore-wrapper');
+    if (!wrapper) {
+        wrapper = document.createElement('div');
+        wrapper.id = 'guirlande-bicolore-wrapper';
+
+        const cable = document.createElement('div');
+        cable.id = 'guirlande-bicolore-cable';
+        wrapper.appendChild(cable);
+
+        const BULB_COUNT = Math.max(8, Math.round(window.innerWidth / 50));
+        for (let i = 0; i < BULB_COUNT; i++) {
+            const bulb = document.createElement('div');
+            bulb.className = `gb-bulb ${i % 2 === 0 ? 'color-a' : 'color-b'}`;
+            bulb.style.left = `${(i / (BULB_COUNT - 1)) * 100}%`;
+            bulb.style.animationDelay = `${(i % 2) * 1}s`;
+            wrapper.appendChild(bulb);
+        }
+        document.body.appendChild(wrapper);
+    }
+    return wrapper;
+}
+
+function toggleGuirlandeBicoloreSetting(checked) {
+    guirlandeBicoloreEnabled = checked;
+    localStorage.setItem('guirlandeBicoloreEnabled', checked ? 'true' : 'false');
+    ensureGuirlandeBicoloreElement().style.display = checked ? 'block' : 'none';
+}
+
+function initGuirlandeBicoloreState() {
+    ensureGuirlandeBicoloreElement().style.display = guirlandeBicoloreEnabled ? 'block' : 'none';
+}
+
+// --- GUIRLANDE ÉTOILES FILANTES (chaque ampoule émet parfois une traînée brève) ---
+function injectGuirlandeEtoilesFilantesStyles() {
+    if (document.getElementById('guirlande-etoiles-filantes-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'guirlande-etoiles-filantes-inline-style';
+    styleTag.textContent = `
+        #guirlande-etoiles-filantes-wrapper {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 60px;
+            z-index: 400;
+            pointer-events: none;
+            overflow: hidden;
+        }
+        #guirlande-etoiles-filantes-cable {
+            position: absolute;
+            top: 6px; left: 0;
+            width: 100%; height: 3px;
+            background: #1a1a1a;
+        }
+        .gef-bulb {
+            position: absolute;
+            top: 8px;
+            width: 15px; height: 15px;
+            border-radius: 50%;
+            background: #ffe15c;
+            box-shadow: 0 0 10px 3px rgba(255, 225, 92, 0.6);
+        }
+        .gef-streak {
+            position: absolute;
+            top: 14px;
+            width: 3px; height: 40px;
+            background: linear-gradient(to bottom, rgba(255, 225, 92, 0.9), transparent);
+            border-radius: 2px;
+            animation: gef-fall 0.9s ease-in forwards;
+        }
+        @keyframes gef-fall {
+            0%   { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(45px); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectGuirlandeEtoilesFilantesStyles();
+
+let guirlandeEtoilesFilantesIntervalId = null;
+
+function ensureGuirlandeEtoilesFilantesElement() {
+    let wrapper = document.getElementById('guirlande-etoiles-filantes-wrapper');
+    if (!wrapper) {
+        wrapper = document.createElement('div');
+        wrapper.id = 'guirlande-etoiles-filantes-wrapper';
+
+        const cable = document.createElement('div');
+        cable.id = 'guirlande-etoiles-filantes-cable';
+        wrapper.appendChild(cable);
+
+        const BULB_COUNT = Math.max(8, Math.round(window.innerWidth / 50));
+        for (let i = 0; i < BULB_COUNT; i++) {
+            const bulb = document.createElement('div');
+            bulb.className = 'gef-bulb';
+            bulb.style.left = `${(i / (BULB_COUNT - 1)) * 100}%`;
+            wrapper.appendChild(bulb);
+        }
+        document.body.appendChild(wrapper);
+    }
+    return wrapper;
+}
+
+function launchEtoileFilanteStreak() {
+    const wrapper = document.getElementById('guirlande-etoiles-filantes-wrapper');
+    if (!wrapper) return;
+    const bulbs = wrapper.querySelectorAll('.gef-bulb');
+    if (bulbs.length === 0) return;
+
+    const bulb = bulbs[Math.floor(Math.random() * bulbs.length)];
+    const streak = document.createElement('div');
+    streak.className = 'gef-streak';
+    streak.style.left = bulb.style.left;
+    wrapper.appendChild(streak);
+    setTimeout(() => streak.remove(), 950);
+}
+
+function scheduleNextEtoileFilanteStreak() {
+    if (!guirlandeEtoilesFilantesEnabled) return;
+    const delay = 300 + Math.random() * 700;
+    guirlandeEtoilesFilantesIntervalId = setTimeout(() => {
+        if (guirlandeEtoilesFilantesEnabled) launchEtoileFilanteStreak();
+        scheduleNextEtoileFilanteStreak();
+    }, delay);
+}
+
+function toggleGuirlandeEtoilesFilantesSetting(checked) {
+    guirlandeEtoilesFilantesEnabled = checked;
+    localStorage.setItem('guirlandeEtoilesFilantesEnabled', checked ? 'true' : 'false');
+    ensureGuirlandeEtoilesFilantesElement().style.display = checked ? 'block' : 'none';
+    if (guirlandeEtoilesFilantesIntervalId) { clearTimeout(guirlandeEtoilesFilantesIntervalId); guirlandeEtoilesFilantesIntervalId = null; }
+    if (checked) scheduleNextEtoileFilanteStreak();
+}
+
+function initGuirlandeEtoilesFilantesState() {
+    ensureGuirlandeEtoilesFilantesElement().style.display = guirlandeEtoilesFilantesEnabled ? 'block' : 'none';
+    if (guirlandeEtoilesFilantesEnabled) scheduleNextEtoileFilanteStreak();
+}
+
+// --- BOULE À FACETTES "SCAN LED" — ronds lumineux multicolores qui balaient l'écran de gauche à droite ---
+function injectBouleLedStyles() {
+    if (document.getElementById('boule-led-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'boule-led-inline-style';
+    styleTag.textContent = `
+        #boule-led-wrapper {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 400;
+            pointer-events: none;
+            overflow: hidden;
+        }
+        .led-dot {
+            position: absolute;
+            width: 16px; height: 16px;
+            border-radius: 50%;
+            filter: blur(1px);
+            animation-name: led-sweep;
+            animation-timing-function: linear;
+            animation-iteration-count: infinite;
+        }
+        @keyframes led-sweep {
+            0%   { transform: translateX(-20px); opacity: 0; }
+            8%   { opacity: 0.9; }
+            92%  { opacity: 0.9; }
+            100% { transform: translateX(100vw); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectBouleLedStyles();
+
+function ensureBouleLedElement() {
+    let wrapper = document.getElementById('boule-led-wrapper');
+    if (!wrapper) {
+        wrapper = document.createElement('div');
+        wrapper.id = 'boule-led-wrapper';
+        const colors = ['#ff5252', '#ffd452', '#52ff8a', '#52c8ff', '#c452ff', '#ff8a52'];
+        const DOT_COUNT = 10;
+        for (let i = 0; i < DOT_COUNT; i++) {
+            const dot = document.createElement('div');
+            dot.className = 'led-dot';
+            const color = colors[i % colors.length];
+            dot.style.background = color;
+            dot.style.boxShadow = `0 0 14px 5px ${color}`;
+            dot.style.top = `${5 + Math.random() * 90}%`;
+            dot.style.animationDuration = `${3 + Math.random() * 3}s`;
+            dot.style.animationDelay = `-${Math.random() * 6}s`;
+            wrapper.appendChild(dot);
+        }
+        document.body.appendChild(wrapper);
+    }
+    return wrapper;
+}
+
+function toggleBouleLedSetting(checked) {
+    bouleLedEnabled = checked;
+    localStorage.setItem('bouleLedEnabled', checked ? 'true' : 'false');
+    ensureBouleLedElement().style.display = checked ? 'block' : 'none';
+}
+
+function initBouleLedState() {
+    ensureBouleLedElement().style.display = bouleLedEnabled ? 'block' : 'none';
 }
 
     </script>
