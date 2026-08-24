@@ -5,7 +5,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v2.00";
+        const APP_VERSION = "v2.01";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -566,7 +566,7 @@
 </div>
 
 
-<p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 10px 0 2px 0;">NOUVEAUX EFFETS</p>
+<p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 10px 0 2px 0;">🎪 CARNAVAL &amp; GUIRLANDES</p>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
     <span style="font-size: 0.85rem; color: var(--text-grey);">Serpentins ondulants</span>
@@ -601,17 +601,33 @@
 </div>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Aurore boréale</span>
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Guirlande scintillement aléatoire</span>
     <label class="switch">
-        <input type="checkbox" id="aurore-boreale-toggle" onchange="toggleAuroreBorealeSetting(this.checked)">
+        <input type="checkbox" id="guirlande-scintillement-toggle" onchange="toggleGuirlandeScintillementSetting(this.checked)">
         <span class="slider"></span>
     </label>
 </div>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Grande roue en fond</span>
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Guirlande "orage"</span>
     <label class="switch">
-        <input type="checkbox" id="grande-roue-toggle" onchange="toggleGrandeRoueSetting(this.checked)">
+        <input type="checkbox" id="guirlande-orage-toggle" onchange="toggleGuirlandeOrageSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Guirlande bicolore alternée</span>
+    <label class="switch">
+        <input type="checkbox" id="guirlande-bicolore-toggle" onchange="toggleGuirlandeBicoloreSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Guirlande vague lumineuse</span>
+    <label class="switch">
+        <input type="checkbox" id="guirlande-vague-toggle" onchange="toggleGuirlandeVagueSetting(this.checked)">
         <span class="slider"></span>
     </label>
 </div>
@@ -641,6 +657,24 @@
 </div>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Grande roue en fond</span>
+    <label class="switch">
+        <input type="checkbox" id="grande-roue-toggle" onchange="toggleGrandeRoueSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 14px 0 2px 0;">🌿 NATURE &amp; AMBIANCE</p>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Aurore boréale</span>
+    <label class="switch">
+        <input type="checkbox" id="aurore-boreale-toggle" onchange="toggleAuroreBorealeSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
     <span style="font-size: 0.85rem; color: var(--text-grey);">Feuilles de palmier</span>
     <label class="switch">
         <input type="checkbox" id="feuilles-palmier-toggle" onchange="toggleFeuillesPalmierSetting(this.checked)">
@@ -664,83 +698,36 @@
     </label>
 </div>
 
+<p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 14px 0 2px 0;">🎭 SCÈNE</p>
+
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Ondulation de rideau rouge</span>
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Rideau rouge qui se ferme</span>
     <label class="switch">
-        <input type="checkbox" id="rideau-rouge-toggle" onchange="toggleRideauRougeSetting(this.checked)">
+        <input type="checkbox" id="rideau-ferme-toggle" onchange="toggleRideauFermeSetting(this.checked)">
         <span class="slider"></span>
     </label>
 </div>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Halo pulsé sur la pochette</span>
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Rideau rouge qui s'ouvre</span>
+    <label class="switch">
+        <input type="checkbox" id="rideau-ouvre-toggle" onchange="toggleRideauOuvreSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Halo pulsé sur la pochette (couleur dominante)</span>
     <label class="switch">
         <input type="checkbox" id="pochette-halo-toggle" onchange="togglePochetteHaloSetting(this.checked)">
         <span class="slider"></span>
     </label>
 </div>
 
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Guirlande scintillement aléatoire</span>
-    <label class="switch">
-        <input type="checkbox" id="guirlande-scintillement-toggle" onchange="toggleGuirlandeScintillementSetting(this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Guirlande verticale</span>
-    <label class="switch">
-        <input type="checkbox" id="guirlande-verticale-toggle" onchange="toggleGuirlandeVerticaleSetting(this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Guirlande "orage"</span>
-    <label class="switch">
-        <input type="checkbox" id="guirlande-orage-toggle" onchange="toggleGuirlandeOrageSetting(this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Guirlande filaire fine</span>
-    <label class="switch">
-        <input type="checkbox" id="guirlande-filaire-toggle" onchange="toggleGuirlandeFilaireSetting(this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Guirlande bicolore alternée</span>
-    <label class="switch">
-        <input type="checkbox" id="guirlande-bicolore-toggle" onchange="toggleGuirlandeBicoloreSetting(this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Guirlande étoiles filantes</span>
-    <label class="switch">
-        <input type="checkbox" id="guirlande-etoiles-filantes-toggle" onchange="toggleGuirlandeEtoilesFilantesSetting(this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Boule à facettes (LED balayage)</span>
-    <label class="switch">
-        <input type="checkbox" id="boule-led-toggle" onchange="toggleBouleLedSetting(this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 10px 0 2px 0;">STYLE DJ / MUSIQUE</p>
+<p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 14px 0 2px 0;">🎧 DJ / MUSIQUE</p>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
     <span style="font-size: 0.85rem; color: var(--text-grey);">Vinyle qui tourne</span>
-
     <label class="switch">
         <input type="checkbox" id="vinyle-toggle" onchange="toggleVinyleSetting(this.checked)">
         <span class="slider"></span>
@@ -767,6 +754,64 @@
     <span style="font-size: 0.85rem; color: var(--text-grey);">Micro qui scintille</span>
     <label class="switch">
         <input type="checkbox" id="micro-scintille-toggle" onchange="toggleMicroScintilleSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Boule à facettes (LED balayage)</span>
+    <label class="switch">
+        <input type="checkbox" id="boule-led-toggle" onchange="toggleBouleLedSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Spectre audio animé 2.0</span>
+    <label class="switch">
+        <input type="checkbox" id="spectrum2-toggle" onchange="toggleSpectrum2Setting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 14px 0 2px 0;">🎇 FEUX D'ARTIFICE</p>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Classiques rapides</span>
+    <label class="switch">
+        <input type="checkbox" id="feux-classiques-toggle" onchange="toggleFeuxClassiquesSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">En fontaine</span>
+    <label class="switch">
+        <input type="checkbox" id="feux-fontaine-toggle" onchange="toggleFeuxFontaineSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">En spirale</span>
+    <label class="switch">
+        <input type="checkbox" id="feux-spirale-toggle" onchange="toggleFeuxSpiraleSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Crépitants</span>
+    <label class="switch">
+        <input type="checkbox" id="feux-crepitants-toggle" onchange="toggleFeuxCrepitantsSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Géants</span>
+    <label class="switch">
+        <input type="checkbox" id="feux-geants-toggle" onchange="toggleFeuxGeantsSetting(this.checked)">
         <span class="slider"></span>
     </label>
 </div>
@@ -1259,15 +1304,20 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 initFeuillesPalmierState();
                 initPapillonsState();
                 initCoucherSoleilState();
-                initRideauRougeState();
+                initRideauFermeState();
+                initRideauOuvreState();
                 initPochetteHaloState();
                 initGuirlandeScintillementState();
-                initGuirlandeVerticaleState();
                 initGuirlandeOrageState();
-                initGuirlandeFilaireState();
                 initGuirlandeBicoloreState();
-                initGuirlandeEtoilesFilantesState();
+                initGuirlandeVagueState();
                 initBouleLedState();
+                initFeuxClassiquesState();
+                initFeuxFontaineState();
+                initFeuxSpiraleState();
+                initFeuxCrepitantsState();
+                initFeuxGeantsState();
+                initSpectrum2State();
                 initVinyleState();
                 initBassWaveState();
                 initTitleScratchState();
@@ -1944,7 +1994,10 @@ function highlightLyrics(currentTime) {
                     }
 
                     if (art.src !== oldSrc) {
-                        art.onload = () => updateDynamicBackground();
+                        art.onload = () => {
+                            updateDynamicBackground();
+                            updatePochetteHaloColor();
+                        };
                     }
 
                     if (data.item.id !== lastTrackId) {
@@ -2382,16 +2435,23 @@ let feuillesPalmierEnabled = localStorage.getItem('feuillesPalmierEnabled') === 
 let papillonsEnabled = localStorage.getItem('papillonsEnabled') === 'true';
 let coucherSoleilEnabled = localStorage.getItem('coucherSoleilEnabled') === 'true';
 
-// --- 9 NOUVEAUX EFFETS (rideau, halo pochette, guirlandes, boule LED) ---
-let rideauRougeEnabled = localStorage.getItem('rideauRougeEnabled') === 'true';
+// --- NOUVEAUX EFFETS (rideau, halo pochette, guirlandes, boule LED) ---
+let rideauFermeEnabled = localStorage.getItem('rideauFermeEnabled') === 'true';
+let rideauOuvreEnabled = localStorage.getItem('rideauOuvreEnabled') === 'true';
 let pochetteHaloEnabled = localStorage.getItem('pochetteHaloEnabled') === 'true';
 let guirlandeScintillementEnabled = localStorage.getItem('guirlandeScintillementEnabled') === 'true';
-let guirlandeVerticaleEnabled = localStorage.getItem('guirlandeVerticaleEnabled') === 'true';
 let guirlandeOrageEnabled = localStorage.getItem('guirlandeOrageEnabled') === 'true';
-let guirlandeFilaireEnabled = localStorage.getItem('guirlandeFilaireEnabled') === 'true';
 let guirlandeBicoloreEnabled = localStorage.getItem('guirlandeBicoloreEnabled') === 'true';
-let guirlandeEtoilesFilantesEnabled = localStorage.getItem('guirlandeEtoilesFilantesEnabled') === 'true';
+let guirlandeVagueEnabled = localStorage.getItem('guirlandeVagueEnabled') === 'true';
 let bouleLedEnabled = localStorage.getItem('bouleLedEnabled') === 'true';
+
+// --- 5 EFFETS FEUX D'ARTIFICE (réguliers, intenses, rapides) ---
+let feuxClassiquesEnabled = localStorage.getItem('feuxClassiquesEnabled') === 'true';
+let feuxFontaineEnabled = localStorage.getItem('feuxFontaineEnabled') === 'true';
+let feuxSpiraleEnabled = localStorage.getItem('feuxSpiraleEnabled') === 'true';
+let feuxCrepitantsEnabled = localStorage.getItem('feuxCrepitantsEnabled') === 'true';
+let feuxGeantsEnabled = localStorage.getItem('feuxGeantsEnabled') === 'true';
+let spectrum2Enabled = localStorage.getItem('spectrum2Enabled') === 'true';
 
 // --- 5 NOUVEAUX EFFETS (style DJ / musique) ---
 let vinyleEnabled = localStorage.getItem('vinyleEnabled') === 'true';
@@ -2479,24 +2539,34 @@ function toggleSettings() {
         const coucherSoleilToggle = document.getElementById('coucher-soleil-toggle');
         if (coucherSoleilToggle) coucherSoleilToggle.checked = coucherSoleilEnabled;
 
-        const rideauRougeToggle = document.getElementById('rideau-rouge-toggle');
-        if (rideauRougeToggle) rideauRougeToggle.checked = rideauRougeEnabled;
+        const rideauFermeToggle = document.getElementById('rideau-ferme-toggle');
+        if (rideauFermeToggle) rideauFermeToggle.checked = rideauFermeEnabled;
+        const rideauOuvreToggle = document.getElementById('rideau-ouvre-toggle');
+        if (rideauOuvreToggle) rideauOuvreToggle.checked = rideauOuvreEnabled;
         const pochetteHaloToggle = document.getElementById('pochette-halo-toggle');
         if (pochetteHaloToggle) pochetteHaloToggle.checked = pochetteHaloEnabled;
         const guirlandeScintillementToggle = document.getElementById('guirlande-scintillement-toggle');
         if (guirlandeScintillementToggle) guirlandeScintillementToggle.checked = guirlandeScintillementEnabled;
-        const guirlandeVerticaleToggle = document.getElementById('guirlande-verticale-toggle');
-        if (guirlandeVerticaleToggle) guirlandeVerticaleToggle.checked = guirlandeVerticaleEnabled;
         const guirlandeOrageToggle = document.getElementById('guirlande-orage-toggle');
         if (guirlandeOrageToggle) guirlandeOrageToggle.checked = guirlandeOrageEnabled;
-        const guirlandeFilaireToggle = document.getElementById('guirlande-filaire-toggle');
-        if (guirlandeFilaireToggle) guirlandeFilaireToggle.checked = guirlandeFilaireEnabled;
         const guirlandeBicoloreToggle = document.getElementById('guirlande-bicolore-toggle');
         if (guirlandeBicoloreToggle) guirlandeBicoloreToggle.checked = guirlandeBicoloreEnabled;
-        const guirlandeEtoilesFilantesToggle = document.getElementById('guirlande-etoiles-filantes-toggle');
-        if (guirlandeEtoilesFilantesToggle) guirlandeEtoilesFilantesToggle.checked = guirlandeEtoilesFilantesEnabled;
+        const guirlandeVagueToggle = document.getElementById('guirlande-vague-toggle');
+        if (guirlandeVagueToggle) guirlandeVagueToggle.checked = guirlandeVagueEnabled;
         const bouleLedToggle = document.getElementById('boule-led-toggle');
         if (bouleLedToggle) bouleLedToggle.checked = bouleLedEnabled;
+        const feuxClassiquesToggle = document.getElementById('feux-classiques-toggle');
+        if (feuxClassiquesToggle) feuxClassiquesToggle.checked = feuxClassiquesEnabled;
+        const feuxFontaineToggle = document.getElementById('feux-fontaine-toggle');
+        if (feuxFontaineToggle) feuxFontaineToggle.checked = feuxFontaineEnabled;
+        const feuxSpiraleToggle = document.getElementById('feux-spirale-toggle');
+        if (feuxSpiraleToggle) feuxSpiraleToggle.checked = feuxSpiraleEnabled;
+        const feuxCrepitantsToggle = document.getElementById('feux-crepitants-toggle');
+        if (feuxCrepitantsToggle) feuxCrepitantsToggle.checked = feuxCrepitantsEnabled;
+        const feuxGeantsToggle = document.getElementById('feux-geants-toggle');
+        if (feuxGeantsToggle) feuxGeantsToggle.checked = feuxGeantsEnabled;
+        const spectrum2Toggle = document.getElementById('spectrum2-toggle');
+        if (spectrum2Toggle) spectrum2Toggle.checked = spectrum2Enabled;
 
         const vinyleToggle = document.getElementById('vinyle-toggle');
         if (vinyleToggle) vinyleToggle.checked = vinyleEnabled;
@@ -7988,49 +8058,49 @@ function initMicroScintilleState() {
 // 9 NOUVEAUX EFFETS — rideau, halo pochette, guirlandes, boule LED
 // ==========================================
 
-// --- ONDULATION DE RIDEAU ROUGE ---
-function injectRideauRougeStyles() {
-    if (document.getElementById('rideau-rouge-inline-style')) return;
+// --- RIDEAU ROUGE QUI SE FERME (état par défaut : ouvert / invisible sur les bords) ---
+function injectRideauFermeStyles() {
+    if (document.getElementById('rideau-ferme-inline-style')) return;
     const styleTag = document.createElement('style');
-    styleTag.id = 'rideau-rouge-inline-style';
+    styleTag.id = 'rideau-ferme-inline-style';
     styleTag.textContent = `
-        #rideau-rouge-wrapper {
+        #rideau-ferme-wrapper {
             display: none;
             position: fixed;
             inset: 0;
-            z-index: 0;
+            z-index: 400;
             pointer-events: none;
             overflow: hidden;
         }
-        .rideau-panel {
+        .rideau-ferme-panel {
             position: absolute;
-            top: -5%;
-            width: 16%;
-            height: 110%;
-            background: linear-gradient(90deg, #3a0303, #8b0000 45%, #3a0303);
-            opacity: 0.5;
-            animation: rideau-wave 4s ease-in-out infinite;
+            top: 0;
+            width: 51%;
+            height: 100%;
+            background: linear-gradient(90deg, #3a0303, #8b0000 60%, #3a0303);
+            box-shadow: 0 0 40px 10px rgba(0, 0, 0, 0.6);
+            transition: transform 1.8s ease-in-out;
         }
-        .rideau-panel.left  { left: -6%; transform-origin: top left; }
-        .rideau-panel.right { right: -6%; transform-origin: top right; animation-delay: -2s; }
-        @keyframes rideau-wave {
-            0%, 100% { transform: skewY(-3deg) scaleX(1); }
-            50%      { transform: skewY(3deg) scaleX(1.06); }
-        }
+        .rideau-ferme-panel.left  { left: 0; transform: translateX(-100%); }
+        .rideau-ferme-panel.right { right: 0; transform: translateX(100%); }
+        .rideau-ferme-panel.closed.left  { transform: translateX(0%); }
+        .rideau-ferme-panel.closed.right { transform: translateX(0%); }
     `;
     document.head.appendChild(styleTag);
 }
-injectRideauRougeStyles();
+injectRideauFermeStyles();
 
-function ensureRideauRougeElement() {
-    let wrapper = document.getElementById('rideau-rouge-wrapper');
+let rideauFermeIntervalId = null;
+
+function ensureRideauFermeElement() {
+    let wrapper = document.getElementById('rideau-ferme-wrapper');
     if (!wrapper) {
         wrapper = document.createElement('div');
-        wrapper.id = 'rideau-rouge-wrapper';
+        wrapper.id = 'rideau-ferme-wrapper';
         const left = document.createElement('div');
-        left.className = 'rideau-panel left';
+        left.className = 'rideau-ferme-panel left';
         const right = document.createElement('div');
-        right.className = 'rideau-panel right';
+        right.className = 'rideau-ferme-panel right';
         wrapper.appendChild(left);
         wrapper.appendChild(right);
         document.body.appendChild(wrapper);
@@ -8038,17 +8108,144 @@ function ensureRideauRougeElement() {
     return wrapper;
 }
 
-function toggleRideauRougeSetting(checked) {
-    rideauRougeEnabled = checked;
-    localStorage.setItem('rideauRougeEnabled', checked ? 'true' : 'false');
-    ensureRideauRougeElement().style.display = checked ? 'block' : 'none';
+function runRideauFermeCycle() {
+    const wrapper = ensureRideauFermeElement();
+    const panels = wrapper.querySelectorAll('.rideau-ferme-panel');
+    // Ferme le rideau (les deux panneaux glissent vers le centre)
+    panels.forEach(p => p.classList.add('closed'));
+    // Une fois fermé, reste 5s, puis revient à l'état par défaut (ouvert)
+    setTimeout(() => {
+        panels.forEach(p => p.classList.remove('closed'));
+    }, 1800 + 5000);
 }
 
-function initRideauRougeState() {
-    ensureRideauRougeElement().style.display = rideauRougeEnabled ? 'block' : 'none';
+function scheduleNextRideauFerme() {
+    if (!rideauFermeEnabled) return;
+    const delay = 1800 + 5000 + 4000; // le temps du cycle complet + une pause avant le suivant
+    rideauFermeIntervalId = setTimeout(() => {
+        if (rideauFermeEnabled) runRideauFermeCycle();
+        scheduleNextRideauFerme();
+    }, delay);
 }
 
-// --- HALO PULSÉ SUR LA POCHETTE ---
+function toggleRideauFermeSetting(checked) {
+    rideauFermeEnabled = checked;
+    localStorage.setItem('rideauFermeEnabled', checked ? 'true' : 'false');
+    const wrapper = ensureRideauFermeElement();
+    wrapper.style.display = checked ? 'block' : 'none';
+    if (rideauFermeIntervalId) { clearTimeout(rideauFermeIntervalId); rideauFermeIntervalId = null; }
+    if (checked) {
+        runRideauFermeCycle();
+        scheduleNextRideauFerme();
+    } else {
+        wrapper.querySelectorAll('.rideau-ferme-panel').forEach(p => p.classList.remove('closed'));
+    }
+}
+
+function initRideauFermeState() {
+    const wrapper = ensureRideauFermeElement();
+    wrapper.style.display = rideauFermeEnabled ? 'block' : 'none';
+    if (rideauFermeEnabled) {
+        runRideauFermeCycle();
+        scheduleNextRideauFerme();
+    }
+}
+
+// --- RIDEAU ROUGE QUI S'OUVRE (état par défaut : fermé / recouvre l'écran) ---
+function injectRideauOuvreStyles() {
+    if (document.getElementById('rideau-ouvre-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'rideau-ouvre-inline-style';
+    styleTag.textContent = `
+        #rideau-ouvre-wrapper {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 400;
+            pointer-events: none;
+            overflow: hidden;
+        }
+        .rideau-ouvre-panel {
+            position: absolute;
+            top: 0;
+            width: 51%;
+            height: 100%;
+            background: linear-gradient(90deg, #3a0303, #8b0000 60%, #3a0303);
+            box-shadow: 0 0 40px 10px rgba(0, 0, 0, 0.6);
+            transform: translateX(0%);
+            transition: transform 1.8s ease-in-out;
+        }
+        .rideau-ouvre-panel.left  { left: 0; }
+        .rideau-ouvre-panel.right { right: 0; }
+        .rideau-ouvre-panel.open.left  { transform: translateX(-100%); }
+        .rideau-ouvre-panel.open.right { transform: translateX(100%); }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectRideauOuvreStyles();
+
+let rideauOuvreIntervalId = null;
+
+function ensureRideauOuvreElement() {
+    let wrapper = document.getElementById('rideau-ouvre-wrapper');
+    if (!wrapper) {
+        wrapper = document.createElement('div');
+        wrapper.id = 'rideau-ouvre-wrapper';
+        const left = document.createElement('div');
+        left.className = 'rideau-ouvre-panel left';
+        const right = document.createElement('div');
+        right.className = 'rideau-ouvre-panel right';
+        wrapper.appendChild(left);
+        wrapper.appendChild(right);
+        document.body.appendChild(wrapper);
+    }
+    return wrapper;
+}
+
+function runRideauOuvreCycle() {
+    const wrapper = ensureRideauOuvreElement();
+    const panels = wrapper.querySelectorAll('.rideau-ouvre-panel');
+    // Ouvre le rideau (les deux panneaux glissent vers les bords)
+    panels.forEach(p => p.classList.add('open'));
+    // Une fois ouvert, reste 5s, puis revient à l'état par défaut (fermé)
+    setTimeout(() => {
+        panels.forEach(p => p.classList.remove('open'));
+    }, 1800 + 5000);
+}
+
+function scheduleNextRideauOuvre() {
+    if (!rideauOuvreEnabled) return;
+    const delay = 1800 + 5000 + 4000;
+    rideauOuvreIntervalId = setTimeout(() => {
+        if (rideauOuvreEnabled) runRideauOuvreCycle();
+        scheduleNextRideauOuvre();
+    }, delay);
+}
+
+function toggleRideauOuvreSetting(checked) {
+    rideauOuvreEnabled = checked;
+    localStorage.setItem('rideauOuvreEnabled', checked ? 'true' : 'false');
+    const wrapper = ensureRideauOuvreElement();
+    wrapper.style.display = checked ? 'block' : 'none';
+    if (rideauOuvreIntervalId) { clearTimeout(rideauOuvreIntervalId); rideauOuvreIntervalId = null; }
+    if (checked) {
+        runRideauOuvreCycle();
+        scheduleNextRideauOuvre();
+    } else {
+        wrapper.querySelectorAll('.rideau-ouvre-panel').forEach(p => p.classList.remove('open'));
+    }
+}
+
+function initRideauOuvreState() {
+    const wrapper = ensureRideauOuvreElement();
+    wrapper.style.display = rideauOuvreEnabled ? 'block' : 'none';
+    if (rideauOuvreEnabled) {
+        runRideauOuvreCycle();
+        scheduleNextRideauOuvre();
+    }
+}
+
+// --- HALO PULSÉ SUR LA POCHETTE (couleur = couleur dominante de la pochette en cours) ---
 // S'applique directement sur #track-art, pas un élément décoratif à part.
 function injectPochetteHaloStyles() {
     if (document.getElementById('pochette-halo-inline-style')) return;
@@ -8059,24 +8256,70 @@ function injectPochetteHaloStyles() {
             animation: pochette-halo-pulse 2.5s ease-in-out infinite;
         }
         @keyframes pochette-halo-pulse {
-            0%, 100% { box-shadow: 0 0 15px 2px rgba(29, 185, 84, 0.4); }
-            50%      { box-shadow: 0 0 35px 10px rgba(29, 185, 84, 0.8); }
+            0%, 100% { box-shadow: 0 0 15px 2px rgba(var(--pochette-halo-color, 29, 185, 84), 0.4); }
+            50%      { box-shadow: 0 0 35px 10px rgba(var(--pochette-halo-color, 29, 185, 84), 0.8); }
         }
     `;
     document.head.appendChild(styleTag);
 }
 injectPochetteHaloStyles();
 
+// Calcule la couleur RVB moyenne dominante d'une image (petite miniature interne, rapide).
+// Recharge l'image avec crossOrigin (même technique que updateDynamicBackground() plus haut,
+// qui fait déjà ça pour le fond animé) pour éviter qu'un canvas "taché" par une image sans CORS
+// ne bloque la lecture des pixels.
+function getDominantColorFromImageSrc(src, callback) {
+    const tempImg = new Image();
+    tempImg.crossOrigin = "Anonymous";
+    tempImg.onload = function () {
+        try {
+            const canvas = document.createElement('canvas');
+            canvas.width = 24;
+            canvas.height = 24;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(tempImg, 0, 0, 24, 24);
+            const data = ctx.getImageData(0, 0, 24, 24).data;
+
+            let r = 0, g = 0, b = 0, count = 0;
+            for (let i = 0; i < data.length; i += 4) {
+                r += data[i];
+                g += data[i + 1];
+                b += data[i + 2];
+                count++;
+            }
+            callback(`${Math.round(r / count)}, ${Math.round(g / count)}, ${Math.round(b / count)}`);
+        } catch (e) {
+            console.error("Impossible d'extraire la couleur dominante de la pochette :", e);
+            callback(null);
+        }
+    };
+    tempImg.onerror = () => callback(null);
+    tempImg.src = src;
+}
+
+// Recalcule et applique la couleur du halo à partir de la pochette actuellement affichée.
+// Appelée à l'activation du réglage ET à chaque changement de titre (voir updateNowPlaying).
+function updatePochetteHaloColor() {
+    if (!pochetteHaloEnabled) return;
+    const art = document.getElementById('track-art');
+    if (!art || !art.src) return;
+    getDominantColorFromImageSrc(art.src, (rgb) => {
+        if (rgb) art.style.setProperty('--pochette-halo-color', rgb);
+    });
+}
+
 function togglePochetteHaloSetting(checked) {
     pochetteHaloEnabled = checked;
     localStorage.setItem('pochetteHaloEnabled', checked ? 'true' : 'false');
     const art = document.getElementById('track-art');
     if (art) art.classList.toggle('pochette-halo-effect', checked);
+    if (checked) updatePochetteHaloColor();
 }
 
 function initPochetteHaloState() {
     const art = document.getElementById('track-art');
     if (art) art.classList.toggle('pochette-halo-effect', pochetteHaloEnabled);
+    if (pochetteHaloEnabled) updatePochetteHaloColor();
 }
 
 // --- GUIRLANDE À SCINTILLEMENT ALÉATOIRE INDÉPENDANT ---
@@ -8151,85 +8394,6 @@ function toggleGuirlandeScintillementSetting(checked) {
 
 function initGuirlandeScintillementState() {
     ensureGuirlandeScintillementElement().style.display = guirlandeScintillementEnabled ? 'block' : 'none';
-}
-
-// --- GUIRLANDE VERTICALE ---
-function injectGuirlandeVerticaleStyles() {
-    if (document.getElementById('guirlande-verticale-inline-style')) return;
-    const styleTag = document.createElement('style');
-    styleTag.id = 'guirlande-verticale-inline-style';
-    styleTag.textContent = `
-        #guirlande-verticale-wrapper {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 160px;
-            z-index: 400;
-            pointer-events: none;
-        }
-        .gv-strand {
-            position: absolute;
-            top: 0;
-            width: 3px;
-            height: 130px;
-            background: #1a1a1a;
-            transform-origin: top center;
-            animation: gv-sway 3s ease-in-out infinite;
-        }
-        .gv-bulb {
-            position: absolute;
-            left: -6px;
-            width: 15px; height: 15px;
-            border-radius: 50%;
-            box-shadow: 0 0 10px 3px currentColor;
-            animation: gs-twinkle 2.2s ease-in-out infinite;
-        }
-        @keyframes gv-sway {
-            0%, 100% { transform: rotate(-4deg); }
-            50%      { transform: rotate(4deg); }
-        }
-    `;
-    document.head.appendChild(styleTag);
-}
-injectGuirlandeVerticaleStyles();
-
-function ensureGuirlandeVerticaleElement() {
-    let wrapper = document.getElementById('guirlande-verticale-wrapper');
-    if (!wrapper) {
-        wrapper = document.createElement('div');
-        wrapper.id = 'guirlande-verticale-wrapper';
-        const colors = ['#ff5252', '#ffd452', '#52ff8a', '#52c8ff', '#c452ff'];
-        const STRAND_COUNT = Math.max(6, Math.round(window.innerWidth / 90));
-        for (let i = 0; i < STRAND_COUNT; i++) {
-            const strand = document.createElement('div');
-            strand.className = 'gv-strand';
-            strand.style.left = `${(i / (STRAND_COUNT - 1)) * 100}%`;
-            strand.style.animationDelay = `-${Math.random() * 3}s`;
-
-            const BULB_PER_STRAND = 4;
-            for (let b = 0; b < BULB_PER_STRAND; b++) {
-                const bulb = document.createElement('div');
-                bulb.className = 'gv-bulb';
-                bulb.style.top = `${(b / (BULB_PER_STRAND - 1)) * 100}%`;
-                bulb.style.color = colors[(i + b) % colors.length];
-                bulb.style.background = colors[(i + b) % colors.length];
-                bulb.style.animationDelay = `-${Math.random() * 2.2}s`;
-                strand.appendChild(bulb);
-            }
-            wrapper.appendChild(strand);
-        }
-        document.body.appendChild(wrapper);
-    }
-    return wrapper;
-}
-
-function toggleGuirlandeVerticaleSetting(checked) {
-    guirlandeVerticaleEnabled = checked;
-    localStorage.setItem('guirlandeVerticaleEnabled', checked ? 'true' : 'false');
-    ensureGuirlandeVerticaleElement().style.display = checked ? 'block' : 'none';
-}
-
-function initGuirlandeVerticaleState() {
-    ensureGuirlandeVerticaleElement().style.display = guirlandeVerticaleEnabled ? 'block' : 'none';
 }
 
 // --- GUIRLANDE "ORAGE" (rafale rapide et irrégulière, puis pause) ---
@@ -8333,70 +8497,6 @@ function initGuirlandeOrageState() {
     if (guirlandeOrageEnabled) scheduleNextOrageBurst();
 }
 
-// --- GUIRLANDE FILAIRE FINE (juste un fil lumineux ondulant, pas d'ampoules distinctes) ---
-function injectGuirlandeFilaireStyles() {
-    if (document.getElementById('guirlande-filaire-inline-style')) return;
-    const styleTag = document.createElement('style');
-    styleTag.id = 'guirlande-filaire-inline-style';
-    styleTag.textContent = `
-        #guirlande-filaire-wrapper {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 50px;
-            z-index: 400;
-            pointer-events: none;
-        }
-        #guirlande-filaire-wrapper svg path {
-            fill: none;
-            stroke: var(--spotify-green, #1DB954);
-            stroke-width: 2.5;
-            filter: drop-shadow(0 0 6px rgba(29, 185, 84, 0.9));
-            animation: gf-glow 2.4s ease-in-out infinite;
-        }
-        @keyframes gf-glow {
-            0%, 100% { opacity: 0.5; }
-            50%      { opacity: 1; }
-        }
-    `;
-    document.head.appendChild(styleTag);
-}
-injectGuirlandeFilaireStyles();
-
-function ensureGuirlandeFilaireElement() {
-    let wrapper = document.getElementById('guirlande-filaire-wrapper');
-    if (!wrapper) {
-        wrapper = document.createElement('div');
-        wrapper.id = 'guirlande-filaire-wrapper';
-
-        const w = Math.max(window.innerWidth, 300);
-        let d = `M0,25`;
-        const SEGMENTS = 12;
-        for (let i = 1; i <= SEGMENTS; i++) {
-            const x = (i / SEGMENTS) * w;
-            const y = i % 2 === 0 ? 12 : 38;
-            d += ` Q${x - (w / SEGMENTS) / 2},${i % 2 === 0 ? 38 : 12} ${x},${y}`;
-        }
-
-        wrapper.innerHTML = `
-            <svg viewBox="0 0 ${w} 50" width="100%" height="50" preserveAspectRatio="none">
-                <path d="${d}" />
-            </svg>
-        `;
-        document.body.appendChild(wrapper);
-    }
-    return wrapper;
-}
-
-function toggleGuirlandeFilaireSetting(checked) {
-    guirlandeFilaireEnabled = checked;
-    localStorage.setItem('guirlandeFilaireEnabled', checked ? 'true' : 'false');
-    ensureGuirlandeFilaireElement().style.display = checked ? 'block' : 'none';
-}
-
-function initGuirlandeFilaireState() {
-    ensureGuirlandeFilaireElement().style.display = guirlandeFilaireEnabled ? 'block' : 'none';
-}
-
 // --- GUIRLANDE BICOLORE ALTERNÉE ---
 function injectGuirlandeBicoloreStyles() {
     if (document.getElementById('guirlande-bicolore-inline-style')) return;
@@ -8423,8 +8523,10 @@ function injectGuirlandeBicoloreStyles() {
             border-radius: 50%;
             animation: gs-twinkle 2s ease-in-out infinite;
         }
-        .gb-bulb.color-a { background: #d81e2c; box-shadow: 0 0 12px 4px rgba(216, 30, 44, 0.7); }
-        .gb-bulb.color-b { background: #f5f5f5; box-shadow: 0 0 12px 4px rgba(245, 245, 245, 0.7); }
+        .gb-bulb.color-0 { background: #d81e2c; box-shadow: 0 0 12px 4px rgba(216, 30, 44, 0.7); }
+        .gb-bulb.color-1 { background: #2ecc40; box-shadow: 0 0 12px 4px rgba(46, 204, 64, 0.7); }
+        .gb-bulb.color-2 { background: #2b7cff; box-shadow: 0 0 12px 4px rgba(43, 124, 255, 0.7); }
+        .gb-bulb.color-3 { background: #ffd21a; box-shadow: 0 0 12px 4px rgba(255, 210, 26, 0.7); }
     `;
     document.head.appendChild(styleTag);
 }
@@ -8443,9 +8545,9 @@ function ensureGuirlandeBicoloreElement() {
         const BULB_COUNT = Math.max(8, Math.round(window.innerWidth / 50));
         for (let i = 0; i < BULB_COUNT; i++) {
             const bulb = document.createElement('div');
-            bulb.className = `gb-bulb ${i % 2 === 0 ? 'color-a' : 'color-b'}`;
+            bulb.className = `gb-bulb color-${i % 4}`;
             bulb.style.left = `${(i / (BULB_COUNT - 1)) * 100}%`;
-            bulb.style.animationDelay = `${(i % 2) * 1}s`;
+            bulb.style.animationDelay = `${(i % 4) * 0.5}s`;
             wrapper.appendChild(bulb);
         }
         document.body.appendChild(wrapper);
@@ -8463,68 +8565,68 @@ function initGuirlandeBicoloreState() {
     ensureGuirlandeBicoloreElement().style.display = guirlandeBicoloreEnabled ? 'block' : 'none';
 }
 
-// --- GUIRLANDE ÉTOILES FILANTES (chaque ampoule émet parfois une traînée brève) ---
-function injectGuirlandeEtoilesFilantesStyles() {
-    if (document.getElementById('guirlande-etoiles-filantes-inline-style')) return;
+// --- GUIRLANDE VAGUE LUMINEUSE (vague de luminosité multicolore qui parcourt la guirlande) ---
+function injectGuirlandeVagueStyles() {
+    if (document.getElementById('guirlande-vague-inline-style')) return;
     const styleTag = document.createElement('style');
-    styleTag.id = 'guirlande-etoiles-filantes-inline-style';
+    styleTag.id = 'guirlande-vague-inline-style';
     styleTag.textContent = `
-        #guirlande-etoiles-filantes-wrapper {
+        #guirlande-vague-wrapper {
             display: none;
             position: fixed;
-            top: 0; left: 0; width: 100%; height: 60px;
+            top: 0; left: 0; width: 100%; height: 40px;
             z-index: 400;
             pointer-events: none;
-            overflow: hidden;
         }
-        #guirlande-etoiles-filantes-cable {
+        #guirlande-vague-cable {
             position: absolute;
             top: 6px; left: 0;
             width: 100%; height: 3px;
             background: #1a1a1a;
         }
-        .gef-bulb {
+        .gw-bulb {
             position: absolute;
             top: 8px;
-            width: 15px; height: 15px;
+            width: 16px; height: 16px;
             border-radius: 50%;
-            background: #ffe15c;
-            box-shadow: 0 0 10px 3px rgba(255, 225, 92, 0.6);
+            animation-name: gw-wave;
+            animation-timing-function: ease-in-out;
+            animation-iteration-count: infinite;
         }
-        .gef-streak {
-            position: absolute;
-            top: 14px;
-            width: 3px; height: 40px;
-            background: linear-gradient(to bottom, rgba(255, 225, 92, 0.9), transparent);
-            border-radius: 2px;
-            animation: gef-fall 0.9s ease-in forwards;
-        }
-        @keyframes gef-fall {
-            0%   { transform: translateY(0); opacity: 1; }
-            100% { transform: translateY(45px); opacity: 0; }
+        @keyframes gw-wave {
+            0%, 100% { transform: scale(0.55); opacity: 0.25; filter: brightness(0.6); }
+            50%      { transform: scale(1.35); opacity: 1; filter: brightness(1.3); }
         }
     `;
     document.head.appendChild(styleTag);
 }
-injectGuirlandeEtoilesFilantesStyles();
+injectGuirlandeVagueStyles();
 
-let guirlandeEtoilesFilantesIntervalId = null;
-
-function ensureGuirlandeEtoilesFilantesElement() {
-    let wrapper = document.getElementById('guirlande-etoiles-filantes-wrapper');
+function ensureGuirlandeVagueElement() {
+    let wrapper = document.getElementById('guirlande-vague-wrapper');
     if (!wrapper) {
         wrapper = document.createElement('div');
-        wrapper.id = 'guirlande-etoiles-filantes-wrapper';
+        wrapper.id = 'guirlande-vague-wrapper';
 
         const cable = document.createElement('div');
-        cable.id = 'guirlande-etoiles-filantes-cable';
+        cable.id = 'guirlande-vague-cable';
         wrapper.appendChild(cable);
 
-        const BULB_COUNT = Math.max(8, Math.round(window.innerWidth / 50));
+        const colors = ['#ff5252', '#ffd452', '#52ff8a', '#52c8ff', '#c452ff'];
+        const BULB_COUNT = Math.max(10, Math.round(window.innerWidth / 45));
+        const WAVE_DURATION = 3.2; // secondes pour un aller-retour complet de la vague
+
         for (let i = 0; i < BULB_COUNT; i++) {
             const bulb = document.createElement('div');
-            bulb.className = 'gef-bulb';
+            bulb.className = 'gw-bulb';
+            const color = colors[i % colors.length];
             bulb.style.left = `${(i / (BULB_COUNT - 1)) * 100}%`;
+            bulb.style.background = color;
+            bulb.style.boxShadow = `0 0 12px 4px ${color}`;
+            bulb.style.animationDuration = `${WAVE_DURATION}s`;
+            // Décalage proportionnel à la position : la vague de luminosité se déplace en douceur
+            // le long de la guirlande, plutôt qu'un clignotement binaire comme le chenillard
+            bulb.style.animationDelay = `-${(i / BULB_COUNT) * WAVE_DURATION}s`;
             wrapper.appendChild(bulb);
         }
         document.body.appendChild(wrapper);
@@ -8532,40 +8634,14 @@ function ensureGuirlandeEtoilesFilantesElement() {
     return wrapper;
 }
 
-function launchEtoileFilanteStreak() {
-    const wrapper = document.getElementById('guirlande-etoiles-filantes-wrapper');
-    if (!wrapper) return;
-    const bulbs = wrapper.querySelectorAll('.gef-bulb');
-    if (bulbs.length === 0) return;
-
-    const bulb = bulbs[Math.floor(Math.random() * bulbs.length)];
-    const streak = document.createElement('div');
-    streak.className = 'gef-streak';
-    streak.style.left = bulb.style.left;
-    wrapper.appendChild(streak);
-    setTimeout(() => streak.remove(), 950);
+function toggleGuirlandeVagueSetting(checked) {
+    guirlandeVagueEnabled = checked;
+    localStorage.setItem('guirlandeVagueEnabled', checked ? 'true' : 'false');
+    ensureGuirlandeVagueElement().style.display = checked ? 'block' : 'none';
 }
 
-function scheduleNextEtoileFilanteStreak() {
-    if (!guirlandeEtoilesFilantesEnabled) return;
-    const delay = 300 + Math.random() * 700;
-    guirlandeEtoilesFilantesIntervalId = setTimeout(() => {
-        if (guirlandeEtoilesFilantesEnabled) launchEtoileFilanteStreak();
-        scheduleNextEtoileFilanteStreak();
-    }, delay);
-}
-
-function toggleGuirlandeEtoilesFilantesSetting(checked) {
-    guirlandeEtoilesFilantesEnabled = checked;
-    localStorage.setItem('guirlandeEtoilesFilantesEnabled', checked ? 'true' : 'false');
-    ensureGuirlandeEtoilesFilantesElement().style.display = checked ? 'block' : 'none';
-    if (guirlandeEtoilesFilantesIntervalId) { clearTimeout(guirlandeEtoilesFilantesIntervalId); guirlandeEtoilesFilantesIntervalId = null; }
-    if (checked) scheduleNextEtoileFilanteStreak();
-}
-
-function initGuirlandeEtoilesFilantesState() {
-    ensureGuirlandeEtoilesFilantesElement().style.display = guirlandeEtoilesFilantesEnabled ? 'block' : 'none';
-    if (guirlandeEtoilesFilantesEnabled) scheduleNextEtoileFilanteStreak();
+function initGuirlandeVagueState() {
+    ensureGuirlandeVagueElement().style.display = guirlandeVagueEnabled ? 'block' : 'none';
 }
 
 // --- BOULE À FACETTES "SCAN LED" — ronds lumineux multicolores qui balaient l'écran de gauche à droite ---
@@ -8584,7 +8660,7 @@ function injectBouleLedStyles() {
         }
         .led-dot {
             position: absolute;
-            width: 16px; height: 16px;
+            width: 19px; height: 19px;
             border-radius: 50%;
             filter: blur(1px);
             animation-name: led-sweep;
@@ -8614,7 +8690,7 @@ function ensureBouleLedElement() {
             dot.className = 'led-dot';
             const color = colors[i % colors.length];
             dot.style.background = color;
-            dot.style.boxShadow = `0 0 14px 5px ${color}`;
+            dot.style.boxShadow = `0 0 17px 6px ${color}`;
             dot.style.top = `${5 + Math.random() * 90}%`;
             dot.style.animationDuration = `${3 + Math.random() * 3}s`;
             dot.style.animationDelay = `-${Math.random() * 6}s`;
@@ -8633,6 +8709,474 @@ function toggleBouleLedSetting(checked) {
 
 function initBouleLedState() {
     ensureBouleLedElement().style.display = bouleLedEnabled ? 'block' : 'none';
+}
+
+// ==========================================
+// 5 EFFETS FEUX D'ARTIFICE — réguliers, intenses, rapides, 5 types différents
+// ==========================================
+
+// --- 1. FEUX D'ARTIFICE CLASSIQUES RAPIDES (éclatement radial classique, très fréquent) ---
+function injectFeuxClassiquesStyles() {
+    if (document.getElementById('feux-classiques-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'feux-classiques-inline-style';
+    styleTag.textContent = `
+        .fw-classique-particle {
+            position: fixed;
+            width: 5px; height: 5px;
+            border-radius: 50%;
+            z-index: 400;
+            pointer-events: none;
+            animation: fw-classique-burst 1s ease-out forwards;
+        }
+        @keyframes fw-classique-burst {
+            0%   { transform: translate(0, 0) scale(1); opacity: 1; }
+            100% { transform: translate(var(--dx), var(--dy)) scale(0.3); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectFeuxClassiquesStyles();
+
+let feuxClassiquesIntervalId = null;
+
+function launchFeuxClassiques() {
+    const colors = ['#ff5252', '#ffd452', '#52ff8a', '#52c8ff', '#c452ff', '#ff8a52'];
+    const originX = 10 + Math.random() * 80;
+    const originY = 10 + Math.random() * 50;
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const count = 18;
+
+    for (let i = 0; i < count; i++) {
+        const angle = (i / count) * Math.PI * 2;
+        const distance = 60 + Math.random() * 40;
+        const particle = document.createElement('div');
+        particle.className = 'fw-classique-particle';
+        particle.style.left = `${originX}%`;
+        particle.style.top = `${originY}%`;
+        particle.style.background = color;
+        particle.style.boxShadow = `0 0 6px 2px ${color}`;
+        particle.style.setProperty('--dx', `${Math.cos(angle) * distance}px`);
+        particle.style.setProperty('--dy', `${Math.sin(angle) * distance}px`);
+        document.body.appendChild(particle);
+        setTimeout(() => particle.remove(), 1050);
+    }
+}
+
+function scheduleNextFeuxClassiques() {
+    if (!feuxClassiquesEnabled) return;
+    const delay = 500 + Math.random() * 400; // rapide et régulier
+    feuxClassiquesIntervalId = setTimeout(() => {
+        if (feuxClassiquesEnabled) launchFeuxClassiques();
+        scheduleNextFeuxClassiques();
+    }, delay);
+}
+
+function toggleFeuxClassiquesSetting(checked) {
+    feuxClassiquesEnabled = checked;
+    localStorage.setItem('feuxClassiquesEnabled', checked ? 'true' : 'false');
+    if (feuxClassiquesIntervalId) { clearTimeout(feuxClassiquesIntervalId); feuxClassiquesIntervalId = null; }
+    if (checked) scheduleNextFeuxClassiques();
+}
+
+function initFeuxClassiquesState() {
+    if (feuxClassiquesEnabled) scheduleNextFeuxClassiques();
+}
+
+// --- 2. FEUX D'ARTIFICE EN FONTAINE (jaillissent du bas, retombent) ---
+function injectFeuxFontaineStyles() {
+    if (document.getElementById('feux-fontaine-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'feux-fontaine-inline-style';
+    styleTag.textContent = `
+        .fw-fontaine-particle {
+            position: fixed;
+            bottom: 0;
+            width: 4px; height: 4px;
+            border-radius: 50%;
+            z-index: 400;
+            pointer-events: none;
+            animation: fw-fontaine-arc 1.3s ease-out forwards;
+        }
+        @keyframes fw-fontaine-arc {
+            0%   { transform: translate(0, 0); opacity: 1; }
+            45%  { transform: translate(var(--dx), calc(-1 * var(--h))); opacity: 1; }
+            100% { transform: translate(calc(var(--dx) * 1.8), 20px); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectFeuxFontaineStyles();
+
+let feuxFontaineIntervalId = null;
+
+function launchFeuxFontaine() {
+    const colors = ['#ffd452', '#ff8a52', '#52c8ff', '#52ff8a'];
+    const originX = 15 + Math.random() * 70;
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const count = 10;
+
+    for (let i = 0; i < count; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'fw-fontaine-particle';
+        particle.style.left = `${originX}%`;
+        particle.style.background = color;
+        particle.style.boxShadow = `0 0 6px 2px ${color}`;
+        particle.style.setProperty('--dx', `${(Math.random() - 0.5) * 60}px`);
+        particle.style.setProperty('--h', `${140 + Math.random() * 80}px`);
+        particle.style.animationDelay = `${Math.random() * 0.15}s`;
+        document.body.appendChild(particle);
+        setTimeout(() => particle.remove(), 1550);
+    }
+}
+
+function scheduleNextFeuxFontaine() {
+    if (!feuxFontaineEnabled) return;
+    const delay = 400 + Math.random() * 350;
+    feuxFontaineIntervalId = setTimeout(() => {
+        if (feuxFontaineEnabled) launchFeuxFontaine();
+        scheduleNextFeuxFontaine();
+    }, delay);
+}
+
+function toggleFeuxFontaineSetting(checked) {
+    feuxFontaineEnabled = checked;
+    localStorage.setItem('feuxFontaineEnabled', checked ? 'true' : 'false');
+    if (feuxFontaineIntervalId) { clearTimeout(feuxFontaineIntervalId); feuxFontaineIntervalId = null; }
+    if (checked) scheduleNextFeuxFontaine();
+}
+
+function initFeuxFontaineState() {
+    if (feuxFontaineEnabled) scheduleNextFeuxFontaine();
+}
+
+// --- 3. FEUX D'ARTIFICE EN SPIRALE (les particules s'échappent en dessinant une spirale) ---
+function injectFeuxSpiraleStyles() {
+    if (document.getElementById('feux-spirale-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'feux-spirale-inline-style';
+    styleTag.textContent = `
+        .fw-spirale-particle {
+            position: fixed;
+            width: 5px; height: 5px;
+            border-radius: 50%;
+            z-index: 400;
+            pointer-events: none;
+            opacity: 0;
+            animation: fw-spirale-out 1.1s ease-out forwards;
+        }
+        @keyframes fw-spirale-out {
+            0%   { transform: translate(0, 0) scale(1); opacity: 1; }
+            100% { transform: translate(var(--dx), var(--dy)) scale(0.2); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectFeuxSpiraleStyles();
+
+let feuxSpiraleIntervalId = null;
+
+function launchFeuxSpirale() {
+    const colors = ['#c452ff', '#52c8ff', '#ff5252', '#ffd452'];
+    const originX = 15 + Math.random() * 70;
+    const originY = 15 + Math.random() * 45;
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const count = 24;
+    const goldenAngle = 137.5 * (Math.PI / 180);
+
+    for (let i = 0; i < count; i++) {
+        const angle = i * goldenAngle;
+        const distance = 6 * i * 0.9;
+        const particle = document.createElement('div');
+        particle.className = 'fw-spirale-particle';
+        particle.style.left = `${originX}%`;
+        particle.style.top = `${originY}%`;
+        particle.style.background = color;
+        particle.style.boxShadow = `0 0 6px 2px ${color}`;
+        particle.style.setProperty('--dx', `${Math.cos(angle) * distance}px`);
+        particle.style.setProperty('--dy', `${Math.sin(angle) * distance}px`);
+        // Décalage progressif : la spirale "se déroule" au lieu d'exploser d'un coup
+        particle.style.animationDelay = `${i * 15}ms`;
+        document.body.appendChild(particle);
+        setTimeout(() => particle.remove(), 1500 + i * 15);
+    }
+}
+
+function scheduleNextFeuxSpirale() {
+    if (!feuxSpiraleEnabled) return;
+    const delay = 700 + Math.random() * 500;
+    feuxSpiraleIntervalId = setTimeout(() => {
+        if (feuxSpiraleEnabled) launchFeuxSpirale();
+        scheduleNextFeuxSpirale();
+    }, delay);
+}
+
+function toggleFeuxSpiraleSetting(checked) {
+    feuxSpiraleEnabled = checked;
+    localStorage.setItem('feuxSpiraleEnabled', checked ? 'true' : 'false');
+    if (feuxSpiraleIntervalId) { clearTimeout(feuxSpiraleIntervalId); feuxSpiraleIntervalId = null; }
+    if (checked) scheduleNextFeuxSpirale();
+}
+
+function initFeuxSpiraleState() {
+    if (feuxSpiraleEnabled) scheduleNextFeuxSpirale();
+}
+
+// --- 4. FEUX D'ARTIFICE CRÉPITANTS (beaucoup de mini étincelles denses et brèves) ---
+function injectFeuxCrepitantsStyles() {
+    if (document.getElementById('feux-crepitants-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'feux-crepitants-inline-style';
+    styleTag.textContent = `
+        .fw-crepitant-particle {
+            position: fixed;
+            width: 2.5px; height: 2.5px;
+            border-radius: 50%;
+            z-index: 400;
+            pointer-events: none;
+            animation: fw-crepitant-flick 0.45s ease-out forwards;
+        }
+        @keyframes fw-crepitant-flick {
+            0%   { transform: translate(0, 0); opacity: 1; }
+            100% { transform: translate(var(--dx), var(--dy)); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectFeuxCrepitantsStyles();
+
+let feuxCrepitantsIntervalId = null;
+
+function launchFeuxCrepitants() {
+    const colors = ['#fff45c', '#ffffff', '#ff8a52'];
+    const originX = 10 + Math.random() * 80;
+    const originY = 10 + Math.random() * 55;
+    const count = 26;
+
+    for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const distance = 15 + Math.random() * 20; // rayon court : effet dense, pas un grand éclatement
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        const particle = document.createElement('div');
+        particle.className = 'fw-crepitant-particle';
+        particle.style.left = `${originX}%`;
+        particle.style.top = `${originY}%`;
+        particle.style.background = color;
+        particle.style.boxShadow = `0 0 4px 1px ${color}`;
+        particle.style.setProperty('--dx', `${Math.cos(angle) * distance}px`);
+        particle.style.setProperty('--dy', `${Math.sin(angle) * distance}px`);
+        document.body.appendChild(particle);
+        setTimeout(() => particle.remove(), 500);
+    }
+}
+
+function scheduleNextFeuxCrepitants() {
+    if (!feuxCrepitantsEnabled) return;
+    const delay = 300 + Math.random() * 250; // très fréquent, effet crépitant continu
+    feuxCrepitantsIntervalId = setTimeout(() => {
+        if (feuxCrepitantsEnabled) launchFeuxCrepitants();
+        scheduleNextFeuxCrepitants();
+    }, delay);
+}
+
+function toggleFeuxCrepitantsSetting(checked) {
+    feuxCrepitantsEnabled = checked;
+    localStorage.setItem('feuxCrepitantsEnabled', checked ? 'true' : 'false');
+    if (feuxCrepitantsIntervalId) { clearTimeout(feuxCrepitantsIntervalId); feuxCrepitantsIntervalId = null; }
+    if (checked) scheduleNextFeuxCrepitants();
+}
+
+function initFeuxCrepitantsState() {
+    if (feuxCrepitantsEnabled) scheduleNextFeuxCrepitants();
+}
+
+// --- 5. FEUX D'ARTIFICE GÉANTS (bien plus gros, plus de particules, toujours fréquents) ---
+function injectFeuxGeantsStyles() {
+    if (document.getElementById('feux-geants-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'feux-geants-inline-style';
+    styleTag.textContent = `
+        .fw-geant-particle {
+            position: fixed;
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            z-index: 400;
+            pointer-events: none;
+            animation: fw-geant-burst 1.4s ease-out forwards;
+        }
+        @keyframes fw-geant-burst {
+            0%   { transform: translate(0, 0) scale(1); opacity: 1; }
+            100% { transform: translate(var(--dx), var(--dy)) scale(0.2); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectFeuxGeantsStyles();
+
+let feuxGeantsIntervalId = null;
+
+function launchFeuxGeants() {
+    const colors = ['#ff5252', '#ffd452', '#52ff8a', '#52c8ff', '#c452ff', '#ff8a52'];
+    const originX = 15 + Math.random() * 70;
+    const originY = 10 + Math.random() * 40;
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const count = 32;
+
+    for (let i = 0; i < count; i++) {
+        const angle = (i / count) * Math.PI * 2;
+        const distance = 110 + Math.random() * 60;
+        const particle = document.createElement('div');
+        particle.className = 'fw-geant-particle';
+        particle.style.left = `${originX}%`;
+        particle.style.top = `${originY}%`;
+        particle.style.background = color;
+        particle.style.boxShadow = `0 0 10px 3px ${color}`;
+        particle.style.setProperty('--dx', `${Math.cos(angle) * distance}px`);
+        particle.style.setProperty('--dy', `${Math.sin(angle) * distance}px`);
+        document.body.appendChild(particle);
+        setTimeout(() => particle.remove(), 1450);
+    }
+}
+
+function scheduleNextFeuxGeants() {
+    if (!feuxGeantsEnabled) return;
+    const delay = 900 + Math.random() * 600;
+    feuxGeantsIntervalId = setTimeout(() => {
+        if (feuxGeantsEnabled) launchFeuxGeants();
+        scheduleNextFeuxGeants();
+    }, delay);
+}
+
+function toggleFeuxGeantsSetting(checked) {
+    feuxGeantsEnabled = checked;
+    localStorage.setItem('feuxGeantsEnabled', checked ? 'true' : 'false');
+    if (feuxGeantsIntervalId) { clearTimeout(feuxGeantsIntervalId); feuxGeantsIntervalId = null; }
+    if (checked) scheduleNextFeuxGeants();
+}
+
+function initFeuxGeantsState() {
+    if (feuxGeantsEnabled) scheduleNextFeuxGeants();
+}
+
+// ==========================================
+// SPECTRE AUDIO ANIMÉ 2.0
+// Même mécanique que le spectre d'origine (initSpectrum) : détecte isCurrentlyPlaying pour
+// savoir si c'est en pause ou non, mêmes barres qui montent/descendent en douceur. On y ajoute
+// l'orange et le jaune à la palette, et les couleurs défilent en continu (la bande de couleur
+// avance de gauche à droite au fil du temps, plutôt que rester fixe par position de barre).
+// ==========================================
+
+function injectSpectrum2Styles() {
+    if (document.getElementById('spectrum2-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'spectrum2-inline-style';
+    styleTag.textContent = `
+        #spectrum2-canvas {
+            display: none;
+            position: fixed;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            height: 60px;
+            z-index: 500;
+            pointer-events: none;
+            background: transparent;
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectSpectrum2Styles();
+
+function ensureSpectrum2Canvas() {
+    let canvas = document.getElementById('spectrum2-canvas');
+    if (!canvas) {
+        canvas = document.createElement('canvas');
+        canvas.id = 'spectrum2-canvas';
+        document.body.appendChild(canvas);
+    }
+    return canvas;
+}
+
+let spectrum2Bars = [];
+let spectrum2AnimId = null;
+let spectrum2ColorScroll = 0;
+
+function initSpectrum2() {
+    const canvas = ensureSpectrum2Canvas();
+    const ctx = canvas.getContext('2d');
+    const barCount = 48;
+
+    spectrum2Bars = Array.from({ length: barCount }, () => ({
+        phase: Math.random() * Math.PI * 2,
+        speed: 0.02 + Math.random() * 0.035,
+        current: 0.04
+    }));
+
+    function resizeCanvas() {
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * window.devicePixelRatio;
+        canvas.height = rect.height * window.devicePixelRatio;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    function draw() {
+        spectrum2AnimId = requestAnimationFrame(draw);
+
+        const w = canvas.width;
+        const h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+
+        if (!spectrum2Enabled) {
+            spectrum2Bars.forEach(bar => { bar.current = 0.04; });
+            return;
+        }
+
+        // Même détection pause/lecture que le spectre d'origine
+        const active = spectrum2Enabled && isCurrentlyPlaying;
+        const barWidth = w / spectrum2Bars.length;
+
+        // Les couleurs défilent en continu, indépendamment de la lecture
+        spectrum2ColorScroll += 0.6;
+
+        spectrum2Bars.forEach((bar, i) => {
+            bar.phase += bar.speed;
+
+            const targetAmplitude = active
+                ? (0.25 + 0.75 * Math.abs(Math.sin(bar.phase)))
+                : 0.04;
+            bar.current += (targetAmplitude - bar.current) * 0.08;
+
+            const barHeight = Math.max(2, bar.current * h);
+            // Palette étendue : vert → jaune → orange → bleu → rose (boucle sur 360°),
+            // + décalage qui avance dans le temps pour faire défiler la bande de gauche à droite
+            const hue = (i / spectrum2Bars.length) * 360 + spectrum2ColorScroll;
+
+            const gradient = ctx.createLinearGradient(0, h, 0, h - barHeight);
+            gradient.addColorStop(0, `hsl(${hue}, 90%, 45%)`);
+            gradient.addColorStop(1, `hsl(${hue}, 90%, 70%)`);
+            ctx.fillStyle = gradient;
+
+            const x = i * barWidth;
+            const gap = barWidth * 0.15;
+            ctx.fillRect(x + gap, h - barHeight, barWidth - gap * 2, barHeight);
+        });
+    }
+    draw();
+}
+
+function toggleSpectrum2Setting(checked) {
+    spectrum2Enabled = checked;
+    localStorage.setItem('spectrum2Enabled', checked ? 'true' : 'false');
+    const canvas = ensureSpectrum2Canvas();
+    canvas.style.display = checked ? 'block' : 'none';
+    if (checked && !spectrum2AnimId) initSpectrum2();
+}
+
+function initSpectrum2State() {
+    const canvas = ensureSpectrum2Canvas();
+    canvas.style.display = spectrum2Enabled ? 'block' : 'none';
+    if (spectrum2Enabled) initSpectrum2();
 }
 
     </script>
