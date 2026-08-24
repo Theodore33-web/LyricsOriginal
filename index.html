@@ -5,7 +5,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v2.01";
+        const APP_VERSION = "v1.01";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -470,93 +470,40 @@
 
 <!-- 1. Panneau réglages : à placer près de tes autres zones (profile-card-zone, volume-control-zone, etc.) -->
 <div id="settings-zone" style="display: none; margin-top: 12px; width: 100%; box-sizing: border-box; padding: 10px; flex-direction: column; gap: 10px;">
-    <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-        <span style="font-size: 0.85rem; color: var(--text-grey);">Spectre audio animé</span>
+    <p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 2px 0 2px 0;">🎚️ INTERFACE &amp; LECTURE</p>
 
-        <!-- Interrupteur à glissière -->
-        <label class="switch">
-            <input type="checkbox" id="spectrum-toggle" onchange="toggleSpectrumSetting(this.checked)">
-            <span class="slider"></span>
-        </label>
-    </div>
-      <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-        <span style="font-size: 0.85rem; color: var(--text-grey);">Boule à facettes animée</span>
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Spectre audio animé</span>
+    <label class="switch">
+        <input type="checkbox" id="spectrum-toggle" onchange="toggleSpectrumSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
 
-        <label class="switch">
-            <input type="checkbox" id="discoball-toggle" onchange="toggleDiscoBallSetting(this.checked)">
-            <span class="slider"></span>
-        </label>
-    </div>
-    <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Spectre audio animé 2.0</span>
+    <label class="switch">
+        <input type="checkbox" id="spectrum2-toggle" onchange="toggleSpectrum2Setting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
     <span style="font-size: 0.85rem; color: var(--text-grey);">Bouton pétard 🎉</span>
-
     <label class="switch">
         <input type="checkbox" id="party-popper-toggle" onchange="togglePartyPopperSetting(this.checked)">
         <span class="slider"></span>
     </label>
 </div>
-    <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Projecteurs colorés</span>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Halo pulsé sur la pochette (couleur dominante)</span>
     <label class="switch">
-        <input type="checkbox" id="spotlights-toggle" onchange="toggleSpotlightsSetting(this.checked)">
+        <input type="checkbox" id="pochette-halo-toggle" onchange="togglePochetteHaloSetting(this.checked)">
         <span class="slider"></span>
     </label>
 </div>
 
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Guirlande lumineuse</span>
-    <label class="switch">
-        <input type="checkbox" id="garland-toggle" onchange="toggleGarlandSetting(this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Fond arc-en-ciel animé</span>
-    <label class="switch">
-        <input type="checkbox" id="rainbow-bg-toggle" onchange="toggleRainbowBgSetting(this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Flammes en bas d'écran</span>
-    <label class="switch">
-        <input type="checkbox" id="flames-toggle" onchange="toggleFlamesSetting(this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Feu d'artifice périodique</span>
-    <label class="switch">
-        <input type="checkbox" id="fireworks-toggle" onchange="toggleFireworksSetting(this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Bordure néon animée</span>
-    <label class="switch">
-        <input type="checkbox" id="neon-border-toggle" onchange="toggleNeonBorderSetting(this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Ciel étoilé scintillant</span>
-    <label class="switch">
-        <input type="checkbox" id="starry-sky-toggle" onchange="toggleStarrySkySetting(this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Étoiles filantes</span>
-    <label class="switch">
-        <input type="checkbox" id="shooting-stars-toggle" onchange="toggleShootingStarsSetting(this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
     <span style="font-size: 0.85rem; color: var(--text-grey);">Paroles cliquables (navigation)</span>
     <label class="switch">
@@ -565,8 +512,23 @@
     </label>
 </div>
 
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Défilement automatique des paroles</span>
+    <label class="switch">
+        <input type="checkbox" id="autoscroll-lyrics-toggle" checked onchange="toggleAutoScrollLyricsSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
 
-<p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 10px 0 2px 0;">🎪 CARNAVAL &amp; GUIRLANDES</p>
+<p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 14px 0 2px 0;">🎪 CARNAVAL &amp; GUIRLANDES</p>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Guirlande lumineuse</span>
+    <label class="switch">
+        <input type="checkbox" id="garland-toggle" onchange="toggleGarlandSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
     <span style="font-size: 0.85rem; color: var(--text-grey);">Serpentins ondulants</span>
@@ -667,6 +629,30 @@
 <p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 14px 0 2px 0;">🌿 NATURE &amp; AMBIANCE</p>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Fond arc-en-ciel animé</span>
+    <label class="switch">
+        <input type="checkbox" id="rainbow-bg-toggle" onchange="toggleRainbowBgSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Ciel étoilé scintillant</span>
+    <label class="switch">
+        <input type="checkbox" id="starry-sky-toggle" onchange="toggleStarrySkySetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Étoiles filantes</span>
+    <label class="switch">
+        <input type="checkbox" id="shooting-stars-toggle" onchange="toggleShootingStarsSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
     <span style="font-size: 0.85rem; color: var(--text-grey);">Aurore boréale</span>
     <label class="switch">
         <input type="checkbox" id="aurore-boreale-toggle" onchange="toggleAuroreBorealeSetting(this.checked)">
@@ -716,15 +702,31 @@
     </label>
 </div>
 
+<p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 14px 0 2px 0;">🎧 DJ / MUSIQUE</p>
+
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Halo pulsé sur la pochette (couleur dominante)</span>
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Boule à facettes animée</span>
     <label class="switch">
-        <input type="checkbox" id="pochette-halo-toggle" onchange="togglePochetteHaloSetting(this.checked)">
+        <input type="checkbox" id="discoball-toggle" onchange="toggleDiscoBallSetting(this.checked)">
         <span class="slider"></span>
     </label>
 </div>
 
-<p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 14px 0 2px 0;">🎧 DJ / MUSIQUE</p>
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Projecteurs colorés</span>
+    <label class="switch">
+        <input type="checkbox" id="spotlights-toggle" onchange="toggleSpotlightsSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Bordure néon animée</span>
+    <label class="switch">
+        <input type="checkbox" id="neon-border-toggle" onchange="toggleNeonBorderSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
     <span style="font-size: 0.85rem; color: var(--text-grey);">Vinyle qui tourne</span>
@@ -766,15 +768,23 @@
     </label>
 </div>
 
+<p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 14px 0 2px 0;">🎇 FEU &amp; FEUX D'ARTIFICE</p>
+
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Spectre audio animé 2.0</span>
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Flammes en bas d'écran</span>
     <label class="switch">
-        <input type="checkbox" id="spectrum2-toggle" onchange="toggleSpectrum2Setting(this.checked)">
+        <input type="checkbox" id="flames-toggle" onchange="toggleFlamesSetting(this.checked)">
         <span class="slider"></span>
     </label>
 </div>
 
-<p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 14px 0 2px 0;">🎇 FEUX D'ARTIFICE</p>
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Feu d'artifice périodique</span>
+    <label class="switch">
+        <input type="checkbox" id="fireworks-toggle" onchange="toggleFireworksSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
     <span style="font-size: 0.85rem; color: var(--text-grey);">Classiques rapides</span>
@@ -817,13 +827,21 @@
 </div>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-        <span style="font-size: 0.85rem; color: var(--text-grey);">Défilement automatique des paroles</span>
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Saule pleureur</span>
+    <label class="switch">
+        <input type="checkbox" id="feux-saule-toggle" onchange="toggleFeuxSauleSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
 
-        <label class="switch">
-            <input type="checkbox" id="autoscroll-lyrics-toggle" checked onchange="toggleAutoScrollLyricsSetting(this.checked)">
-            <span class="slider"></span>
-        </label>
-    </div>
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Double explosion</span>
+    <label class="switch">
+        <input type="checkbox" id="feux-double-toggle" onchange="toggleFeuxDoubleSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
 </div>
                     <div id="playlist-container" style="margin-top: 20px;"></div>
                     
@@ -1318,6 +1336,8 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 initFeuxCrepitantsState();
                 initFeuxGeantsState();
                 initSpectrum2State();
+                initFeuxSauleState();
+                initFeuxDoubleState();
                 initVinyleState();
                 initBassWaveState();
                 initTitleScratchState();
@@ -2452,6 +2472,8 @@ let feuxSpiraleEnabled = localStorage.getItem('feuxSpiraleEnabled') === 'true';
 let feuxCrepitantsEnabled = localStorage.getItem('feuxCrepitantsEnabled') === 'true';
 let feuxGeantsEnabled = localStorage.getItem('feuxGeantsEnabled') === 'true';
 let spectrum2Enabled = localStorage.getItem('spectrum2Enabled') === 'true';
+let feuxSauleEnabled = localStorage.getItem('feuxSauleEnabled') === 'true';
+let feuxDoubleEnabled = localStorage.getItem('feuxDoubleEnabled') === 'true';
 
 // --- 5 NOUVEAUX EFFETS (style DJ / musique) ---
 let vinyleEnabled = localStorage.getItem('vinyleEnabled') === 'true';
@@ -2565,6 +2587,10 @@ function toggleSettings() {
         if (feuxCrepitantsToggle) feuxCrepitantsToggle.checked = feuxCrepitantsEnabled;
         const feuxGeantsToggle = document.getElementById('feux-geants-toggle');
         if (feuxGeantsToggle) feuxGeantsToggle.checked = feuxGeantsEnabled;
+        const feuxSauleToggle = document.getElementById('feux-saule-toggle');
+        if (feuxSauleToggle) feuxSauleToggle.checked = feuxSauleEnabled;
+        const feuxDoubleToggle = document.getElementById('feux-double-toggle');
+        if (feuxDoubleToggle) feuxDoubleToggle.checked = feuxDoubleEnabled;
         const spectrum2Toggle = document.getElementById('spectrum2-toggle');
         if (spectrum2Toggle) spectrum2Toggle.checked = spectrum2Enabled;
 
@@ -8800,8 +8826,8 @@ function injectFeuxFontaineStyles() {
         }
         @keyframes fw-fontaine-arc {
             0%   { transform: translate(0, 0); opacity: 1; }
-            45%  { transform: translate(var(--dx), calc(-1 * var(--h))); opacity: 1; }
-            100% { transform: translate(calc(var(--dx) * 1.8), 20px); opacity: 0; }
+            60%  { transform: translate(var(--dx), calc(-1 * var(--h))); opacity: 1; }
+            100% { transform: translate(var(--dx), calc(-1 * var(--h))); opacity: 0; }
         }
     `;
     document.head.appendChild(styleTag);
@@ -9177,6 +9203,175 @@ function initSpectrum2State() {
     const canvas = ensureSpectrum2Canvas();
     canvas.style.display = spectrum2Enabled ? 'block' : 'none';
     if (spectrum2Enabled) initSpectrum2();
+}
+
+// --- 6. FEU D'ARTIFICE "SAULE PLEUREUR" (montée gracieuse, retombée lente dorée, traînée) ---
+function injectFeuxSauleStyles() {
+    if (document.getElementById('feux-saule-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'feux-saule-inline-style';
+    styleTag.textContent = `
+        .fw-saule-particle {
+            position: fixed;
+            width: 4px; height: 4px;
+            border-radius: 50%;
+            z-index: 400;
+            pointer-events: none;
+            animation: fw-saule-fall 2.1s ease-in forwards;
+        }
+        @keyframes fw-saule-fall {
+            0%   { transform: translate(0, 0); opacity: 1; }
+            30%  { transform: translate(var(--dx), var(--dy-up)); opacity: 1; }
+            100% { transform: translate(calc(var(--dx) * 1.2), var(--dy-down)); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectFeuxSauleStyles();
+
+let feuxSauleIntervalId = null;
+
+function launchFeuxSaule() {
+    const colors = ['#ffd452', '#ffb347', '#fff1c2'];
+    const originX = 20 + Math.random() * 60;
+    const originY = 12 + Math.random() * 20;
+    const count = 20;
+
+    for (let i = 0; i < count; i++) {
+        // Angle réparti sur l'hémisphère haut, pour un bouquet qui s'ouvre vers le haut
+        const angle = (-160 + Math.random() * 140) * (Math.PI / 180);
+        const upDistance = 40 + Math.random() * 30;
+        const color = colors[Math.floor(Math.random() * colors.length)];
+
+        const particle = document.createElement('div');
+        particle.className = 'fw-saule-particle';
+        particle.style.left = `${originX}%`;
+        particle.style.top = `${originY}%`;
+        particle.style.background = color;
+        particle.style.boxShadow = `0 0 6px 2px ${color}`;
+        particle.style.setProperty('--dx', `${Math.cos(angle) * upDistance}px`);
+        particle.style.setProperty('--dy-up', `${Math.sin(angle) * upDistance}px`);
+        // Retombée gracieuse : loin en dessous du point de départ, façon saule pleureur
+        particle.style.setProperty('--dy-down', `${120 + Math.random() * 60}px`);
+        particle.style.animationDelay = `${Math.random() * 0.2}s`;
+        document.body.appendChild(particle);
+        setTimeout(() => particle.remove(), 2400);
+    }
+}
+
+function scheduleNextFeuxSaule() {
+    if (!feuxSauleEnabled) return;
+    const delay = 1000 + Math.random() * 700;
+    feuxSauleIntervalId = setTimeout(() => {
+        if (feuxSauleEnabled) launchFeuxSaule();
+        scheduleNextFeuxSaule();
+    }, delay);
+}
+
+function toggleFeuxSauleSetting(checked) {
+    feuxSauleEnabled = checked;
+    localStorage.setItem('feuxSauleEnabled', checked ? 'true' : 'false');
+    if (feuxSauleIntervalId) { clearTimeout(feuxSauleIntervalId); feuxSauleIntervalId = null; }
+    if (checked) scheduleNextFeuxSaule();
+}
+
+function initFeuxSauleState() {
+    if (feuxSauleEnabled) scheduleNextFeuxSaule();
+}
+
+// --- 7. FEU D'ARTIFICE "DOUBLE EXPLOSION" (éclatement principal + mini-éclatements secondaires) ---
+function injectFeuxDoubleStyles() {
+    if (document.getElementById('feux-double-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'feux-double-inline-style';
+    styleTag.textContent = `
+        .fw-double-particle {
+            position: fixed;
+            border-radius: 50%;
+            z-index: 400;
+            pointer-events: none;
+            animation: fw-double-out linear forwards;
+        }
+        @keyframes fw-double-out {
+            0%   { transform: translate(0, 0) scale(1); opacity: 1; }
+            100% { transform: translate(var(--dx), var(--dy)) scale(0.3); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectFeuxDoubleStyles();
+
+let feuxDoubleIntervalId = null;
+
+function spawnFeuxDoubleParticle(xPx, yPx, dx, dy, size, color, duration) {
+    const particle = document.createElement('div');
+    particle.className = 'fw-double-particle';
+    particle.style.left = `${xPx}px`;
+    particle.style.top = `${yPx}px`;
+    particle.style.width = `${size}px`;
+    particle.style.height = `${size}px`;
+    particle.style.background = color;
+    particle.style.boxShadow = `0 0 6px 2px ${color}`;
+    particle.style.setProperty('--dx', `${dx}px`);
+    particle.style.setProperty('--dy', `${dy}px`);
+    particle.style.animationDuration = `${duration}ms`;
+    document.body.appendChild(particle);
+    setTimeout(() => particle.remove(), duration + 50);
+}
+
+function launchFeuxDouble() {
+    const colors = ['#ff5252', '#ffd452', '#52c8ff', '#c452ff'];
+    const originXpx = window.innerWidth * (0.15 + Math.random() * 0.7);
+    const originYpx = window.innerHeight * (0.1 + Math.random() * 0.4);
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const primaryCount = 12;
+    const primaryDuration = 900;
+
+    for (let i = 0; i < primaryCount; i++) {
+        const angle = (i / primaryCount) * Math.PI * 2;
+        const distance = 70 + Math.random() * 30;
+        const dx = Math.cos(angle) * distance;
+        const dy = Math.sin(angle) * distance;
+
+        spawnFeuxDoubleParticle(originXpx, originYpx, dx, dy, 6, color, primaryDuration);
+
+        // À mi-parcours de la particule principale, un mini-éclatement secondaire se déclenche
+        // à sa position du moment — effet de crépitement en deux temps.
+        setTimeout(() => {
+            const secondaryX = originXpx + dx * 0.5;
+            const secondaryY = originYpx + dy * 0.5;
+            const secondaryColor = colors[Math.floor(Math.random() * colors.length)];
+            for (let k = 0; k < 5; k++) {
+                const angle2 = Math.random() * Math.PI * 2;
+                const distance2 = 15 + Math.random() * 15;
+                spawnFeuxDoubleParticle(
+                    secondaryX, secondaryY,
+                    Math.cos(angle2) * distance2, Math.sin(angle2) * distance2,
+                    3, secondaryColor, 450
+                );
+            }
+        }, primaryDuration * 0.5);
+    }
+}
+
+function scheduleNextFeuxDouble() {
+    if (!feuxDoubleEnabled) return;
+    const delay = 700 + Math.random() * 500;
+    feuxDoubleIntervalId = setTimeout(() => {
+        if (feuxDoubleEnabled) launchFeuxDouble();
+        scheduleNextFeuxDouble();
+    }, delay);
+}
+
+function toggleFeuxDoubleSetting(checked) {
+    feuxDoubleEnabled = checked;
+    localStorage.setItem('feuxDoubleEnabled', checked ? 'true' : 'false');
+    if (feuxDoubleIntervalId) { clearTimeout(feuxDoubleIntervalId); feuxDoubleIntervalId = null; }
+    if (checked) scheduleNextFeuxDouble();
+}
+
+function initFeuxDoubleState() {
+    if (feuxDoubleEnabled) scheduleNextFeuxDouble();
 }
 
     </script>
