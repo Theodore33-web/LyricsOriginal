@@ -5,7 +5,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v1.01";
+        const APP_VERSION = "v2.03";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -497,6 +497,14 @@
 </div>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Bouton rideau 🎭</span>
+    <label class="switch">
+        <input type="checkbox" id="rideau-btn-toggle" onchange="toggleRideauBtnSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
     <span style="font-size: 0.85rem; color: var(--text-grey);">Halo pulsé sur la pochette (couleur dominante)</span>
     <label class="switch">
         <input type="checkbox" id="pochette-halo-toggle" onchange="togglePochetteHaloSetting(this.checked)">
@@ -684,24 +692,6 @@
     </label>
 </div>
 
-<p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 14px 0 2px 0;">🎭 SCÈNE</p>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Rideau rouge qui se ferme</span>
-    <label class="switch">
-        <input type="checkbox" id="rideau-ferme-toggle" onchange="toggleRideauFermeSetting(this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Rideau rouge qui s'ouvre</span>
-    <label class="switch">
-        <input type="checkbox" id="rideau-ouvre-toggle" onchange="toggleRideauOuvreSetting(this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
 <p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 14px 0 2px 0;">🎧 DJ / MUSIQUE</p>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
@@ -842,6 +832,207 @@
     </label>
 </div>
 
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Pivoine</span>
+    <label class="switch">
+        <input type="checkbox" id="feux-pivoine-toggle" onchange="toggleFireworkTypeSetting('pivoine', this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Chrysanthème</span>
+    <label class="switch">
+        <input type="checkbox" id="feux-chrysantheme-toggle" onchange="toggleFireworkTypeSetting('chrysantheme', this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Dahlia</span>
+    <label class="switch">
+        <input type="checkbox" id="feux-dahlia-toggle" onchange="toggleFireworkTypeSetting('dahlia', this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Brocart doré</span>
+    <label class="switch">
+        <input type="checkbox" id="feux-brocart-toggle" onchange="toggleFireworkTypeSetting('brocart', this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Palmier</span>
+    <label class="switch">
+        <input type="checkbox" id="feux-palmier-toggle" onchange="toggleFireworkTypeSetting('palmier', this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Anneau</span>
+    <label class="switch">
+        <input type="checkbox" id="feux-anneau-toggle" onchange="toggleFireworkTypeSetting('anneau', this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Étoile</span>
+    <label class="switch">
+        <input type="checkbox" id="feux-etoile-toggle" onchange="toggleFireworkTypeSetting('etoile', this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Crépitement intense</span>
+    <label class="switch">
+        <input type="checkbox" id="feux-crepitement-intense-toggle" onchange="toggleFireworkTypeSetting('crepitementIntense', this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Crossette</span>
+    <label class="switch">
+        <input type="checkbox" id="feux-crossette-toggle" onchange="toggleFireworkTypeSetting('crossette', this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Marron d'air (bang)</span>
+    <label class="switch">
+        <input type="checkbox" id="feux-marron-air-toggle" onchange="toggleFireworkTypeSetting('marronAir', this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Pots à feu</span>
+    <label class="switch">
+        <input type="checkbox" id="feux-pots-a-feu-toggle" onchange="toggleFireworkTypeSetting('potsAFeu', this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Kamuro</span>
+    <label class="switch">
+        <input type="checkbox" id="feux-kamuro-toggle" onchange="toggleFireworkTypeSetting('kamuro', this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Queue de cheval</span>
+    <label class="switch">
+        <input type="checkbox" id="feux-queue-de-cheval-toggle" onchange="toggleFireworkTypeSetting('queueDeCheval', this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Fontaine pyrotechnique</span>
+    <label class="switch">
+        <input type="checkbox" id="feux-fontaine-pyro-toggle" onchange="toggleFireworkTypeSetting('fontainePyro', this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Mortier</span>
+    <label class="switch">
+        <input type="checkbox" id="feux-mortier-toggle" onchange="toggleFireworkTypeSetting('mortier', this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Fusée</span>
+    <label class="switch">
+        <input type="checkbox" id="feux-fusee-toggle" onchange="toggleFireworkTypeSetting('fusee', this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Clignotant</span>
+    <label class="switch">
+        <input type="checkbox" id="feux-clignotant-toggle" onchange="toggleFireworkTypeSetting('clignotant', this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Abeille / Poisson</span>
+    <label class="switch">
+        <input type="checkbox" id="feux-abeille-poisson-toggle" onchange="toggleFireworkTypeSetting('abeillePoisson', this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Compact</span>
+    <label class="switch">
+        <input type="checkbox" id="feux-compact-toggle" onchange="toggleFireworkTypeSetting('compact', this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Chandelle (roman candle)</span>
+    <label class="switch">
+        <input type="checkbox" id="feux-chandelle-toggle" onchange="toggleFireworkTypeSetting('chandelle', this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Bengale</span>
+    <label class="switch">
+        <input type="checkbox" id="feux-bengale-toggle" onchange="toggleFireworkTypeSetting('bengale', this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Bombe d'artifice</span>
+    <label class="switch">
+        <input type="checkbox" id="feux-bombe-artifice-toggle" onchange="toggleFireworkTypeSetting('bombeArtifice', this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Fontaine au sol</span>
+    <label class="switch">
+        <input type="checkbox" id="feux-fontaine-artifice-sol-toggle" onchange="toggleFireworkTypeSetting('fontaineArtificeSol', this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Bouquet (plusieurs à la fois)</span>
+    <label class="switch">
+        <input type="checkbox" id="feux-bouquet-toggle" onchange="toggleFireworkTypeSetting('bouquet', this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Pétard clic-clac</span>
+    <label class="switch">
+        <input type="checkbox" id="feux-petard-clic-clac-toggle" onchange="toggleFireworkTypeSetting('petardClicClac', this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+'''
 </div>
                     <div id="playlist-container" style="margin-top: 20px;"></div>
                     
@@ -1322,8 +1513,6 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 initFeuillesPalmierState();
                 initPapillonsState();
                 initCoucherSoleilState();
-                initRideauFermeState();
-                initRideauOuvreState();
                 initPochetteHaloState();
                 initGuirlandeScintillementState();
                 initGuirlandeOrageState();
@@ -1344,6 +1533,8 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 initMicroScintilleState();
                 requestWakeLock();
                 initPartyPopperState();
+                initRideauBtnState();
+                initAllFireworkTypes();
                 initVoiceCommand();
             } catch (e) {
                 console.error("Impossible de récupérer le profil : ", e);
@@ -2456,8 +2647,6 @@ let papillonsEnabled = localStorage.getItem('papillonsEnabled') === 'true';
 let coucherSoleilEnabled = localStorage.getItem('coucherSoleilEnabled') === 'true';
 
 // --- NOUVEAUX EFFETS (rideau, halo pochette, guirlandes, boule LED) ---
-let rideauFermeEnabled = localStorage.getItem('rideauFermeEnabled') === 'true';
-let rideauOuvreEnabled = localStorage.getItem('rideauOuvreEnabled') === 'true';
 let pochetteHaloEnabled = localStorage.getItem('pochetteHaloEnabled') === 'true';
 let guirlandeScintillementEnabled = localStorage.getItem('guirlandeScintillementEnabled') === 'true';
 let guirlandeOrageEnabled = localStorage.getItem('guirlandeOrageEnabled') === 'true';
@@ -2517,6 +2706,9 @@ function toggleSettings() {
         if (discoToggle) discoToggle.checked = discoBallEnabled;
         const popperToggle = document.getElementById('party-popper-toggle');
         if (popperToggle) popperToggle.checked = partyPopperEnabled;
+        const rideauBtnToggle = document.getElementById('rideau-btn-toggle');
+        if (rideauBtnToggle) rideauBtnToggle.checked = rideauBtnEnabled;
+        syncFireworkTypeToggles();
         const spotlightsToggle = document.getElementById('spotlights-toggle');
         if (spotlightsToggle) spotlightsToggle.checked = spotlightsEnabled;
         const garlandToggle = document.getElementById('garland-toggle');
@@ -2561,10 +2753,6 @@ function toggleSettings() {
         const coucherSoleilToggle = document.getElementById('coucher-soleil-toggle');
         if (coucherSoleilToggle) coucherSoleilToggle.checked = coucherSoleilEnabled;
 
-        const rideauFermeToggle = document.getElementById('rideau-ferme-toggle');
-        if (rideauFermeToggle) rideauFermeToggle.checked = rideauFermeEnabled;
-        const rideauOuvreToggle = document.getElementById('rideau-ouvre-toggle');
-        if (rideauOuvreToggle) rideauOuvreToggle.checked = rideauOuvreEnabled;
         const pochetteHaloToggle = document.getElementById('pochette-halo-toggle');
         if (pochetteHaloToggle) pochetteHaloToggle.checked = pochetteHaloEnabled;
         const guirlandeScintillementToggle = document.getElementById('guirlande-scintillement-toggle');
@@ -8084,193 +8272,6 @@ function initMicroScintilleState() {
 // 9 NOUVEAUX EFFETS — rideau, halo pochette, guirlandes, boule LED
 // ==========================================
 
-// --- RIDEAU ROUGE QUI SE FERME (état par défaut : ouvert / invisible sur les bords) ---
-function injectRideauFermeStyles() {
-    if (document.getElementById('rideau-ferme-inline-style')) return;
-    const styleTag = document.createElement('style');
-    styleTag.id = 'rideau-ferme-inline-style';
-    styleTag.textContent = `
-        #rideau-ferme-wrapper {
-            display: none;
-            position: fixed;
-            inset: 0;
-            z-index: 400;
-            pointer-events: none;
-            overflow: hidden;
-        }
-        .rideau-ferme-panel {
-            position: absolute;
-            top: 0;
-            width: 51%;
-            height: 100%;
-            background: linear-gradient(90deg, #3a0303, #8b0000 60%, #3a0303);
-            box-shadow: 0 0 40px 10px rgba(0, 0, 0, 0.6);
-            transition: transform 1.8s ease-in-out;
-        }
-        .rideau-ferme-panel.left  { left: 0; transform: translateX(-100%); }
-        .rideau-ferme-panel.right { right: 0; transform: translateX(100%); }
-        .rideau-ferme-panel.closed.left  { transform: translateX(0%); }
-        .rideau-ferme-panel.closed.right { transform: translateX(0%); }
-    `;
-    document.head.appendChild(styleTag);
-}
-injectRideauFermeStyles();
-
-let rideauFermeIntervalId = null;
-
-function ensureRideauFermeElement() {
-    let wrapper = document.getElementById('rideau-ferme-wrapper');
-    if (!wrapper) {
-        wrapper = document.createElement('div');
-        wrapper.id = 'rideau-ferme-wrapper';
-        const left = document.createElement('div');
-        left.className = 'rideau-ferme-panel left';
-        const right = document.createElement('div');
-        right.className = 'rideau-ferme-panel right';
-        wrapper.appendChild(left);
-        wrapper.appendChild(right);
-        document.body.appendChild(wrapper);
-    }
-    return wrapper;
-}
-
-function runRideauFermeCycle() {
-    const wrapper = ensureRideauFermeElement();
-    const panels = wrapper.querySelectorAll('.rideau-ferme-panel');
-    // Ferme le rideau (les deux panneaux glissent vers le centre)
-    panels.forEach(p => p.classList.add('closed'));
-    // Une fois fermé, reste 5s, puis revient à l'état par défaut (ouvert)
-    setTimeout(() => {
-        panels.forEach(p => p.classList.remove('closed'));
-    }, 1800 + 5000);
-}
-
-function scheduleNextRideauFerme() {
-    if (!rideauFermeEnabled) return;
-    const delay = 1800 + 5000 + 4000; // le temps du cycle complet + une pause avant le suivant
-    rideauFermeIntervalId = setTimeout(() => {
-        if (rideauFermeEnabled) runRideauFermeCycle();
-        scheduleNextRideauFerme();
-    }, delay);
-}
-
-function toggleRideauFermeSetting(checked) {
-    rideauFermeEnabled = checked;
-    localStorage.setItem('rideauFermeEnabled', checked ? 'true' : 'false');
-    const wrapper = ensureRideauFermeElement();
-    wrapper.style.display = checked ? 'block' : 'none';
-    if (rideauFermeIntervalId) { clearTimeout(rideauFermeIntervalId); rideauFermeIntervalId = null; }
-    if (checked) {
-        runRideauFermeCycle();
-        scheduleNextRideauFerme();
-    } else {
-        wrapper.querySelectorAll('.rideau-ferme-panel').forEach(p => p.classList.remove('closed'));
-    }
-}
-
-function initRideauFermeState() {
-    const wrapper = ensureRideauFermeElement();
-    wrapper.style.display = rideauFermeEnabled ? 'block' : 'none';
-    if (rideauFermeEnabled) {
-        runRideauFermeCycle();
-        scheduleNextRideauFerme();
-    }
-}
-
-// --- RIDEAU ROUGE QUI S'OUVRE (état par défaut : fermé / recouvre l'écran) ---
-function injectRideauOuvreStyles() {
-    if (document.getElementById('rideau-ouvre-inline-style')) return;
-    const styleTag = document.createElement('style');
-    styleTag.id = 'rideau-ouvre-inline-style';
-    styleTag.textContent = `
-        #rideau-ouvre-wrapper {
-            display: none;
-            position: fixed;
-            inset: 0;
-            z-index: 400;
-            pointer-events: none;
-            overflow: hidden;
-        }
-        .rideau-ouvre-panel {
-            position: absolute;
-            top: 0;
-            width: 51%;
-            height: 100%;
-            background: linear-gradient(90deg, #3a0303, #8b0000 60%, #3a0303);
-            box-shadow: 0 0 40px 10px rgba(0, 0, 0, 0.6);
-            transform: translateX(0%);
-            transition: transform 1.8s ease-in-out;
-        }
-        .rideau-ouvre-panel.left  { left: 0; }
-        .rideau-ouvre-panel.right { right: 0; }
-        .rideau-ouvre-panel.open.left  { transform: translateX(-100%); }
-        .rideau-ouvre-panel.open.right { transform: translateX(100%); }
-    `;
-    document.head.appendChild(styleTag);
-}
-injectRideauOuvreStyles();
-
-let rideauOuvreIntervalId = null;
-
-function ensureRideauOuvreElement() {
-    let wrapper = document.getElementById('rideau-ouvre-wrapper');
-    if (!wrapper) {
-        wrapper = document.createElement('div');
-        wrapper.id = 'rideau-ouvre-wrapper';
-        const left = document.createElement('div');
-        left.className = 'rideau-ouvre-panel left';
-        const right = document.createElement('div');
-        right.className = 'rideau-ouvre-panel right';
-        wrapper.appendChild(left);
-        wrapper.appendChild(right);
-        document.body.appendChild(wrapper);
-    }
-    return wrapper;
-}
-
-function runRideauOuvreCycle() {
-    const wrapper = ensureRideauOuvreElement();
-    const panels = wrapper.querySelectorAll('.rideau-ouvre-panel');
-    // Ouvre le rideau (les deux panneaux glissent vers les bords)
-    panels.forEach(p => p.classList.add('open'));
-    // Une fois ouvert, reste 5s, puis revient à l'état par défaut (fermé)
-    setTimeout(() => {
-        panels.forEach(p => p.classList.remove('open'));
-    }, 1800 + 5000);
-}
-
-function scheduleNextRideauOuvre() {
-    if (!rideauOuvreEnabled) return;
-    const delay = 1800 + 5000 + 4000;
-    rideauOuvreIntervalId = setTimeout(() => {
-        if (rideauOuvreEnabled) runRideauOuvreCycle();
-        scheduleNextRideauOuvre();
-    }, delay);
-}
-
-function toggleRideauOuvreSetting(checked) {
-    rideauOuvreEnabled = checked;
-    localStorage.setItem('rideauOuvreEnabled', checked ? 'true' : 'false');
-    const wrapper = ensureRideauOuvreElement();
-    wrapper.style.display = checked ? 'block' : 'none';
-    if (rideauOuvreIntervalId) { clearTimeout(rideauOuvreIntervalId); rideauOuvreIntervalId = null; }
-    if (checked) {
-        runRideauOuvreCycle();
-        scheduleNextRideauOuvre();
-    } else {
-        wrapper.querySelectorAll('.rideau-ouvre-panel').forEach(p => p.classList.remove('open'));
-    }
-}
-
-function initRideauOuvreState() {
-    const wrapper = ensureRideauOuvreElement();
-    wrapper.style.display = rideauOuvreEnabled ? 'block' : 'none';
-    if (rideauOuvreEnabled) {
-        runRideauOuvreCycle();
-        scheduleNextRideauOuvre();
-    }
-}
-
 // --- HALO PULSÉ SUR LA POCHETTE (couleur = couleur dominante de la pochette en cours) ---
 // S'applique directement sur #track-art, pas un élément décoratif à part.
 function injectPochetteHaloStyles() {
@@ -9372,6 +9373,586 @@ function toggleFeuxDoubleSetting(checked) {
 
 function initFeuxDoubleState() {
     if (feuxDoubleEnabled) scheduleNextFeuxDouble();
+}
+
+// ==========================================
+// BOUTON RIDEAU 🎭 — réglage désactivé par défaut, bouton fixe qui ferme/ouvre le rideau
+// à chaque clic (contrairement aux effets d'ambiance automatiques : ici c'est l'utilisateur
+// qui contrôle l'état). Positionné à droite du bouton pétard, même style de bouton.
+// Style de rideau revu : plis (texture rayée), liseré doré sur le bord intérieur, bord bas
+// festonné, et une animation plus "tissu" (léger effet d'élan au début/à la fin du mouvement).
+// ==========================================
+let rideauBtnEnabled = localStorage.getItem('rideauBtnEnabled') === 'true'; // désactivé par défaut
+let rideauBtnClosed = false; // état runtime (pas persisté) : ouvert par défaut à chaque chargement
+
+function injectRideauBtnStyles() {
+    if (document.getElementById('rideau-btn-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'rideau-btn-inline-style';
+    styleTag.textContent = `
+        #rideau-btn {
+            position: fixed !important;
+            left: 86px !important;
+            bottom: 16px !important;
+            width: 60px !important;
+            height: 60px !important;
+            border-radius: 50% !important;
+            background: rgba(0,0,0,0.55) !important;
+            border: none !important;
+            font-size: 1.8rem !important;
+            display: none;
+            align-items: center !important;
+            justify-content: center !important;
+            cursor: pointer !important;
+            z-index: 500 !important;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.4) !important;
+            transition: transform 0.15s ease !important;
+        }
+        #rideau-btn.pressed {
+            transform: scale(0.82) !important;
+        }
+
+        #rideau-wrapper {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 400;
+            pointer-events: none;
+            overflow: hidden;
+        }
+        .rideau-panel {
+            position: absolute;
+            top: 0;
+            width: 51%;
+            height: 100%;
+            background:
+                repeating-linear-gradient(90deg,
+                    rgba(0,0,0,0.18) 0px, transparent 14px, transparent 28px, rgba(0,0,0,0.18) 42px),
+                linear-gradient(90deg, #4a0505, #8b0000 55%, #4a0505);
+            box-shadow: 0 0 50px 14px rgba(0, 0, 0, 0.65);
+            transition: transform 1.4s cubic-bezier(0.65, -0.15, 0.35, 1.15);
+        }
+        /* Bord bas festonné (effet tissu drapé) */
+        .rideau-panel::after {
+            content: "";
+            position: absolute;
+            bottom: -14px;
+            left: 0;
+            width: 100%;
+            height: 24px;
+            background: radial-gradient(circle at 10px 0, transparent 12px, #4a0505 13px);
+            background-size: 24px 24px;
+            background-repeat: repeat-x;
+        }
+        /* Liseré doré sur le bord intérieur */
+        .rideau-panel.left::before {
+            content: "";
+            position: absolute;
+            top: 0; right: 0;
+            width: 5px; height: 100%;
+            background: linear-gradient(180deg, #ffd452, #a8791a, #ffd452);
+            box-shadow: 0 0 8px 2px rgba(255, 212, 82, 0.6);
+        }
+        .rideau-panel.right::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0;
+            width: 5px; height: 100%;
+            background: linear-gradient(180deg, #ffd452, #a8791a, #ffd452);
+            box-shadow: 0 0 8px 2px rgba(255, 212, 82, 0.6);
+        }
+        .rideau-panel.left  { left: 0; transform: translateX(-100%); }
+        .rideau-panel.right { right: 0; transform: translateX(100%); }
+        .rideau-panel.closed.left  { transform: translateX(0%); }
+        .rideau-panel.closed.right { transform: translateX(0%); }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectRideauBtnStyles();
+
+function ensureRideauWrapper() {
+    let wrapper = document.getElementById('rideau-wrapper');
+    if (!wrapper) {
+        wrapper = document.createElement('div');
+        wrapper.id = 'rideau-wrapper';
+        const left = document.createElement('div');
+        left.className = 'rideau-panel left';
+        const right = document.createElement('div');
+        right.className = 'rideau-panel right';
+        wrapper.appendChild(left);
+        wrapper.appendChild(right);
+        document.body.appendChild(wrapper);
+    }
+    return wrapper;
+}
+
+function ensureRideauBtn() {
+    let btn = document.getElementById('rideau-btn');
+    if (!btn) {
+        btn = document.createElement('button');
+        btn.id = 'rideau-btn';
+        btn.innerText = '🎭';
+        btn.title = "Fermer / ouvrir le rideau";
+        btn.style.display = 'none';
+        btn.onclick = toggleRideauClick;
+        document.body.appendChild(btn);
+    }
+    return btn;
+}
+
+// Un clic = ferme si ouvert, ouvre si fermé
+function toggleRideauClick() {
+    const btn = document.getElementById('rideau-btn');
+    if (btn) {
+        btn.classList.add('pressed');
+        setTimeout(() => btn.classList.remove('pressed'), 150);
+    }
+
+    const wrapper = ensureRideauWrapper();
+    wrapper.style.display = 'block';
+    rideauBtnClosed = !rideauBtnClosed;
+    wrapper.querySelectorAll('.rideau-panel').forEach(p => p.classList.toggle('closed', rideauBtnClosed));
+}
+
+function toggleRideauBtnSetting(checked) {
+    rideauBtnEnabled = checked;
+    localStorage.setItem('rideauBtnEnabled', checked ? 'true' : 'false');
+    const btn = ensureRideauBtn();
+    btn.style.display = checked ? 'flex' : 'none';
+}
+
+function initRideauBtnState() {
+    const btn = ensureRideauBtn();
+    btn.style.display = rideauBtnEnabled ? 'flex' : 'none';
+}
+
+// ==========================================
+// GRANDE COLLECTION DE FEUX D'ARTIFICE (types réels de pyrotechnie)
+// Moteur générique piloté par une table de "recettes" (couleurs, motif, nombre de
+// particules, distance, durée...) plutôt que du code dupliqué pour chacun — plus
+// simple à maintenir pour un aussi grand nombre de variantes.
+// ==========================================
+
+function injectFwGenericStyles() {
+    if (document.getElementById('fw-generic-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'fw-generic-inline-style';
+    styleTag.textContent = `
+        .fw-generic-particle {
+            position: fixed;
+            border-radius: 50%;
+            z-index: 400;
+            pointer-events: none;
+            animation-name: fw-double-out;
+            animation-timing-function: linear;
+            animation-fill-mode: forwards;
+        }
+        .fw-generic-particle.strobe {
+            animation-name: fw-strobe-out;
+        }
+        @keyframes fw-strobe-out {
+            0%, 100% { opacity: 0; }
+            10%, 20%, 30%, 40%, 50%, 60%, 70%, 80% { opacity: 1; }
+            15%, 25%, 35%, 45%, 55%, 65%, 75% { opacity: 0.2; }
+        }
+        .fw-generic-willow {
+            position: fixed;
+            border-radius: 50%;
+            z-index: 400;
+            pointer-events: none;
+            animation-name: fw-saule-fall;
+            animation-timing-function: ease-in;
+            animation-fill-mode: forwards;
+        }
+        .fw-generic-fountain {
+            position: fixed;
+            bottom: 0;
+            border-radius: 50%;
+            z-index: 400;
+            pointer-events: none;
+            animation-name: fw-fontaine-arc;
+            animation-timing-function: ease-out;
+            animation-fill-mode: forwards;
+        }
+        .fw-generic-flare {
+            position: fixed;
+            border-radius: 50%;
+            z-index: 400;
+            pointer-events: none;
+            filter: blur(6px);
+            animation: fw-flare-glow linear forwards;
+        }
+        @keyframes fw-flare-glow {
+            0%   { opacity: 0; transform: scale(0.6); }
+            15%  { opacity: 1; transform: scale(1); }
+            80%  { opacity: 0.9; }
+            100% { opacity: 0; transform: scale(1.1); }
+        }
+        .fw-generic-dart {
+            position: fixed;
+            border-radius: 50%;
+            z-index: 400;
+            pointer-events: none;
+            animation: fw-dart-move linear forwards;
+        }
+        @keyframes fw-dart-move {
+            0%   { transform: translate(0, 0); opacity: 1; }
+            25%  { transform: translate(var(--dx1), var(--dy1)); }
+            50%  { transform: translate(var(--dx2), var(--dy2)); }
+            75%  { transform: translate(var(--dx3), var(--dy3)); }
+            100% { transform: translate(var(--dx4), var(--dy4)); opacity: 0; }
+        }
+        .fw-generic-flash {
+            position: fixed;
+            border-radius: 50%;
+            z-index: 400;
+            pointer-events: none;
+            animation: fw-flash-pop 0.35s ease-out forwards;
+        }
+        @keyframes fw-flash-pop {
+            0%   { transform: scale(0.3); opacity: 1; }
+            100% { transform: scale(3.5); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectFwGenericStyles();
+
+function fwSpawnParticle(cls, xPx, yPx, size, color, durationMs, extraProps) {
+    const el = document.createElement('div');
+    el.className = cls;
+    el.style.left = `${xPx}px`;
+    el.style.top = `${yPx}px`;
+    el.style.width = `${size}px`;
+    el.style.height = `${size}px`;
+    el.style.background = color;
+    el.style.boxShadow = `0 0 ${size + 3}px ${Math.max(1, Math.round(size / 2))}px ${color}`;
+    el.style.animationDuration = `${durationMs}ms`;
+    if (extraProps) {
+        for (const key in extraProps) el.style.setProperty(key, extraProps[key]);
+    }
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), durationMs + 80);
+    return el;
+}
+
+function fwRandomOrigin() {
+    return {
+        x: window.innerWidth * (0.15 + Math.random() * 0.7),
+        y: window.innerHeight * (0.08 + Math.random() * 0.4)
+    };
+}
+
+// --- Motif "radial" : éclatement classique (pivoine, dahlia, anneau, étoile, crépitement,
+//     compact, mortier, bombe, crossette) ---
+function fwPatternRadial(origin, def) {
+    const count = def.count;
+    for (let i = 0; i < count; i++) {
+        let angle;
+        if (def.shape === 'ring') {
+            angle = (i / count) * Math.PI * 2;
+        } else if (def.shape === 'star') {
+            angle = (i % 5) * (Math.PI * 2 / 5) + (Math.floor(i / 5) * 0.05);
+        } else {
+            angle = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.25;
+        }
+        const dist = def.shape === 'ring'
+            ? def.distance[1]
+            : def.distance[0] + Math.random() * (def.distance[1] - def.distance[0]);
+        const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
+        const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+        const dx = Math.cos(angle) * dist;
+        const dy = Math.sin(angle) * dist;
+
+        fwSpawnParticle('fw-generic-particle', origin.x, origin.y, size, color, def.duration, { '--dx': `${dx}px`, '--dy': `${dy}px` });
+
+        if (def.crossette) {
+            // Chaque particule primaire se scinde en 2 mini-particules à mi-parcours
+            setTimeout(() => {
+                const midX = origin.x + dx * 0.55;
+                const midY = origin.y + dy * 0.55;
+                for (let k = -1; k <= 1; k += 2) {
+                    const splitAngle = angle + k * 0.5;
+                    const splitDist = 25 + Math.random() * 15;
+                    fwSpawnParticle('fw-generic-particle', midX, midY, size * 0.7, color, def.duration * 0.4, {
+                        '--dx': `${Math.cos(splitAngle) * splitDist}px`,
+                        '--dy': `${Math.sin(splitAngle) * splitDist}px`
+                    });
+                }
+            }, def.duration * 0.55);
+        }
+    }
+}
+
+// --- Motif "willow" (saule) : montée puis retombée gracieuse avec traînée
+//     (chrysanthème, brocart, palmier, kamuro, queue de cheval) ---
+function fwPatternWillow(origin, def) {
+    for (let i = 0; i < def.count; i++) {
+        const angle = (-160 + Math.random() * 140) * (Math.PI / 180);
+        const upDist = def.distance[0] + Math.random() * (def.distance[1] - def.distance[0]);
+        const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
+        const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+        const fallDist = def.fallDistance ? def.fallDistance[0] + Math.random() * (def.fallDistance[1] - def.fallDistance[0]) : 100;
+
+        fwSpawnParticle('fw-generic-willow', origin.x, origin.y, size, color, def.duration, {
+            '--dx': `${Math.cos(angle) * upDist * 1.15}px`,
+            '--dy-up': `${Math.sin(angle) * upDist}px`,
+            '--dy-down': `${fallDist}px`
+        });
+    }
+}
+
+// --- Motif "fontaine" : jaillit depuis le bas, s'estompe en haut (pots à feu, fontaine
+//     pyrotechnique, fontaine au sol) ---
+function fwPatternFountain(def) {
+    const originX = 10 + Math.random() * 80;
+    for (let i = 0; i < def.count; i++) {
+        const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
+        const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+        const h = def.distance[0] + Math.random() * (def.distance[1] - def.distance[0]);
+        const el = document.createElement('div');
+        el.className = 'fw-generic-fountain';
+        el.style.left = `${originX}%`;
+        el.style.width = `${size}px`;
+        el.style.height = `${size}px`;
+        el.style.background = color;
+        el.style.boxShadow = `0 0 ${size + 3}px ${Math.round(size / 2)}px ${color}`;
+        el.style.setProperty('--dx', `${(Math.random() - 0.5) * 40}px`);
+        el.style.setProperty('--h', `${h}px`);
+        el.style.animationDuration = `${def.duration}ms`;
+        el.style.animationDelay = `${Math.random() * 0.15}s`;
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), def.duration + 200);
+    }
+}
+
+// --- Motif "flash" : bang bref, quasi sans traînée (marron d'air) ---
+function fwPatternFlash(origin, def) {
+    const color = def.colors[0];
+    fwSpawnParticle('fw-generic-flash', origin.x, origin.y, 26, color, 350);
+    for (let i = 0; i < def.count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = def.distance[0] + Math.random() * (def.distance[1] - def.distance[0]);
+        fwSpawnParticle('fw-generic-particle', origin.x, origin.y, 3, color, 400, {
+            '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
+        });
+    }
+}
+
+// --- Motif "flare" : lueur continue qui pulse doucement (bengale) ---
+function fwPatternFlare(origin, def) {
+    const el = document.createElement('div');
+    el.className = 'fw-generic-flare';
+    el.style.left = `${origin.x - 20}px`;
+    el.style.top = `${origin.y - 20}px`;
+    el.style.width = '40px';
+    el.style.height = '40px';
+    el.style.background = def.colors[0];
+    el.style.boxShadow = `0 0 30px 12px ${def.colors[0]}`;
+    el.style.animationDuration = `${def.duration}ms`;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), def.duration + 100);
+}
+
+// --- Motif "strobe" : particules qui clignotent en s'éloignant (clignotant) ---
+function fwPatternStrobe(origin, def) {
+    for (let i = 0; i < def.count; i++) {
+        const angle = (i / def.count) * Math.PI * 2;
+        const dist = def.distance[0] + Math.random() * (def.distance[1] - def.distance[0]);
+        const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
+        const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+        fwSpawnParticle('fw-generic-particle strobe', origin.x, origin.y, size, color, def.duration, {
+            '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
+        });
+    }
+}
+
+// --- Motif "dart" : trajectoire erratique en zigzag (abeille / poisson) ---
+function fwPatternDart(origin, def) {
+    for (let i = 0; i < def.count; i++) {
+        const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
+        const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+        const rand = () => (Math.random() - 0.5) * (def.distance[1]);
+        const el = document.createElement('div');
+        el.className = 'fw-generic-dart';
+        el.style.left = `${origin.x}px`;
+        el.style.top = `${origin.y}px`;
+        el.style.width = `${size}px`;
+        el.style.height = `${size}px`;
+        el.style.background = color;
+        el.style.boxShadow = `0 0 ${size + 2}px ${Math.round(size / 2)}px ${color}`;
+        el.style.setProperty('--dx1', `${rand()}px`); el.style.setProperty('--dy1', `${rand()}px`);
+        el.style.setProperty('--dx2', `${rand()}px`); el.style.setProperty('--dy2', `${rand()}px`);
+        el.style.setProperty('--dx3', `${rand()}px`); el.style.setProperty('--dy3', `${rand()}px`);
+        el.style.setProperty('--dx4', `${rand()}px`); el.style.setProperty('--dy4', `${rand()}px`);
+        el.style.animationDuration = `${def.duration}ms`;
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), def.duration + 60);
+    }
+}
+
+// --- Motif "rocket" : fusée qui monte puis éclate en petit bouquet (fusée) ---
+function fwPatternRocket(def) {
+    const originX = 15 + Math.random() * 70;
+    const startY = window.innerHeight;
+    const peakY = window.innerHeight * (0.15 + Math.random() * 0.25);
+    const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+
+    const rocket = document.createElement('div');
+    rocket.className = 'fw-generic-fountain';
+    rocket.style.left = `${originX}%`;
+    rocket.style.width = '4px';
+    rocket.style.height = '4px';
+    rocket.style.background = color;
+    rocket.style.boxShadow = `0 0 6px 2px ${color}`;
+    rocket.style.setProperty('--dx', '0px');
+    rocket.style.setProperty('--h', `${startY - peakY}px`);
+    rocket.style.animationDuration = '700ms';
+    rocket.style.animationTimingFunction = 'ease-out';
+    document.body.appendChild(rocket);
+
+    setTimeout(() => {
+        rocket.remove();
+        fwPatternRadial({ x: window.innerWidth * (originX / 100), y: peakY }, {
+            count: 16, size: [3, 5], distance: [60, 100], duration: 900, colors: def.colors
+        });
+    }, 650);
+}
+
+// --- Motif "roman candle" : tirs uniques successifs (chandelle) ---
+function fwPatternRomanCandle(def) {
+    const originX = 15 + Math.random() * 70;
+    for (let shot = 0; shot < 5; shot++) {
+        setTimeout(() => {
+            const color = def.colors[shot % def.colors.length];
+            const el = document.createElement('div');
+            el.className = 'fw-generic-fountain';
+            el.style.left = `${originX}%`;
+            el.style.width = '6px';
+            el.style.height = '6px';
+            el.style.background = color;
+            el.style.boxShadow = `0 0 8px 3px ${color}`;
+            el.style.setProperty('--dx', '0px');
+            el.style.setProperty('--h', `${140 + Math.random() * 60}px`);
+            el.style.animationDuration = '500ms';
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 600);
+        }, shot * 260);
+    }
+}
+
+// --- Motif "multi" : plusieurs éclatements simultanés (bouquet) ---
+function fwPatternMulti(def) {
+    const burstCount = 4;
+    for (let b = 0; b < burstCount; b++) {
+        const origin = fwRandomOrigin();
+        fwPatternRadial(origin, {
+            count: def.count, size: def.size, distance: def.distance,
+            duration: def.duration, colors: def.colors, shape: 'default'
+        });
+    }
+}
+
+// --- Motif "ground pop" : petits pops rapides et bas (pétard clic-clac) ---
+function fwPatternGroundPop(def) {
+    const originX = 10 + Math.random() * 80;
+    const originY = window.innerHeight - 20;
+    for (let i = 0; i < def.count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = def.distance[0] + Math.random() * (def.distance[1] - def.distance[0]);
+        const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+        fwSpawnParticle('fw-generic-particle', originX, originY, 3, color, def.duration, {
+            '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
+        });
+    }
+}
+
+// --- Table des recettes ---
+const FIREWORK_RECIPES = {
+    pivoine:            { label: "Pivoine",                    pattern: 'radial',  count: 26, size: [4, 6], distance: [80, 130],  duration: 1100, colors: ['#ff5252', '#ff8a52', '#ffd452'], minDelay: 700,  maxDelay: 1200 },
+    chrysantheme:        { label: "Chrysanthème",                pattern: 'willow',  count: 30, size: [3, 5], distance: [90, 140],  fallDistance: [90, 140],  duration: 1900, colors: ['#52c8ff', '#c452ff', '#ffffff'], minDelay: 900, maxDelay: 1400 },
+    dahlia:              { label: "Dahlia",                      pattern: 'radial',  count: 14, size: [6, 8], distance: [100, 150], duration: 1200, colors: ['#ff5252', '#ffd452'], minDelay: 800, maxDelay: 1300 },
+    brocart:             { label: "Brocart doré",                pattern: 'willow',  count: 34, size: [2, 4], distance: [90, 140],  fallDistance: [110, 160], duration: 2100, colors: ['#ffd452', '#fff1c2'], minDelay: 1000, maxDelay: 1500 },
+    palmier:             { label: "Palmier",                     pattern: 'willow',  count: 8,  size: [4, 6], distance: [130, 170], fallDistance: [130, 170], duration: 1900, colors: ['#52ff8a', '#ffd452'], minDelay: 1100, maxDelay: 1600 },
+    anneau:              { label: "Anneau",                      pattern: 'radial',  count: 28, size: [4, 5], distance: [100, 100], duration: 1200, colors: ['#52c8ff'], shape: 'ring', minDelay: 800, maxDelay: 1300 },
+    etoile:              { label: "Étoile",                      pattern: 'radial',  count: 25, size: [5, 7], distance: [90, 140],  duration: 1100, colors: ['#ffd452'], shape: 'star', minDelay: 800, maxDelay: 1300 },
+    crepitementIntense:  { label: "Crépitement intense",         pattern: 'radial',  count: 55, size: [1.5, 2.5], distance: [15, 45], duration: 550,  colors: ['#fff45c', '#ffffff'], minDelay: 300, maxDelay: 500 },
+    crossette:           { label: "Crossette",                   pattern: 'radial',  count: 10, size: [4, 6], distance: [95, 95],   duration: 1300, colors: ['#ff5252', '#52c8ff'], crossette: true, minDelay: 900, maxDelay: 1400 },
+    marronAir:           { label: "Marron d'air (bang)",         pattern: 'flash',   count: 6,  size: [3, 3], distance: [20, 40],   duration: 400,  colors: ['#ffffff'], minDelay: 600, maxDelay: 1000 },
+    potsAFeu:            { label: "Pots à feu",                  pattern: 'fountain', count: 14, size: [3, 5], distance: [50, 90],   duration: 1100, colors: ['#ff8a52', '#ffd452'], minDelay: 400, maxDelay: 700 },
+    kamuro:              { label: "Kamuro",                      pattern: 'willow',  count: 42, size: [2, 4], distance: [120, 170], fallDistance: [150, 200], duration: 2500, colors: ['#fff1c2', '#ffd452'], minDelay: 1200, maxDelay: 1800 },
+    queueDeCheval:       { label: "Queue de cheval",             pattern: 'willow',  count: 6,  size: [4, 5], distance: [140, 180], fallDistance: [160, 200], duration: 2000, colors: ['#52c8ff', '#ffffff'], minDelay: 1000, maxDelay: 1500 },
+    fontainePyro:        { label: "Fontaine pyrotechnique",      pattern: 'fountain', count: 18, size: [3, 4], distance: [60, 100],  duration: 1200, colors: ['#ffd452', '#ff8a52'], minDelay: 400, maxDelay: 700 },
+    mortier:             { label: "Mortier",                     pattern: 'radial',  count: 36, size: [5, 7], distance: [130, 190], duration: 1300, colors: ['#ff5252', '#52c8ff', '#ffd452'], minDelay: 900, maxDelay: 1400 },
+    fusee:                { label: "Fusée",                       pattern: 'rocket',  colors: ['#ffd452', '#ffffff'], minDelay: 1000, maxDelay: 1600 },
+    clignotant:          { label: "Clignotant",                  pattern: 'strobe',  count: 20, size: [4, 6], distance: [80, 120],  duration: 1500, colors: ['#ffffff', '#52c8ff'], minDelay: 900, maxDelay: 1400 },
+    abeillePoisson:      { label: "Abeille / Poisson",           pattern: 'dart',    count: 14, size: [2, 4], distance: [50, 90],   duration: 1400, colors: ['#ffd452', '#ff8a52'], minDelay: 700, maxDelay: 1200 },
+    compact:             { label: "Compact",                     pattern: 'radial',  count: 14, size: [4, 5], distance: [50, 70],   duration: 700,  colors: ['#c452ff', '#52ff8a'], minDelay: 500, maxDelay: 800 },
+    chandelle:           { label: "Chandelle (roman candle)",    pattern: 'romanCandle', colors: ['#ff5252', '#ffd452', '#52c8ff'], minDelay: 1300, maxDelay: 1900 },
+    bengale:             { label: "Bengale",                     pattern: 'flare',   duration: 2000, colors: ['#ff3366'], minDelay: 2200, maxDelay: 2200 },
+    bombeArtifice:       { label: "Bombe d'artifice",            pattern: 'radial',  count: 46, size: [5, 8], distance: [140, 200], duration: 1500, colors: ['#ff5252', '#ffffff'], minDelay: 1000, maxDelay: 1500 },
+    fontaineArtificeSol: { label: "Fontaine au sol",             pattern: 'fountain', count: 20, size: [3, 4], distance: [60, 100],  duration: 1300, colors: ['#ffd452', '#c452ff'], minDelay: 400, maxDelay: 700 },
+    bouquet:             { label: "Bouquet (plusieurs à la fois)", pattern: 'multi', count: 18, size: [4, 6], distance: [90, 140],  duration: 1200, colors: ['#ff5252', '#ffd452', '#52ff8a', '#52c8ff', '#c452ff'], minDelay: 1600, maxDelay: 2200 },
+    petardClicClac:      { label: "Pétard clic-clac",            pattern: 'groundPop', count: 6, size: [3, 3], distance: [15, 25],  duration: 350,  colors: ['#ffffff', '#ffd452'], minDelay: 350, maxDelay: 600 }
+};
+
+let fireworkTypeEnabled = {};
+let fireworkTypeIntervalId = {};
+
+Object.keys(FIREWORK_RECIPES).forEach(key => {
+    fireworkTypeEnabled[key] = localStorage.getItem('fw_' + key + '_enabled') === 'true';
+});
+
+function launchFireworkRecipe(key) {
+    const def = FIREWORK_RECIPES[key];
+    if (!def) return;
+    const origin = fwRandomOrigin();
+
+    switch (def.pattern) {
+        case 'radial':      fwPatternRadial(origin, def); break;
+        case 'willow':       fwPatternWillow(origin, def); break;
+        case 'fountain':     fwPatternFountain(def); break;
+        case 'flash':        fwPatternFlash(origin, def); break;
+        case 'flare':         fwPatternFlare(origin, def); break;
+        case 'strobe':        fwPatternStrobe(origin, def); break;
+        case 'dart':           fwPatternDart(origin, def); break;
+        case 'rocket':         fwPatternRocket(def); break;
+        case 'romanCandle':    fwPatternRomanCandle(def); break;
+        case 'multi':          fwPatternMulti(def); break;
+        case 'groundPop':      fwPatternGroundPop(def); break;
+    }
+}
+
+function scheduleFireworkType(key) {
+    const def = FIREWORK_RECIPES[key];
+    if (!fireworkTypeEnabled[key]) return;
+    const delay = def.minDelay + Math.random() * (def.maxDelay - def.minDelay);
+    fireworkTypeIntervalId[key] = setTimeout(() => {
+        if (fireworkTypeEnabled[key]) launchFireworkRecipe(key);
+        scheduleFireworkType(key);
+    }, delay);
+}
+
+function toggleFireworkTypeSetting(key, checked) {
+    fireworkTypeEnabled[key] = checked;
+    localStorage.setItem('fw_' + key + '_enabled', checked ? 'true' : 'false');
+    if (fireworkTypeIntervalId[key]) { clearTimeout(fireworkTypeIntervalId[key]); fireworkTypeIntervalId[key] = null; }
+    if (checked) scheduleFireworkType(key);
+}
+
+function initFireworkTypeState(key) {
+    if (fireworkTypeEnabled[key]) scheduleFireworkType(key);
+}
+
+function initAllFireworkTypes() {
+    Object.keys(FIREWORK_RECIPES).forEach(key => initFireworkTypeState(key));
+}
+
+function syncFireworkTypeToggles() {
+    Object.keys(FIREWORK_RECIPES).forEach(key => {
+        const el = document.getElementById('feux-' + key.replace(/([A-Z])/g, '-$1').toLowerCase() + '-toggle');
+        if (el) el.checked = fireworkTypeEnabled[key];
+    });
 }
 
     </script>
