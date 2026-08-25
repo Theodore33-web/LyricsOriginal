@@ -5,7 +5,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v2.03";
+        const APP_VERSION = "v1 Feux d'artifice";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -832,204 +832,9 @@
     </label>
 </div>
 
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Pivoine</span>
-    <label class="switch">
-        <input type="checkbox" id="feux-pivoine-toggle" onchange="toggleFireworkTypeSetting('pivoine', this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Chrysanthème</span>
-    <label class="switch">
-        <input type="checkbox" id="feux-chrysantheme-toggle" onchange="toggleFireworkTypeSetting('chrysantheme', this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Dahlia</span>
-    <label class="switch">
-        <input type="checkbox" id="feux-dahlia-toggle" onchange="toggleFireworkTypeSetting('dahlia', this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Brocart doré</span>
-    <label class="switch">
-        <input type="checkbox" id="feux-brocart-toggle" onchange="toggleFireworkTypeSetting('brocart', this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Palmier</span>
-    <label class="switch">
-        <input type="checkbox" id="feux-palmier-toggle" onchange="toggleFireworkTypeSetting('palmier', this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Anneau</span>
-    <label class="switch">
-        <input type="checkbox" id="feux-anneau-toggle" onchange="toggleFireworkTypeSetting('anneau', this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Étoile</span>
-    <label class="switch">
-        <input type="checkbox" id="feux-etoile-toggle" onchange="toggleFireworkTypeSetting('etoile', this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Crépitement intense</span>
-    <label class="switch">
-        <input type="checkbox" id="feux-crepitement-intense-toggle" onchange="toggleFireworkTypeSetting('crepitementIntense', this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Crossette</span>
-    <label class="switch">
-        <input type="checkbox" id="feux-crossette-toggle" onchange="toggleFireworkTypeSetting('crossette', this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Marron d'air (bang)</span>
-    <label class="switch">
-        <input type="checkbox" id="feux-marron-air-toggle" onchange="toggleFireworkTypeSetting('marronAir', this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Pots à feu</span>
-    <label class="switch">
-        <input type="checkbox" id="feux-pots-a-feu-toggle" onchange="toggleFireworkTypeSetting('potsAFeu', this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Kamuro</span>
-    <label class="switch">
-        <input type="checkbox" id="feux-kamuro-toggle" onchange="toggleFireworkTypeSetting('kamuro', this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Queue de cheval</span>
-    <label class="switch">
-        <input type="checkbox" id="feux-queue-de-cheval-toggle" onchange="toggleFireworkTypeSetting('queueDeCheval', this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Fontaine pyrotechnique</span>
-    <label class="switch">
-        <input type="checkbox" id="feux-fontaine-pyro-toggle" onchange="toggleFireworkTypeSetting('fontainePyro', this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Mortier</span>
-    <label class="switch">
-        <input type="checkbox" id="feux-mortier-toggle" onchange="toggleFireworkTypeSetting('mortier', this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Fusée</span>
-    <label class="switch">
-        <input type="checkbox" id="feux-fusee-toggle" onchange="toggleFireworkTypeSetting('fusee', this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Clignotant</span>
-    <label class="switch">
-        <input type="checkbox" id="feux-clignotant-toggle" onchange="toggleFireworkTypeSetting('clignotant', this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Abeille / Poisson</span>
-    <label class="switch">
-        <input type="checkbox" id="feux-abeille-poisson-toggle" onchange="toggleFireworkTypeSetting('abeillePoisson', this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Compact</span>
-    <label class="switch">
-        <input type="checkbox" id="feux-compact-toggle" onchange="toggleFireworkTypeSetting('compact', this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Chandelle (roman candle)</span>
-    <label class="switch">
-        <input type="checkbox" id="feux-chandelle-toggle" onchange="toggleFireworkTypeSetting('chandelle', this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Bengale</span>
-    <label class="switch">
-        <input type="checkbox" id="feux-bengale-toggle" onchange="toggleFireworkTypeSetting('bengale', this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Bombe d'artifice</span>
-    <label class="switch">
-        <input type="checkbox" id="feux-bombe-artifice-toggle" onchange="toggleFireworkTypeSetting('bombeArtifice', this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Fontaine au sol</span>
-    <label class="switch">
-        <input type="checkbox" id="feux-fontaine-artifice-sol-toggle" onchange="toggleFireworkTypeSetting('fontaineArtificeSol', this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Bouquet (plusieurs à la fois)</span>
-    <label class="switch">
-        <input type="checkbox" id="feux-bouquet-toggle" onchange="toggleFireworkTypeSetting('bouquet', this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Pétard clic-clac</span>
-    <label class="switch">
-        <input type="checkbox" id="feux-petard-clic-clac-toggle" onchange="toggleFireworkTypeSetting('petardClicClac', this.checked)">
-        <span class="slider"></span>
-    </label>
+<div style="width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">25 effets de feux d'artifice + création de feux personnalisés</span>
+    <button id="fireworks-manager-btn" onclick="toggleFireworksManager()">🎆 Gérer les feux d'artifice</button>
 </div>
 
 '''
@@ -1535,6 +1340,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 initPartyPopperState();
                 initRideauBtnState();
                 initAllFireworkTypes();
+                initCustomFireworks();
                 initVoiceCommand();
             } catch (e) {
                 console.error("Impossible de récupérer le profil : ", e);
@@ -9882,7 +9688,7 @@ const FIREWORK_RECIPES = {
     potsAFeu:            { label: "Pots à feu",                  pattern: 'fountain', count: 14, size: [3, 5], distance: [50, 90],   duration: 1100, colors: ['#ff8a52', '#ffd452'], minDelay: 400, maxDelay: 700 },
     kamuro:              { label: "Kamuro",                      pattern: 'willow',  count: 42, size: [2, 4], distance: [120, 170], fallDistance: [150, 200], duration: 2500, colors: ['#fff1c2', '#ffd452'], minDelay: 1200, maxDelay: 1800 },
     queueDeCheval:       { label: "Queue de cheval",             pattern: 'willow',  count: 6,  size: [4, 5], distance: [140, 180], fallDistance: [160, 200], duration: 2000, colors: ['#52c8ff', '#ffffff'], minDelay: 1000, maxDelay: 1500 },
-    fontainePyro:        { label: "Fontaine pyrotechnique",      pattern: 'fountain', count: 18, size: [3, 4], distance: [60, 100],  duration: 1200, colors: ['#ffd452', '#ff8a52'], minDelay: 400, maxDelay: 700 },
+    fontainePyro:        { label: "Fontaine pyrotechnique",      pattern: 'fountain', count: 18, size: [3, 4], distance: [60, 100],  duration: 1200, colors: ['#52c8ff', '#a0e8ff', '#ffffff'], minDelay: 400, maxDelay: 700 },
     mortier:             { label: "Mortier",                     pattern: 'radial',  count: 36, size: [5, 7], distance: [130, 190], duration: 1300, colors: ['#ff5252', '#52c8ff', '#ffd452'], minDelay: 900, maxDelay: 1400 },
     fusee:                { label: "Fusée",                       pattern: 'rocket',  colors: ['#ffd452', '#ffffff'], minDelay: 1000, maxDelay: 1600 },
     clignotant:          { label: "Clignotant",                  pattern: 'strobe',  count: 20, size: [4, 6], distance: [80, 120],  duration: 1500, colors: ['#ffffff', '#52c8ff'], minDelay: 900, maxDelay: 1400 },
@@ -9903,25 +9709,7 @@ Object.keys(FIREWORK_RECIPES).forEach(key => {
     fireworkTypeEnabled[key] = localStorage.getItem('fw_' + key + '_enabled') === 'true';
 });
 
-function launchFireworkRecipe(key) {
-    const def = FIREWORK_RECIPES[key];
-    if (!def) return;
-    const origin = fwRandomOrigin();
-
-    switch (def.pattern) {
-        case 'radial':      fwPatternRadial(origin, def); break;
-        case 'willow':       fwPatternWillow(origin, def); break;
-        case 'fountain':     fwPatternFountain(def); break;
-        case 'flash':        fwPatternFlash(origin, def); break;
-        case 'flare':         fwPatternFlare(origin, def); break;
-        case 'strobe':        fwPatternStrobe(origin, def); break;
-        case 'dart':           fwPatternDart(origin, def); break;
-        case 'rocket':         fwPatternRocket(def); break;
-        case 'romanCandle':    fwPatternRomanCandle(def); break;
-        case 'multi':          fwPatternMulti(def); break;
-        case 'groundPop':      fwPatternGroundPop(def); break;
-    }
-}
+// launchFireworkRecipe() est défini plus bas, avec gestion du son + surcharge pour les feux personnalisés.
 
 function scheduleFireworkType(key) {
     const def = FIREWORK_RECIPES[key];
@@ -9952,6 +9740,443 @@ function syncFireworkTypeToggles() {
     Object.keys(FIREWORK_RECIPES).forEach(key => {
         const el = document.getElementById('feux-' + key.replace(/([A-Z])/g, '-$1').toLowerCase() + '-toggle');
         if (el) el.checked = fireworkTypeEnabled[key];
+    });
+}
+
+// ==========================================
+// GESTIONNAIRE DE FEUX D'ARTIFICE — panneau dédié
+// Regroupe les 25 recettes + sons synthétisés + créateur de feux personnalisés.
+// ⚠️ Pas de vrais fichiers audio (aucun asset fourni) : les sons sont synthétisés en direct
+// via Web Audio API (bruit filtré, oscillateurs) — aucun fichier .mp3/.wav à héberger.
+// ==========================================
+
+// --- Moteur sonore synthétisé, un "type" de son par famille de motif ---
+let fwAudioCtx = null;
+function fwGetAudioCtx() {
+    if (!fwAudioCtx) fwAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (fwAudioCtx.state === 'suspended') fwAudioCtx.resume();
+    return fwAudioCtx;
+}
+
+function fwPlayNoiseBurst(duration, volume, filterFreq) {
+    const ctx = fwGetAudioCtx();
+    const bufferSize = Math.max(1, Math.floor(ctx.sampleRate * duration));
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = filterFreq || 2000;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(volume, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+
+    noise.connect(filter).connect(gain).connect(ctx.destination);
+    noise.start();
+    noise.stop(ctx.currentTime + duration);
+}
+
+function fwPlayTone(freqStart, freqEnd, duration, volume, type) {
+    const ctx = fwGetAudioCtx();
+    const osc = ctx.createOscillator();
+    osc.type = type || 'sine';
+    osc.frequency.setValueAtTime(freqStart, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(freqEnd, 1), ctx.currentTime + duration);
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(volume, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + duration);
+}
+
+function fwPlayBoom()      { fwPlayTone(120, 40, 0.35, 0.35, 'sine'); fwPlayNoiseBurst(0.4, 0.25, 500); }
+function fwPlayCrackle()   { for (let i = 0; i < 6; i++) setTimeout(() => fwPlayNoiseBurst(0.06, 0.15, 3000 + Math.random() * 3000), i * 55); }
+function fwPlayWhoosh()    { fwPlayTone(1800, 400, 0.9, 0.12, 'sawtooth'); }
+function fwPlayHiss()      { fwPlayNoiseBurst(0.6, 0.1, 5000); }
+function fwPlayBang()      { fwPlayNoiseBurst(0.25, 0.4, 800); fwPlayTone(200, 60, 0.2, 0.3, 'square'); }
+function fwPlayFlareHum()  { fwPlayTone(180, 170, 1.8, 0.08, 'sine'); }
+function fwPlayBeep()      { fwPlayTone(1200, 1200, 0.08, 0.15, 'square'); }
+function fwPlayBuzz()      { fwPlayTone(300, 250, 0.3, 0.1, 'sawtooth'); }
+function fwPlayWhistlePop(){ fwPlayTone(500, 1600, 0.6, 0.12, 'sine'); setTimeout(fwPlayBoom, 620); }
+function fwPlayPopSeries() { for (let i = 0; i < 5; i++) setTimeout(() => fwPlayNoiseBurst(0.08, 0.2, 1200), i * 260); }
+function fwPlayGroundPop() { fwPlayNoiseBurst(0.05, 0.2, 2500); }
+
+const FW_SOUND_BY_PATTERN = {
+    radial:      () => { fwPlayBoom(); fwPlayCrackle(); },
+    willow:      () => { fwPlayWhoosh(); fwPlayCrackle(); },
+    fountain:    fwPlayHiss,
+    flash:       fwPlayBang,
+    flare:       fwPlayFlareHum,
+    strobe:      () => { for (let i = 0; i < 4; i++) setTimeout(fwPlayBeep, i * 160); },
+    dart:        fwPlayBuzz,
+    rocket:      fwPlayWhistlePop,
+    romanCandle: fwPlayPopSeries,
+    multi:       () => { fwPlayBoom(); setTimeout(fwPlayBoom, 150); fwPlayCrackle(); },
+    groundPop:   () => { for (let i = 0; i < 4; i++) setTimeout(fwPlayGroundPop, i * 90); }
+};
+
+let fireworksSoundEnabled = localStorage.getItem('fireworksSoundEnabled') === 'true';
+
+function toggleFireworksSoundSetting(checked) {
+    fireworksSoundEnabled = checked;
+    localStorage.setItem('fireworksSoundEnabled', checked ? 'true' : 'false');
+    if (checked) fwGetAudioCtx(); // débloque l'audio dès le clic (geste utilisateur requis par les navigateurs)
+}
+
+function playFireworkSoundForPattern(pattern) {
+    if (!fireworksSoundEnabled) return;
+    const fn = FW_SOUND_BY_PATTERN[pattern];
+    if (fn) fn();
+}
+
+// --- launchFireworkRecipe() modifiée : joue le son correspondant, et accepte une "recette"
+//     surchargée (utilisé par les feux personnalisés pour appliquer couleurs/taille custom) ---
+function launchFireworkRecipe(key, overrideDef) {
+    const def = overrideDef || FIREWORK_RECIPES[key];
+    if (!def) return;
+    playFireworkSoundForPattern(def.pattern);
+    const origin = fwRandomOrigin();
+
+    switch (def.pattern) {
+        case 'radial':      fwPatternRadial(origin, def); break;
+        case 'willow':       fwPatternWillow(origin, def); break;
+        case 'fountain':     fwPatternFountain(def); break;
+        case 'flash':        fwPatternFlash(origin, def); break;
+        case 'flare':         fwPatternFlare(origin, def); break;
+        case 'strobe':        fwPatternStrobe(origin, def); break;
+        case 'dart':           fwPatternDart(origin, def); break;
+        case 'rocket':         fwPatternRocket(def); break;
+        case 'romanCandle':    fwPatternRomanCandle(def); break;
+        case 'multi':          fwPatternMulti(def); break;
+        case 'groundPop':      fwPatternGroundPop(def); break;
+    }
+}
+
+// --- Styles du panneau ---
+function injectFireworksManagerStyles() {
+    if (document.getElementById('fireworks-manager-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'fireworks-manager-inline-style';
+    styleTag.textContent = `
+        #fireworks-manager-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: #0d0d0d;
+            z-index: 2000;
+            flex-direction: column;
+            padding: 14px;
+            box-sizing: border-box;
+        }
+        .fwm-topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-shrink: 0; }
+        .fwm-title { color: var(--spotify-green, #1DB954); font-weight: bold; }
+        .fwm-close-btn { background: none; border: none; color: #fff; font-size: 1.6rem; cursor: pointer; line-height: 1; }
+        .fwm-sound-row { display: flex; align-items: center; justify-content: space-between; padding: 10px; background: #1a1a1a; border-radius: 10px; margin-bottom: 10px; flex-shrink: 0; }
+        .fwm-sound-row span { font-size: 0.85rem; color: #fff; }
+        .fwm-scroll { flex: 1; overflow-y: auto; }
+        .fwm-section-title { color: var(--text-grey, #b3b3b3); font-weight: bold; font-size: 0.8rem; margin: 10px 0 6px 0; }
+        .fwm-perso-title { color: var(--spotify-green, #1DB954) !important; }
+        .fwm-row { padding: 8px; border-bottom: 1px solid #222; cursor: pointer; }
+        .fwm-row-label { color: #fff; font-size: 0.9rem; margin-bottom: 4px; }
+        .fwm-row-controls { display: flex; align-items: center; gap: 6px; }
+        .fwm-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+        .fwm-dot.on  { background: var(--spotify-green, #1DB954); box-shadow: 0 0 6px 2px rgba(29, 185, 84, 0.6); }
+        .fwm-dot.off { background: #c0392b; }
+        .fwm-dot-text { font-size: 0.75rem; color: var(--text-grey, #b3b3b3); }
+        .fwm-palette { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+        .fwm-swatch { width: 26px; height: 26px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; box-sizing: border-box; }
+        .fwm-swatch.selected { border-color: var(--spotify-green, #1DB954); }
+        .fwm-create-btn { background: var(--spotify-green, #1DB954); color: #000; border: none; border-radius: 20px; padding: 8px 16px; font-weight: bold; cursor: pointer; margin-bottom: 12px; display: block; }
+        .fwm-custom-chip { background: #1a1a1a; border-radius: 10px; padding: 8px; margin-bottom: 8px; }
+        .fwm-custom-chip-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+        .fwm-custom-chip-top span { color: #fff; font-size: 0.85rem; }
+        .fwm-custom-chip-bottom { display: flex; gap: 8px; }
+        .fwm-custom-chip-bottom button {
+            background: none; border: 1px solid var(--spotify-green, #1DB954); color: var(--spotify-green, #1DB954);
+            border-radius: 14px; padding: 4px 10px; font-size: 0.75rem; cursor: pointer;
+        }
+        .fwm-editor { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+        .fwm-editor label { font-size: 0.75rem; color: var(--text-grey, #b3b3b3); }
+        .fwm-editor select {
+            background: #121212; color: #fff; border: 1px solid #333; border-radius: 8px; padding: 6px; font-size: 0.85rem;
+        }
+        .fwm-editor button {
+            background: var(--spotify-green, #1DB954); color: #000; border: none; border-radius: 14px;
+            padding: 6px 12px; font-size: 0.8rem; font-weight: bold; cursor: pointer; margin-top: 4px;
+        }
+        #fireworks-manager-btn {
+            background: none; border: 1px solid var(--spotify-green, #1DB954); color: var(--spotify-green, #1DB954);
+            border-radius: 20px; padding: 8px 15px; font-size: 0.8rem; font-weight: bold; cursor: pointer;
+            display: block; width: 100%; margin-top: 6px; box-sizing: border-box;
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectFireworksManagerStyles();
+
+function ensureFireworksManagerOverlay() {
+    let overlay = document.getElementById('fireworks-manager-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'fireworks-manager-overlay';
+        overlay.innerHTML = `
+            <div class="fwm-topbar">
+                <span class="fwm-title">🎆 Feux d'artifice</span>
+                <button class="fwm-close-btn" onclick="toggleFireworksManager()">✕</button>
+            </div>
+            <div class="fwm-sound-row">
+                <span>🔊 Activer les sons</span>
+                <label class="switch">
+                    <input type="checkbox" id="fwm-sound-toggle" onchange="toggleFireworksSoundSetting(this.checked)">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="fwm-scroll">
+                <p class="fwm-section-title">25 effets</p>
+                <div id="fwm-list"></div>
+
+                <p class="fwm-section-title fwm-perso-title">🎨 Personnalisation</p>
+                <div id="fwm-palette" class="fwm-palette"></div>
+                <button class="fwm-create-btn" onclick="createCustomFirework()">Créer</button>
+                <div id="fwm-custom-list"></div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+    }
+    return overlay;
+}
+
+function renderFireworksManagerList() {
+    const container = document.getElementById('fwm-list');
+    if (!container) return;
+    container.innerHTML = '';
+    Object.keys(FIREWORK_RECIPES).forEach(key => {
+        const def = FIREWORK_RECIPES[key];
+        const row = document.createElement('div');
+        row.className = 'fwm-row';
+        row.innerHTML = `
+            <div class="fwm-row-label">${def.label}</div>
+            <div class="fwm-row-controls">
+                <span class="fwm-dot ${fireworkTypeEnabled[key] ? 'on' : 'off'}" id="fwm-dot-${key}"></span>
+                <span class="fwm-dot-text" id="fwm-dot-text-${key}">${fireworkTypeEnabled[key] ? 'Activé' : 'Désactivé'}</span>
+            </div>
+        `;
+        row.onclick = () => {
+            const newState = !fireworkTypeEnabled[key];
+            toggleFireworkTypeSetting(key, newState);
+            const dot = document.getElementById(`fwm-dot-${key}`);
+            const txt = document.getElementById(`fwm-dot-text-${key}`);
+            if (dot) dot.className = `fwm-dot ${newState ? 'on' : 'off'}`;
+            if (txt) txt.innerText = newState ? 'Activé' : 'Désactivé';
+        };
+        container.appendChild(row);
+    });
+}
+
+function toggleFireworksManager() {
+    const overlay = ensureFireworksManagerOverlay();
+    const isClosed = overlay.style.display === 'none' || overlay.style.display === '';
+    if (isClosed) {
+        overlay.style.display = 'flex';
+        renderFireworksManagerList();
+        renderFwPalette();
+        renderCustomFireworksList();
+        const soundToggle = document.getElementById('fwm-sound-toggle');
+        if (soundToggle) soundToggle.checked = fireworksSoundEnabled;
+    } else {
+        overlay.style.display = 'none';
+    }
+}
+
+// --- Créateur de feux d'artifice personnalisés ---
+const FW_PALETTE_COLORS = ['#ff5252', '#ffd452', '#52ff8a', '#52c8ff', '#c452ff', '#ff8a52', '#ffffff', '#ff3366', '#fff45c', '#a0e8ff'];
+let fwCustomBuilderSelectedColors = [];
+
+function renderFwPalette() {
+    const container = document.getElementById('fwm-palette');
+    if (!container) return;
+    container.innerHTML = '';
+    FW_PALETTE_COLORS.forEach(color => {
+        const swatch = document.createElement('div');
+        swatch.className = 'fwm-swatch' + (fwCustomBuilderSelectedColors.includes(color) ? ' selected' : '');
+        swatch.style.background = color;
+        swatch.onclick = () => {
+            const idx = fwCustomBuilderSelectedColors.indexOf(color);
+            if (idx >= 0) fwCustomBuilderSelectedColors.splice(idx, 1);
+            else fwCustomBuilderSelectedColors.push(color);
+            renderFwPalette();
+        };
+        container.appendChild(swatch);
+    });
+}
+
+let customFireworks = JSON.parse(localStorage.getItem('customFireworksList') || '[]');
+let customFireworksCounter = parseInt(localStorage.getItem('customFireworksCounter') || '0', 10);
+let customFireworksIntervalIds = {};
+
+function saveCustomFireworksList() {
+    localStorage.setItem('customFireworksList', JSON.stringify(customFireworks));
+}
+
+function createCustomFirework() {
+    if (fwCustomBuilderSelectedColors.length === 0) {
+        alert("Choisis au moins une couleur avant de créer un feu d'artifice personnalisé.");
+        return;
+    }
+    customFireworksCounter++;
+    localStorage.setItem('customFireworksCounter', String(customFireworksCounter));
+
+    const fw = {
+        id: 'custom_' + Date.now(),
+        name: String(customFireworksCounter), // "1", puis "2", etc.
+        colors: [...fwCustomBuilderSelectedColors],
+        baseType: 'pivoine',
+        size: 'moyen',
+        rhythm: 1,
+        delay: 3,
+        enabled: true
+    };
+    customFireworks.push(fw);
+    saveCustomFireworksList();
+
+    fwCustomBuilderSelectedColors = [];
+    renderFwPalette();
+    renderCustomFireworksList();
+    scheduleCustomFirework(fw.id);
+}
+
+function deleteCustomFirework(id) {
+    customFireworks = customFireworks.filter(f => f.id !== id);
+    saveCustomFireworksList();
+    if (customFireworksIntervalIds[id]) { clearTimeout(customFireworksIntervalIds[id]); delete customFireworksIntervalIds[id]; }
+    renderCustomFireworksList();
+}
+
+function toggleCustomFireworkEnabled(id) {
+    const fw = customFireworks.find(f => f.id === id);
+    if (!fw) return;
+    fw.enabled = !fw.enabled;
+    saveCustomFireworksList();
+    if (customFireworksIntervalIds[id]) { clearTimeout(customFireworksIntervalIds[id]); delete customFireworksIntervalIds[id]; }
+    if (fw.enabled) scheduleCustomFirework(id);
+    renderCustomFireworksList();
+}
+
+const FW_SIZE_MULTIPLIERS = { 'petit': 0.6, 'moyen': 1.0, 'grand': 1.5, 'très grand': 2.2 };
+
+function launchCustomFirework(id) {
+    const fw = customFireworks.find(f => f.id === id);
+    if (!fw) return;
+    const baseDef = FIREWORK_RECIPES[fw.baseType];
+    if (!baseDef) return;
+    const mult = FW_SIZE_MULTIPLIERS[fw.size] || 1;
+
+    const scaledDef = {
+        ...baseDef,
+        colors: fw.colors,
+        count: baseDef.count ? Math.round(baseDef.count * mult) : baseDef.count,
+        size: baseDef.size ? baseDef.size.map(s => s * mult) : baseDef.size,
+        distance: baseDef.distance ? baseDef.distance.map(d => d * mult) : baseDef.distance,
+        fallDistance: baseDef.fallDistance ? baseDef.fallDistance.map(d => d * mult) : baseDef.fallDistance,
+        duration: baseDef.duration ? Math.round(baseDef.duration * (0.9 + mult * 0.2)) : baseDef.duration
+    };
+
+    for (let r = 0; r < fw.rhythm; r++) {
+        setTimeout(() => launchFireworkRecipe(fw.baseType, scaledDef), r * 120);
+    }
+}
+
+function scheduleCustomFirework(id) {
+    const fw = customFireworks.find(f => f.id === id);
+    if (!fw || !fw.enabled) return;
+    const delayMs = fw.delay * 1000;
+    customFireworksIntervalIds[id] = setTimeout(() => {
+        const stillExists = customFireworks.find(f => f.id === id);
+        if (stillExists && stillExists.enabled) launchCustomFirework(id);
+        scheduleCustomFirework(id);
+    }, delayMs);
+}
+
+function initCustomFireworks() {
+    customFireworks.forEach(fw => { if (fw.enabled) scheduleCustomFirework(fw.id); });
+}
+
+function buildCustomFireworkEditorHtml(fw) {
+    const baseOptions = Object.keys(FIREWORK_RECIPES).map(k =>
+        `<option value="${k}" ${fw.baseType === k ? 'selected' : ''}>${FIREWORK_RECIPES[k].label}</option>`
+    ).join('');
+    const sizeOptions = ['petit', 'moyen', 'grand', 'très grand'].map(s =>
+        `<option value="${s}" ${fw.size === s ? 'selected' : ''}>${s.charAt(0).toUpperCase() + s.slice(1)}</option>`
+    ).join('');
+    const rhythmOptions = [1, 2, 3, 4, 5].map(r =>
+        `<option value="${r}" ${fw.rhythm === r ? 'selected' : ''}>${r}</option>`
+    ).join('');
+    const delayValues = [0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20];
+    const delayOptions = delayValues.map(d =>
+        `<option value="${d}" ${fw.delay === d ? 'selected' : ''}>${d}s</option>`
+    ).join('');
+
+    return `
+        <div class="fwm-editor">
+            <label>Effet de base</label>
+            <select id="fwm-edit-basetype-${fw.id}">${baseOptions}</select>
+            <label>Taille</label>
+            <select id="fwm-edit-size-${fw.id}">${sizeOptions}</select>
+            <label>Nombre simultané</label>
+            <select id="fwm-edit-rhythm-${fw.id}">${rhythmOptions}</select>
+            <label>Délai de réapparition</label>
+            <select id="fwm-edit-delay-${fw.id}">${delayOptions}</select>
+            <button onclick="saveCustomFireworkEdits('${fw.id}')">Enregistrer</button>
+        </div>
+    `;
+}
+
+function openCustomFireworkEditor(id) {
+    const container = document.getElementById(`fwm-editor-${id}`);
+    if (!container) return;
+    const fw = customFireworks.find(f => f.id === id);
+    if (!fw) return;
+    const isHidden = container.style.display === 'none' || container.style.display === '';
+    container.style.display = isHidden ? 'block' : 'none';
+    if (isHidden) container.innerHTML = buildCustomFireworkEditorHtml(fw);
+}
+
+function saveCustomFireworkEdits(id) {
+    const fw = customFireworks.find(f => f.id === id);
+    if (!fw) return;
+    fw.baseType = document.getElementById(`fwm-edit-basetype-${id}`).value;
+    fw.size = document.getElementById(`fwm-edit-size-${id}`).value;
+    fw.rhythm = parseInt(document.getElementById(`fwm-edit-rhythm-${id}`).value, 10);
+    fw.delay = parseFloat(document.getElementById(`fwm-edit-delay-${id}`).value);
+    saveCustomFireworksList();
+    if (customFireworksIntervalIds[id]) { clearTimeout(customFireworksIntervalIds[id]); delete customFireworksIntervalIds[id]; }
+    if (fw.enabled) scheduleCustomFirework(id);
+    document.getElementById(`fwm-editor-${id}`).style.display = 'none';
+}
+
+function renderCustomFireworksList() {
+    const container = document.getElementById('fwm-custom-list');
+    if (!container) return;
+    container.innerHTML = '';
+    customFireworks.forEach(fw => {
+        const chip = document.createElement('div');
+        chip.className = 'fwm-custom-chip';
+        chip.innerHTML = `
+            <div class="fwm-custom-chip-top">
+                <span>Personnalisé ${fw.name}</span>
+                <span class="fwm-dot ${fw.enabled ? 'on' : 'off'}" onclick="toggleCustomFireworkEnabled('${fw.id}')"></span>
+            </div>
+            <div class="fwm-custom-chip-bottom">
+                <button onclick="openCustomFireworkEditor('${fw.id}')">⚙️ Personnaliser</button>
+                <button onclick="deleteCustomFirework('${fw.id}')">✕</button>
+            </div>
+            <div id="fwm-editor-${fw.id}" style="display: none;"></div>
+        `;
+        container.appendChild(chip);
     });
 }
 
