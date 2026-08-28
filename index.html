@@ -5,7 +5,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v1.test F.A.";
+        const APP_VERSION = "v1.9";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -466,6 +466,7 @@
                         <button onclick="toggleQuiz()" title="Quiz musical">🧠</button>
                         <button onclick="texteparoles()" title="Paroles">📒</button>
                         <button id="drive-music-btn" onclick="toggleDriveMusicMode()" title="Lire les musiques Google Drive">📁</button>
+                        <button id="fireworks-manager-btn-main" onclick="toggleFireworksManager()" title="Gérer les feux d'artifice">🎆</button>
                     </div>
 
 <!-- 1. Panneau réglages : à placer près de tes autres zones (profile-card-zone, volume-control-zone, etc.) -->
@@ -774,67 +775,6 @@
         <input type="checkbox" id="fireworks-toggle" onchange="toggleFireworksSetting(this.checked)">
         <span class="slider"></span>
     </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Classiques rapides</span>
-    <label class="switch">
-        <input type="checkbox" id="feux-classiques-toggle" onchange="toggleFeuxClassiquesSetting(this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">En fontaine</span>
-    <label class="switch">
-        <input type="checkbox" id="feux-fontaine-toggle" onchange="toggleFeuxFontaineSetting(this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">En spirale</span>
-    <label class="switch">
-        <input type="checkbox" id="feux-spirale-toggle" onchange="toggleFeuxSpiraleSetting(this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Crépitants</span>
-    <label class="switch">
-        <input type="checkbox" id="feux-crepitants-toggle" onchange="toggleFeuxCrepitantsSetting(this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Géants</span>
-    <label class="switch">
-        <input type="checkbox" id="feux-geants-toggle" onchange="toggleFeuxGeantsSetting(this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Saule pleureur</span>
-    <label class="switch">
-        <input type="checkbox" id="feux-saule-toggle" onchange="toggleFeuxSauleSetting(this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Double explosion</span>
-    <label class="switch">
-        <input type="checkbox" id="feux-double-toggle" onchange="toggleFeuxDoubleSetting(this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">25 effets de feux d'artifice + création de feux personnalisés</span>
-    <button id="fireworks-manager-btn" onclick="toggleFireworksManager()">🎆 Gérer les feux d'artifice</button>
 </div>
 
 '''
@@ -1326,11 +1266,9 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 initBouleLedState();
                 initFeuxClassiquesState();
                 initFeuxFontaineState();
-                initFeuxSpiraleState();
                 initFeuxCrepitantsState();
                 initFeuxGeantsState();
                 initSpectrum2State();
-                initFeuxSauleState();
                 initFeuxDoubleState();
                 initVinyleState();
                 initBassWaveState();
@@ -2463,11 +2401,9 @@ let bouleLedEnabled = localStorage.getItem('bouleLedEnabled') === 'true';
 // --- 5 EFFETS FEUX D'ARTIFICE (réguliers, intenses, rapides) ---
 let feuxClassiquesEnabled = localStorage.getItem('feuxClassiquesEnabled') === 'true';
 let feuxFontaineEnabled = localStorage.getItem('feuxFontaineEnabled') === 'true';
-let feuxSpiraleEnabled = localStorage.getItem('feuxSpiraleEnabled') === 'true';
 let feuxCrepitantsEnabled = localStorage.getItem('feuxCrepitantsEnabled') === 'true';
 let feuxGeantsEnabled = localStorage.getItem('feuxGeantsEnabled') === 'true';
 let spectrum2Enabled = localStorage.getItem('spectrum2Enabled') === 'true';
-let feuxSauleEnabled = localStorage.getItem('feuxSauleEnabled') === 'true';
 let feuxDoubleEnabled = localStorage.getItem('feuxDoubleEnabled') === 'true';
 
 // --- 5 NOUVEAUX EFFETS (style DJ / musique) ---
@@ -2575,14 +2511,10 @@ function toggleSettings() {
         if (feuxClassiquesToggle) feuxClassiquesToggle.checked = feuxClassiquesEnabled;
         const feuxFontaineToggle = document.getElementById('feux-fontaine-toggle');
         if (feuxFontaineToggle) feuxFontaineToggle.checked = feuxFontaineEnabled;
-        const feuxSpiraleToggle = document.getElementById('feux-spirale-toggle');
-        if (feuxSpiraleToggle) feuxSpiraleToggle.checked = feuxSpiraleEnabled;
         const feuxCrepitantsToggle = document.getElementById('feux-crepitants-toggle');
         if (feuxCrepitantsToggle) feuxCrepitantsToggle.checked = feuxCrepitantsEnabled;
         const feuxGeantsToggle = document.getElementById('feux-geants-toggle');
         if (feuxGeantsToggle) feuxGeantsToggle.checked = feuxGeantsEnabled;
-        const feuxSauleToggle = document.getElementById('feux-saule-toggle');
-        if (feuxSauleToggle) feuxSauleToggle.checked = feuxSauleEnabled;
         const feuxDoubleToggle = document.getElementById('feux-double-toggle');
         if (feuxDoubleToggle) feuxDoubleToggle.checked = feuxDoubleEnabled;
         const spectrum2Toggle = document.getElementById('spectrum2-toggle');
@@ -8683,77 +8615,8 @@ function initFeuxFontaineState() {
     if (feuxFontaineEnabled) scheduleNextFeuxFontaine();
 }
 
-// --- 3. FEUX D'ARTIFICE EN SPIRALE (les particules s'échappent en dessinant une spirale) ---
-function injectFeuxSpiraleStyles() {
-    if (document.getElementById('feux-spirale-inline-style')) return;
-    const styleTag = document.createElement('style');
-    styleTag.id = 'feux-spirale-inline-style';
-    styleTag.textContent = `
-        .fw-spirale-particle {
-            position: fixed;
-            width: 5px; height: 5px;
-            border-radius: 50%;
-            z-index: 400;
-            pointer-events: none;
-            opacity: 0;
-            animation: fw-spirale-out 1.1s ease-out forwards;
-        }
-        @keyframes fw-spirale-out {
-            0%   { transform: translate(0, 0) scale(1); opacity: 1; }
-            100% { transform: translate(var(--dx), var(--dy)) scale(0.2); opacity: 0; }
-        }
-    `;
-    document.head.appendChild(styleTag);
-}
-injectFeuxSpiraleStyles();
-
-let feuxSpiraleIntervalId = null;
-
-function launchFeuxSpirale() {
-    const colors = ['#c452ff', '#52c8ff', '#ff5252', '#ffd452'];
-    const originX = 15 + Math.random() * 70;
-    const originY = 15 + Math.random() * 45;
-    const color = colors[Math.floor(Math.random() * colors.length)];
-    const count = 24;
-    const goldenAngle = 137.5 * (Math.PI / 180);
-
-    for (let i = 0; i < count; i++) {
-        const angle = i * goldenAngle;
-        const distance = 6 * i * 0.9;
-        const particle = document.createElement('div');
-        particle.className = 'fw-spirale-particle';
-        particle.style.left = `${originX}%`;
-        particle.style.top = `${originY}%`;
-        particle.style.background = color;
-        particle.style.boxShadow = `0 0 6px 2px ${color}`;
-        particle.style.setProperty('--dx', `${Math.cos(angle) * distance}px`);
-        particle.style.setProperty('--dy', `${Math.sin(angle) * distance}px`);
-        // Décalage progressif : la spirale "se déroule" au lieu d'exploser d'un coup
-        particle.style.animationDelay = `${i * 15}ms`;
-        document.body.appendChild(particle);
-        setTimeout(() => particle.remove(), 1500 + i * 15);
-    }
-}
-
-function scheduleNextFeuxSpirale() {
-    if (!feuxSpiraleEnabled) return;
-    const delay = 700 + Math.random() * 500;
-    feuxSpiraleIntervalId = setTimeout(() => {
-        if (feuxSpiraleEnabled) launchFeuxSpirale();
-        scheduleNextFeuxSpirale();
-    }, delay);
-}
-
-function toggleFeuxSpiraleSetting(checked) {
-    feuxSpiraleEnabled = checked;
-    localStorage.setItem('feuxSpiraleEnabled', checked ? 'true' : 'false');
-    if (feuxSpiraleIntervalId) { clearTimeout(feuxSpiraleIntervalId); feuxSpiraleIntervalId = null; }
-    if (checked) scheduleNextFeuxSpirale();
-}
-
-function initFeuxSpiraleState() {
-    if (feuxSpiraleEnabled) scheduleNextFeuxSpirale();
-}
+// --- "En spirale" a rejoint le gestionnaire de feux d'artifice (bouton 🎆) : voir FIREWORK_RECIPES
+//     et fwPatternSpiral() plus bas, ce n'est plus un réglage séparé ici. ---
 
 // --- 4. FEUX D'ARTIFICE CRÉPITANTS (beaucoup de mini étincelles denses et brèves) ---
 function injectFeuxCrepitantsStyles() {
@@ -9012,79 +8875,8 @@ function initSpectrum2State() {
     if (spectrum2Enabled) initSpectrum2();
 }
 
-// --- 6. FEU D'ARTIFICE "SAULE PLEUREUR" (montée gracieuse, retombée lente dorée, traînée) ---
-function injectFeuxSauleStyles() {
-    if (document.getElementById('feux-saule-inline-style')) return;
-    const styleTag = document.createElement('style');
-    styleTag.id = 'feux-saule-inline-style';
-    styleTag.textContent = `
-        .fw-saule-particle {
-            position: fixed;
-            width: 4px; height: 4px;
-            border-radius: 50%;
-            z-index: 400;
-            pointer-events: none;
-            animation: fw-saule-fall 2.1s ease-in forwards;
-        }
-        @keyframes fw-saule-fall {
-            0%   { transform: translate(0, 0); opacity: 1; }
-            30%  { transform: translate(var(--dx), var(--dy-up)); opacity: 1; }
-            100% { transform: translate(calc(var(--dx) * 1.2), var(--dy-down)); opacity: 0; }
-        }
-    `;
-    document.head.appendChild(styleTag);
-}
-injectFeuxSauleStyles();
-
-let feuxSauleIntervalId = null;
-
-function launchFeuxSaule() {
-    const colors = ['#ffd452', '#ffb347', '#fff1c2'];
-    const originX = 20 + Math.random() * 60;
-    const originY = 12 + Math.random() * 20;
-    const count = 20;
-
-    for (let i = 0; i < count; i++) {
-        // Angle réparti sur l'hémisphère haut, pour un bouquet qui s'ouvre vers le haut
-        const angle = (-160 + Math.random() * 140) * (Math.PI / 180);
-        const upDistance = 40 + Math.random() * 30;
-        const color = colors[Math.floor(Math.random() * colors.length)];
-
-        const particle = document.createElement('div');
-        particle.className = 'fw-saule-particle';
-        particle.style.left = `${originX}%`;
-        particle.style.top = `${originY}%`;
-        particle.style.background = color;
-        particle.style.boxShadow = `0 0 6px 2px ${color}`;
-        particle.style.setProperty('--dx', `${Math.cos(angle) * upDistance}px`);
-        particle.style.setProperty('--dy-up', `${Math.sin(angle) * upDistance}px`);
-        // Retombée gracieuse : loin en dessous du point de départ, façon saule pleureur
-        particle.style.setProperty('--dy-down', `${120 + Math.random() * 60}px`);
-        particle.style.animationDelay = `${Math.random() * 0.2}s`;
-        document.body.appendChild(particle);
-        setTimeout(() => particle.remove(), 2400);
-    }
-}
-
-function scheduleNextFeuxSaule() {
-    if (!feuxSauleEnabled) return;
-    const delay = 1000 + Math.random() * 700;
-    feuxSauleIntervalId = setTimeout(() => {
-        if (feuxSauleEnabled) launchFeuxSaule();
-        scheduleNextFeuxSaule();
-    }, delay);
-}
-
-function toggleFeuxSauleSetting(checked) {
-    feuxSauleEnabled = checked;
-    localStorage.setItem('feuxSauleEnabled', checked ? 'true' : 'false');
-    if (feuxSauleIntervalId) { clearTimeout(feuxSauleIntervalId); feuxSauleIntervalId = null; }
-    if (checked) scheduleNextFeuxSaule();
-}
-
-function initFeuxSauleState() {
-    if (feuxSauleEnabled) scheduleNextFeuxSaule();
-}
+// --- "Saule pleureur" a rejoint le gestionnaire de feux d'artifice (bouton 🎆) : voir
+//     FIREWORK_RECIPES et le motif "willow" plus bas, ce n'est plus un réglage séparé ici. ---
 
 // --- 7. FEU D'ARTIFICE "DOUBLE EXPLOSION" (éclatement principal + mini-éclatements secondaires) ---
 function injectFeuxDoubleStyles() {
@@ -9490,6 +9282,25 @@ function fwPatternRadial(origin, def) {
     }
 }
 
+// --- Motif "spiral" : les particules s'échappent en dessinant une spirale (en spirale) ---
+function fwPatternSpiral(origin, def) {
+    const goldenAngle = 137.5 * (Math.PI / 180);
+    const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+    for (let i = 0; i < def.count; i++) {
+        const angle = i * goldenAngle;
+        const dist = (def.distanceStep || 5.4) * i;
+        const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
+        const dx = Math.cos(angle) * dist;
+        const dy = Math.sin(angle) * dist;
+        // Décalage progressif : la spirale "se déroule" au lieu d'exploser d'un coup
+        setTimeout(() => {
+            fwSpawnParticle('fw-generic-particle', origin.x, origin.y, size, color, def.duration, {
+                '--dx': `${dx}px`, '--dy': `${dy}px`
+            });
+        }, i * (def.delayStep || 15));
+    }
+}
+
 // --- Motif "willow" (saule) : montée puis retombée gracieuse avec traînée
 //     (chrysanthème, brocart, palmier, kamuro, queue de cheval) ---
 function fwPatternWillow(origin, def) {
@@ -9699,7 +9510,9 @@ const FIREWORK_RECIPES = {
     bombeArtifice:       { label: "Bombe d'artifice",            pattern: 'radial',  count: 46, size: [5, 8], distance: [140, 200], duration: 1500, colors: ['#ff5252', '#ffffff'], minDelay: 1000, maxDelay: 1500 },
     fontaineArtificeSol: { label: "Fontaine au sol",             pattern: 'fountain', count: 20, size: [3, 4], distance: [60, 100],  duration: 1300, colors: ['#ffd452', '#c452ff'], minDelay: 400, maxDelay: 700 },
     bouquet:             { label: "Bouquet (plusieurs à la fois)", pattern: 'multi', count: 18, size: [4, 6], distance: [90, 140],  duration: 1200, colors: ['#ff5252', '#ffd452', '#52ff8a', '#52c8ff', '#c452ff'], minDelay: 1600, maxDelay: 2200 },
-    petardClicClac:      { label: "Pétard clic-clac",            pattern: 'groundPop', count: 6, size: [3, 3], distance: [15, 25],  duration: 350,  colors: ['#ffffff', '#ffd452'], minDelay: 350, maxDelay: 600 }
+    petardClicClac:      { label: "Pétard clic-clac",            pattern: 'groundPop', count: 6, size: [3, 3], distance: [15, 25],  duration: 350,  colors: ['#ffffff', '#ffd452'], minDelay: 350, maxDelay: 600 },
+    saulePleureur:       { label: "Saule pleureur",                pattern: 'willow',  count: 20, size: [3, 4],   distance: [40, 70], fallDistance: [120, 180], duration: 2100, colors: ['#ffd452', '#ffb347', '#fff1c2'], minDelay: 1000, maxDelay: 1700 },
+    spirale:             { label: "En spirale",                    pattern: 'spiral',  count: 24, size: [5, 5],   distanceStep: 5.4, delayStep: 15, duration: 1100, colors: ['#c452ff', '#52c8ff', '#ff5252', '#ffd452'], minDelay: 700, maxDelay: 1200 }
 };
 
 let fireworkTypeEnabled = {};
@@ -9752,61 +9565,245 @@ function syncFireworkTypeToggles() {
 
 // --- Moteur sonore synthétisé, un "type" de son par famille de motif ---
 let fwAudioCtx = null;
+let fwMasterChain = null;   // { input, compressor }
+let fwReverbSend = null;
+let fwSharedNoiseBuffer = null;
+
 function fwGetAudioCtx() {
     if (!fwAudioCtx) fwAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
     if (fwAudioCtx.state === 'suspended') fwAudioCtx.resume();
     return fwAudioCtx;
 }
 
-function fwPlayNoiseBurst(duration, volume, filterFreq) {
+// Buffer de bruit blanc généré une seule fois et réutilisé pour tous les sons (au lieu de
+// recréer 1-2s de bruit à chaque appel) : moins coûteux, et le rendu reste cohérent d'un son à l'autre.
+function fwGetSharedNoiseBuffer() {
     const ctx = fwGetAudioCtx();
-    const bufferSize = Math.max(1, Math.floor(ctx.sampleRate * duration));
-    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    if (fwSharedNoiseBuffer) return fwSharedNoiseBuffer;
+    const length = ctx.sampleRate * 2; // 2 secondes de bruit, largement assez pour tous les sons
+    const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
     const data = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-
-    const noise = ctx.createBufferSource();
-    noise.buffer = buffer;
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'bandpass';
-    filter.frequency.value = filterFreq || 2000;
-    const gain = ctx.createGain();
-    gain.gain.setValueAtTime(volume, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
-
-    noise.connect(filter).connect(gain).connect(ctx.destination);
-    noise.start();
-    noise.stop(ctx.currentTime + duration);
+    for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
+    fwSharedNoiseBuffer = buffer;
+    return fwSharedNoiseBuffer;
 }
 
-function fwPlayTone(freqStart, freqEnd, duration, volume, type) {
+// Chaîne de sortie commune : compresseur (évite la saturation/écrêtage quand plusieurs sons se
+// chevauchent, "colle" le mix ensemble) + une petite réverb synthétique (délai + feedback +
+// filtre, sans fichier "impulse response" à héberger) pour donner de l'ampleur/de l'espace.
+function fwGetMasterChain() {
+    const ctx = fwGetAudioCtx();
+    if (fwMasterChain) return fwMasterChain;
+
+    const compressor = ctx.createDynamicsCompressor();
+    compressor.threshold.value = -18;
+    compressor.knee.value = 24;
+    compressor.ratio.value = 8;
+    compressor.attack.value = 0.003;
+    compressor.release.value = 0.25;
+    compressor.connect(ctx.destination);
+
+    const input = ctx.createGain();
+    input.gain.value = 0.9;
+    input.connect(compressor);
+
+    fwMasterChain = { input, compressor };
+    return fwMasterChain;
+}
+
+function fwGetReverbSend() {
+    const ctx = fwGetAudioCtx();
+    const master = fwGetMasterChain();
+    if (fwReverbSend) return fwReverbSend;
+
+    const delay = ctx.createDelay(1);
+    delay.delayTime.value = 0.15;
+    const feedback = ctx.createGain();
+    feedback.gain.value = 0.34;
+    const lowpass = ctx.createBiquadFilter();
+    lowpass.type = 'lowpass';
+    lowpass.frequency.value = 2400;
+    const wet = ctx.createGain();
+    wet.gain.value = 0.4;
+
+    delay.connect(lowpass);
+    lowpass.connect(feedback);
+    feedback.connect(delay);
+    delay.connect(wet);
+    wet.connect(master.input);
+
+    fwReverbSend = delay;
+    return fwReverbSend;
+}
+
+// Sortie commune à tous les sons : signal direct + envoi vers la réverb + un léger panoramique
+// stéréo aléatoire (donne une sensation d'espace, les tirs ne sortent pas tous pile au centre).
+function fwConnectOut(node, sendAmount, panValue) {
+    const ctx = fwGetAudioCtx();
+    const master = fwGetMasterChain();
+    const panner = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+
+    if (panner) {
+        panner.pan.value = panValue != null ? panValue : (Math.random() * 1.4 - 0.7);
+        node.connect(panner);
+        panner.connect(master.input);
+    } else {
+        node.connect(master.input);
+    }
+
+    if (sendAmount) {
+        const send = ctx.createGain();
+        send.gain.value = sendAmount;
+        node.connect(send);
+        send.connect(fwGetReverbSend());
+    }
+}
+
+function fwPlayNoiseBurst(duration, volume, filterFreq, options) {
+    const opts = options || {};
+    const ctx = fwGetAudioCtx();
+
+    const noise = ctx.createBufferSource();
+    noise.buffer = fwGetSharedNoiseBuffer();
+    // Point de départ aléatoire dans le buffer partagé : deux bruits joués au même instant ne
+    // sonnent jamais identiques, malgré la mise en cache.
+    noise.loop = false;
+    const startOffset = Math.random() * 1.5;
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = opts.filterType || 'bandpass';
+    filter.frequency.setValueAtTime(filterFreq || 2000, ctx.currentTime);
+    if (opts.filterSweepTo) {
+        filter.frequency.exponentialRampToValueAtTime(Math.max(opts.filterSweepTo, 30), ctx.currentTime + duration);
+    }
+    filter.Q.value = opts.q || 1;
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(volume, ctx.currentTime + Math.min(0.01, duration * 0.15));
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+
+    noise.connect(filter).connect(gain);
+    fwConnectOut(gain, opts.send != null ? opts.send : 0.28, opts.pan);
+    noise.start(ctx.currentTime, startOffset, duration);
+}
+
+function fwPlayTone(freqStart, freqEnd, duration, volume, type, options) {
+    const opts = options || {};
     const ctx = fwGetAudioCtx();
     const osc = ctx.createOscillator();
     osc.type = type || 'sine';
+    // Léger vibrato (LFO sur la fréquence) sur les sons tenus : évite le côté "synthé plat"
+    const detune = (Math.random() - 0.5) * (opts.detune || 0);
+    osc.detune.value = detune;
     osc.frequency.setValueAtTime(freqStart, ctx.currentTime);
     osc.frequency.exponentialRampToValueAtTime(Math.max(freqEnd, 1), ctx.currentTime + duration);
+
+    let vibratoLfo = null;
+    if (opts.vibrato) {
+        vibratoLfo = ctx.createOscillator();
+        vibratoLfo.frequency.value = opts.vibratoRate || 5;
+        const vibratoGain = ctx.createGain();
+        vibratoGain.gain.value = opts.vibrato;
+        vibratoLfo.connect(vibratoGain);
+        vibratoGain.connect(osc.frequency);
+        vibratoLfo.start();
+        vibratoLfo.stop(ctx.currentTime + duration);
+    }
+
     const gain = ctx.createGain();
-    gain.gain.setValueAtTime(volume, ctx.currentTime);
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(volume, ctx.currentTime + Math.min(0.015, duration * 0.1));
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
-    osc.connect(gain).connect(ctx.destination);
+
+    osc.connect(gain);
+    fwConnectOut(gain, opts.send != null ? opts.send : 0.28, opts.pan);
     osc.start();
     osc.stop(ctx.currentTime + duration);
 }
 
-function fwPlayBoom()      { fwPlayTone(120, 40, 0.35, 0.35, 'sine'); fwPlayNoiseBurst(0.4, 0.25, 500); }
-function fwPlayCrackle()   { for (let i = 0; i < 6; i++) setTimeout(() => fwPlayNoiseBurst(0.06, 0.15, 3000 + Math.random() * 3000), i * 55); }
-function fwPlayWhoosh()    { fwPlayTone(1800, 400, 0.9, 0.12, 'sawtooth'); }
-function fwPlayHiss()      { fwPlayNoiseBurst(0.6, 0.1, 5000); }
-function fwPlayBang()      { fwPlayNoiseBurst(0.25, 0.4, 800); fwPlayTone(200, 60, 0.2, 0.3, 'square'); }
-function fwPlayFlareHum()  { fwPlayTone(180, 170, 1.8, 0.08, 'sine'); }
-function fwPlayBeep()      { fwPlayTone(1200, 1200, 0.08, 0.15, 'square'); }
-function fwPlayBuzz()      { fwPlayTone(300, 250, 0.3, 0.1, 'sawtooth'); }
-function fwPlayWhistlePop(){ fwPlayTone(500, 1600, 0.6, 0.12, 'sine'); setTimeout(fwPlayBoom, 620); }
-function fwPlayPopSeries() { for (let i = 0; i < 5; i++) setTimeout(() => fwPlayNoiseBurst(0.08, 0.2, 1200), i * 260); }
-function fwPlayGroundPop() { fwPlayNoiseBurst(0.05, 0.2, 2500); }
+// --- Sons "travaillés" : plusieurs couches superposées par effet, avec une petite part de
+//     hasard (pitch, timing, panoramique) pour un rendu organique plutôt qu'un bip répétitif ---
+
+function fwPlayBoom() {
+    const pan = Math.random() * 1.2 - 0.6;
+    // Sub-bass (le "coup" ressenti dans le ventre)
+    fwPlayTone(85 + Math.random() * 15, 30, 0.55, 0.42, 'sine', { send: 0.32, pan });
+    // Corps médium qui donne le "punch"
+    fwPlayTone(170, 55, 0.2, 0.24, 'triangle', { send: 0.18, pan });
+    // Souffle de bruit filtré qui redescend (le "crac" de l'explosion)
+    fwPlayNoiseBurst(0.4, 0.24, 900, { filterType: 'lowpass', filterSweepTo: 180, send: 0.38, pan });
+    // Harmonique aiguë très brève, pour la morsure initiale du coup
+    fwPlayNoiseBurst(0.05, 0.15, 4500, { filterType: 'bandpass', q: 2, send: 0.2, pan });
+}
+
+function fwPlayCrackle() {
+    const hits = 7 + Math.floor(Math.random() * 6);
+    const basePan = Math.random() * 1.2 - 0.6;
+    for (let i = 0; i < hits; i++) {
+        setTimeout(() => {
+            fwPlayNoiseBurst(0.045 + Math.random() * 0.035, 0.12 + Math.random() * 0.05, 2600 + Math.random() * 4000, {
+                filterType: 'bandpass', q: 3.5 + Math.random() * 2, send: 0.3,
+                pan: basePan + (Math.random() - 0.5) * 0.6
+            });
+        }, i * (35 + Math.random() * 40));
+    }
+}
+
+function fwPlayWhoosh() {
+    const pan = Math.random() * 1.2 - 0.6;
+    fwPlayNoiseBurst(0.9, 0.11, 3800, { filterType: 'bandpass', filterSweepTo: 450, q: 0.7, send: 0.42, pan });
+    fwPlayTone(1500, 320, 0.9, 0.06, 'sawtooth', { send: 0.32, pan });
+}
+
+function fwPlayHiss() {
+    // Deux couches de bruit décalées pour un fizz continu plutôt qu'un souffle plat
+    fwPlayNoiseBurst(0.55, 0.09, 6500, { filterType: 'highpass', send: 0.2 });
+    fwPlayNoiseBurst(0.5, 0.05, 3200, { filterType: 'bandpass', q: 1.2, send: 0.15 });
+}
+
+function fwPlayBang() {
+    const pan = Math.random() * 1.2 - 0.6;
+    fwPlayNoiseBurst(0.2, 0.4, 1000, { filterType: 'lowpass', filterSweepTo: 220, send: 0.38, pan });
+    fwPlayTone(220, 55, 0.2, 0.32, 'square', { send: 0.25, pan });
+    fwPlayNoiseBurst(0.03, 0.18, 5000, { filterType: 'bandpass', q: 2, send: 0.2, pan });
+}
+
+function fwPlayFlareHum() {
+    fwPlayTone(182, 168, 1.8, 0.07, 'sine', { send: 0.42, vibrato: 3, vibratoRate: 4.5 });
+    fwPlayNoiseBurst(1.8, 0.018, 4200, { send: 0.42 });
+}
+
+function fwPlayBeep() {
+    fwPlayTone(1200, 1200, 0.07, 0.12, 'square', { send: 0.15 });
+}
+
+function fwPlayBuzz() {
+    fwPlayTone(300, 250, 0.3, 0.08, 'sawtooth', { send: 0.15 });
+    fwPlayTone(306, 256, 0.3, 0.05, 'sawtooth', { send: 0.1 }); // légèrement désaccordé : buzz plus "épais"
+}
+
+function fwPlayWhistlePop() {
+    const pan = Math.random() * 1.2 - 0.6;
+    fwPlayTone(420, 1750, 0.65, 0.1, 'sine', { send: 0.35, vibrato: 8, vibratoRate: 12, pan });
+    setTimeout(fwPlayBoom, 650);
+}
+
+function fwPlayPopSeries() {
+    for (let i = 0; i < 5; i++) {
+        setTimeout(() => {
+            fwPlayNoiseBurst(0.07, 0.19, 1000 + Math.random() * 500, { send: 0.25, pan: (Math.random() - 0.5) * 1.2 });
+        }, i * 260);
+    }
+}
+
+function fwPlayGroundPop() {
+    fwPlayNoiseBurst(0.05, 0.18, 2200 + Math.random() * 600, { filterType: 'bandpass', q: 3, send: 0.2 });
+}
 
 const FW_SOUND_BY_PATTERN = {
     radial:      () => { fwPlayBoom(); fwPlayCrackle(); },
+    spiral:      () => { fwPlayBoom(); fwPlayCrackle(); },
     willow:      () => { fwPlayWhoosh(); fwPlayCrackle(); },
     fountain:    fwPlayHiss,
     flash:       fwPlayBang,
@@ -9843,6 +9840,7 @@ function launchFireworkRecipe(key, overrideDef) {
 
     switch (def.pattern) {
         case 'radial':      fwPatternRadial(origin, def); break;
+        case 'spiral':       fwPatternSpiral(origin, def); break;
         case 'willow':       fwPatternWillow(origin, def); break;
         case 'fountain':     fwPatternFountain(def); break;
         case 'flash':        fwPatternFlash(origin, def); break;
@@ -9939,9 +9937,33 @@ function ensureFireworksManagerOverlay() {
                 <p class="fwm-section-title">25 effets</p>
                 <div id="fwm-list"></div>
 
-                <p class="fwm-section-title fwm-perso-title">🎨 Personnalisation</p>
-                <div id="fwm-palette" class="fwm-palette"></div>
-                <button class="fwm-create-btn" onclick="createCustomFirework()">Créer</button>
+                <button class="fwm-create-btn" onclick="toggleFwCreateForm()">➕ Créer un feu personnalisé</button>
+                <div id="fwm-create-form" style="display: none;">
+                    <p class="fwm-section-title fwm-perso-title">🎨 Personnalisation</p>
+                    <div id="fwm-palette" class="fwm-palette"></div>
+                    <div class="fwm-editor" id="fwm-new-options">
+                        <label>Effet de base</label>
+                        <select id="fwm-new-basetype"></select>
+                        <label>Taille</label>
+                        <select id="fwm-new-size">
+                            <option value="petit">Petit</option>
+                            <option value="moyen" selected>Moyen</option>
+                            <option value="grand">Grand</option>
+                            <option value="très grand">Très grand</option>
+                        </select>
+                        <label>Nombre simultané</label>
+                        <select id="fwm-new-rhythm">
+                            <option value="1" selected>1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                        </select>
+                        <label>Délai de réapparition</label>
+                        <select id="fwm-new-delay"></select>
+                        <button onclick="confirmCreateCustomFirework()">Créer</button>
+                    </div>
+                </div>
                 <div id="fwm-custom-list"></div>
             </div>
         `;
@@ -9983,7 +10005,6 @@ function toggleFireworksManager() {
     if (isClosed) {
         overlay.style.display = 'flex';
         renderFireworksManagerList();
-        renderFwPalette();
         renderCustomFireworksList();
         const soundToggle = document.getElementById('fwm-sound-toggle');
         if (soundToggle) soundToggle.checked = fireworksSoundEnabled;
@@ -9993,17 +10014,32 @@ function toggleFireworksManager() {
 }
 
 // --- Créateur de feux d'artifice personnalisés ---
-const FW_PALETTE_COLORS = ['#ff5252', '#ffd452', '#52ff8a', '#52c8ff', '#c452ff', '#ff8a52', '#ffffff', '#ff3366', '#fff45c', '#a0e8ff'];
+// 18 couleurs + le doré, plus une case "couleur aléatoire" (change de couleur à chaque tir,
+// parmi les 19 ci-dessus) — repérable par son dégradé arc-en-ciel plutôt qu'une teinte unique.
+const FW_PALETTE_COLORS = [
+    '#ff5252', '#ff3366', '#ff8a52', '#ffd452', '#fff45c',
+    '#52ff8a', '#7cfc00', '#52c8ff', '#00ffea', '#40e0d0', '#a0e8ff',
+    '#4169e1', '#c452ff', '#ff69b4', '#ff1493',
+    '#ffffff', '#c0c0c0', '#8b0000',
+    '#d4af37' // doré
+];
+const FW_RANDOM_COLOR_TOKEN = 'random';
 let fwCustomBuilderSelectedColors = [];
+
+function fwPickRandomPaletteColor() {
+    return FW_PALETTE_COLORS[Math.floor(Math.random() * FW_PALETTE_COLORS.length)];
+}
 
 function renderFwPalette() {
     const container = document.getElementById('fwm-palette');
     if (!container) return;
     container.innerHTML = '';
+
     FW_PALETTE_COLORS.forEach(color => {
         const swatch = document.createElement('div');
         swatch.className = 'fwm-swatch' + (fwCustomBuilderSelectedColors.includes(color) ? ' selected' : '');
         swatch.style.background = color;
+        swatch.title = color === '#d4af37' ? 'Doré' : color;
         swatch.onclick = () => {
             const idx = fwCustomBuilderSelectedColors.indexOf(color);
             if (idx >= 0) fwCustomBuilderSelectedColors.splice(idx, 1);
@@ -10012,6 +10048,53 @@ function renderFwPalette() {
         };
         container.appendChild(swatch);
     });
+
+    // Case "couleur aléatoire" : dégradé arc-en-ciel pour la distinguer visuellement des teintes fixes
+    const randomSwatch = document.createElement('div');
+    randomSwatch.className = 'fwm-swatch' + (fwCustomBuilderSelectedColors.includes(FW_RANDOM_COLOR_TOKEN) ? ' selected' : '');
+    randomSwatch.style.background = 'conic-gradient(red, orange, yellow, green, blue, violet, red)';
+    randomSwatch.title = 'Couleur aléatoire';
+    randomSwatch.onclick = () => {
+        const idx = fwCustomBuilderSelectedColors.indexOf(FW_RANDOM_COLOR_TOKEN);
+        if (idx >= 0) fwCustomBuilderSelectedColors.splice(idx, 1);
+        else fwCustomBuilderSelectedColors.push(FW_RANDOM_COLOR_TOKEN);
+        renderFwPalette();
+    };
+    container.appendChild(randomSwatch);
+}
+
+function toggleFwCreateForm() {
+    const form = document.getElementById('fwm-create-form');
+    if (!form) return;
+    const isHidden = form.style.display === 'none' || form.style.display === '';
+    form.style.display = isHidden ? 'block' : 'none';
+    if (isHidden) {
+        fwCustomBuilderSelectedColors = [];
+        renderFwPalette();
+        populateFwNewFireworkOptions();
+    }
+}
+
+function populateFwNewFireworkOptions() {
+    const baseSelect = document.getElementById('fwm-new-basetype');
+    if (baseSelect && baseSelect.options.length === 0) {
+        Object.keys(FIREWORK_RECIPES).forEach(key => {
+            const opt = document.createElement('option');
+            opt.value = key;
+            opt.innerText = FIREWORK_RECIPES[key].label;
+            baseSelect.appendChild(opt);
+        });
+    }
+    const delaySelect = document.getElementById('fwm-new-delay');
+    if (delaySelect && delaySelect.options.length === 0) {
+        [0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20].forEach(d => {
+            const opt = document.createElement('option');
+            opt.value = d;
+            opt.innerText = `${d}s`;
+            if (d === 3) opt.selected = true;
+            delaySelect.appendChild(opt);
+        });
+    }
 }
 
 let customFireworks = JSON.parse(localStorage.getItem('customFireworksList') || '[]');
@@ -10022,7 +10105,7 @@ function saveCustomFireworksList() {
     localStorage.setItem('customFireworksList', JSON.stringify(customFireworks));
 }
 
-function createCustomFirework() {
+function confirmCreateCustomFirework() {
     if (fwCustomBuilderSelectedColors.length === 0) {
         alert("Choisis au moins une couleur avant de créer un feu d'artifice personnalisé.");
         return;
@@ -10034,17 +10117,17 @@ function createCustomFirework() {
         id: 'custom_' + Date.now(),
         name: String(customFireworksCounter), // "1", puis "2", etc.
         colors: [...fwCustomBuilderSelectedColors],
-        baseType: 'pivoine',
-        size: 'moyen',
-        rhythm: 1,
-        delay: 3,
+        baseType: document.getElementById('fwm-new-basetype').value,
+        size: document.getElementById('fwm-new-size').value,
+        rhythm: parseInt(document.getElementById('fwm-new-rhythm').value, 10),
+        delay: parseFloat(document.getElementById('fwm-new-delay').value),
         enabled: true
     };
     customFireworks.push(fw);
     saveCustomFireworksList();
 
     fwCustomBuilderSelectedColors = [];
-    renderFwPalette();
+    document.getElementById('fwm-create-form').style.display = 'none';
     renderCustomFireworksList();
     scheduleCustomFirework(fw.id);
 }
@@ -10077,7 +10160,6 @@ function launchCustomFirework(id) {
 
     const scaledDef = {
         ...baseDef,
-        colors: fw.colors,
         count: baseDef.count ? Math.round(baseDef.count * mult) : baseDef.count,
         size: baseDef.size ? baseDef.size.map(s => s * mult) : baseDef.size,
         distance: baseDef.distance ? baseDef.distance.map(d => d * mult) : baseDef.distance,
@@ -10086,7 +10168,10 @@ function launchCustomFirework(id) {
     };
 
     for (let r = 0; r < fw.rhythm; r++) {
-        setTimeout(() => launchFireworkRecipe(fw.baseType, scaledDef), r * 120);
+        // La case "couleur aléatoire" est résolue ici, à chaque tir (pas une fois pour toutes à la
+        // création) : si elle est cochée, une couleur différente est tirée parmi la palette à chaque lancement.
+        const perShotDef = { ...scaledDef, colors: fw.colors.map(c => c === FW_RANDOM_COLOR_TOKEN ? fwPickRandomPaletteColor() : c) };
+        setTimeout(() => launchFireworkRecipe(fw.baseType, perShotDef), r * 120);
     }
 }
 
@@ -10105,6 +10190,8 @@ function initCustomFireworks() {
     customFireworks.forEach(fw => { if (fw.enabled) scheduleCustomFirework(fw.id); });
 }
 
+let fwEditorSelectedColors = {}; // { customFireworkId: ['#ff5252', 'random', ...] }
+
 function buildCustomFireworkEditorHtml(fw) {
     const baseOptions = Object.keys(FIREWORK_RECIPES).map(k =>
         `<option value="${k}" ${fw.baseType === k ? 'selected' : ''}>${FIREWORK_RECIPES[k].label}</option>`
@@ -10122,6 +10209,8 @@ function buildCustomFireworkEditorHtml(fw) {
 
     return `
         <div class="fwm-editor">
+            <label>🎨 Couleurs</label>
+            <div id="fwm-edit-palette-${fw.id}" class="fwm-palette"></div>
             <label>Effet de base</label>
             <select id="fwm-edit-basetype-${fw.id}">${baseOptions}</select>
             <label>Taille</label>
@@ -10135,6 +10224,42 @@ function buildCustomFireworkEditorHtml(fw) {
     `;
 }
 
+// Rendu de la palette DANS le formulaire d'édition d'un feu déjà créé — même liste de couleurs
+// que la création, mais avec la sélection déjà en place (les couleurs actuelles du feu édité).
+function renderFwEditorPalette(fw) {
+    const container = document.getElementById(`fwm-edit-palette-${fw.id}`);
+    if (!container) return;
+    if (!fwEditorSelectedColors[fw.id]) fwEditorSelectedColors[fw.id] = [...fw.colors];
+    const selected = fwEditorSelectedColors[fw.id];
+
+    container.innerHTML = '';
+    FW_PALETTE_COLORS.forEach(color => {
+        const swatch = document.createElement('div');
+        swatch.className = 'fwm-swatch' + (selected.includes(color) ? ' selected' : '');
+        swatch.style.background = color;
+        swatch.title = color === '#d4af37' ? 'Doré' : color;
+        swatch.onclick = () => {
+            const idx = selected.indexOf(color);
+            if (idx >= 0) selected.splice(idx, 1);
+            else selected.push(color);
+            renderFwEditorPalette(fw);
+        };
+        container.appendChild(swatch);
+    });
+
+    const randomSwatch = document.createElement('div');
+    randomSwatch.className = 'fwm-swatch' + (selected.includes(FW_RANDOM_COLOR_TOKEN) ? ' selected' : '');
+    randomSwatch.style.background = 'conic-gradient(red, orange, yellow, green, blue, violet, red)';
+    randomSwatch.title = 'Couleur aléatoire';
+    randomSwatch.onclick = () => {
+        const idx = selected.indexOf(FW_RANDOM_COLOR_TOKEN);
+        if (idx >= 0) selected.splice(idx, 1);
+        else selected.push(FW_RANDOM_COLOR_TOKEN);
+        renderFwEditorPalette(fw);
+    };
+    container.appendChild(randomSwatch);
+}
+
 function openCustomFireworkEditor(id) {
     const container = document.getElementById(`fwm-editor-${id}`);
     if (!container) return;
@@ -10142,17 +10267,29 @@ function openCustomFireworkEditor(id) {
     if (!fw) return;
     const isHidden = container.style.display === 'none' || container.style.display === '';
     container.style.display = isHidden ? 'block' : 'none';
-    if (isHidden) container.innerHTML = buildCustomFireworkEditorHtml(fw);
+    if (isHidden) {
+        container.innerHTML = buildCustomFireworkEditorHtml(fw);
+        renderFwEditorPalette(fw);
+    }
 }
 
 function saveCustomFireworkEdits(id) {
     const fw = customFireworks.find(f => f.id === id);
     if (!fw) return;
+
+    const selectedColors = fwEditorSelectedColors[id];
+    if (!selectedColors || selectedColors.length === 0) {
+        alert("Choisis au moins une couleur.");
+        return;
+    }
+
+    fw.colors = [...selectedColors];
     fw.baseType = document.getElementById(`fwm-edit-basetype-${id}`).value;
     fw.size = document.getElementById(`fwm-edit-size-${id}`).value;
     fw.rhythm = parseInt(document.getElementById(`fwm-edit-rhythm-${id}`).value, 10);
     fw.delay = parseFloat(document.getElementById(`fwm-edit-delay-${id}`).value);
     saveCustomFireworksList();
+    delete fwEditorSelectedColors[id];
     if (customFireworksIntervalIds[id]) { clearTimeout(customFireworksIntervalIds[id]); delete customFireworksIntervalIds[id]; }
     if (fw.enabled) scheduleCustomFirework(id);
     document.getElementById(`fwm-editor-${id}`).style.display = 'none';
@@ -10180,6 +10317,7 @@ function renderCustomFireworksList() {
     });
 }
 
+    
     </script>
 </body>
 </html>
