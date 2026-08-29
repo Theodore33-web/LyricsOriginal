@@ -1,1 +1,1925 @@
 
+// ==========================================
+// 5 EFFETS FEUX D'ARTIFICE — réguliers, intenses, rapides, 5 types différents
+// ==========================================
+
+// --- 1. FEUX D'ARTIFICE CLASSIQUES RAPIDES (éclatement radial classique, très fréquent) ---
+function injectFeuxClassiquesStyles() {
+    if (document.getElementById('feux-classiques-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'feux-classiques-inline-style';
+    styleTag.textContent = `
+        .fw-classique-particle {
+            position: fixed;
+            width: 5px; height: 5px;
+            border-radius: 50%;
+            z-index: 400;
+            pointer-events: none;
+            animation: fw-classique-burst 1s ease-out forwards;
+        }
+        @keyframes fw-classique-burst {
+            0%   { transform: translate(0, 0) scale(1); opacity: 1; }
+            100% { transform: translate(var(--dx), var(--dy)) scale(0.3); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectFeuxClassiquesStyles();
+
+let feuxClassiquesIntervalId = null;
+
+function launchFeuxClassiques() {
+    const colors = ['#ff5252', '#ffd452', '#52ff8a', '#52c8ff', '#c452ff', '#ff8a52'];
+    const originX = 10 + Math.random() * 80;
+    const originY = 10 + Math.random() * 50;
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const count = 18;
+
+    for (let i = 0; i < count; i++) {
+        const angle = (i / count) * Math.PI * 2;
+        const distance = 60 + Math.random() * 40;
+        const particle = document.createElement('div');
+        particle.className = 'fw-classique-particle';
+        particle.style.left = `${originX}%`;
+        particle.style.top = `${originY}%`;
+        particle.style.background = color;
+        particle.style.boxShadow = `0 0 6px 2px ${color}`;
+        particle.style.setProperty('--dx', `${Math.cos(angle) * distance}px`);
+        particle.style.setProperty('--dy', `${Math.sin(angle) * distance}px`);
+        document.body.appendChild(particle);
+        setTimeout(() => particle.remove(), 1050);
+    }
+}
+
+function scheduleNextFeuxClassiques() {
+    if (!feuxClassiquesEnabled) return;
+    const delay = 500 + Math.random() * 400; // rapide et régulier
+    feuxClassiquesIntervalId = setTimeout(() => {
+        if (feuxClassiquesEnabled) launchFeuxClassiques();
+        scheduleNextFeuxClassiques();
+    }, delay);
+}
+
+function toggleFeuxClassiquesSetting(checked) {
+    feuxClassiquesEnabled = checked;
+    localStorage.setItem('feuxClassiquesEnabled', checked ? 'true' : 'false');
+    if (feuxClassiquesIntervalId) { clearTimeout(feuxClassiquesIntervalId); feuxClassiquesIntervalId = null; }
+    if (checked) scheduleNextFeuxClassiques();
+}
+
+function initFeuxClassiquesState() {
+    if (feuxClassiquesEnabled) scheduleNextFeuxClassiques();
+}
+
+// --- 2. FEUX D'ARTIFICE EN FONTAINE (jaillissent du bas, retombent) ---
+function injectFeuxFontaineStyles() {
+    if (document.getElementById('feux-fontaine-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'feux-fontaine-inline-style';
+    styleTag.textContent = `
+        .fw-fontaine-particle {
+            position: fixed;
+            bottom: 0;
+            width: 4px; height: 4px;
+            border-radius: 50%;
+            z-index: 400;
+            pointer-events: none;
+            animation: fw-fontaine-arc 1.3s ease-out forwards;
+        }
+        @keyframes fw-fontaine-arc {
+            0%   { transform: translate(0, 0); opacity: 1; }
+            60%  { transform: translate(var(--dx), calc(-1 * var(--h))); opacity: 1; }
+            100% { transform: translate(var(--dx), calc(-1 * var(--h))); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectFeuxFontaineStyles();
+
+let feuxFontaineIntervalId = null;
+
+function launchFeuxFontaine() {
+    const colors = ['#ffd452', '#ff8a52', '#52c8ff', '#52ff8a'];
+    const originX = 15 + Math.random() * 70;
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const count = 10;
+
+    for (let i = 0; i < count; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'fw-fontaine-particle';
+        particle.style.left = `${originX}%`;
+        particle.style.background = color;
+        particle.style.boxShadow = `0 0 6px 2px ${color}`;
+        particle.style.setProperty('--dx', `${(Math.random() - 0.5) * 60}px`);
+        particle.style.setProperty('--h', `${140 + Math.random() * 80}px`);
+        particle.style.animationDelay = `${Math.random() * 0.15}s`;
+        document.body.appendChild(particle);
+        setTimeout(() => particle.remove(), 1550);
+    }
+}
+
+function scheduleNextFeuxFontaine() {
+    if (!feuxFontaineEnabled) return;
+    const delay = 400 + Math.random() * 350;
+    feuxFontaineIntervalId = setTimeout(() => {
+        if (feuxFontaineEnabled) launchFeuxFontaine();
+        scheduleNextFeuxFontaine();
+    }, delay);
+}
+
+function toggleFeuxFontaineSetting(checked) {
+    feuxFontaineEnabled = checked;
+    localStorage.setItem('feuxFontaineEnabled', checked ? 'true' : 'false');
+    if (feuxFontaineIntervalId) { clearTimeout(feuxFontaineIntervalId); feuxFontaineIntervalId = null; }
+    if (checked) scheduleNextFeuxFontaine();
+}
+
+function initFeuxFontaineState() {
+    if (feuxFontaineEnabled) scheduleNextFeuxFontaine();
+}
+
+// --- "En spirale" a rejoint le gestionnaire de feux d'artifice (bouton 🎆) : voir FIREWORK_RECIPES
+//     et fwPatternSpiral() plus bas, ce n'est plus un réglage séparé ici. ---
+
+// --- PÉTARD CLIC-CLAC (réglage indépendant, réutilise le motif "groundPop" du gestionnaire) ---
+let petardClicClacEnabled = localStorage.getItem('petardClicClacEnabled') === 'true';
+let petardClicClacIntervalId = null;
+const PETARD_CLIC_CLAC_DEF = { pattern: 'groundPop', count: 6, size: [3, 3], distance: [15, 25], duration: 350, colors: ['#ffffff', '#ffd452'], minDelay: 350, maxDelay: 600 };
+
+function scheduleNextPetardClicClac() {
+    if (!petardClicClacEnabled) return;
+    const delay = PETARD_CLIC_CLAC_DEF.minDelay + Math.random() * (PETARD_CLIC_CLAC_DEF.maxDelay - PETARD_CLIC_CLAC_DEF.minDelay);
+    petardClicClacIntervalId = setTimeout(() => {
+        if (petardClicClacEnabled) {
+            playFireworkSoundForPattern(PETARD_CLIC_CLAC_DEF.pattern);
+            fwPatternGroundPop(PETARD_CLIC_CLAC_DEF);
+        }
+        scheduleNextPetardClicClac();
+    }, delay);
+}
+
+function togglePetardClicClacSetting(checked) {
+    petardClicClacEnabled = checked;
+    localStorage.setItem('petardClicClacEnabled', checked ? 'true' : 'false');
+    if (petardClicClacIntervalId) { clearTimeout(petardClicClacIntervalId); petardClicClacIntervalId = null; }
+    if (checked) scheduleNextPetardClicClac();
+}
+
+function initPetardClicClacState() {
+    if (petardClicClacEnabled) scheduleNextPetardClicClac();
+}
+
+// --- 4. FEUX D'ARTIFICE CRÉPITANTS (beaucoup de mini étincelles denses et brèves) ---
+function injectFeuxCrepitantsStyles() {
+    if (document.getElementById('feux-crepitants-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'feux-crepitants-inline-style';
+    styleTag.textContent = `
+        .fw-crepitant-particle {
+            position: fixed;
+            width: 2.5px; height: 2.5px;
+            border-radius: 50%;
+            z-index: 400;
+            pointer-events: none;
+            animation: fw-crepitant-flick 0.45s ease-out forwards;
+        }
+        @keyframes fw-crepitant-flick {
+            0%   { transform: translate(0, 0); opacity: 1; }
+            100% { transform: translate(var(--dx), var(--dy)); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectFeuxCrepitantsStyles();
+
+let feuxCrepitantsIntervalId = null;
+
+function launchFeuxCrepitants() {
+    const colors = ['#fff45c', '#ffffff', '#ff8a52'];
+    const originX = 10 + Math.random() * 80;
+    const originY = 10 + Math.random() * 55;
+    const count = 26;
+
+    for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const distance = 15 + Math.random() * 20; // rayon court : effet dense, pas un grand éclatement
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        const particle = document.createElement('div');
+        particle.className = 'fw-crepitant-particle';
+        particle.style.left = `${originX}%`;
+        particle.style.top = `${originY}%`;
+        particle.style.background = color;
+        particle.style.boxShadow = `0 0 4px 1px ${color}`;
+        particle.style.setProperty('--dx', `${Math.cos(angle) * distance}px`);
+        particle.style.setProperty('--dy', `${Math.sin(angle) * distance}px`);
+        document.body.appendChild(particle);
+        setTimeout(() => particle.remove(), 500);
+    }
+}
+
+function scheduleNextFeuxCrepitants() {
+    if (!feuxCrepitantsEnabled) return;
+    const delay = 300 + Math.random() * 250; // très fréquent, effet crépitant continu
+    feuxCrepitantsIntervalId = setTimeout(() => {
+        if (feuxCrepitantsEnabled) launchFeuxCrepitants();
+        scheduleNextFeuxCrepitants();
+    }, delay);
+}
+
+function toggleFeuxCrepitantsSetting(checked) {
+    feuxCrepitantsEnabled = checked;
+    localStorage.setItem('feuxCrepitantsEnabled', checked ? 'true' : 'false');
+    if (feuxCrepitantsIntervalId) { clearTimeout(feuxCrepitantsIntervalId); feuxCrepitantsIntervalId = null; }
+    if (checked) scheduleNextFeuxCrepitants();
+}
+
+function initFeuxCrepitantsState() {
+    if (feuxCrepitantsEnabled) scheduleNextFeuxCrepitants();
+}
+
+// --- 5. FEUX D'ARTIFICE GÉANTS (bien plus gros, plus de particules, toujours fréquents) ---
+function injectFeuxGeantsStyles() {
+    if (document.getElementById('feux-geants-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'feux-geants-inline-style';
+    styleTag.textContent = `
+        .fw-geant-particle {
+            position: fixed;
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            z-index: 400;
+            pointer-events: none;
+            animation: fw-geant-burst 1.4s ease-out forwards;
+        }
+        @keyframes fw-geant-burst {
+            0%   { transform: translate(0, 0) scale(1); opacity: 1; }
+            100% { transform: translate(var(--dx), var(--dy)) scale(0.2); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectFeuxGeantsStyles();
+
+let feuxGeantsIntervalId = null;
+
+function launchFeuxGeants() {
+    const colors = ['#ff5252', '#ffd452', '#52ff8a', '#52c8ff', '#c452ff', '#ff8a52'];
+    const originX = 15 + Math.random() * 70;
+    const originY = 10 + Math.random() * 40;
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const count = 32;
+
+    for (let i = 0; i < count; i++) {
+        const angle = (i / count) * Math.PI * 2;
+        const distance = 110 + Math.random() * 60;
+        const particle = document.createElement('div');
+        particle.className = 'fw-geant-particle';
+        particle.style.left = `${originX}%`;
+        particle.style.top = `${originY}%`;
+        particle.style.background = color;
+        particle.style.boxShadow = `0 0 10px 3px ${color}`;
+        particle.style.setProperty('--dx', `${Math.cos(angle) * distance}px`);
+        particle.style.setProperty('--dy', `${Math.sin(angle) * distance}px`);
+        document.body.appendChild(particle);
+        setTimeout(() => particle.remove(), 1450);
+    }
+}
+
+function scheduleNextFeuxGeants() {
+    if (!feuxGeantsEnabled) return;
+    const delay = 900 + Math.random() * 600;
+    feuxGeantsIntervalId = setTimeout(() => {
+        if (feuxGeantsEnabled) launchFeuxGeants();
+        scheduleNextFeuxGeants();
+    }, delay);
+}
+
+function toggleFeuxGeantsSetting(checked) {
+    feuxGeantsEnabled = checked;
+    localStorage.setItem('feuxGeantsEnabled', checked ? 'true' : 'false');
+    if (feuxGeantsIntervalId) { clearTimeout(feuxGeantsIntervalId); feuxGeantsIntervalId = null; }
+    if (checked) scheduleNextFeuxGeants();
+}
+
+function initFeuxGeantsState() {
+    if (feuxGeantsEnabled) scheduleNextFeuxGeants();
+}
+
+// ==========================================
+// SPECTRE AUDIO ANIMÉ 2.0
+// Même mécanique que le spectre d'origine (initSpectrum) : détecte isCurrentlyPlaying pour
+// savoir si c'est en pause ou non, mêmes barres qui montent/descendent en douceur. On y ajoute
+// l'orange et le jaune à la palette, et les couleurs défilent en continu (la bande de couleur
+// avance de gauche à droite au fil du temps, plutôt que rester fixe par position de barre).
+// ==========================================
+
+function injectSpectrum2Styles() {
+    if (document.getElementById('spectrum2-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'spectrum2-inline-style';
+    styleTag.textContent = `
+        #spectrum2-canvas {
+            display: none;
+            position: fixed;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            height: 60px;
+            z-index: 500;
+            pointer-events: none;
+            background: transparent;
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectSpectrum2Styles();
+
+function ensureSpectrum2Canvas() {
+    let canvas = document.getElementById('spectrum2-canvas');
+    if (!canvas) {
+        canvas = document.createElement('canvas');
+        canvas.id = 'spectrum2-canvas';
+        document.body.appendChild(canvas);
+    }
+    return canvas;
+}
+
+let spectrum2Bars = [];
+let spectrum2AnimId = null;
+let spectrum2ColorScroll = 0;
+
+function initSpectrum2() {
+    const canvas = ensureSpectrum2Canvas();
+    const ctx = canvas.getContext('2d');
+    const barCount = 48;
+
+    spectrum2Bars = Array.from({ length: barCount }, () => ({
+        phase: Math.random() * Math.PI * 2,
+        speed: 0.02 + Math.random() * 0.035,
+        current: 0.04
+    }));
+
+    function resizeCanvas() {
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * window.devicePixelRatio;
+        canvas.height = rect.height * window.devicePixelRatio;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    function draw() {
+        spectrum2AnimId = requestAnimationFrame(draw);
+
+        const w = canvas.width;
+        const h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+
+        if (!spectrum2Enabled) {
+            spectrum2Bars.forEach(bar => { bar.current = 0.04; });
+            return;
+        }
+
+        // Même détection pause/lecture que le spectre d'origine
+        const active = spectrum2Enabled && isCurrentlyPlaying;
+        const barWidth = w / spectrum2Bars.length;
+
+        // Les couleurs défilent en continu, indépendamment de la lecture
+        spectrum2ColorScroll += 0.6;
+
+        spectrum2Bars.forEach((bar, i) => {
+            bar.phase += bar.speed;
+
+            const targetAmplitude = active
+                ? (0.25 + 0.75 * Math.abs(Math.sin(bar.phase)))
+                : 0.04;
+            bar.current += (targetAmplitude - bar.current) * 0.08;
+
+            const barHeight = Math.max(2, bar.current * h);
+            // Palette étendue : vert → jaune → orange → bleu → rose (boucle sur 360°),
+            // + décalage qui avance dans le temps pour faire défiler la bande de gauche à droite
+            const hue = (i / spectrum2Bars.length) * 360 + spectrum2ColorScroll;
+
+            const gradient = ctx.createLinearGradient(0, h, 0, h - barHeight);
+            gradient.addColorStop(0, `hsl(${hue}, 90%, 45%)`);
+            gradient.addColorStop(1, `hsl(${hue}, 90%, 70%)`);
+            ctx.fillStyle = gradient;
+
+            const x = i * barWidth;
+            const gap = barWidth * 0.15;
+            ctx.fillRect(x + gap, h - barHeight, barWidth - gap * 2, barHeight);
+        });
+    }
+    draw();
+}
+
+function toggleSpectrum2Setting(checked) {
+    spectrum2Enabled = checked;
+    localStorage.setItem('spectrum2Enabled', checked ? 'true' : 'false');
+    const canvas = ensureSpectrum2Canvas();
+    canvas.style.display = checked ? 'block' : 'none';
+    if (checked && !spectrum2AnimId) initSpectrum2();
+}
+
+function initSpectrum2State() {
+    const canvas = ensureSpectrum2Canvas();
+    canvas.style.display = spectrum2Enabled ? 'block' : 'none';
+    if (spectrum2Enabled) initSpectrum2();
+}
+
+// --- "Saule pleureur" a rejoint le gestionnaire de feux d'artifice (bouton 🎆) : voir
+//     FIREWORK_RECIPES et le motif "willow" plus bas, ce n'est plus un réglage séparé ici. ---
+
+// --- 7. FEU D'ARTIFICE "DOUBLE EXPLOSION" (éclatement principal + mini-éclatements secondaires) ---
+function injectFeuxDoubleStyles() {
+    if (document.getElementById('feux-double-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'feux-double-inline-style';
+    styleTag.textContent = `
+        .fw-double-particle {
+            position: fixed;
+            border-radius: 50%;
+            z-index: 400;
+            pointer-events: none;
+            animation: fw-double-out linear forwards;
+        }
+        @keyframes fw-double-out {
+            0%   { transform: translate(0, 0) scale(1); opacity: 1; }
+            100% { transform: translate(var(--dx), var(--dy)) scale(0.3); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectFeuxDoubleStyles();
+
+let feuxDoubleIntervalId = null;
+
+function spawnFeuxDoubleParticle(xPx, yPx, dx, dy, size, color, duration) {
+    const particle = document.createElement('div');
+    particle.className = 'fw-double-particle';
+    particle.style.left = `${xPx}px`;
+    particle.style.top = `${yPx}px`;
+    particle.style.width = `${size}px`;
+    particle.style.height = `${size}px`;
+    particle.style.background = color;
+    particle.style.boxShadow = `0 0 6px 2px ${color}`;
+    particle.style.setProperty('--dx', `${dx}px`);
+    particle.style.setProperty('--dy', `${dy}px`);
+    particle.style.animationDuration = `${duration}ms`;
+    document.body.appendChild(particle);
+    setTimeout(() => particle.remove(), duration + 50);
+}
+
+function launchFeuxDouble() {
+    const colors = ['#ff5252', '#ffd452', '#52c8ff', '#c452ff'];
+    const originXpx = window.innerWidth * (0.15 + Math.random() * 0.7);
+    const originYpx = window.innerHeight * (0.1 + Math.random() * 0.4);
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const primaryCount = 12;
+    const primaryDuration = 900;
+
+    for (let i = 0; i < primaryCount; i++) {
+        const angle = (i / primaryCount) * Math.PI * 2;
+        const distance = 70 + Math.random() * 30;
+        const dx = Math.cos(angle) * distance;
+        const dy = Math.sin(angle) * distance;
+
+        spawnFeuxDoubleParticle(originXpx, originYpx, dx, dy, 6, color, primaryDuration);
+
+        // À mi-parcours de la particule principale, un mini-éclatement secondaire se déclenche
+        // à sa position du moment — effet de crépitement en deux temps.
+        setTimeout(() => {
+            const secondaryX = originXpx + dx * 0.5;
+            const secondaryY = originYpx + dy * 0.5;
+            const secondaryColor = colors[Math.floor(Math.random() * colors.length)];
+            for (let k = 0; k < 5; k++) {
+                const angle2 = Math.random() * Math.PI * 2;
+                const distance2 = 15 + Math.random() * 15;
+                spawnFeuxDoubleParticle(
+                    secondaryX, secondaryY,
+                    Math.cos(angle2) * distance2, Math.sin(angle2) * distance2,
+                    3, secondaryColor, 450
+                );
+            }
+        }, primaryDuration * 0.5);
+    }
+}
+
+function scheduleNextFeuxDouble() {
+    if (!feuxDoubleEnabled) return;
+    const delay = 700 + Math.random() * 500;
+    feuxDoubleIntervalId = setTimeout(() => {
+        if (feuxDoubleEnabled) launchFeuxDouble();
+        scheduleNextFeuxDouble();
+    }, delay);
+}
+
+function toggleFeuxDoubleSetting(checked) {
+    feuxDoubleEnabled = checked;
+    localStorage.setItem('feuxDoubleEnabled', checked ? 'true' : 'false');
+    if (feuxDoubleIntervalId) { clearTimeout(feuxDoubleIntervalId); feuxDoubleIntervalId = null; }
+    if (checked) scheduleNextFeuxDouble();
+}
+
+function initFeuxDoubleState() {
+    if (feuxDoubleEnabled) scheduleNextFeuxDouble();
+}
+
+// ==========================================
+// BOUTON RIDEAU 🎭 — réglage désactivé par défaut, bouton fixe qui ferme/ouvre le rideau
+// à chaque clic (contrairement aux effets d'ambiance automatiques : ici c'est l'utilisateur
+// qui contrôle l'état). Positionné à droite du bouton pétard, même style de bouton.
+// Style de rideau revu : plis (texture rayée), liseré doré sur le bord intérieur, bord bas
+// festonné, et une animation plus "tissu" (léger effet d'élan au début/à la fin du mouvement).
+// ==========================================
+let rideauBtnEnabled = localStorage.getItem('rideauBtnEnabled') === 'true'; // désactivé par défaut
+let rideauBtnClosed = false; // état runtime (pas persisté) : ouvert par défaut à chaque chargement
+
+function injectRideauBtnStyles() {
+    if (document.getElementById('rideau-btn-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'rideau-btn-inline-style';
+    styleTag.textContent = `
+        #rideau-btn {
+            position: fixed !important;
+            left: 86px !important;
+            bottom: 16px !important;
+            width: 60px !important;
+            height: 60px !important;
+            border-radius: 50% !important;
+            background: rgba(0,0,0,0.55) !important;
+            border: none !important;
+            font-size: 1.8rem !important;
+            display: none;
+            align-items: center !important;
+            justify-content: center !important;
+            cursor: pointer !important;
+            z-index: 500 !important;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.4) !important;
+            transition: transform 0.15s ease !important;
+        }
+        #rideau-btn.pressed {
+            transform: scale(0.82) !important;
+        }
+
+        #rideau-wrapper {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 400;
+            pointer-events: none;
+            overflow: hidden;
+        }
+        .rideau-panel {
+            position: absolute;
+            top: 0;
+            width: 51%;
+            height: 100%;
+            background:
+                repeating-linear-gradient(90deg,
+                    rgba(0,0,0,0.18) 0px, transparent 14px, transparent 28px, rgba(0,0,0,0.18) 42px),
+                linear-gradient(90deg, #4a0505, #8b0000 55%, #4a0505);
+            box-shadow: 0 0 50px 14px rgba(0, 0, 0, 0.65);
+            transition: transform 1.4s cubic-bezier(0.65, -0.15, 0.35, 1.15);
+        }
+        /* Bord bas festonné (effet tissu drapé) */
+        .rideau-panel::after {
+            content: "";
+            position: absolute;
+            bottom: -14px;
+            left: 0;
+            width: 100%;
+            height: 24px;
+            background: radial-gradient(circle at 10px 0, transparent 12px, #4a0505 13px);
+            background-size: 24px 24px;
+            background-repeat: repeat-x;
+        }
+        /* Liseré doré sur le bord intérieur */
+        .rideau-panel.left::before {
+            content: "";
+            position: absolute;
+            top: 0; right: 0;
+            width: 5px; height: 100%;
+            background: linear-gradient(180deg, #ffd452, #a8791a, #ffd452);
+            box-shadow: 0 0 8px 2px rgba(255, 212, 82, 0.6);
+        }
+        .rideau-panel.right::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0;
+            width: 5px; height: 100%;
+            background: linear-gradient(180deg, #ffd452, #a8791a, #ffd452);
+            box-shadow: 0 0 8px 2px rgba(255, 212, 82, 0.6);
+        }
+        .rideau-panel.left  { left: 0; transform: translateX(-100%); }
+        .rideau-panel.right { right: 0; transform: translateX(100%); }
+        .rideau-panel.closed.left  { transform: translateX(0%); }
+        .rideau-panel.closed.right { transform: translateX(0%); }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectRideauBtnStyles();
+
+function ensureRideauWrapper() {
+    let wrapper = document.getElementById('rideau-wrapper');
+    if (!wrapper) {
+        wrapper = document.createElement('div');
+        wrapper.id = 'rideau-wrapper';
+        const left = document.createElement('div');
+        left.className = 'rideau-panel left';
+        const right = document.createElement('div');
+        right.className = 'rideau-panel right';
+        wrapper.appendChild(left);
+        wrapper.appendChild(right);
+        document.body.appendChild(wrapper);
+    }
+    return wrapper;
+}
+
+function ensureRideauBtn() {
+    let btn = document.getElementById('rideau-btn');
+    if (!btn) {
+        btn = document.createElement('button');
+        btn.id = 'rideau-btn';
+        btn.innerText = '🎭';
+        btn.title = "Fermer / ouvrir le rideau";
+        btn.style.display = 'none';
+        btn.onclick = toggleRideauClick;
+        document.body.appendChild(btn);
+    }
+    return btn;
+}
+
+// Un clic = ferme si ouvert, ouvre si fermé
+function toggleRideauClick() {
+    const btn = document.getElementById('rideau-btn');
+    if (btn) {
+        btn.classList.add('pressed');
+        setTimeout(() => btn.classList.remove('pressed'), 150);
+    }
+
+    const wrapper = ensureRideauWrapper();
+    wrapper.style.display = 'block';
+    rideauBtnClosed = !rideauBtnClosed;
+    wrapper.querySelectorAll('.rideau-panel').forEach(p => p.classList.toggle('closed', rideauBtnClosed));
+}
+
+function toggleRideauBtnSetting(checked) {
+    rideauBtnEnabled = checked;
+    localStorage.setItem('rideauBtnEnabled', checked ? 'true' : 'false');
+    const btn = ensureRideauBtn();
+    btn.style.display = checked ? 'flex' : 'none';
+}
+
+function initRideauBtnState() {
+    const btn = ensureRideauBtn();
+    btn.style.display = rideauBtnEnabled ? 'flex' : 'none';
+}
+
+// ==========================================
+// GRANDE COLLECTION DE FEUX D'ARTIFICE (types réels de pyrotechnie)
+// Moteur générique piloté par une table de "recettes" (couleurs, motif, nombre de
+// particules, distance, durée...) plutôt que du code dupliqué pour chacun — plus
+// simple à maintenir pour un aussi grand nombre de variantes.
+// ==========================================
+
+function injectFwGenericStyles() {
+    if (document.getElementById('fw-generic-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'fw-generic-inline-style';
+    styleTag.textContent = `
+        .fw-generic-particle {
+            position: fixed;
+            border-radius: 50%;
+            z-index: 400;
+            pointer-events: none;
+            animation-name: fw-double-out;
+            animation-timing-function: linear;
+            animation-fill-mode: forwards;
+        }
+        .fw-generic-particle.strobe {
+            animation-name: fw-strobe-out;
+        }
+        @keyframes fw-strobe-out {
+            0%, 100% { opacity: 0; }
+            10%, 20%, 30%, 40%, 50%, 60%, 70%, 80% { opacity: 1; }
+            15%, 25%, 35%, 45%, 55%, 65%, 75% { opacity: 0.2; }
+        }
+        .fw-generic-willow {
+            position: fixed;
+            border-radius: 50%;
+            z-index: 400;
+            pointer-events: none;
+            animation-name: fw-saule-fall;
+            animation-timing-function: ease-in;
+            animation-fill-mode: forwards;
+        }
+        @keyframes fw-saule-fall {
+            0%   { transform: translate(0, 0); opacity: 1; }
+            30%  { transform: translate(var(--dx), var(--dy-up)); opacity: 1; }
+            100% { transform: translate(calc(var(--dx) * 1.2), var(--dy-down)); opacity: 0; }
+        }
+        .fw-generic-fountain {
+            position: fixed;
+            bottom: 0;
+            border-radius: 50%;
+            z-index: 400;
+            pointer-events: none;
+            animation-name: fw-fontaine-arc;
+            animation-timing-function: ease-out;
+            animation-fill-mode: forwards;
+        }
+        .fw-generic-flare {
+            position: fixed;
+            border-radius: 50%;
+            z-index: 400;
+            pointer-events: none;
+            filter: blur(6px);
+            animation: fw-flare-glow linear forwards;
+        }
+        @keyframes fw-flare-glow {
+            0%   { opacity: 0; transform: scale(0.6); }
+            15%  { opacity: 1; transform: scale(1); }
+            80%  { opacity: 0.9; }
+            100% { opacity: 0; transform: scale(1.1); }
+        }
+        .fw-generic-dart {
+            position: fixed;
+            border-radius: 50%;
+            z-index: 400;
+            pointer-events: none;
+            animation: fw-dart-move linear forwards;
+        }
+        @keyframes fw-dart-move {
+            0%   { transform: translate(0, 0); opacity: 1; }
+            25%  { transform: translate(var(--dx1), var(--dy1)); }
+            50%  { transform: translate(var(--dx2), var(--dy2)); }
+            75%  { transform: translate(var(--dx3), var(--dy3)); }
+            100% { transform: translate(var(--dx4), var(--dy4)); opacity: 0; }
+        }
+        .fw-generic-flash {
+            position: fixed;
+            border-radius: 50%;
+            z-index: 400;
+            pointer-events: none;
+            animation: fw-flash-pop 0.35s ease-out forwards;
+        }
+        @keyframes fw-flash-pop {
+            0%   { transform: scale(0.3); opacity: 1; }
+            100% { transform: scale(3.5); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectFwGenericStyles();
+
+function fwSpawnParticle(cls, xPx, yPx, size, color, durationMs, extraProps) {
+    const el = document.createElement('div');
+    el.className = cls;
+    el.style.left = `${xPx}px`;
+    el.style.top = `${yPx}px`;
+    el.style.width = `${size}px`;
+    el.style.height = `${size}px`;
+    el.style.background = color;
+    el.style.boxShadow = `0 0 ${size + 3}px ${Math.max(1, Math.round(size / 2))}px ${color}`;
+    el.style.animationDuration = `${durationMs}ms`;
+    if (extraProps) {
+        for (const key in extraProps) el.style.setProperty(key, extraProps[key]);
+    }
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), durationMs + 80);
+    return el;
+}
+
+function fwRandomOrigin() {
+    return {
+        x: window.innerWidth * (0.15 + Math.random() * 0.7),
+        y: window.innerHeight * (0.08 + Math.random() * 0.4)
+    };
+}
+
+// --- Motif "radial" : éclatement classique (pivoine, dahlia, anneau, étoile, crépitement,
+//     compact, mortier, bombe, crossette) ---
+function fwPatternRadial(origin, def) {
+    const count = def.count;
+    const fanBaseAngle = Math.random() * Math.PI * 2;
+    for (let i = 0; i < count; i++) {
+        let angle;
+        if (def.shape === 'ring') {
+            angle = (i / count) * Math.PI * 2;
+        } else if (def.shape === 'star') {
+            angle = (i % 5) * (Math.PI * 2 / 5) + (Math.floor(i / 5) * 0.05);
+        } else if (def.shape === 'fan') {
+            // Éventail : les particules restent dans un cône de 90°, pas tout le cercle
+            angle = fanBaseAngle + (Math.random() - 0.5) * (Math.PI / 2);
+        } else {
+            angle = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.25;
+        }
+        const dist = def.shape === 'ring'
+            ? def.distance[1]
+            : def.distance[0] + Math.random() * (def.distance[1] - def.distance[0]);
+        const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
+        const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+        const dx = Math.cos(angle) * dist;
+        const dy = Math.sin(angle) * dist;
+
+        fwSpawnParticle('fw-generic-particle', origin.x, origin.y, size, color, def.duration, { '--dx': `${dx}px`, '--dy': `${dy}px` });
+
+        if (def.crossette) {
+            // Chaque particule primaire se scinde en 2 mini-particules à mi-parcours
+            setTimeout(() => {
+                const midX = origin.x + dx * 0.55;
+                const midY = origin.y + dy * 0.55;
+                for (let k = -1; k <= 1; k += 2) {
+                    const splitAngle = angle + k * 0.5;
+                    const splitDist = 25 + Math.random() * 15;
+                    fwSpawnParticle('fw-generic-particle', midX, midY, size * 0.7, color, def.duration * 0.4, {
+                        '--dx': `${Math.cos(splitAngle) * splitDist}px`,
+                        '--dy': `${Math.sin(splitAngle) * splitDist}px`
+                    });
+                }
+            }, def.duration * 0.55);
+        }
+    }
+}
+
+// --- Motif "comet" : traînée qui traverse l'écran en diagonale (comète) ---
+function fwPatternComet(def) {
+    const fromLeft = Math.random() < 0.5;
+    const startX = fromLeft ? -30 : window.innerWidth + 30;
+    const startY = window.innerHeight * (0.1 + Math.random() * 0.3);
+    const dx = (fromLeft ? 1 : -1) * (window.innerWidth * 0.75 + 60);
+    const dy = window.innerHeight * (0.25 + Math.random() * 0.25);
+    const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+
+    // Tête de la comète
+    fwSpawnParticle('fw-generic-particle', startX, startY, def.size[1], color, def.duration, {
+        '--dx': `${dx}px`, '--dy': `${dy}px`
+    });
+    // Traînée : quelques particules qui suivent avec un léger retard et une taille dégressive
+    const trailCount = 8;
+    for (let i = 1; i <= trailCount; i++) {
+        setTimeout(() => {
+            const size = def.size[1] - (def.size[1] - def.size[0]) * (i / trailCount);
+            fwSpawnParticle('fw-generic-particle', startX, startY, size, color, def.duration * 0.7, {
+                '--dx': `${dx * (1 - i / trailCount * 0.15)}px`, '--dy': `${dy * (1 - i / trailCount * 0.15)}px`
+            });
+        }, i * (def.duration / trailCount) * 0.35);
+    }
+}
+
+// --- Motif "rain" : particules qui tombent depuis le haut de l'écran (pluie d'étincelles) ---
+function fwPatternRain(def) {
+    for (let i = 0; i < def.count; i++) {
+        const startX = Math.random() * window.innerWidth;
+        const startY = -10;
+        const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
+        const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+        const fallDist = def.distance[0] + Math.random() * (def.distance[1] - def.distance[0]);
+        const drift = (Math.random() - 0.5) * 60;
+        setTimeout(() => {
+            fwSpawnParticle('fw-generic-particle', startX, startY, size, color, def.duration, {
+                '--dx': `${drift}px`, '--dy': `${fallDist}px`
+            });
+        }, Math.random() * def.duration * 0.6);
+    }
+}
+
+// --- Motif "spiral" : les particules s'échappent en dessinant une spirale (en spirale) ---
+function fwPatternSpiral(origin, def) {
+    const goldenAngle = 137.5 * (Math.PI / 180);
+    const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+    for (let i = 0; i < def.count; i++) {
+        const angle = i * goldenAngle;
+        const dist = (def.distanceStep || 5.4) * i;
+        const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
+        const dx = Math.cos(angle) * dist;
+        const dy = Math.sin(angle) * dist;
+        // Décalage progressif : la spirale "se déroule" au lieu d'exploser d'un coup
+        setTimeout(() => {
+            fwSpawnParticle('fw-generic-particle', origin.x, origin.y, size, color, def.duration, {
+                '--dx': `${dx}px`, '--dy': `${dy}px`
+            });
+        }, i * (def.delayStep || 15));
+    }
+}
+
+// --- Motif "willow" (saule) : montée puis retombée gracieuse avec traînée
+//     (chrysanthème, brocart, palmier, kamuro, queue de cheval) ---
+function fwPatternWillow(origin, def) {
+    for (let i = 0; i < def.count; i++) {
+        const angle = (-160 + Math.random() * 140) * (Math.PI / 180);
+        const upDist = def.distance[0] + Math.random() * (def.distance[1] - def.distance[0]);
+        const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
+        const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+        const fallDist = def.fallDistance ? def.fallDistance[0] + Math.random() * (def.fallDistance[1] - def.fallDistance[0]) : 100;
+
+        fwSpawnParticle('fw-generic-willow', origin.x, origin.y, size, color, def.duration, {
+            '--dx': `${Math.cos(angle) * upDist * 1.15}px`,
+            '--dy-up': `${Math.sin(angle) * upDist}px`,
+            '--dy-down': `${fallDist}px`
+        });
+    }
+}
+
+// --- Motif "fontaine" : jaillit depuis le bas, s'estompe en haut (pots à feu, fontaine
+//     pyrotechnique, fontaine au sol) ---
+function fwPatternFountain(def) {
+    const originX = 10 + Math.random() * 80;
+    for (let i = 0; i < def.count; i++) {
+        const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
+        const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+        const h = def.distance[0] + Math.random() * (def.distance[1] - def.distance[0]);
+        const el = document.createElement('div');
+        el.className = 'fw-generic-fountain';
+        el.style.left = `${originX}%`;
+        el.style.width = `${size}px`;
+        el.style.height = `${size}px`;
+        el.style.background = color;
+        el.style.boxShadow = `0 0 ${size + 3}px ${Math.round(size / 2)}px ${color}`;
+        el.style.setProperty('--dx', `${(Math.random() - 0.5) * 40}px`);
+        el.style.setProperty('--h', `${h}px`);
+        el.style.animationDuration = `${def.duration}ms`;
+        el.style.animationDelay = `${Math.random() * 0.15}s`;
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), def.duration + 200);
+    }
+}
+
+// --- Motif "flash" : bang bref, quasi sans traînée (marron d'air) ---
+function fwPatternFlash(origin, def) {
+    const color = def.colors[0];
+    fwSpawnParticle('fw-generic-flash', origin.x, origin.y, 26, color, 350);
+    for (let i = 0; i < def.count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = def.distance[0] + Math.random() * (def.distance[1] - def.distance[0]);
+        fwSpawnParticle('fw-generic-particle', origin.x, origin.y, 3, color, 400, {
+            '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
+        });
+    }
+}
+
+// --- Motif "flare" : lueur continue qui pulse doucement (bengale) ---
+function fwPatternFlare(origin, def) {
+    const el = document.createElement('div');
+    el.className = 'fw-generic-flare';
+    el.style.left = `${origin.x - 20}px`;
+    el.style.top = `${origin.y - 20}px`;
+    el.style.width = '40px';
+    el.style.height = '40px';
+    el.style.background = def.colors[0];
+    el.style.boxShadow = `0 0 30px 12px ${def.colors[0]}`;
+    el.style.animationDuration = `${def.duration}ms`;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), def.duration + 100);
+}
+
+// --- Motif "strobe" : particules qui clignotent en s'éloignant (clignotant) ---
+function fwPatternStrobe(origin, def) {
+    for (let i = 0; i < def.count; i++) {
+        const angle = (i / def.count) * Math.PI * 2;
+        const dist = def.distance[0] + Math.random() * (def.distance[1] - def.distance[0]);
+        const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
+        const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+        fwSpawnParticle('fw-generic-particle strobe', origin.x, origin.y, size, color, def.duration, {
+            '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
+        });
+    }
+}
+
+// --- Motif "dart" : trajectoire erratique en zigzag (abeille / poisson) ---
+function fwPatternDart(origin, def) {
+    for (let i = 0; i < def.count; i++) {
+        const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
+        const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+        const rand = () => (Math.random() - 0.5) * (def.distance[1]);
+        const el = document.createElement('div');
+        el.className = 'fw-generic-dart';
+        el.style.left = `${origin.x}px`;
+        el.style.top = `${origin.y}px`;
+        el.style.width = `${size}px`;
+        el.style.height = `${size}px`;
+        el.style.background = color;
+        el.style.boxShadow = `0 0 ${size + 2}px ${Math.round(size / 2)}px ${color}`;
+        el.style.setProperty('--dx1', `${rand()}px`); el.style.setProperty('--dy1', `${rand()}px`);
+        el.style.setProperty('--dx2', `${rand()}px`); el.style.setProperty('--dy2', `${rand()}px`);
+        el.style.setProperty('--dx3', `${rand()}px`); el.style.setProperty('--dy3', `${rand()}px`);
+        el.style.setProperty('--dx4', `${rand()}px`); el.style.setProperty('--dy4', `${rand()}px`);
+        el.style.animationDuration = `${def.duration}ms`;
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), def.duration + 60);
+    }
+}
+
+// --- Motif "rocket" : fusée qui monte puis éclate en petit bouquet (fusée) ---
+function fwPatternRocket(def) {
+    const originX = 15 + Math.random() * 70;
+    const startY = window.innerHeight;
+    const peakY = window.innerHeight * (0.15 + Math.random() * 0.25);
+    const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+
+    const rocket = document.createElement('div');
+    rocket.className = 'fw-generic-fountain';
+    rocket.style.left = `${originX}%`;
+    rocket.style.width = '4px';
+    rocket.style.height = '4px';
+    rocket.style.background = color;
+    rocket.style.boxShadow = `0 0 6px 2px ${color}`;
+    rocket.style.setProperty('--dx', '0px');
+    rocket.style.setProperty('--h', `${startY - peakY}px`);
+    rocket.style.animationDuration = '700ms';
+    rocket.style.animationTimingFunction = 'ease-out';
+    document.body.appendChild(rocket);
+
+    setTimeout(() => {
+        rocket.remove();
+        fwPatternRadial({ x: window.innerWidth * (originX / 100), y: peakY }, {
+            count: 16, size: [3, 5], distance: [60, 100], duration: 900, colors: def.colors
+        });
+    }, 650);
+}
+
+// --- Motif "roman candle" : tirs uniques successifs (chandelle) ---
+function fwPatternRomanCandle(def) {
+    const originX = 15 + Math.random() * 70;
+    for (let shot = 0; shot < 5; shot++) {
+        setTimeout(() => {
+            const color = def.colors[shot % def.colors.length];
+            const el = document.createElement('div');
+            el.className = 'fw-generic-fountain';
+            el.style.left = `${originX}%`;
+            el.style.width = '6px';
+            el.style.height = '6px';
+            el.style.background = color;
+            el.style.boxShadow = `0 0 8px 3px ${color}`;
+            el.style.setProperty('--dx', '0px');
+            el.style.setProperty('--h', `${140 + Math.random() * 60}px`);
+            el.style.animationDuration = '500ms';
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 600);
+        }, shot * 260);
+    }
+}
+
+// --- Motif "multi" : plusieurs éclatements simultanés (bouquet) ---
+function fwPatternMulti(def) {
+    const burstCount = 4;
+    for (let b = 0; b < burstCount; b++) {
+        const origin = fwRandomOrigin();
+        fwPatternRadial(origin, {
+            count: def.count, size: def.size, distance: def.distance,
+            duration: def.duration, colors: def.colors, shape: 'default'
+        });
+    }
+}
+
+// --- Motif "ground pop" : petits pops rapides et bas (pétard clic-clac) ---
+function fwPatternGroundPop(def) {
+    const originX = 10 + Math.random() * 80;
+    const originY = window.innerHeight - 20;
+    for (let i = 0; i < def.count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = def.distance[0] + Math.random() * (def.distance[1] - def.distance[0]);
+        const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+        fwSpawnParticle('fw-generic-particle', originX, originY, 3, color, def.duration, {
+            '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
+        });
+    }
+}
+
+// --- Table des recettes ---
+const FIREWORK_RECIPES = {
+    pivoine:            { label: "Pivoine",                    pattern: 'radial',  count: 26, size: [4, 6], distance: [80, 130],  duration: 1100, colors: ['#ff5252', '#ff8a52', '#ffd452'], minDelay: 700,  maxDelay: 1200 },
+    chrysantheme:        { label: "Chrysanthème",                pattern: 'willow',  count: 30, size: [3, 5], distance: [90, 140],  fallDistance: [90, 140],  duration: 1900, colors: ['#52c8ff', '#c452ff', '#ffffff'], minDelay: 900, maxDelay: 1400 },
+    dahlia:              { label: "Dahlia",                      pattern: 'radial',  count: 14, size: [6, 8], distance: [100, 150], duration: 1200, colors: ['#ff5252', '#ffd452'], minDelay: 800, maxDelay: 1300 },
+    brocart:             { label: "Brocart doré",                pattern: 'willow',  count: 34, size: [2, 4], distance: [90, 140],  fallDistance: [110, 160], duration: 2100, colors: ['#ffd452', '#fff1c2'], minDelay: 1000, maxDelay: 1500 },
+    palmier:             { label: "Palmier",                     pattern: 'willow',  count: 8,  size: [4, 6], distance: [130, 170], fallDistance: [130, 170], duration: 1900, colors: ['#52ff8a', '#ffd452'], minDelay: 1100, maxDelay: 1600 },
+    anneau:              { label: "Anneau",                      pattern: 'radial',  count: 28, size: [4, 5], distance: [100, 100], duration: 1200, colors: ['#52c8ff'], shape: 'ring', minDelay: 800, maxDelay: 1300 },
+    etoile:              { label: "Étoile",                      pattern: 'radial',  count: 25, size: [5, 7], distance: [90, 140],  duration: 1100, colors: ['#ffd452'], shape: 'star', minDelay: 800, maxDelay: 1300 },
+    crepitementIntense:  { label: "Crépitement intense",         pattern: 'radial',  count: 55, size: [1.5, 2.5], distance: [15, 45], duration: 550,  colors: ['#fff45c', '#ffffff'], minDelay: 300, maxDelay: 500 },
+    crossette:           { label: "Crossette",                   pattern: 'radial',  count: 10, size: [4, 6], distance: [95, 95],   duration: 1300, colors: ['#ff5252', '#52c8ff'], crossette: true, minDelay: 900, maxDelay: 1400 },
+    marronAir:           { label: "Marron d'air (bang)",         pattern: 'flash',   count: 6,  size: [3, 3], distance: [20, 40],   duration: 400,  colors: ['#ffffff'], minDelay: 600, maxDelay: 1000 },
+    potsAFeu:            { label: "Pots à feu",                  pattern: 'fountain', count: 14, size: [3, 5], distance: [50, 90],   duration: 1100, colors: ['#ff8a52', '#ffd452'], minDelay: 400, maxDelay: 700 },
+    kamuro:              { label: "Kamuro",                      pattern: 'willow',  count: 42, size: [2, 4], distance: [120, 170], fallDistance: [150, 200], duration: 2500, colors: ['#fff1c2', '#ffd452'], minDelay: 1200, maxDelay: 1800 },
+    queueDeCheval:       { label: "Queue de cheval",             pattern: 'willow',  count: 6,  size: [4, 5], distance: [140, 180], fallDistance: [160, 200], duration: 2000, colors: ['#52c8ff', '#ffffff'], minDelay: 1000, maxDelay: 1500 },
+    fontainePyro:        { label: "Fontaine pyrotechnique",      pattern: 'fountain', count: 18, size: [3, 4], distance: [60, 100],  duration: 1200, colors: ['#52c8ff', '#a0e8ff', '#ffffff'], minDelay: 400, maxDelay: 700 },
+    mortier:             { label: "Mortier",                     pattern: 'radial',  count: 36, size: [5, 7], distance: [130, 190], duration: 1300, colors: ['#ff5252', '#52c8ff', '#ffd452'], minDelay: 900, maxDelay: 1400 },
+    fusee:                { label: "Fusée",                       pattern: 'rocket',  colors: ['#ffd452', '#ffffff'], minDelay: 1000, maxDelay: 1600 },
+    clignotant:          { label: "Clignotant",                  pattern: 'strobe',  count: 20, size: [4, 6], distance: [80, 120],  duration: 1500, colors: ['#ffffff', '#52c8ff'], minDelay: 900, maxDelay: 1400 },
+    abeillePoisson:      { label: "Abeille / Poisson",           pattern: 'dart',    count: 14, size: [2, 4], distance: [50, 90],   duration: 1400, colors: ['#ffd452', '#ff8a52'], minDelay: 700, maxDelay: 1200 },
+    compact:             { label: "Compact",                     pattern: 'radial',  count: 14, size: [4, 5], distance: [50, 70],   duration: 700,  colors: ['#c452ff', '#52ff8a'], minDelay: 500, maxDelay: 800 },
+    chandelle:           { label: "Chandelle (roman candle)",    pattern: 'romanCandle', colors: ['#ff5252', '#ffd452', '#52c8ff'], minDelay: 1300, maxDelay: 1900 },
+    bengale:             { label: "Bengale",                     pattern: 'flare',   duration: 2000, colors: ['#ff3366'], minDelay: 2200, maxDelay: 2200 },
+    bombeArtifice:       { label: "Bombe d'artifice",            pattern: 'radial',  count: 46, size: [5, 8], distance: [140, 200], duration: 1500, colors: ['#ff5252', '#ffffff'], minDelay: 1000, maxDelay: 1500 },
+    fontaineArtificeSol: { label: "Fontaine au sol",             pattern: 'fountain', count: 20, size: [3, 4], distance: [60, 100],  duration: 1300, colors: ['#ffd452', '#c452ff'], minDelay: 400, maxDelay: 700 },
+    bouquet:             { label: "Bouquet (plusieurs à la fois)", pattern: 'multi', count: 18, size: [4, 6], distance: [90, 140],  duration: 1200, colors: ['#ff5252', '#ffd452', '#52ff8a', '#52c8ff', '#c452ff'], minDelay: 1600, maxDelay: 2200 },
+    saulePleureur:       { label: "Saule pleureur",                pattern: 'willow',  count: 20, size: [3, 4],   distance: [40, 70], fallDistance: [120, 180], duration: 2100, colors: ['#ffd452', '#ffb347', '#fff1c2'], minDelay: 1000, maxDelay: 1700 },
+    spirale:             { label: "En spirale",                    pattern: 'spiral',  count: 24, size: [5, 5],   distanceStep: 5.4, delayStep: 15, duration: 1100, colors: ['#c452ff', '#52c8ff', '#ff5252', '#ffd452'], minDelay: 700, maxDelay: 1200 },
+    eventail:            { label: "Éventail",                      pattern: 'radial',  count: 22, size: [4, 6],   distance: [90, 140], duration: 1100, colors: ['#52c8ff', '#c452ff', '#ffffff'], shape: 'fan', minDelay: 800, maxDelay: 1300 },
+    comete:              { label: "Comète",                        pattern: 'comet',   size: [3, 7], duration: 1400, colors: ['#a0e8ff', '#ffffff'], minDelay: 1500, maxDelay: 2200 },
+    pluieEtincelles:     { label: "Pluie d'étincelles",             pattern: 'rain',    count: 24, size: [2, 4], distance: [500, 800], duration: 2200, colors: ['#ffd452', '#a0e8ff', '#ffffff'], minDelay: 500, maxDelay: 900 },
+    bouleDeFeu:          { label: "Boule de feu",                   pattern: 'radial',  count: 20, size: [8, 11],  distance: [50, 80], duration: 1300, colors: ['#ff5252', '#ff8a52', '#ffd452'], minDelay: 900, maxDelay: 1500 }
+};
+
+let fireworkTypeEnabled = {};
+let fireworkTypeIntervalId = {};
+
+Object.keys(FIREWORK_RECIPES).forEach(key => {
+    fireworkTypeEnabled[key] = localStorage.getItem('fw_' + key + '_enabled') === 'true';
+});
+
+// launchFireworkRecipe() est défini plus bas, avec gestion du son + surcharge pour les feux personnalisés.
+
+function scheduleFireworkType(key) {
+    const def = FIREWORK_RECIPES[key];
+    if (!fireworkTypeEnabled[key]) return;
+    const delay = def.minDelay + Math.random() * (def.maxDelay - def.minDelay);
+    fireworkTypeIntervalId[key] = setTimeout(() => {
+        if (fireworkTypeEnabled[key]) launchFireworkRecipe(key);
+        scheduleFireworkType(key);
+    }, delay);
+}
+
+function toggleFireworkTypeSetting(key, checked) {
+    fireworkTypeEnabled[key] = checked;
+    localStorage.setItem('fw_' + key + '_enabled', checked ? 'true' : 'false');
+    if (fireworkTypeIntervalId[key]) { clearTimeout(fireworkTypeIntervalId[key]); fireworkTypeIntervalId[key] = null; }
+    if (checked) scheduleFireworkType(key);
+}
+
+function initFireworkTypeState(key) {
+    if (fireworkTypeEnabled[key]) scheduleFireworkType(key);
+}
+
+function initAllFireworkTypes() {
+    Object.keys(FIREWORK_RECIPES).forEach(key => initFireworkTypeState(key));
+}
+
+function syncFireworkTypeToggles() {
+    Object.keys(FIREWORK_RECIPES).forEach(key => {
+        const el = document.getElementById('feux-' + key.replace(/([A-Z])/g, '-$1').toLowerCase() + '-toggle');
+        if (el) el.checked = fireworkTypeEnabled[key];
+    });
+}
+
+// ==========================================
+// GESTIONNAIRE DE FEUX D'ARTIFICE — panneau dédié
+// Regroupe les 25 recettes + sons synthétisés + créateur de feux personnalisés.
+// ⚠️ Pas de vrais fichiers audio (aucun asset fourni) : les sons sont synthétisés en direct
+// via Web Audio API (bruit filtré, oscillateurs) — aucun fichier .mp3/.wav à héberger.
+// ==========================================
+
+// --- Moteur sonore synthétisé, un "type" de son par famille de motif ---
+let fwAudioCtx = null;
+let fwMasterChain = null;   // { input, compressor }
+let fwReverbSend = null;
+let fwSharedNoiseBuffer = null;
+
+function fwGetAudioCtx() {
+    if (!fwAudioCtx) fwAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (fwAudioCtx.state === 'suspended') fwAudioCtx.resume();
+    return fwAudioCtx;
+}
+
+// Buffer de bruit blanc généré une seule fois et réutilisé pour tous les sons (au lieu de
+// recréer 1-2s de bruit à chaque appel) : moins coûteux, et le rendu reste cohérent d'un son à l'autre.
+function fwGetSharedNoiseBuffer() {
+    const ctx = fwGetAudioCtx();
+    if (fwSharedNoiseBuffer) return fwSharedNoiseBuffer;
+    const length = ctx.sampleRate * 2; // 2 secondes de bruit, largement assez pour tous les sons
+    const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
+    fwSharedNoiseBuffer = buffer;
+    return fwSharedNoiseBuffer;
+}
+
+// Chaîne de sortie commune : compresseur (évite la saturation/écrêtage quand plusieurs sons se
+// chevauchent, "colle" le mix ensemble) + une petite réverb synthétique (délai + feedback +
+// filtre, sans fichier "impulse response" à héberger) pour donner de l'ampleur/de l'espace.
+function fwGetMasterChain() {
+    const ctx = fwGetAudioCtx();
+    if (fwMasterChain) return fwMasterChain;
+
+    const compressor = ctx.createDynamicsCompressor();
+    compressor.threshold.value = -18;
+    compressor.knee.value = 24;
+    compressor.ratio.value = 8;
+    compressor.attack.value = 0.003;
+    compressor.release.value = 0.25;
+    compressor.connect(ctx.destination);
+
+    const input = ctx.createGain();
+    input.gain.value = 0.9;
+    input.connect(compressor);
+
+    fwMasterChain = { input, compressor };
+    return fwMasterChain;
+}
+
+function fwGetReverbSend() {
+    const ctx = fwGetAudioCtx();
+    const master = fwGetMasterChain();
+    if (fwReverbSend) return fwReverbSend;
+
+    const delay = ctx.createDelay(1);
+    delay.delayTime.value = 0.15;
+    const feedback = ctx.createGain();
+    feedback.gain.value = 0.34;
+    const lowpass = ctx.createBiquadFilter();
+    lowpass.type = 'lowpass';
+    lowpass.frequency.value = 2400;
+    const wet = ctx.createGain();
+    wet.gain.value = 0.4;
+
+    delay.connect(lowpass);
+    lowpass.connect(feedback);
+    feedback.connect(delay);
+    delay.connect(wet);
+    wet.connect(master.input);
+
+    fwReverbSend = delay;
+    return fwReverbSend;
+}
+
+// Sortie commune à tous les sons : signal direct + envoi vers la réverb + un léger panoramique
+// stéréo aléatoire (donne une sensation d'espace, les tirs ne sortent pas tous pile au centre).
+function fwConnectOut(node, sendAmount, panValue) {
+    const ctx = fwGetAudioCtx();
+    const master = fwGetMasterChain();
+    const panner = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+
+    if (panner) {
+        panner.pan.value = panValue != null ? panValue : (Math.random() * 1.4 - 0.7);
+        node.connect(panner);
+        panner.connect(master.input);
+    } else {
+        node.connect(master.input);
+    }
+
+    if (sendAmount) {
+        const send = ctx.createGain();
+        send.gain.value = sendAmount;
+        node.connect(send);
+        send.connect(fwGetReverbSend());
+    }
+}
+
+function fwPlayNoiseBurst(duration, volume, filterFreq, options) {
+    const opts = options || {};
+    const ctx = fwGetAudioCtx();
+
+    const noise = ctx.createBufferSource();
+    noise.buffer = fwGetSharedNoiseBuffer();
+    // Point de départ aléatoire dans le buffer partagé : deux bruits joués au même instant ne
+    // sonnent jamais identiques, malgré la mise en cache.
+    noise.loop = false;
+    const startOffset = Math.random() * 1.5;
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = opts.filterType || 'bandpass';
+    filter.frequency.setValueAtTime(filterFreq || 2000, ctx.currentTime);
+    if (opts.filterSweepTo) {
+        filter.frequency.exponentialRampToValueAtTime(Math.max(opts.filterSweepTo, 30), ctx.currentTime + duration);
+    }
+    filter.Q.value = opts.q || 1;
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(volume, ctx.currentTime + Math.min(0.01, duration * 0.15));
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+
+    noise.connect(filter).connect(gain);
+    fwConnectOut(gain, opts.send != null ? opts.send : 0.28, opts.pan);
+    noise.start(ctx.currentTime, startOffset, duration);
+}
+
+function fwPlayTone(freqStart, freqEnd, duration, volume, type, options) {
+    const opts = options || {};
+    const ctx = fwGetAudioCtx();
+    const osc = ctx.createOscillator();
+    osc.type = type || 'sine';
+    // Léger vibrato (LFO sur la fréquence) sur les sons tenus : évite le côté "synthé plat"
+    const detune = (Math.random() - 0.5) * (opts.detune || 0);
+    osc.detune.value = detune;
+    osc.frequency.setValueAtTime(freqStart, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(freqEnd, 1), ctx.currentTime + duration);
+
+    let vibratoLfo = null;
+    if (opts.vibrato) {
+        vibratoLfo = ctx.createOscillator();
+        vibratoLfo.frequency.value = opts.vibratoRate || 5;
+        const vibratoGain = ctx.createGain();
+        vibratoGain.gain.value = opts.vibrato;
+        vibratoLfo.connect(vibratoGain);
+        vibratoGain.connect(osc.frequency);
+        vibratoLfo.start();
+        vibratoLfo.stop(ctx.currentTime + duration);
+    }
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(volume, ctx.currentTime + Math.min(0.015, duration * 0.1));
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+
+    osc.connect(gain);
+    fwConnectOut(gain, opts.send != null ? opts.send : 0.28, opts.pan);
+    osc.start();
+    osc.stop(ctx.currentTime + duration);
+}
+
+// --- Sons "travaillés" : plusieurs couches superposées par effet, avec une petite part de
+//     hasard (pitch, timing, panoramique) pour un rendu organique plutôt qu'un bip répétitif ---
+
+function fwPlayBoom() {
+    const pan = Math.random() * 1.2 - 0.6;
+    // Sub-bass (le "coup" ressenti dans le ventre)
+    fwPlayTone(85 + Math.random() * 15, 30, 0.55, 0.42, 'sine', { send: 0.32, pan });
+    // Corps médium qui donne le "punch"
+    fwPlayTone(170, 55, 0.2, 0.24, 'triangle', { send: 0.18, pan });
+    // Souffle de bruit filtré qui redescend (le "crac" de l'explosion)
+    fwPlayNoiseBurst(0.4, 0.24, 900, { filterType: 'lowpass', filterSweepTo: 180, send: 0.38, pan });
+    // Harmonique aiguë très brève, pour la morsure initiale du coup
+    fwPlayNoiseBurst(0.05, 0.15, 4500, { filterType: 'bandpass', q: 2, send: 0.2, pan });
+}
+
+function fwPlayCrackle() {
+    const hits = 7 + Math.floor(Math.random() * 6);
+    const basePan = Math.random() * 1.2 - 0.6;
+    for (let i = 0; i < hits; i++) {
+        setTimeout(() => {
+            fwPlayNoiseBurst(0.045 + Math.random() * 0.035, 0.12 + Math.random() * 0.05, 2600 + Math.random() * 4000, {
+                filterType: 'bandpass', q: 3.5 + Math.random() * 2, send: 0.3,
+                pan: basePan + (Math.random() - 0.5) * 0.6
+            });
+        }, i * (35 + Math.random() * 40));
+    }
+}
+
+function fwPlayWhoosh() {
+    const pan = Math.random() * 1.2 - 0.6;
+    fwPlayNoiseBurst(0.9, 0.11, 3800, { filterType: 'bandpass', filterSweepTo: 450, q: 0.7, send: 0.42, pan });
+    fwPlayTone(1500, 320, 0.9, 0.06, 'sawtooth', { send: 0.32, pan });
+}
+
+function fwPlayHiss() {
+    // Deux couches de bruit décalées pour un fizz continu plutôt qu'un souffle plat
+    fwPlayNoiseBurst(0.55, 0.09, 6500, { filterType: 'highpass', send: 0.2 });
+    fwPlayNoiseBurst(0.5, 0.05, 3200, { filterType: 'bandpass', q: 1.2, send: 0.15 });
+}
+
+function fwPlayBang() {
+    const pan = Math.random() * 1.2 - 0.6;
+    fwPlayNoiseBurst(0.2, 0.4, 1000, { filterType: 'lowpass', filterSweepTo: 220, send: 0.38, pan });
+    fwPlayTone(220, 55, 0.2, 0.32, 'square', { send: 0.25, pan });
+    fwPlayNoiseBurst(0.03, 0.18, 5000, { filterType: 'bandpass', q: 2, send: 0.2, pan });
+}
+
+function fwPlayFlareHum() {
+    fwPlayTone(182, 168, 1.8, 0.07, 'sine', { send: 0.42, vibrato: 3, vibratoRate: 4.5 });
+    fwPlayNoiseBurst(1.8, 0.018, 4200, { send: 0.42 });
+}
+
+function fwPlayBeep() {
+    fwPlayTone(1200, 1200, 0.07, 0.12, 'square', { send: 0.15 });
+}
+
+function fwPlayBuzz() {
+    fwPlayTone(300, 250, 0.3, 0.08, 'sawtooth', { send: 0.15 });
+    fwPlayTone(306, 256, 0.3, 0.05, 'sawtooth', { send: 0.1 }); // légèrement désaccordé : buzz plus "épais"
+}
+
+function fwPlayWhistlePop() {
+    const pan = Math.random() * 1.2 - 0.6;
+    fwPlayTone(420, 1750, 0.65, 0.1, 'sine', { send: 0.35, vibrato: 8, vibratoRate: 12, pan });
+    setTimeout(fwPlayBoom, 650);
+}
+
+function fwPlayPopSeries() {
+    for (let i = 0; i < 5; i++) {
+        setTimeout(() => {
+            fwPlayNoiseBurst(0.07, 0.19, 1000 + Math.random() * 500, { send: 0.25, pan: (Math.random() - 0.5) * 1.2 });
+        }, i * 260);
+    }
+}
+
+function fwPlayGroundPop() {
+    fwPlayNoiseBurst(0.05, 0.18, 2200 + Math.random() * 600, { filterType: 'bandpass', q: 3, send: 0.2 });
+}
+
+const FW_SOUND_BY_PATTERN = {
+    radial:      () => { fwPlayBoom(); fwPlayCrackle(); },
+    spiral:      () => { fwPlayBoom(); fwPlayCrackle(); },
+    willow:      () => { fwPlayWhoosh(); fwPlayCrackle(); },
+    fountain:    fwPlayHiss,
+    flash:       fwPlayBang,
+    flare:       fwPlayFlareHum,
+    strobe:      () => { for (let i = 0; i < 4; i++) setTimeout(fwPlayBeep, i * 160); },
+    dart:        fwPlayBuzz,
+    rocket:      fwPlayWhistlePop,
+    romanCandle: fwPlayPopSeries,
+    multi:       () => { fwPlayBoom(); setTimeout(fwPlayBoom, 150); fwPlayCrackle(); },
+    groundPop:   () => { for (let i = 0; i < 4; i++) setTimeout(fwPlayGroundPop, i * 90); }
+};
+
+let fireworksSoundEnabled = localStorage.getItem('fireworksSoundEnabled') === 'true';
+
+function toggleFireworksSoundSetting(checked) {
+    fireworksSoundEnabled = checked;
+    localStorage.setItem('fireworksSoundEnabled', checked ? 'true' : 'false');
+    if (checked) fwGetAudioCtx(); // débloque l'audio dès le clic (geste utilisateur requis par les navigateurs)
+}
+
+function playFireworkSoundForPattern(pattern) {
+    if (!fireworksSoundEnabled) return;
+    const fn = FW_SOUND_BY_PATTERN[pattern];
+    if (fn) fn();
+}
+
+// --- launchFireworkRecipe() modifiée : joue le son correspondant, et accepte une "recette"
+//     surchargée (utilisé par les feux personnalisés pour appliquer couleurs/taille custom) ---
+function launchFireworkRecipe(key, overrideDef) {
+    const def = overrideDef || FIREWORK_RECIPES[key];
+    if (!def) return;
+    playFireworkSoundForPattern(def.pattern);
+    const origin = fwRandomOrigin();
+
+    switch (def.pattern) {
+        case 'radial':      fwPatternRadial(origin, def); break;
+        case 'spiral':       fwPatternSpiral(origin, def); break;
+        case 'willow':       fwPatternWillow(origin, def); break;
+        case 'fountain':     fwPatternFountain(def); break;
+        case 'flash':        fwPatternFlash(origin, def); break;
+        case 'flare':         fwPatternFlare(origin, def); break;
+        case 'strobe':        fwPatternStrobe(origin, def); break;
+        case 'dart':           fwPatternDart(origin, def); break;
+        case 'rocket':         fwPatternRocket(def); break;
+        case 'romanCandle':    fwPatternRomanCandle(def); break;
+        case 'multi':          fwPatternMulti(def); break;
+        case 'groundPop':      fwPatternGroundPop(def); break;
+        case 'comet':           fwPatternComet(def); break;
+        case 'rain':            fwPatternRain(def); break;
+    }
+}
+
+// --- Styles du panneau ---
+function injectFireworksManagerStyles() {
+    if (document.getElementById('fireworks-manager-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'fireworks-manager-inline-style';
+    styleTag.textContent = `
+        #fireworks-manager-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: #0d0d0d;
+            z-index: 2000;
+            flex-direction: column;
+            padding: 14px;
+            box-sizing: border-box;
+        }
+        .fwm-topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-shrink: 0; }
+        .fwm-title { color: var(--spotify-green, #1DB954); font-weight: bold; }
+        .fwm-close-btn { background: none; border: none; color: #fff; font-size: 1.6rem; cursor: pointer; line-height: 1; }
+        .fwm-sound-row { display: flex; align-items: center; justify-content: space-between; padding: 10px; background: #1a1a1a; border-radius: 10px; margin-bottom: 10px; flex-shrink: 0; }
+        .fwm-sound-row span { font-size: 0.85rem; color: #fff; }
+        .fwm-scroll { flex: 1; overflow-y: auto; }
+        .fwm-section-title { color: var(--text-grey, #b3b3b3); font-weight: bold; font-size: 0.8rem; margin: 10px 0 6px 0; }
+        .fwm-perso-title { color: var(--spotify-green, #1DB954) !important; }
+        .fwm-row { padding: 8px; border-bottom: 1px solid #222; cursor: pointer; }
+        .fwm-row-label { color: #fff; font-size: 0.9rem; margin-bottom: 4px; }
+        .fwm-row-controls { display: flex; align-items: center; gap: 6px; }
+        .fwm-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+        .fwm-dot.on  { background: var(--spotify-green, #1DB954); box-shadow: 0 0 6px 2px rgba(29, 185, 84, 0.6); }
+        .fwm-dot.off { background: #c0392b; }
+        .fwm-dot-text { font-size: 0.75rem; color: var(--text-grey, #b3b3b3); }
+        .fwm-palette { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+        .fwm-swatch { width: 26px; height: 26px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; box-sizing: border-box; }
+        .fwm-swatch.selected { border-color: var(--spotify-green, #1DB954); }
+        .fwm-create-btn { background: var(--spotify-green, #1DB954); color: #000; border: none; border-radius: 20px; padding: 8px 16px; font-weight: bold; cursor: pointer; margin-bottom: 12px; display: block; }
+        .fwm-custom-chip { background: #1a1a1a; border-radius: 10px; padding: 8px; margin-bottom: 8px; }
+        .fwm-custom-chip-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+        .fwm-custom-chip-top span { color: #fff; font-size: 0.85rem; }
+        .fwm-custom-chip-bottom { display: flex; gap: 8px; }
+        .fwm-custom-chip-bottom button {
+            background: none; border: 1px solid var(--spotify-green, #1DB954); color: var(--spotify-green, #1DB954);
+            border-radius: 14px; padding: 4px 10px; font-size: 0.75rem; cursor: pointer;
+        }
+        .fwm-editor { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+        .fwm-editor label { font-size: 0.75rem; color: var(--text-grey, #b3b3b3); }
+        .fwm-editor select {
+            background: #121212; color: #fff; border: 1px solid #333; border-radius: 8px; padding: 6px; font-size: 0.85rem;
+        }
+        .fwm-editor button {
+            background: var(--spotify-green, #1DB954); color: #000; border: none; border-radius: 14px;
+            padding: 6px 12px; font-size: 0.8rem; font-weight: bold; cursor: pointer; margin-top: 4px;
+        }
+        #fireworks-manager-btn {
+            background: none; border: 1px solid var(--spotify-green, #1DB954); color: var(--spotify-green, #1DB954);
+            border-radius: 20px; padding: 8px 15px; font-size: 0.8rem; font-weight: bold; cursor: pointer;
+            display: block; width: 100%; margin-top: 6px; box-sizing: border-box;
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectFireworksManagerStyles();
+
+function ensureFireworksManagerOverlay() {
+    let overlay = document.getElementById('fireworks-manager-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'fireworks-manager-overlay';
+        overlay.innerHTML = `
+            <div class="fwm-topbar">
+                <span class="fwm-title">🎆 Feux d'artifice</span>
+                <button class="fwm-close-btn" onclick="toggleFireworksManager()">✕</button>
+            </div>
+            <div class="fwm-sound-row">
+                <span>🔊 Activer les sons</span>
+                <label class="switch">
+                    <input type="checkbox" id="fwm-sound-toggle" onchange="toggleFireworksSoundSetting(this.checked)">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="fwm-scroll">
+                <p class="fwm-section-title">30 effets</p>
+                <div id="fwm-list"></div>
+
+                <button class="fwm-create-btn" onclick="toggleFwCreateForm()">➕ Créer un feu personnalisé</button>
+                <div id="fwm-create-form" style="display: none;">
+                    <p class="fwm-section-title fwm-perso-title">🎨 Personnalisation</p>
+                    <div id="fwm-palette" class="fwm-palette"></div>
+                    <div class="fwm-editor" id="fwm-new-options">
+                        <label>Effet de base</label>
+                        <select id="fwm-new-basetype"></select>
+                        <label>Taille</label>
+                        <select id="fwm-new-size">
+                            <option value="petit">Petit</option>
+                            <option value="moyen" selected>Moyen</option>
+                            <option value="grand">Grand</option>
+                            <option value="très grand">Très grand</option>
+                        </select>
+                        <label>Nombre simultané</label>
+                        <select id="fwm-new-rhythm">
+                            <option value="1" selected>1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                        </select>
+                        <label>Délai de réapparition</label>
+                        <select id="fwm-new-delay"></select>
+                        <button onclick="confirmCreateCustomFirework()">Créer</button>
+                    </div>
+                </div>
+                <div id="fwm-custom-list"></div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+    }
+    return overlay;
+}
+
+function renderFireworksManagerList() {
+    const container = document.getElementById('fwm-list');
+    if (!container) return;
+    container.innerHTML = '';
+    Object.keys(FIREWORK_RECIPES).forEach(key => {
+        const def = FIREWORK_RECIPES[key];
+        const row = document.createElement('div');
+        row.className = 'fwm-row';
+        row.innerHTML = `
+            <div class="fwm-row-label">${def.label}</div>
+            <div class="fwm-row-controls">
+                <span class="fwm-dot ${fireworkTypeEnabled[key] ? 'on' : 'off'}" id="fwm-dot-${key}"></span>
+                <span class="fwm-dot-text" id="fwm-dot-text-${key}">${fireworkTypeEnabled[key] ? 'Activé' : 'Désactivé'}</span>
+            </div>
+        `;
+        row.onclick = () => {
+            const newState = !fireworkTypeEnabled[key];
+            toggleFireworkTypeSetting(key, newState);
+            const dot = document.getElementById(`fwm-dot-${key}`);
+            const txt = document.getElementById(`fwm-dot-text-${key}`);
+            if (dot) dot.className = `fwm-dot ${newState ? 'on' : 'off'}`;
+            if (txt) txt.innerText = newState ? 'Activé' : 'Désactivé';
+        };
+        container.appendChild(row);
+    });
+}
+
+function toggleFireworksManager() {
+    const overlay = ensureFireworksManagerOverlay();
+    const isClosed = overlay.style.display === 'none' || overlay.style.display === '';
+    if (isClosed) {
+        overlay.style.display = 'flex';
+        renderFireworksManagerList();
+        renderCustomFireworksList();
+        const soundToggle = document.getElementById('fwm-sound-toggle');
+        if (soundToggle) soundToggle.checked = fireworksSoundEnabled;
+    } else {
+        overlay.style.display = 'none';
+    }
+}
+
+// --- Créateur de feux d'artifice personnalisés ---
+// 18 couleurs + le doré, plus une case "couleur aléatoire" (change de couleur à chaque tir,
+// parmi les 19 ci-dessus) — repérable par son dégradé arc-en-ciel plutôt qu'une teinte unique.
+const FW_PALETTE_COLORS = [
+    '#ff5252', '#ff3366', '#ff8a52', '#ffd452', '#fff45c',
+    '#52ff8a', '#7cfc00', '#52c8ff', '#00ffea', '#40e0d0', '#a0e8ff',
+    '#4169e1', '#c452ff', '#ff69b4', '#ff1493',
+    '#ffffff', '#c0c0c0', '#8b0000',
+    '#d4af37' // doré
+];
+const FW_RANDOM_COLOR_TOKEN = 'random';
+let fwCustomBuilderSelectedColors = [];
+
+function fwPickRandomPaletteColor() {
+    return FW_PALETTE_COLORS[Math.floor(Math.random() * FW_PALETTE_COLORS.length)];
+}
+
+function renderFwPalette() {
+    const container = document.getElementById('fwm-palette');
+    if (!container) return;
+    container.innerHTML = '';
+
+    FW_PALETTE_COLORS.forEach(color => {
+        const swatch = document.createElement('div');
+        swatch.className = 'fwm-swatch' + (fwCustomBuilderSelectedColors.includes(color) ? ' selected' : '');
+        swatch.style.background = color;
+        swatch.title = color === '#d4af37' ? 'Doré' : color;
+        swatch.onclick = () => {
+            const idx = fwCustomBuilderSelectedColors.indexOf(color);
+            if (idx >= 0) fwCustomBuilderSelectedColors.splice(idx, 1);
+            else fwCustomBuilderSelectedColors.push(color);
+            renderFwPalette();
+        };
+        container.appendChild(swatch);
+    });
+
+    // Case "couleur aléatoire" : dégradé arc-en-ciel pour la distinguer visuellement des teintes fixes
+    const randomSwatch = document.createElement('div');
+    randomSwatch.className = 'fwm-swatch' + (fwCustomBuilderSelectedColors.includes(FW_RANDOM_COLOR_TOKEN) ? ' selected' : '');
+    randomSwatch.style.background = 'conic-gradient(red, orange, yellow, green, blue, violet, red)';
+    randomSwatch.title = 'Couleur aléatoire';
+    randomSwatch.onclick = () => {
+        const idx = fwCustomBuilderSelectedColors.indexOf(FW_RANDOM_COLOR_TOKEN);
+        if (idx >= 0) fwCustomBuilderSelectedColors.splice(idx, 1);
+        else fwCustomBuilderSelectedColors.push(FW_RANDOM_COLOR_TOKEN);
+        renderFwPalette();
+    };
+    container.appendChild(randomSwatch);
+}
+
+function toggleFwCreateForm() {
+    const form = document.getElementById('fwm-create-form');
+    if (!form) return;
+    const isHidden = form.style.display === 'none' || form.style.display === '';
+    form.style.display = isHidden ? 'block' : 'none';
+    if (isHidden) {
+        fwCustomBuilderSelectedColors = [];
+        renderFwPalette();
+        populateFwNewFireworkOptions();
+    }
+}
+
+function populateFwNewFireworkOptions() {
+    const baseSelect = document.getElementById('fwm-new-basetype');
+    if (baseSelect && baseSelect.options.length === 0) {
+        Object.keys(FIREWORK_RECIPES).forEach(key => {
+            const opt = document.createElement('option');
+            opt.value = key;
+            opt.innerText = FIREWORK_RECIPES[key].label;
+            baseSelect.appendChild(opt);
+        });
+    }
+    const delaySelect = document.getElementById('fwm-new-delay');
+    if (delaySelect && delaySelect.options.length === 0) {
+        [0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20].forEach(d => {
+            const opt = document.createElement('option');
+            opt.value = d;
+            opt.innerText = `${d}s`;
+            if (d === 3) opt.selected = true;
+            delaySelect.appendChild(opt);
+        });
+    }
+}
+
+let customFireworks = JSON.parse(localStorage.getItem('customFireworksList') || '[]');
+let customFireworksCounter = parseInt(localStorage.getItem('customFireworksCounter') || '0', 10);
+let customFireworksIntervalIds = {};
+
+function saveCustomFireworksList() {
+    localStorage.setItem('customFireworksList', JSON.stringify(customFireworks));
+}
+
+function confirmCreateCustomFirework() {
+    if (fwCustomBuilderSelectedColors.length === 0) {
+        alert("Choisis au moins une couleur avant de créer un feu d'artifice personnalisé.");
+        return;
+    }
+    customFireworksCounter++;
+    localStorage.setItem('customFireworksCounter', String(customFireworksCounter));
+
+    const fw = {
+        id: 'custom_' + Date.now(),
+        name: String(customFireworksCounter), // "1", puis "2", etc.
+        colors: [...fwCustomBuilderSelectedColors],
+        baseType: document.getElementById('fwm-new-basetype').value,
+        size: document.getElementById('fwm-new-size').value,
+        rhythm: parseInt(document.getElementById('fwm-new-rhythm').value, 10),
+        delay: parseFloat(document.getElementById('fwm-new-delay').value),
+        enabled: true
+    };
+    customFireworks.push(fw);
+    saveCustomFireworksList();
+
+    fwCustomBuilderSelectedColors = [];
+    document.getElementById('fwm-create-form').style.display = 'none';
+    renderCustomFireworksList();
+    scheduleCustomFirework(fw.id);
+}
+
+function deleteCustomFirework(id) {
+    customFireworks = customFireworks.filter(f => f.id !== id);
+    saveCustomFireworksList();
+    if (customFireworksIntervalIds[id]) { clearTimeout(customFireworksIntervalIds[id]); delete customFireworksIntervalIds[id]; }
+    renderCustomFireworksList();
+}
+
+function toggleCustomFireworkEnabled(id) {
+    const fw = customFireworks.find(f => f.id === id);
+    if (!fw) return;
+    fw.enabled = !fw.enabled;
+    saveCustomFireworksList();
+    if (customFireworksIntervalIds[id]) { clearTimeout(customFireworksIntervalIds[id]); delete customFireworksIntervalIds[id]; }
+    if (fw.enabled) scheduleCustomFirework(id);
+    renderCustomFireworksList();
+}
+
+const FW_SIZE_MULTIPLIERS = { 'petit': 0.6, 'moyen': 1.0, 'grand': 1.5, 'très grand': 2.2 };
+
+function launchCustomFirework(id) {
+    const fw = customFireworks.find(f => f.id === id);
+    if (!fw) return;
+    const baseDef = FIREWORK_RECIPES[fw.baseType];
+    if (!baseDef) return;
+    const mult = FW_SIZE_MULTIPLIERS[fw.size] || 1;
+
+    const scaledDef = {
+        ...baseDef,
+        count: baseDef.count ? Math.round(baseDef.count * mult) : baseDef.count,
+        size: baseDef.size ? baseDef.size.map(s => s * mult) : baseDef.size,
+        distance: baseDef.distance ? baseDef.distance.map(d => d * mult) : baseDef.distance,
+        fallDistance: baseDef.fallDistance ? baseDef.fallDistance.map(d => d * mult) : baseDef.fallDistance,
+        duration: baseDef.duration ? Math.round(baseDef.duration * (0.9 + mult * 0.2)) : baseDef.duration
+    };
+
+    for (let r = 0; r < fw.rhythm; r++) {
+        // La case "couleur aléatoire" est résolue ici, à chaque tir (pas une fois pour toutes à la
+        // création) : si elle est cochée, une couleur différente est tirée parmi la palette à chaque lancement.
+        const perShotDef = { ...scaledDef, colors: fw.colors.map(c => c === FW_RANDOM_COLOR_TOKEN ? fwPickRandomPaletteColor() : c) };
+        setTimeout(() => launchFireworkRecipe(fw.baseType, perShotDef), r * 120);
+    }
+}
+
+function scheduleCustomFirework(id) {
+    const fw = customFireworks.find(f => f.id === id);
+    if (!fw || !fw.enabled) return;
+    const delayMs = fw.delay * 1000;
+    customFireworksIntervalIds[id] = setTimeout(() => {
+        const stillExists = customFireworks.find(f => f.id === id);
+        if (stillExists && stillExists.enabled) launchCustomFirework(id);
+        scheduleCustomFirework(id);
+    }, delayMs);
+}
+
+function initCustomFireworks() {
+    customFireworks.forEach(fw => { if (fw.enabled) scheduleCustomFirework(fw.id); });
+}
+
+let fwEditorSelectedColors = {}; // { customFireworkId: ['#ff5252', 'random', ...] }
+
+function buildCustomFireworkEditorHtml(fw) {
+    const baseOptions = Object.keys(FIREWORK_RECIPES).map(k =>
+        `<option value="${k}" ${fw.baseType === k ? 'selected' : ''}>${FIREWORK_RECIPES[k].label}</option>`
+    ).join('');
+    const sizeOptions = ['petit', 'moyen', 'grand', 'très grand'].map(s =>
+        `<option value="${s}" ${fw.size === s ? 'selected' : ''}>${s.charAt(0).toUpperCase() + s.slice(1)}</option>`
+    ).join('');
+    const rhythmOptions = [1, 2, 3, 4, 5].map(r =>
+        `<option value="${r}" ${fw.rhythm === r ? 'selected' : ''}>${r}</option>`
+    ).join('');
+    const delayValues = [0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20];
+    const delayOptions = delayValues.map(d =>
+        `<option value="${d}" ${fw.delay === d ? 'selected' : ''}>${d}s</option>`
+    ).join('');
+
+    return `
+        <div class="fwm-editor">
+            <label>🎨 Couleurs</label>
+            <div id="fwm-edit-palette-${fw.id}" class="fwm-palette"></div>
+            <label>Effet de base</label>
+            <select id="fwm-edit-basetype-${fw.id}">${baseOptions}</select>
+            <label>Taille</label>
+            <select id="fwm-edit-size-${fw.id}">${sizeOptions}</select>
+            <label>Nombre simultané</label>
+            <select id="fwm-edit-rhythm-${fw.id}">${rhythmOptions}</select>
+            <label>Délai de réapparition</label>
+            <select id="fwm-edit-delay-${fw.id}">${delayOptions}</select>
+            <button onclick="saveCustomFireworkEdits('${fw.id}')">Enregistrer</button>
+        </div>
+    `;
+}
+
+// Rendu de la palette DANS le formulaire d'édition d'un feu déjà créé — même liste de couleurs
+// que la création, mais avec la sélection déjà en place (les couleurs actuelles du feu édité).
+function renderFwEditorPalette(fw) {
+    const container = document.getElementById(`fwm-edit-palette-${fw.id}`);
+    if (!container) return;
+    if (!fwEditorSelectedColors[fw.id]) fwEditorSelectedColors[fw.id] = [...fw.colors];
+    const selected = fwEditorSelectedColors[fw.id];
+
+    container.innerHTML = '';
+    FW_PALETTE_COLORS.forEach(color => {
+        const swatch = document.createElement('div');
+        swatch.className = 'fwm-swatch' + (selected.includes(color) ? ' selected' : '');
+        swatch.style.background = color;
+        swatch.title = color === '#d4af37' ? 'Doré' : color;
+        swatch.onclick = () => {
+            const idx = selected.indexOf(color);
+            if (idx >= 0) selected.splice(idx, 1);
+            else selected.push(color);
+            renderFwEditorPalette(fw);
+        };
+        container.appendChild(swatch);
+    });
+
+    const randomSwatch = document.createElement('div');
+    randomSwatch.className = 'fwm-swatch' + (selected.includes(FW_RANDOM_COLOR_TOKEN) ? ' selected' : '');
+    randomSwatch.style.background = 'conic-gradient(red, orange, yellow, green, blue, violet, red)';
+    randomSwatch.title = 'Couleur aléatoire';
+    randomSwatch.onclick = () => {
+        const idx = selected.indexOf(FW_RANDOM_COLOR_TOKEN);
+        if (idx >= 0) selected.splice(idx, 1);
+        else selected.push(FW_RANDOM_COLOR_TOKEN);
+        renderFwEditorPalette(fw);
+    };
+    container.appendChild(randomSwatch);
+}
+
+function openCustomFireworkEditor(id) {
+    const container = document.getElementById(`fwm-editor-${id}`);
+    if (!container) return;
+    const fw = customFireworks.find(f => f.id === id);
+    if (!fw) return;
+    const isHidden = container.style.display === 'none' || container.style.display === '';
+    container.style.display = isHidden ? 'block' : 'none';
+    if (isHidden) {
+        container.innerHTML = buildCustomFireworkEditorHtml(fw);
+        renderFwEditorPalette(fw);
+    }
+}
+
+function saveCustomFireworkEdits(id) {
+    const fw = customFireworks.find(f => f.id === id);
+    if (!fw) return;
+
+    const selectedColors = fwEditorSelectedColors[id];
+    if (!selectedColors || selectedColors.length === 0) {
+        alert("Choisis au moins une couleur.");
+        return;
+    }
+
+    fw.colors = [...selectedColors];
+    fw.baseType = document.getElementById(`fwm-edit-basetype-${id}`).value;
+    fw.size = document.getElementById(`fwm-edit-size-${id}`).value;
+    fw.rhythm = parseInt(document.getElementById(`fwm-edit-rhythm-${id}`).value, 10);
+    fw.delay = parseFloat(document.getElementById(`fwm-edit-delay-${id}`).value);
+    saveCustomFireworksList();
+    delete fwEditorSelectedColors[id];
+    if (customFireworksIntervalIds[id]) { clearTimeout(customFireworksIntervalIds[id]); delete customFireworksIntervalIds[id]; }
+    if (fw.enabled) scheduleCustomFirework(id);
+    document.getElementById(`fwm-editor-${id}`).style.display = 'none';
+}
+
+function renderCustomFireworksList() {
+    const container = document.getElementById('fwm-custom-list');
+    if (!container) return;
+    container.innerHTML = '';
+    customFireworks.forEach(fw => {
+        const chip = document.createElement('div');
+        chip.className = 'fwm-custom-chip';
+        chip.innerHTML = `
+            <div class="fwm-custom-chip-top">
+                <span>Personnalisé ${fw.name}</span>
+                <span class="fwm-dot ${fw.enabled ? 'on' : 'off'}" onclick="toggleCustomFireworkEnabled('${fw.id}')"></span>
+            </div>
+            <div class="fwm-custom-chip-bottom">
+                <button onclick="openCustomFireworkEditor('${fw.id}')">⚙️ Personnaliser</button>
+                <button onclick="deleteCustomFirework('${fw.id}')">✕</button>
+            </div>
+            <div id="fwm-editor-${fw.id}" style="display: none;"></div>
+        `;
+        container.appendChild(chip);
+    });
+}
