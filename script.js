@@ -718,6 +718,59 @@ function injectFwGenericStyles() {
             30%  { transform: translate(var(--dx), var(--dy-up)); opacity: 1; }
             100% { transform: translate(calc(var(--dx) * 1.2), var(--dy-down)); opacity: 0; }
         }
+        .fw-generic-kamuro-strobe {
+            position: fixed;
+            border-radius: 50%;
+            z-index: 400;
+            pointer-events: none;
+            animation-name: fw-kamuro-strobe-fall;
+            animation-timing-function: ease-in;
+            animation-fill-mode: forwards;
+        }
+        @keyframes fw-kamuro-strobe-fall {
+            0%   { transform: translate(0, 0); opacity: 1; }
+            30%  { transform: translate(var(--dx), var(--dy-up)); opacity: 1; }
+            38%  { opacity: 0.15; }
+            46%  { opacity: 1; }
+            54%  { opacity: 0.15; }
+            62%  { opacity: 1; }
+            70%  { opacity: 0.15; }
+            78%  { opacity: 1; }
+            100% { transform: translate(calc(var(--dx) * 1.2), var(--dy-down)); opacity: 0; }
+        }
+        .fw-generic-ghost {
+            position: fixed;
+            border-radius: 50%;
+            z-index: 400;
+            pointer-events: none;
+            filter: blur(3px);
+            animation-name: fw-ghost-drift;
+            animation-timing-function: ease-in-out;
+            animation-fill-mode: forwards;
+        }
+        @keyframes fw-ghost-drift {
+            0%   { transform: translate(0, 0) scale(0.6); opacity: 0; }
+            20%  { opacity: 0.7; }
+            50%  { transform: translate(calc(var(--dx) * 0.6), calc(var(--dy) * 0.6)) scale(1); opacity: 0.35; }
+            80%  { opacity: 0.6; }
+            100% { transform: translate(var(--dx), var(--dy)) scale(1.2); opacity: 0; }
+        }
+        .fw-generic-leaves {
+            position: fixed;
+            border-radius: 2px;
+            z-index: 400;
+            pointer-events: none;
+            animation-name: fw-leaves-fall;
+            animation-timing-function: linear;
+            animation-fill-mode: forwards;
+        }
+        @keyframes fw-leaves-fall {
+            0%   { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+            25%  { transform: translate(var(--dx), calc(var(--dy) * 0.25)) rotate(90deg); opacity: 0.3; }
+            50%  { transform: translate(0, calc(var(--dy) * 0.5)) rotate(180deg); opacity: 1; }
+            75%  { transform: translate(var(--dx), calc(var(--dy) * 0.75)) rotate(270deg); opacity: 0.3; }
+            100% { transform: translate(0, var(--dy)) rotate(360deg); opacity: 0; }
+        }
         .fw-generic-fountain {
             position: fixed;
             bottom: 0;
@@ -843,44 +896,65 @@ function fwPatternRadial(origin, def) {
 }
 
 // --- Motif "comet" : traînée qui traverse l'écran en diagonale (comète) ---
-function fwPatternComet(def) {
-    const fromLeft = Math.random() < 0.5;
-    const startX = fromLeft ? -30 : window.innerWidth + 30;
-    const startY = window.innerHeight * (0.1 + Math.random() * 0.3);
-    const dx = (fromLeft ? 1 : -1) * (window.innerWidth * 0.75 + 60);
-    const dy = window.innerHeight * (0.25 + Math.random() * 0.25);
-    const color = def.colors[Math.floor(Math.random() * def.colors.length)];
-
-    // Tête de la comète
-    fwSpawnParticle('fw-generic-particle', startX, startY, def.size[1], color, def.duration, {
-        '--dx': `${dx}px`, '--dy': `${dy}px`
-    });
-    // Traînée : quelques particules qui suivent avec un léger retard et une taille dégressive
-    const trailCount = 8;
-    for (let i = 1; i <= trailCount; i++) {
-        setTimeout(() => {
-            const size = def.size[1] - (def.size[1] - def.size[0]) * (i / trailCount);
-            fwSpawnParticle('fw-generic-particle', startX, startY, size, color, def.duration * 0.7, {
-                '--dx': `${dx * (1 - i / trailCount * 0.15)}px`, '--dy': `${dy * (1 - i / trailCount * 0.15)}px`
-            });
-        }, i * (def.duration / trailCount) * 0.35);
+// --- Motif "kamuroStrobe" : comme "willow" mais les particules scintillent en tombant ---
+function fwPatternKamuroStrobe(origin, def) {
+    for (let i = 0; i < def.count; i++) {
+        const angle = (-175 + Math.random() * 170) * (Math.PI / 180);
+        const upDist = def.distance[0] + Math.random() * (def.distance[1] - def.distance[0]);
+        const downDist = def.fallDistance[0] + Math.random() * (def.fallDistance[1] - def.fallDistance[0]);
+        const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
+        const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+        fwSpawnParticle('fw-generic-kamuro-strobe', origin.x, origin.y, size, color, def.duration, {
+            '--dx': `${Math.cos(angle) * upDist}px`,
+            '--dy-up': `${Math.sin(angle) * upDist}px`,
+            '--dy-down': `${downDist}px`
+        });
     }
 }
 
-// --- Motif "rain" : particules qui tombent depuis le haut de l'écran (pluie d'étincelles) ---
-function fwPatternRain(def) {
+// --- Motif "ghost" : particules pâles qui dérivent doucement en pulsant, façon apparition ---
+function fwPatternGhost(origin, def) {
+    for (let i = 0; i < def.count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = def.distance[0] + Math.random() * (def.distance[1] - def.distance[0]);
+        const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
+        const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+        fwSpawnParticle('fw-generic-ghost', origin.x, origin.y, size, color, def.duration, {
+            '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist - 40}px`
+        });
+    }
+}
+
+// --- Motif "leaves" : chute en zigzag (feuilles) + scintillement ---
+function fwPatternLeaves(def) {
     for (let i = 0; i < def.count; i++) {
         const startX = Math.random() * window.innerWidth;
         const startY = -10;
         const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
         const color = def.colors[Math.floor(Math.random() * def.colors.length)];
         const fallDist = def.distance[0] + Math.random() * (def.distance[1] - def.distance[0]);
-        const drift = (Math.random() - 0.5) * 60;
+        const zigzag = 40 + Math.random() * 50;
         setTimeout(() => {
-            fwSpawnParticle('fw-generic-particle', startX, startY, size, color, def.duration, {
-                '--dx': `${drift}px`, '--dy': `${fallDist}px`
+            fwSpawnParticle('fw-generic-leaves', startX, startY, size, color, def.duration, {
+                '--dx': `${zigzag}px`, '--dy': `${fallDist}px`
             });
-        }, Math.random() * def.duration * 0.6);
+        }, Math.random() * def.duration * 0.5);
+    }
+}
+
+// --- Motif "mandala" : plusieurs anneaux concentriques tirés ensemble (motif décoratif) ---
+function fwPatternMandala(origin, def) {
+    const rings = 3;
+    for (let r = 0; r < rings; r++) {
+        const ringDist = def.distance[0] + (r / (rings - 1)) * (def.distance[1] - def.distance[0]);
+        const ringCount = def.count + r * 4;
+        const color = def.colors[r % def.colors.length];
+        for (let i = 0; i < ringCount; i++) {
+            const angle = (i / ringCount) * Math.PI * 2 + (r * 0.3);
+            fwSpawnParticle('fw-generic-particle', origin.x, origin.y, def.size[0], color, def.duration, {
+                '--dx': `${Math.cos(angle) * ringDist}px`, '--dy': `${Math.sin(angle) * ringDist}px`
+            });
+        }
     }
 }
 
@@ -1114,10 +1188,12 @@ const FIREWORK_RECIPES = {
     bouquet:             { label: "Bouquet (plusieurs à la fois)", pattern: 'multi', count: 18, size: [4, 6], distance: [90, 140],  duration: 1200, colors: ['#ff5252', '#ffd452', '#52ff8a', '#52c8ff', '#c452ff'], minDelay: 1600, maxDelay: 2200 },
     saulePleureur:       { label: "Saule pleureur",                pattern: 'willow',  count: 20, size: [3, 4],   distance: [40, 70], fallDistance: [120, 180], duration: 2100, colors: ['#ffd452', '#ffb347', '#fff1c2'], minDelay: 1000, maxDelay: 1700 },
     spirale:             { label: "En spirale",                    pattern: 'spiral',  count: 24, size: [5, 5],   distanceStep: 5.4, delayStep: 15, duration: 1100, colors: ['#c452ff', '#52c8ff', '#ff5252', '#ffd452'], minDelay: 700, maxDelay: 1200 },
-    eventail:            { label: "Éventail",                      pattern: 'radial',  count: 22, size: [4, 6],   distance: [90, 140], duration: 1100, colors: ['#52c8ff', '#c452ff', '#ffffff'], shape: 'fan', minDelay: 800, maxDelay: 1300 },
-    comete:              { label: "Comète",                        pattern: 'comet',   size: [3, 7], duration: 1400, colors: ['#a0e8ff', '#ffffff'], minDelay: 1500, maxDelay: 2200 },
-    pluieEtincelles:     { label: "Pluie d'étincelles",             pattern: 'rain',    count: 24, size: [2, 4], distance: [500, 800], duration: 2200, colors: ['#ffd452', '#a0e8ff', '#ffffff'], minDelay: 500, maxDelay: 900 },
-    bouleDeFeu:          { label: "Boule de feu",                   pattern: 'radial',  count: 20, size: [8, 11],  distance: [50, 80], duration: 1300, colors: ['#ff5252', '#ff8a52', '#ffd452'], minDelay: 900, maxDelay: 1500 }
+    kamuroStrobe:        { label: "Kamuro strobe",                 pattern: 'kamuroStrobe', count: 32, size: [2, 4], distance: [110, 160], fallDistance: [140, 190], duration: 2200, colors: ['#ffffff', '#a0e8ff', '#ffd452'], minDelay: 1200, maxDelay: 1800 },
+    ghost:               { label: "Ghost",                         pattern: 'ghost',   count: 16, size: [6, 10],  distance: [40, 90],  duration: 2600, colors: ['#e8e8ff', '#c9f7ff', '#ffffff'], minDelay: 1400, maxDelay: 2000 },
+    strobeFallingLeaves: { label: "Strobe falling leaves",         pattern: 'leaves',  count: 20, size: [3, 5],   distance: [400, 650], duration: 3000, colors: ['#ff8a52', '#ffd452', '#c9a24b'], minDelay: 700, maxDelay: 1100 },
+    volcano:             { label: "Volcano",                       pattern: 'fountain', count: 34, size: [3, 6],  distance: [90, 220],  duration: 1400, colors: ['#ff5252', '#ff8a52', '#ffd452', '#8b0000'], minDelay: 300, maxDelay: 550 },
+    pattern:             { label: "Motif",                          pattern: 'mandala', count: 12, size: [4, 5],   distance: [50, 130], duration: 1300, colors: ['#c452ff', '#52c8ff', '#ffd452', '#ff5252'], minDelay: 1100, maxDelay: 1700 },
+    horsetail:           { label: "Horsetail",                     pattern: 'willow',  count: 50, size: [2, 3],   distance: [100, 130], fallDistance: [200, 260], duration: 2400, colors: ['#ffffff', '#a0e8ff'], minDelay: 1300, maxDelay: 1900 }
 };
 
 let fireworkTypeEnabled = {};
@@ -1456,8 +1532,10 @@ function launchFireworkRecipe(key, overrideDef) {
         case 'romanCandle':    fwPatternRomanCandle(def); break;
         case 'multi':          fwPatternMulti(def); break;
         case 'groundPop':      fwPatternGroundPop(def); break;
-        case 'comet':           fwPatternComet(def); break;
-        case 'rain':            fwPatternRain(def); break;
+        case 'kamuroStrobe':   fwPatternKamuroStrobe(origin, def); break;
+        case 'ghost':           fwPatternGhost(origin, def); break;
+        case 'leaves':          fwPatternLeaves(def); break;
+        case 'mandala':         fwPatternMandala(origin, def); break;
     }
 }
 
@@ -1492,6 +1570,16 @@ function injectFireworksManagerStyles() {
         .fwm-dot.on  { background: var(--spotify-green, #1DB954); box-shadow: 0 0 6px 2px rgba(29, 185, 84, 0.6); }
         .fwm-dot.off { background: #c0392b; }
         .fwm-dot-text { font-size: 0.75rem; color: var(--text-grey, #b3b3b3); }
+        .fwm-spectacle-title { margin-top: 0 !important; }
+        .fwm-show-row { display: flex; gap: 12px; margin-bottom: 14px; }
+        .fwm-show-btn-wrap {
+            flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px;
+            background: #1a1a1a; border-radius: 12px; padding: 12px 8px;
+        }
+        .fwm-show-btn {
+            background: var(--spotify-green, #1DB954); color: #000; border: none; border-radius: 20px;
+            padding: 10px 14px; font-weight: bold; font-size: 0.9rem; cursor: pointer; width: 100%;
+        }
         .fwm-palette { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
         .fwm-swatch { width: 26px; height: 26px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; box-sizing: border-box; }
         .fwm-swatch.selected { border-color: var(--spotify-green, #1DB954); }
@@ -1541,9 +1629,22 @@ function ensureFireworksManagerOverlay() {
                 </label>
             </div>
             <div class="fwm-scroll">
-                <p class="fwm-section-title">30 effets</p>
+                <p class="fwm-section-title fwm-spectacle-title">🎪 Spectacle</p>
+                <div class="fwm-show-row">
+                    <div class="fwm-show-btn-wrap">
+                        <button class="fwm-show-btn" onclick="toggleFireworkShow('1min')">1 min</button>
+                        <span class="fwm-dot off" id="fwm-show-dot-1min"></span>
+                    </div>
+                    <div class="fwm-show-btn-wrap">
+                        <button class="fwm-show-btn" onclick="toggleFireworkShow('1min30')">1 min 30</button>
+                        <span class="fwm-dot off" id="fwm-show-dot-1min30"></span>
+                    </div>
+                </div>
+
+                <p class="fwm-section-title">32 effets</p>
                 <div id="fwm-list"></div>
 
+                <div style="height: 18px;"></div>
                 <button class="fwm-create-btn" onclick="toggleFwCreateForm()">➕ Créer un feu personnalisé</button>
                 <div id="fwm-create-form" style="display: none;">
                     <p class="fwm-section-title fwm-perso-title">🎨 Personnalisation</p>
@@ -1553,6 +1654,7 @@ function ensureFireworksManagerOverlay() {
                         <select id="fwm-new-basetype"></select>
                         <label>Taille</label>
                         <select id="fwm-new-size">
+                            <option value="aleatoire">Aléatoire</option>
                             <option value="petit">Petit</option>
                             <option value="moyen" selected>Moyen</option>
                             <option value="grand">Grand</option>
@@ -1560,6 +1662,7 @@ function ensureFireworksManagerOverlay() {
                         </select>
                         <label>Nombre simultané</label>
                         <select id="fwm-new-rhythm">
+                            <option value="aleatoire">Aléatoire</option>
                             <option value="1" selected>1</option>
                             <option value="2">2</option>
                             <option value="3">3</option>
@@ -1685,6 +1788,10 @@ function toggleFwCreateForm() {
 function populateFwNewFireworkOptions() {
     const baseSelect = document.getElementById('fwm-new-basetype');
     if (baseSelect && baseSelect.options.length === 0) {
+        const randomOpt = document.createElement('option');
+        randomOpt.value = FW_RANDOM_TOKEN;
+        randomOpt.innerText = 'Aléatoire';
+        baseSelect.appendChild(randomOpt);
         Object.keys(FIREWORK_RECIPES).forEach(key => {
             const opt = document.createElement('option');
             opt.value = key;
@@ -1694,7 +1801,11 @@ function populateFwNewFireworkOptions() {
     }
     const delaySelect = document.getElementById('fwm-new-delay');
     if (delaySelect && delaySelect.options.length === 0) {
-        [0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20].forEach(d => {
+        const randomOpt = document.createElement('option');
+        randomOpt.value = FW_RANDOM_TOKEN;
+        randomOpt.innerText = 'Aléatoire';
+        delaySelect.appendChild(randomOpt);
+        FW_DELAY_OPTIONS.forEach(d => {
             const opt = document.createElement('option');
             opt.value = d;
             opt.innerText = `${d}s`;
@@ -1720,14 +1831,17 @@ function confirmCreateCustomFirework() {
     customFireworksCounter++;
     localStorage.setItem('customFireworksCounter', String(customFireworksCounter));
 
+    const rhythmRaw = document.getElementById('fwm-new-rhythm').value;
+    const delayRaw = document.getElementById('fwm-new-delay').value;
+
     const fw = {
         id: 'custom_' + Date.now(),
         name: String(customFireworksCounter), // "1", puis "2", etc.
         colors: [...fwCustomBuilderSelectedColors],
         baseType: document.getElementById('fwm-new-basetype').value,
         size: document.getElementById('fwm-new-size').value,
-        rhythm: parseInt(document.getElementById('fwm-new-rhythm').value, 10),
-        delay: parseFloat(document.getElementById('fwm-new-delay').value),
+        rhythm: rhythmRaw === FW_RANDOM_TOKEN ? FW_RANDOM_TOKEN : parseInt(rhythmRaw, 10),
+        delay: delayRaw === FW_RANDOM_TOKEN ? FW_RANDOM_TOKEN : parseFloat(delayRaw),
         enabled: true
     };
     customFireworks.push(fw);
@@ -1756,14 +1870,28 @@ function toggleCustomFireworkEnabled(id) {
     renderCustomFireworksList();
 }
 
+// --- Résolution du "Aléatoire" : un choix différent tiré à chaque tir/cycle, pas figé à la création ---
+const FW_RANDOM_TOKEN = 'aleatoire';
+const FW_SIZE_OPTIONS = ['petit', 'moyen', 'grand', 'très grand'];
+const FW_RHYTHM_OPTIONS = [1, 2, 3, 4, 5];
+const FW_DELAY_OPTIONS = [0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20];
+
+function fwResolveRandom(value, options) {
+    return value === FW_RANDOM_TOKEN ? options[Math.floor(Math.random() * options.length)] : value;
+}
+
 const FW_SIZE_MULTIPLIERS = { 'petit': 0.6, 'moyen': 1.0, 'grand': 1.5, 'très grand': 2.2 };
 
 function launchCustomFirework(id) {
     const fw = customFireworks.find(f => f.id === id);
     if (!fw) return;
-    const baseDef = FIREWORK_RECIPES[fw.baseType];
+
+    const resolvedBaseType = fwResolveRandom(fw.baseType, Object.keys(FIREWORK_RECIPES));
+    const baseDef = FIREWORK_RECIPES[resolvedBaseType];
     if (!baseDef) return;
-    const mult = FW_SIZE_MULTIPLIERS[fw.size] || 1;
+    const resolvedSize = fwResolveRandom(fw.size, FW_SIZE_OPTIONS);
+    const mult = FW_SIZE_MULTIPLIERS[resolvedSize] || 1;
+    const resolvedRhythm = fwResolveRandom(fw.rhythm, FW_RHYTHM_OPTIONS);
 
     const scaledDef = {
         ...baseDef,
@@ -1774,18 +1902,19 @@ function launchCustomFirework(id) {
         duration: baseDef.duration ? Math.round(baseDef.duration * (0.9 + mult * 0.2)) : baseDef.duration
     };
 
-    for (let r = 0; r < fw.rhythm; r++) {
+    for (let r = 0; r < resolvedRhythm; r++) {
         // La case "couleur aléatoire" est résolue ici, à chaque tir (pas une fois pour toutes à la
         // création) : si elle est cochée, une couleur différente est tirée parmi la palette à chaque lancement.
         const perShotDef = { ...scaledDef, colors: fw.colors.map(c => c === FW_RANDOM_COLOR_TOKEN ? fwPickRandomPaletteColor() : c) };
-        setTimeout(() => launchFireworkRecipe(fw.baseType, perShotDef), r * 120);
+        setTimeout(() => launchFireworkRecipe(resolvedBaseType, perShotDef), r * 120);
     }
 }
 
 function scheduleCustomFirework(id) {
     const fw = customFireworks.find(f => f.id === id);
     if (!fw || !fw.enabled) return;
-    const delayMs = fw.delay * 1000;
+    const resolvedDelay = fwResolveRandom(fw.delay, FW_DELAY_OPTIONS);
+    const delayMs = resolvedDelay * 1000;
     customFireworksIntervalIds[id] = setTimeout(() => {
         const stillExists = customFireworks.find(f => f.id === id);
         if (stillExists && stillExists.enabled) launchCustomFirework(id);
@@ -1797,22 +1926,109 @@ function initCustomFireworks() {
     customFireworks.forEach(fw => { if (fw.enabled) scheduleCustomFirework(fw.id); });
 }
 
+// ==========================================
+// SPECTACLE — 2 boutons (1 min / 1 min 30), lancent un enchaînement automatique de tirs parmi
+// les 32 effets, qui s'intensifie et se termine par un bouquet final. Un point rouge/vert indique
+// si un spectacle est en cours ; recliquer l'arrête et réinitialise (le suivant repart de 0).
+// ==========================================
+let fireworkShowActive = false;
+let fireworkShowKey = null; // '1min' ou '1min30'
+let fireworkShowTimeoutIds = [];
+
+function updateFireworkShowDots() {
+    ['1min', '1min30'].forEach(key => {
+        const dot = document.getElementById(`fwm-show-dot-${key}`);
+        if (!dot) return;
+        const isThisOne = fireworkShowActive && fireworkShowKey === key;
+        dot.className = `fwm-dot ${isThisOne ? 'on' : 'off'}`;
+    });
+}
+
+function stopFireworkShow() {
+    fireworkShowActive = false;
+    fireworkShowKey = null;
+    fireworkShowTimeoutIds.forEach(id => clearTimeout(id));
+    fireworkShowTimeoutIds = [];
+    updateFireworkShowDots();
+}
+
+function toggleFireworkShow(key) {
+    // Reclique sur un spectacle en cours (le même, ou l'autre bouton) : on arrête et on réinitialise
+    if (fireworkShowActive) {
+        stopFireworkShow();
+        return;
+    }
+    const durationMs = key === '1min30' ? 90000 : 60000;
+    fireworkShowActive = true;
+    fireworkShowKey = key;
+    updateFireworkShowDots();
+
+    const recipeKeys = Object.keys(FIREWORK_RECIPES);
+    const finaleDurationMs = 6000; // les 6 dernières secondes = bouquet final
+    const finaleStartAt = durationMs - finaleDurationMs;
+    let elapsed = 0;
+
+    function scheduleNextShot() {
+        if (!fireworkShowActive) return;
+        if (elapsed >= finaleStartAt) {
+            launchFinale();
+            return;
+        }
+        // Le rythme s'accélère progressivement à l'approche du bouquet final
+        const progress = elapsed / finaleStartAt;
+        const delay = 900 - progress * 400; // ~900ms au début, ~500ms juste avant le final
+        const id = setTimeout(() => {
+            if (!fireworkShowActive) return;
+            const recipeKey = recipeKeys[Math.floor(Math.random() * recipeKeys.length)];
+            launchFireworkRecipe(recipeKey);
+            elapsed += delay;
+            scheduleNextShot();
+        }, delay);
+        fireworkShowTimeoutIds.push(id);
+    }
+
+    function launchFinale() {
+        const remaining = Math.max(durationMs - elapsed, finaleDurationMs);
+        const finaleWaves = 10;
+        for (let w = 0; w < finaleWaves; w++) {
+            const id = setTimeout(() => {
+                if (!fireworkShowActive) return;
+                for (let b = 0; b < 3; b++) {
+                    const recipeKey = recipeKeys[Math.floor(Math.random() * recipeKeys.length)];
+                    setTimeout(() => { if (fireworkShowActive) launchFireworkRecipe(recipeKey); }, b * 90);
+                }
+            }, (remaining / finaleWaves) * w);
+            fireworkShowTimeoutIds.push(id);
+        }
+        // Fin du spectacle : remet le bouton/point à l'état par défaut
+        const endId = setTimeout(() => {
+            if (fireworkShowActive) stopFireworkShow();
+        }, remaining + 400);
+        fireworkShowTimeoutIds.push(endId);
+    }
+
+    scheduleNextShot();
+}
+
 let fwEditorSelectedColors = {}; // { customFireworkId: ['#ff5252', 'random', ...] }
 
 function buildCustomFireworkEditorHtml(fw) {
-    const baseOptions = Object.keys(FIREWORK_RECIPES).map(k =>
-        `<option value="${k}" ${fw.baseType === k ? 'selected' : ''}>${FIREWORK_RECIPES[k].label}</option>`
-    ).join('');
-    const sizeOptions = ['petit', 'moyen', 'grand', 'très grand'].map(s =>
-        `<option value="${s}" ${fw.size === s ? 'selected' : ''}>${s.charAt(0).toUpperCase() + s.slice(1)}</option>`
-    ).join('');
-    const rhythmOptions = [1, 2, 3, 4, 5].map(r =>
-        `<option value="${r}" ${fw.rhythm === r ? 'selected' : ''}>${r}</option>`
-    ).join('');
-    const delayValues = [0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20];
-    const delayOptions = delayValues.map(d =>
-        `<option value="${d}" ${fw.delay === d ? 'selected' : ''}>${d}s</option>`
-    ).join('');
+    const baseOptions = `<option value="${FW_RANDOM_TOKEN}" ${fw.baseType === FW_RANDOM_TOKEN ? 'selected' : ''}>Aléatoire</option>` +
+        Object.keys(FIREWORK_RECIPES).map(k =>
+            `<option value="${k}" ${fw.baseType === k ? 'selected' : ''}>${FIREWORK_RECIPES[k].label}</option>`
+        ).join('');
+    const sizeOptions = `<option value="${FW_RANDOM_TOKEN}" ${fw.size === FW_RANDOM_TOKEN ? 'selected' : ''}>Aléatoire</option>` +
+        FW_SIZE_OPTIONS.map(s =>
+            `<option value="${s}" ${fw.size === s ? 'selected' : ''}>${s.charAt(0).toUpperCase() + s.slice(1)}</option>`
+        ).join('');
+    const rhythmOptions = `<option value="${FW_RANDOM_TOKEN}" ${fw.rhythm === FW_RANDOM_TOKEN ? 'selected' : ''}>Aléatoire</option>` +
+        FW_RHYTHM_OPTIONS.map(r =>
+            `<option value="${r}" ${fw.rhythm === r ? 'selected' : ''}>${r}</option>`
+        ).join('');
+    const delayOptions = `<option value="${FW_RANDOM_TOKEN}" ${fw.delay === FW_RANDOM_TOKEN ? 'selected' : ''}>Aléatoire</option>` +
+        FW_DELAY_OPTIONS.map(d =>
+            `<option value="${d}" ${fw.delay === d ? 'selected' : ''}>${d}s</option>`
+        ).join('');
 
     return `
         <div class="fwm-editor">
@@ -1890,11 +2106,14 @@ function saveCustomFireworkEdits(id) {
         return;
     }
 
+    const rhythmRaw = document.getElementById(`fwm-edit-rhythm-${id}`).value;
+    const delayRaw = document.getElementById(`fwm-edit-delay-${id}`).value;
+
     fw.colors = [...selectedColors];
     fw.baseType = document.getElementById(`fwm-edit-basetype-${id}`).value;
     fw.size = document.getElementById(`fwm-edit-size-${id}`).value;
-    fw.rhythm = parseInt(document.getElementById(`fwm-edit-rhythm-${id}`).value, 10);
-    fw.delay = parseFloat(document.getElementById(`fwm-edit-delay-${id}`).value);
+    fw.rhythm = rhythmRaw === FW_RANDOM_TOKEN ? FW_RANDOM_TOKEN : parseInt(rhythmRaw, 10);
+    fw.delay = delayRaw === FW_RANDOM_TOKEN ? FW_RANDOM_TOKEN : parseFloat(delayRaw);
     saveCustomFireworksList();
     delete fwEditorSelectedColors[id];
     if (customFireworksIntervalIds[id]) { clearTimeout(customFireworksIntervalIds[id]); delete customFireworksIntervalIds[id]; }
