@@ -927,32 +927,32 @@ function fwPatternGhost(origin, def) {
 
 // --- Motif "leaves" : chute en zigzag (feuilles) + scintillement ---
 function fwPatternLeaves(origin, def) {
-    // Un vrai "pop" d'éclatement d'abord (comme un feu d'artifice classique mais discret),
-    // dont les feuilles tombent ensuite en scintillant — plutôt qu'une simple pluie sans éclat.
-    const burstCount = 14;
+    // Un vrai "pop" d'éclatement d'abord (plus gros qu'avant), dont les paillettes tombent ensuite
+    // en scintillant — et UNIQUEMENT en dessous du point d'éclatement, pas dispersées ailleurs
+    // (sinon ça n'a pas de sens physiquement : la gravité les fait tomber, pas voler au hasard).
+    const burstCount = 26;
     for (let i = 0; i < burstCount; i++) {
         const angle = (i / burstCount) * Math.PI * 2;
-        const dist = 35 + Math.random() * 20;
+        const dist = 55 + Math.random() * 35;
         const color = def.colors[Math.floor(Math.random() * def.colors.length)];
-        fwSpawnParticle('fw-generic-particle', origin.x, origin.y, 4, color, 500, {
+        fwSpawnParticle('fw-generic-particle', origin.x, origin.y, 5, color, 650, {
             '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
         });
     }
 
     for (let i = 0; i < def.count; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const spread = 60 + Math.random() * 90;
-        const startX = origin.x + Math.cos(angle) * spread;
-        const startY = origin.y + Math.sin(angle) * spread * 0.5;
+        // Départ resserré horizontalement, juste sous le point d'éclatement — pas de dispersion en cercle
+        const startX = origin.x + (Math.random() - 0.5) * 90;
+        const startY = origin.y + 10 + Math.random() * 20;
         const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
         const color = def.colors[Math.floor(Math.random() * def.colors.length)];
         const fallDist = def.distance[0] + Math.random() * (def.distance[1] - def.distance[0]);
-        const zigzag = 40 + Math.random() * 50;
+        const zigzag = 35 + Math.random() * 40;
         setTimeout(() => {
             fwSpawnParticle('fw-generic-leaves', startX, startY, size, color, def.duration, {
                 '--dx': `${zigzag}px`, '--dy': `${fallDist}px`
             });
-        }, 250 + Math.random() * def.duration * 0.3);
+        }, 300 + Math.random() * def.duration * 0.25);
     }
 }
 
@@ -1001,93 +1001,180 @@ function fwPatternUltraGiant(origin, def) {
 //     explosion ronde), tous en blanc et doré — c'est le "Bouquet blanc et doré" ---
 function fwPatternEnsembleBlancDore(origin, def) {
     const whiteGold = def.colors;
+    const pick = () => whiteGold[Math.floor(Math.random() * whiteGold.length)];
 
-    // Crépitement intense, dense et bref
-    for (let i = 0; i < 30; i++) {
+    // 1. Amorce : un petit crépitement annonce le début de l'effet
+    for (let i = 0; i < 16; i++) {
         const angle = Math.random() * Math.PI * 2;
-        const dist = 15 + Math.random() * 30;
-        fwSpawnParticle('fw-generic-particle', origin.x, origin.y, 2.5,
-            whiteGold[Math.floor(Math.random() * whiteGold.length)], 500, {
-                '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
-            });
-    }
-
-    // Explosion ronde dorée (façon spirale/anneau)
-    const ringCount = 26;
-    for (let i = 0; i < ringCount; i++) {
-        const angle = (i / ringCount) * Math.PI * 2;
-        const dist = 100 + Math.random() * 40;
-        fwSpawnParticle('fw-generic-particle', origin.x, origin.y, 5, whiteGold[i % whiteGold.length], 1200, {
+        const dist = 12 + Math.random() * 22;
+        fwSpawnParticle('fw-generic-particle', origin.x, origin.y, 2.5, pick(), 400, {
             '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
         });
     }
 
-    // Fusée blanche qui monte puis éclate en blanc/or
+    // 2. Deux fontaines pyrotechniques blanches/dorées, de part et d'autre, jaillissent en continu
+    [-1, 1].forEach(side => {
+        const fx = origin.x + side * 90;
+        for (let i = 0; i < 16; i++) {
+            setTimeout(() => {
+                const angle = (-90 + (Math.random() * 26 - 13)) * (Math.PI / 180);
+                const dist = 70 + Math.random() * 80;
+                fwSpawnParticle('fw-generic-particle', fx, window.innerHeight, 3, pick(), 950, {
+                    '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
+                });
+            }, i * 45);
+        }
+    });
+
+    // 3. Une fusée blanche monte au centre puis éclate en un bouquet moyen doré
     setTimeout(() => {
         const groundY = window.innerHeight;
-        const burstY = window.innerHeight * (0.2 + Math.random() * 0.15);
-        fwSpawnParticle('fw-generic-particle', origin.x, groundY, 3, '#ffffff', 500, {
+        const burstY = window.innerHeight * (0.18 + Math.random() * 0.12);
+        fwSpawnParticle('fw-generic-particle', origin.x, groundY, 3, '#ffffff', 480, {
             '--dx': '0px', '--dy': `${-(groundY - burstY)}px`
         });
         setTimeout(() => {
-            for (let i = 0; i < 16; i++) {
-                const angle = (i / 16) * Math.PI * 2;
-                const dist = 45 + Math.random() * 20;
-                fwSpawnParticle('fw-generic-particle', origin.x, burstY, 4, whiteGold[i % whiteGold.length], 700, {
+            for (let i = 0; i < 20; i++) {
+                const angle = (i / 20) * Math.PI * 2;
+                const dist = 55 + Math.random() * 25;
+                fwSpawnParticle('fw-generic-particle', origin.x, burstY, 5, pick(), 800, {
                     '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
                 });
             }
-        }, 510);
-    }, 200);
+        }, 490);
+    }, 150);
 
-    // Fontaine pyrotechnique blanche et dorée qui jaillit du bas
-    for (let i = 0; i < 14; i++) {
-        setTimeout(() => {
-            const x = origin.x + (Math.random() - 0.5) * 140;
-            const y = window.innerHeight;
-            const angle = (-90 + (Math.random() * 30 - 15)) * (Math.PI / 180);
-            const dist = 60 + Math.random() * 70;
-            fwSpawnParticle('fw-generic-particle', x, y, 3, whiteGold[Math.floor(Math.random() * whiteGold.length)], 900, {
-                '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
-            });
-        }, i * 50);
-    }
-}
-
-// --- Motif "eclair" : un éclair en zigzag qui frappe, puis un flash à l'impact ---
-function fwPatternEclair(def) {
-    const startX = window.innerWidth * (0.2 + Math.random() * 0.6);
-    let curX = startX, curY = 0;
-    const color = def.colors[Math.floor(Math.random() * def.colors.length)];
-    const totalHeight = window.innerHeight * 0.5;
-    const segments = 7;
-
-    for (let i = 0; i < segments; i++) {
-        const nextY = curY + totalHeight / segments;
-        const nextX = curX + (Math.random() - 0.5) * 70;
-        const dx = nextX - curX;
-        const dy = nextY - curY;
-        const fromX = curX, fromY = curY;
-        setTimeout(() => {
-            fwSpawnParticle('fw-generic-particle', fromX, fromY, 3, color, 180, {
-                '--dx': `${dx}px`, '--dy': `${dy}px`, '--end-scale': 1
-            });
-        }, i * 35);
-        curX = nextX; curY = nextY;
-    }
-
-    // Flash au point d'impact
-    const impactX = curX, impactY = curY;
+    // 4. Bouquet doré principal : grosse explosion ronde à 3 anneaux, le vrai temps fort de l'effet
     setTimeout(() => {
-        const flashCount = 18;
-        for (let i = 0; i < flashCount; i++) {
-            const angle = (i / flashCount) * Math.PI * 2;
-            const dist = 40 + Math.random() * 30;
-            fwSpawnParticle('fw-generic-particle', impactX, impactY, 4, '#ffffff', 500, {
+        const rings = [
+            { count: 22, dist: 70,  size: 6 },
+            { count: 30, dist: 130, size: 6 },
+            { count: 36, dist: 190, size: 5 }
+        ];
+        rings.forEach((ring, r) => {
+            for (let i = 0; i < ring.count; i++) {
+                const angle = (i / ring.count) * Math.PI * 2 + r * 0.15;
+                const dist = ring.dist + Math.random() * 20;
+                fwSpawnParticle('fw-generic-particle', origin.x, origin.y, ring.size, pick(), 1500, {
+                    '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
+                });
+            }
+        });
+    }, 650);
+
+    // 5. Scintillement final qui accompagne la retombée du bouquet principal
+    setTimeout(() => {
+        for (let i = 0; i < 34; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const dist = 40 + Math.random() * 90;
+            fwSpawnParticle('fw-generic-particle', origin.x, origin.y, 2.5, pick(), 600, {
                 '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
             });
         }
-    }, segments * 35 + 100);
+    }, 1350);
+}
+
+// --- Motif "heart" : éclatement en forme de cœur (courbe paramétrique classique) ---
+function fwPatternHeart(origin, def) {
+    const count = def.count;
+    const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+    const scale = def.distance[0] / 16; // ajuste la taille du cœur selon la "distance" de la recette
+    for (let i = 0; i < count; i++) {
+        const t = (i / count) * Math.PI * 2;
+        const hx = 16 * Math.pow(Math.sin(t), 3);
+        const hy = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
+        fwSpawnParticle('fw-generic-particle', origin.x, origin.y, def.size[0], color, def.duration, {
+            '--dx': `${hx * scale}px`, '--dy': `${hy * scale}px`
+        });
+    }
+}
+
+// --- Motif "scintillant" : traîne scintillante dense et persistante par direction ---
+function fwPatternScintillant(origin, def) {
+    const count = def.count;
+    for (let i = 0; i < count; i++) {
+        const angle = (i / count) * Math.PI * 2 + Math.random() * 0.2;
+        const dist = def.distance[0] + Math.random() * (def.distance[1] - def.distance[0]);
+        const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+        for (let t = 0; t < 3; t++) {
+            setTimeout(() => {
+                fwSpawnParticle('fw-generic-particle', origin.x, origin.y, Math.max(1.5, def.size[0] - t * 0.7), color, Math.max(300, def.duration - t * 200), {
+                    '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`, '--end-scale': 0.15
+                });
+            }, t * 180);
+        }
+    }
+}
+
+// --- Motif "serpentin" : trajectoires qui ondulent en s'échappant du centre (réutilise le
+//     zigzag de "leaves", mais projeté vers l'extérieur plutôt que retombant vers le bas) ---
+function fwPatternSerpentin(origin, def) {
+    const count = def.count;
+    for (let i = 0; i < count; i++) {
+        const baseAngle = Math.random() * Math.PI * 2;
+        const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+        const dist = def.distance[0] + Math.random() * (def.distance[1] - def.distance[0]);
+        const wiggle = 25 + Math.random() * 25;
+        fwSpawnParticle('fw-generic-leaves', origin.x, origin.y, def.size[0], color, def.duration, {
+            '--dx': `${Math.cos(baseAngle) * dist + wiggle}px`, '--dy': `${Math.sin(baseAngle) * dist}px`
+        });
+    }
+}
+
+// --- Motif "cascade" : rideau suspendu depuis lequel les étincelles tombent en continu (Niagara) ---
+function fwPatternCascade(def) {
+    const lineY = window.innerHeight * 0.35;
+    const count = def.count;
+    for (let i = 0; i < count; i++) {
+        const x = (window.innerWidth / count) * i + Math.random() * 20;
+        const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
+        const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+        const fallDist = def.distance[0] + Math.random() * (def.distance[1] - def.distance[0]);
+        setTimeout(() => {
+            fwSpawnParticle('fw-generic-particle', x, lineY, size, color, def.duration, {
+                '--dx': '0px', '--dy': `${fallDist}px`, '--end-scale': 0.4
+            });
+        }, Math.random() * 500);
+    }
+}
+
+// --- Motif "colorChange" : le bouquet change de couleur à mi-parcours (pivoine à couleur changeante) ---
+function fwPatternColorChange(origin, def) {
+    const count = def.count;
+    const color1 = def.colors[0];
+    const color2 = def.colors[1] || def.colors[0];
+    for (let i = 0; i < count; i++) {
+        const angle = (i / count) * Math.PI * 2;
+        const dist = def.distance[0] + Math.random() * (def.distance[1] - def.distance[0]);
+        const midX = Math.cos(angle) * dist * 0.5;
+        const midY = Math.sin(angle) * dist * 0.5;
+        fwSpawnParticle('fw-generic-particle', origin.x, origin.y, def.size[0], color1, def.duration * 0.45, {
+            '--dx': `${midX}px`, '--dy': `${midY}px`, '--end-scale': 1
+        });
+        setTimeout(() => {
+            fwSpawnParticle('fw-generic-particle', origin.x + midX, origin.y + midY, def.size[0], color2, def.duration * 0.55, {
+                '--dx': `${midX}px`, '--dy': `${midY}px`
+            });
+        }, def.duration * 0.4);
+    }
+}
+
+// --- Motif "rafale" : plusieurs éclatements successifs au même endroit (shell à ruptures multiples) ---
+function fwPatternRafale(origin, def) {
+    const bursts = 3;
+    for (let b = 0; b < bursts; b++) {
+        setTimeout(() => {
+            const count = def.count;
+            const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+            for (let i = 0; i < count; i++) {
+                const angle = (i / count) * Math.PI * 2;
+                const dist = def.distance[0] + Math.random() * (def.distance[1] - def.distance[0]);
+                fwSpawnParticle('fw-generic-particle', origin.x, origin.y, def.size[0], color, def.duration, {
+                    '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
+                });
+            }
+        }, b * 280);
+    }
 }
 
 // --- Motif "spiral" : les particules s'échappent en dessinant une spirale (en spirale) ---
@@ -1328,7 +1415,12 @@ const FIREWORK_RECIPES = {
     horsetail:           { label: "Horsetail",                     pattern: 'willow',  count: 50, size: [2, 3],   distance: [100, 130], fallDistance: [200, 260], duration: 2400, colors: ['#ffffff', '#a0e8ff'], minDelay: 1300, maxDelay: 1900 },
     ultraGeant:          { label: "Ultra géant",                   pattern: 'ultraGiant', count: 60, size: [10, 14], distance: [180, 260], duration: 1900, colors: ['#ff5252', '#ffd452', '#52ff8a', '#52c8ff', '#c452ff', '#ff8a52', '#ffffff'], minDelay: 2200, maxDelay: 3000 },
     bouquetBlancDore:    { label: "Bouquet blanc et doré",         pattern: 'ensembleBlancDore', size: [4, 4], duration: 1500, colors: ['#ffffff', '#fff1c2', '#ffd452', '#d4af37'], minDelay: 2400, maxDelay: 3200 },
-    eclair:              { label: "Éclair",                        pattern: 'eclair', duration: 800, colors: ['#a0e8ff', '#ffffff', '#52c8ff'], minDelay: 1300, maxDelay: 1900 }
+    coeur:               { label: "Cœur",                          pattern: 'heart',   count: 34, size: [5, 5],   distance: [90, 90],  duration: 1300, colors: ['#ff1493', '#ff5252'], minDelay: 1400, maxDelay: 2000 },
+    scintillant:         { label: "Scintillant",                   pattern: 'scintillant', count: 24, size: [4, 5], distance: [90, 140], duration: 1400, colors: ['#ffffff', '#a0e8ff', '#ffd452'], minDelay: 900, maxDelay: 1400 },
+    serpentin:           { label: "Serpentin",                     pattern: 'serpentin', count: 20, size: [3, 4], distance: [80, 130], duration: 1800, colors: ['#52ff8a', '#c452ff', '#ffd452'], minDelay: 800, maxDelay: 1300 },
+    cascadeNiagara:      { label: "Cascade",                       pattern: 'cascade', count: 28, size: [2, 4], distance: [260, 380], duration: 2000, colors: ['#ffd452', '#ffffff', '#ff8a52'], minDelay: 500, maxDelay: 850 },
+    pivoineChangeante:   { label: "Pivoine à couleur changeante",  pattern: 'colorChange', count: 26, size: [5, 6], distance: [100, 150], duration: 1600, colors: ['#52c8ff', '#ff5252'], minDelay: 1300, maxDelay: 1900 },
+    rafale:              { label: "Rafale",                        pattern: 'rafale',  count: 16, size: [4, 5], distance: [60, 90],  duration: 700, colors: ['#ff8a52', '#ffd452', '#ff5252'], minDelay: 1600, maxDelay: 2200 }
 };
 
 let fireworkTypeEnabled = {};
@@ -1629,7 +1721,20 @@ const FW_SOUND_BY_PATTERN = {
     rocket:      fwPlayWhistlePop,
     romanCandle: fwPlayPopSeries,
     multi:       () => { fwPlayBoom(); setTimeout(fwPlayBoom, 150); fwPlayCrackle(); },
-    groundPop:   () => { for (let i = 0; i < 4; i++) setTimeout(fwPlayGroundPop, i * 90); }
+    groundPop:   () => { for (let i = 0; i < 4; i++) setTimeout(fwPlayGroundPop, i * 90); },
+    // --- Sons manquants ajoutés pour les motifs plus récents ---
+    kamuroStrobe: () => { fwPlayWhoosh(); for (let i = 0; i < 4; i++) setTimeout(fwPlayBeep, 300 + i * 180); fwPlayCrackle(); },
+    ghost:        () => { fwPlayFlareHum(); },
+    leaves:       () => { fwPlayBoom(); fwPlayCrackle(); },
+    mandala:      () => { fwPlayBoom(); setTimeout(fwPlayBoom, 120); fwPlayCrackle(); },
+    ultraGiant:   () => { fwPlayBoom(); setTimeout(fwPlayBoom, 90); setTimeout(fwPlayBoom, 220); fwPlayCrackle(); },
+    ensembleBlancDore: () => { fwPlayWhistlePop(); setTimeout(fwPlayHiss, 200); fwPlayCrackle(); },
+    heart:              () => { fwPlayBoom(); fwPlayCrackle(); },
+    scintillant:        () => { fwPlayBoom(); fwPlayCrackle(); setTimeout(fwPlayCrackle, 300); },
+    serpentin:          () => { fwPlayWhoosh(); fwPlayBuzz(); },
+    cascade:            fwPlayHiss,
+    colorChange:        () => { fwPlayBoom(); setTimeout(fwPlayBoom, 380); fwPlayCrackle(); },
+    rafale:             () => { fwPlayBoom(); setTimeout(fwPlayBoom, 280); setTimeout(fwPlayBoom, 560); }
 };
 
 let fireworksSoundEnabled = localStorage.getItem('fireworksSoundEnabled') === 'true';
@@ -1673,7 +1778,12 @@ function launchFireworkRecipe(key, overrideDef) {
         case 'mandala':         fwPatternMandala(origin, def); break;
         case 'ultraGiant':       fwPatternUltraGiant(origin, def); break;
         case 'ensembleBlancDore': fwPatternEnsembleBlancDore(origin, def); break;
-        case 'eclair':            fwPatternEclair(def); break;
+        case 'heart':              fwPatternHeart(origin, def); break;
+        case 'scintillant':        fwPatternScintillant(origin, def); break;
+        case 'serpentin':          fwPatternSerpentin(origin, def); break;
+        case 'cascade':            fwPatternCascade(def); break;
+        case 'colorChange':        fwPatternColorChange(origin, def); break;
+        case 'rafale':             fwPatternRafale(origin, def); break;
     }
 }
 
@@ -1779,7 +1889,7 @@ function ensureFireworksManagerOverlay() {
                     </div>
                 </div>
 
-                <p class="fwm-section-title">35 effets</p>
+                <p class="fwm-section-title">40 effets</p>
                 <div id="fwm-list"></div>
 
                 <div style="height: 18px;"></div>
@@ -2066,7 +2176,7 @@ function initCustomFireworks() {
 
 // ==========================================
 // SPECTACLE — 2 boutons (1 min / 1 min 30), lancent un enchaînement automatique de tirs parmi
-// les 35 effets, qui s'intensifie et se termine par un bouquet final. Un point rouge/vert indique
+// les 40 effets, qui s'intensifie et se termine par un bouquet final. Un point rouge/vert indique
 // si un spectacle est en cours ; recliquer l'arrête et réinitialise (le suivant repart de 0).
 // ==========================================
 // SPECTACLE — 2 boutons (1 min / 1 min 30), déroulé en plusieurs phases (ouverture → montée →
@@ -2115,7 +2225,7 @@ function fwShowLaunch(key) {
 }
 
 // Effets particulièrement spectaculaires, privilégiés dans les moments forts du spectacle
-const FW_SHOW_GRAND_POOL = ['ultraGeant', 'bouquetBlancDore', 'geants', 'bombeArtifice', 'mortier', 'bouquet', 'crossette'];
+const FW_SHOW_GRAND_POOL = ['ultraGeant', 'bouquetBlancDore', 'geants', 'bombeArtifice', 'mortier', 'bouquet', 'crossette', 'coeur', 'rafale', 'cascadeNiagara'];
 
 function toggleFireworkShow(key) {
     // Reclique pendant un spectacle en cours (le même bouton, ou l'autre) : on arrête et on réinitialise
