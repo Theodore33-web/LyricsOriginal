@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v1.9";
+        const APP_VERSION = "v2.11";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -430,6 +430,9 @@
 
     <div id="dashboard">
         <div class="lyrics-section" id="lyrics-container">
+            <div id="lyrics-download-row" style="display: flex; justify-content: flex-end; margin-bottom: 8px;">
+                <button id="download-a4-btn" onclick="downloadLyricsA4()" style="background: none; border: 1px solid var(--spotify-green); color: var(--spotify-green); border-radius: 16px; padding: 6px 14px; font-size: 0.75rem; font-weight: bold; cursor: pointer;">📄 Télécharger paroles (A4)</button>
+            </div>
             <div id="lyrics-content">Lancez une musique sur Spotify...</div>
         </div>
     
@@ -486,6 +489,14 @@
     <span style="font-size: 0.85rem; color: var(--text-grey);">Spectre audio animé 2.0</span>
     <label class="switch">
         <input type="checkbox" id="spectrum2-toggle" onchange="toggleSpectrum2Setting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Spectre audio animé 3.0 (halo circulaire pochette)</span>
+    <label class="switch">
+        <input type="checkbox" id="spectrum3-toggle" onchange="toggleSpectrum3Setting(this.checked)">
         <span class="slider"></span>
     </label>
 </div>
@@ -1278,6 +1289,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 initFeuxCrepitantsState();
                 initFeuxGeantsState();
                 initSpectrum2State();
+                initSpectrum3State();
                 initFeuxDoubleState();
                 initPetardClicClacState();
                 initVinyleState();
@@ -1827,6 +1839,88 @@ function parseLyrics(lrc) {
     const linesHtml = currentLyrics.map((l, i) => `<div id="line-${i}" class="lyric-line" onclick="seekToLyricLine(${i})" style="cursor: pointer;">${l.text}</div>`).join('');
     
     document.getElementById('lyrics-content').innerHTML = titleHeader + linesHtml;
+}
+
+// Génère une feuille A4 imprimable (téléchargeable en PDF via "Imprimer" du navigateur) pour les
+// paroles du panneau principal du lecteur : pochette à gauche, titre/artiste/durée à côté, paroles en dessous.
+function downloadLyricsA4() {
+    const titleEl = document.getElementById('track-title');
+    const artistEl = document.getElementById('track-artist');
+    const artEl = document.getElementById('track-art');
+    const trackName = titleEl ? titleEl.innerText.trim() : '';
+    const trackArtist = artistEl ? artistEl.innerText.trim() : '';
+    const trackImage = artEl && artEl.src ? artEl.src : '';
+
+    if (!trackName || trackName === 'Aucune lecture') {
+        alert("Lance d'abord un titre pour en télécharger les paroles.");
+        return;
+    }
+
+    let lyricsLines = [];
+    if (currentLyrics && currentLyrics.length > 0) {
+        lyricsLines = currentLyrics.map(l => l.text);
+    } else {
+        const contentEl = document.getElementById('lyrics-content');
+        if (contentEl) {
+            lyricsLines = Array.from(contentEl.querySelectorAll('.lyric-line')).map(el => el.innerText);
+        }
+    }
+    if (lyricsLines.length === 0) lyricsLines = ["Paroles indisponibles."];
+
+    const timeMaxEl = document.getElementById('time-max');
+    let durationStr = timeMaxEl ? timeMaxEl.innerText.trim() : '';
+    if (!durationStr || durationStr === '0:00') {
+        const durationSec = Math.round((trackDurationMs || 0) / 1000);
+        durationStr = `${Math.floor(durationSec / 60)}:${String(durationSec % 60).padStart(2, '0')}`;
+    }
+
+    const escapeHtml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    const printWin = window.open('', '_blank', 'width=850,height=1100');
+    if (!printWin) {
+        alert("Le navigateur a bloqué l'ouverture de la fenêtre. Autorise les pop-ups pour télécharger la feuille de paroles.");
+        return;
+    }
+
+    printWin.document.write(`
+        <!DOCTYPE html>
+        <html lang="fr">
+        <head>
+        <meta charset="UTF-8">
+        <title>${escapeHtml(trackName)} — Paroles</title>
+        <style>
+            @page { size: A4; margin: 18mm; }
+            body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #111; margin: 0; }
+            .a4-header { display: flex; align-items: center; gap: 20px; border-bottom: 2px solid #1DB954; padding-bottom: 14px; margin-bottom: 22px; }
+            .a4-cover { width: 100px; height: 100px; object-fit: cover; border-radius: 6px; flex-shrink: 0; }
+            .a4-infos { display: flex; flex-direction: column; gap: 5px; }
+            .a4-title { font-size: 1.4rem; font-weight: bold; margin: 0; }
+            .a4-artist { font-size: 1rem; color: #444; margin: 0; }
+            .a4-duration { font-size: 0.85rem; color: #777; margin: 0; }
+            .a4-lyrics { font-size: 1rem; line-height: 1.8; white-space: pre-wrap; }
+            .a4-noprint { text-align: right; margin-bottom: 14px; }
+            .a4-noprint button {
+                padding: 9px 18px; font-weight: bold; cursor: pointer; border-radius: 20px;
+                border: 1px solid #1DB954; background: #1DB954; color: #000;
+            }
+            @media print { .a4-noprint { display: none; } }
+        </style>
+        </head>
+        <body>
+            <div class="a4-noprint"><button onclick="window.print()">🖨️ Imprimer / Enregistrer en PDF</button></div>
+            <div class="a4-header">
+                ${trackImage ? `<img class="a4-cover" src="${trackImage}" alt="">` : ''}
+                <div class="a4-infos">
+                    <p class="a4-title">${escapeHtml(trackName)}</p>
+                    <p class="a4-artist">${escapeHtml(trackArtist)}</p>
+                    <p class="a4-duration">Durée : ${escapeHtml(durationStr)}</p>
+                </div>
+            </div>
+            <div class="a4-lyrics">${lyricsLines.map(escapeHtml).join('<br>')}</div>
+        </body>
+        </html>
+    `);
+    printWin.document.close();
 }
 
 // Clic sur une ligne de paroles = navigue directement à ce moment du titre (comme la barre de progression)
@@ -2414,6 +2508,7 @@ let feuxFontaineEnabled = localStorage.getItem('feuxFontaineEnabled') === 'true'
 let feuxCrepitantsEnabled = localStorage.getItem('feuxCrepitantsEnabled') === 'true';
 let feuxGeantsEnabled = localStorage.getItem('feuxGeantsEnabled') === 'true';
 let spectrum2Enabled = localStorage.getItem('spectrum2Enabled') === 'true';
+let spectrum3Enabled = localStorage.getItem('spectrum3Enabled') === 'true';
 let feuxDoubleEnabled = localStorage.getItem('feuxDoubleEnabled') === 'true';
 
 // --- 5 NOUVEAUX EFFETS (style DJ / musique) ---
@@ -2531,6 +2626,8 @@ function toggleSettings() {
         if (petardClicClacToggle) petardClicClacToggle.checked = petardClicClacEnabled;
         const spectrum2Toggle = document.getElementById('spectrum2-toggle');
         if (spectrum2Toggle) spectrum2Toggle.checked = spectrum2Enabled;
+        const spectrum3Toggle = document.getElementById('spectrum3-toggle');
+        if (spectrum3Toggle) spectrum3Toggle.checked = spectrum3Enabled;
 
         const vinyleToggle = document.getElementById('vinyle-toggle');
         if (vinyleToggle) vinyleToggle.checked = vinyleEnabled;
@@ -6430,6 +6527,21 @@ function injectTexteParolesStyles() {
             overflow-x: visible;
             padding-left: 6px;
         }
+        #tp-lyrics-download-row {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 10px;
+        }
+        #tp-download-a4-btn {
+            background: none;
+            border: 1px solid var(--spotify-green, #1DB954);
+            color: var(--spotify-green, #1DB954);
+            border-radius: 16px;
+            padding: 6px 14px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
         .tp-lyric-line {
             cursor: pointer;
             transition: color 0.2s, transform 0.2s;
@@ -6501,6 +6613,9 @@ function ensureTexteParolesOverlay() {
             </div>
 
             <div class="tp-panel" id="tp-lyrics-panel">
+                <div id="tp-lyrics-download-row">
+                    <button id="tp-download-a4-btn" onclick="tpDownloadLyricsA4()">📄 Télécharger paroles (A4)</button>
+                </div>
                 <div id="tp-lyrics-content"></div>
             </div>
         </div>
@@ -6700,6 +6815,76 @@ function tpSeekToLyricLine(index) {
     texteparolesElapsedMs = Math.floor(texteparolesLyrics[index].time * 1000);
     tpUpdateTimerDisplay();
     tpHighlightLyrics();
+}
+
+// Génère une feuille A4 imprimable (téléchargeable en PDF via "Imprimer" du navigateur) :
+// pochette à gauche, titre/artiste/durée à côté, et les paroles en dessous.
+function tpDownloadLyricsA4() {
+    const t = texteparolesTrack;
+    if (!t) { alert("Sélectionne d'abord un titre pour en télécharger les paroles."); return; }
+
+    // Paroles synchronisées si disponibles, sinon on récupère telles quelles les lignes déjà affichées
+    let lyricsLines = [];
+    if (texteparolesLyrics && texteparolesLyrics.length > 0) {
+        lyricsLines = texteparolesLyrics.map(l => l.text);
+    } else {
+        const contentEl = document.getElementById('tp-lyrics-content');
+        if (contentEl) {
+            lyricsLines = Array.from(contentEl.querySelectorAll('.lyric-line')).map(el => el.innerText);
+        }
+    }
+    if (lyricsLines.length === 0) lyricsLines = ["Paroles indisponibles."];
+
+    const durationSec = Math.round((t.durationMs || 0) / 1000);
+    const durationStr = `${Math.floor(durationSec / 60)}:${String(durationSec % 60).padStart(2, '0')}`;
+
+    const escapeHtml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    const printWin = window.open('', '_blank', 'width=850,height=1100');
+    if (!printWin) {
+        alert("Le navigateur a bloqué l'ouverture de la fenêtre. Autorise les pop-ups pour télécharger la feuille de paroles.");
+        return;
+    }
+
+    printWin.document.write(`
+        <!DOCTYPE html>
+        <html lang="fr">
+        <head>
+        <meta charset="UTF-8">
+        <title>${escapeHtml(t.name)} — Paroles</title>
+        <style>
+            @page { size: A4; margin: 18mm; }
+            body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #111; margin: 0; }
+            .a4-header { display: flex; align-items: center; gap: 20px; border-bottom: 2px solid #1DB954; padding-bottom: 14px; margin-bottom: 22px; }
+            .a4-cover { width: 100px; height: 100px; object-fit: cover; border-radius: 6px; flex-shrink: 0; }
+            .a4-infos { display: flex; flex-direction: column; gap: 5px; }
+            .a4-title { font-size: 1.4rem; font-weight: bold; margin: 0; }
+            .a4-artist { font-size: 1rem; color: #444; margin: 0; }
+            .a4-duration { font-size: 0.85rem; color: #777; margin: 0; }
+            .a4-lyrics { font-size: 1rem; line-height: 1.8; white-space: pre-wrap; }
+            .a4-noprint { text-align: right; margin-bottom: 14px; }
+            .a4-noprint button {
+                padding: 9px 18px; font-weight: bold; cursor: pointer; border-radius: 20px;
+                border: 1px solid #1DB954; background: #1DB954; color: #000;
+            }
+            @media print { .a4-noprint { display: none; } }
+        </style>
+        </head>
+        <body>
+            <div class="a4-noprint"><button onclick="window.print()">🖨️ Imprimer / Enregistrer en PDF</button></div>
+            <div class="a4-header">
+                <img class="a4-cover" src="${t.image}" alt="">
+                <div class="a4-infos">
+                    <p class="a4-title">${escapeHtml(t.name)}</p>
+                    <p class="a4-artist">${escapeHtml(t.artist)}</p>
+                    <p class="a4-duration">Durée : ${durationStr}</p>
+                </div>
+            </div>
+            <div class="a4-lyrics">${lyricsLines.map(escapeHtml).join('<br>')}</div>
+        </body>
+        </html>
+    `);
+    printWin.document.close();
 }
 
 function tpHighlightLyrics() {
