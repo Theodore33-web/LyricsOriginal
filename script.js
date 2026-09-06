@@ -412,6 +412,137 @@ function initSpectrum2() {
     draw();
 }
 
+// ==========================================
+// SPECTRE AUDIO ANIMÉ 3.0 — anneau circulaire de pointes lumineuses qui pulse
+// AUTOUR de la pochette (#track-art), avec rotation lente. Volontairement très
+// différent des 2 spectres en barres horizontales ci-dessus.
+// ==========================================
+function injectSpectrum3Styles() {
+    if (document.getElementById('spectrum3-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'spectrum3-inline-style';
+    styleTag.textContent = `
+        #spectrum3-canvas {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 5;
+            display: none;
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectSpectrum3Styles();
+
+function ensureSpectrum3Canvas() {
+    let canvas = document.getElementById('spectrum3-canvas');
+    if (!canvas) {
+        canvas = document.createElement('canvas');
+        canvas.id = 'spectrum3-canvas';
+        const art = document.getElementById('track-art');
+        const host = art && art.parentElement ? art.parentElement : document.body;
+        if (getComputedStyle(host).position === 'static') {
+            host.style.position = 'relative';
+        }
+        host.appendChild(canvas);
+    }
+    return canvas;
+}
+
+let spectrum3Bars = [];
+let spectrum3AnimId = null;
+let spectrum3Rotation = 0;
+
+function initSpectrum3() {
+    const canvas = ensureSpectrum3Canvas();
+    const ctx = canvas.getContext('2d');
+    const barCount = 60;
+
+    spectrum3Bars = Array.from({ length: barCount }, () => ({
+        phase: Math.random() * Math.PI * 2,
+        speed: 0.02 + Math.random() * 0.04,
+        current: 0.05
+    }));
+
+    function sizeCanvas() {
+        const art = document.getElementById('track-art');
+        const size = art ? Math.max(art.offsetWidth, art.offsetHeight) + 90 : 260;
+        canvas.style.width = `${size}px`;
+        canvas.style.height = `${size}px`;
+        canvas.width = size * window.devicePixelRatio;
+        canvas.height = size * window.devicePixelRatio;
+    }
+    sizeCanvas();
+    window.addEventListener('resize', sizeCanvas);
+
+    function draw() {
+        spectrum3AnimId = requestAnimationFrame(draw);
+
+        const w = canvas.width;
+        const h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+
+        if (!spectrum3Enabled) {
+            spectrum3Bars.forEach(bar => { bar.current = 0.05; });
+            return;
+        }
+
+        const active = spectrum3Enabled && isCurrentlyPlaying;
+        const cx = w / 2;
+        const cy = h / 2;
+        const innerRadius = Math.min(w, h) * 0.34;
+        const maxSpikeLength = Math.min(w, h) * 0.16;
+
+        // Rotation lente et continue de l'anneau entier, seulement pendant la lecture
+        if (active) spectrum3Rotation += 0.0035;
+
+        spectrum3Bars.forEach((bar, i) => {
+            bar.phase += bar.speed;
+            const targetAmplitude = active
+                ? (0.2 + 0.8 * Math.abs(Math.sin(bar.phase)))
+                : 0.05;
+            bar.current += (targetAmplitude - bar.current) * 0.09;
+
+            const angle = (i / spectrum3Bars.length) * Math.PI * 2 + spectrum3Rotation;
+            const spikeLength = Math.max(3, bar.current * maxSpikeLength);
+            const hue = (i / spectrum3Bars.length) * 360 + spectrum3Rotation * 200;
+
+            const x1 = cx + Math.cos(angle) * innerRadius;
+            const y1 = cy + Math.sin(angle) * innerRadius;
+            const x2 = cx + Math.cos(angle) * (innerRadius + spikeLength);
+            const y2 = cy + Math.sin(angle) * (innerRadius + spikeLength);
+
+            ctx.strokeStyle = `hsl(${hue}, 95%, 62%)`;
+            ctx.lineWidth = Math.max(2, (Math.min(w, h) / spectrum3Bars.length) * 0.55);
+            ctx.lineCap = 'round';
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = `hsl(${hue}, 95%, 62%)`;
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+        });
+        ctx.shadowBlur = 0;
+    }
+    draw();
+}
+
+function toggleSpectrum3Setting(checked) {
+    spectrum3Enabled = checked;
+    localStorage.setItem('spectrum3Enabled', checked ? 'true' : 'false');
+    const canvas = ensureSpectrum3Canvas();
+    canvas.style.display = checked ? 'block' : 'none';
+    if (checked && !spectrum3AnimId) initSpectrum3();
+}
+
+function initSpectrum3State() {
+    const canvas = ensureSpectrum3Canvas();
+    canvas.style.display = spectrum3Enabled ? 'block' : 'none';
+    if (spectrum3Enabled) initSpectrum3();
+}
+
 function toggleSpectrum2Setting(checked) {
     spectrum2Enabled = checked;
     localStorage.setItem('spectrum2Enabled', checked ? 'true' : 'false');
@@ -1433,7 +1564,19 @@ const FIREWORK_RECIPES = {
     serpentin:           { label: "Serpentin",                     pattern: 'serpentin', count: 20, size: [3, 4], distance: [80, 130], duration: 1800, colors: ['#52ff8a', '#c452ff', '#ffd452'], minDelay: 800, maxDelay: 1300 },
     cascadeNiagara:      { label: "Cascade",                       pattern: 'cascade', count: 28, size: [2, 4], distance: [260, 380], duration: 2000, colors: ['#ffd452', '#ffffff', '#ff8a52'], minDelay: 500, maxDelay: 850 },
     pivoineChangeante:   { label: "Pivoine à couleur changeante",  pattern: 'colorChange', count: 26, size: [5, 6], distance: [100, 150], duration: 1600, colors: ['#52c8ff', '#ff5252'], minDelay: 1300, maxDelay: 1900 },
-    rafale:              { label: "Rafale",                        pattern: 'rafale',  count: 16, size: [4, 5], distance: [60, 90],  duration: 700, colors: ['#ff8a52', '#ffd452', '#ff5252'], minDelay: 1600, maxDelay: 2200 }
+    rafale:              { label: "Rafale",                        pattern: 'rafale',  count: 16, size: [4, 5], distance: [60, 90],  duration: 700, colors: ['#ff8a52', '#ffd452', '#ff5252'], minDelay: 1600, maxDelay: 2200 },
+
+    // --- 10 NOUVEAUX EFFETS DE FEUX D'ARTIFICE RÉALISTES ---
+    cometeArgentee:        { label: "Comète argentée",            pattern: 'willow',  count: 24, size: [2, 3],  distance: [110, 150], fallDistance: [180, 230], duration: 2300, colors: ['#e8e8e8', '#ffffff', '#c0d8ff'], minDelay: 1100, maxDelay: 1700 },
+    eventailArcEnCiel:      { label: "Éventail arc-en-ciel",       pattern: 'radial',  shape: 'fan', count: 30, size: [4, 6],  distance: [100, 160], duration: 1300, colors: ['#ff5252', '#ff8a52', '#ffd452', '#52ff8a', '#52c8ff', '#c452ff'], minDelay: 1000, maxDelay: 1500 },
+    pivoineBicoloreGeante: { label: "Pivoine bicolore géante",    pattern: 'radial',  count: 50, size: [7, 10], distance: [160, 220], duration: 1700, colors: ['#ff1a1a', '#ffffff'], minDelay: 1800, maxDelay: 2400 },
+    chrysanthemeVioletScintillant: { label: "Chrysanthème violet scintillant", pattern: 'willow', count: 38, size: [2, 4], distance: [100, 150], fallDistance: [130, 180], duration: 2200, colors: ['#a352ff', '#e0c2ff', '#ffffff'], minDelay: 1100, maxDelay: 1700 },
+    crossetteDoree:        { label: "Crossette dorée",             pattern: 'radial',  count: 12, size: [5, 7],  distance: [110, 110], duration: 1400, colors: ['#ffd452', '#d4af37'], crossette: true, minDelay: 1000, maxDelay: 1500 },
+    bengaleBleu:           { label: "Bengale bleu",                pattern: 'flare',   duration: 2000, colors: ['#2196ff'], minDelay: 2200, maxDelay: 2200 },
+    cascadeArcEnCiel:      { label: "Cascade arc-en-ciel",         pattern: 'cascade', count: 32, size: [2, 4],  distance: [260, 380], duration: 2100, colors: ['#ff5252', '#ffd452', '#52ff8a', '#52c8ff', '#c452ff'], minDelay: 550, maxDelay: 900 },
+    mandalaEmeraude:       { label: "Mandala émeraude",            pattern: 'mandala', count: 14, size: [4, 5],  distance: [60, 140],  duration: 1400, colors: ['#00c896', '#52ffb8', '#ffffff'], minDelay: 1200, maxDelay: 1800 },
+    spiraleDeFeu:          { label: "Spirale de feu",              pattern: 'spiral',  count: 26, size: [5, 5],  distanceStep: 5.8, delayStep: 14, duration: 1200, colors: ['#ff3300', '#ff8a00', '#ffd452'], minDelay: 800, maxDelay: 1300 },
+    bouquetNocturne:       { label: "Bouquet nocturne",            pattern: 'multi',   count: 20, size: [4, 6],  distance: [90, 150],  duration: 1400, colors: ['#1a1a4e', '#4b3f8f', '#c9c9ff', '#ffffff'], minDelay: 1700, maxDelay: 2300 }
 };
 
 let fireworkTypeEnabled = {};
@@ -1842,8 +1985,16 @@ function injectFireworksManagerStyles() {
             padding: 10px 14px; font-weight: bold; font-size: 0.9rem; cursor: pointer; width: 100%;
         }
         .fwm-timeline-outer { display: flex; align-items: stretch; gap: 8px; margin: 10px 0; }
-        .fwm-timeline-scroll { flex: 1; overflow-x: auto; overflow-y: hidden; background: #111; border-radius: 8px; height: 90px; }
-        .fwm-timeline-track { position: relative; height: 100%; background: linear-gradient(to right, #1a1a1a, #161616); cursor: crosshair; }
+        .fwm-timeline-scroll { flex: 1; overflow: auto; background: #111; border-radius: 8px; min-height: 90px; max-height: 300px; }
+        .fwm-timeline-track { position: relative; background: linear-gradient(to right, #1a1a1a, #161616); }
+        .fwm-timeline-row {
+            position: absolute; left: 0; box-sizing: border-box; border-bottom: 1px solid #262626; cursor: crosshair;
+        }
+        .fwm-timeline-row:nth-child(odd) { background: rgba(255, 255, 255, 0.015); }
+        .fwm-timeline-row-label {
+            position: absolute; left: 3px; top: 2px; font-size: 0.58rem; color: rgba(255, 255, 255, 0.28);
+            pointer-events: none; user-select: none;
+        }
         .fwm-timeline-mark {
             position: absolute; top: 0; bottom: 0; border-left: 1px solid #333;
             font-size: 0.6rem; color: var(--text-grey, #b3b3b3); padding-left: 3px; padding-top: 2px; pointer-events: none;
@@ -1855,14 +2006,18 @@ function injectFireworksManagerStyles() {
         .fwm-timeline-icon {
             position: absolute; width: 16px; height: 16px; border-radius: 50%; cursor: pointer;
             border: 2px solid rgba(255, 255, 255, 0.45); box-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
-            transform: translateX(-50%);
+            transform: translateX(-50%); pointer-events: auto;
         }
         .fwm-timeline-icon.selected { border-color: var(--spotify-green, #1DB954); box-shadow: 0 0 8px 2px rgba(29, 185, 84, 0.8); }
+        .fwm-timeline-side-controls { display: flex; flex-direction: column; gap: 10px; }
         .fwm-timeline-zoom { display: flex; flex-direction: column; gap: 4px; }
-        .fwm-timeline-zoom button {
+        .fwm-timeline-zoom button, .fwm-timeline-lines button {
             width: 30px; height: 30px; border-radius: 8px; border: none; background: #1a1a1a;
             color: #fff; font-size: 1rem; cursor: pointer;
         }
+        .fwm-timeline-lines { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+        .fwm-timeline-lines span { font-size: 0.62rem; color: var(--text-grey, #b3b3b3); text-align: center; }
+        .fwm-show3-item.selected { outline: 2px solid var(--spotify-green, #1DB954); }
         .fwm-effects-palette { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; max-height: 150px; overflow-y: auto; }
         .fwm-effect-swatch {
             width: 36px; height: 36px; border-radius: 8px; cursor: pointer; display: flex; align-items: center;
@@ -1939,7 +2094,7 @@ function ensureFireworksManagerOverlay() {
                     </div>
                 </div>
 
-                <button class="fwm-create-btn" onclick="toggleFwShow3Form()">🎬 Spectacle 3.0 — créer le mien</button>
+                <button class="fwm-create-btn" onclick="toggleFwShow3Form()">🎬 Créer votre spectacle</button>
                 <div id="fwm-show3-form" style="display: none;">
                     <label style="font-size: 0.75rem; color: var(--text-grey);">Nom du spectacle</label>
                     <input type="text" id="fwm-show3-name" class="fwm-show3-name-input" placeholder="Mon spectacle">
@@ -1948,11 +2103,19 @@ function ensureFireworksManagerOverlay() {
                         <div class="fwm-timeline-scroll" id="fwm-timeline-scroll">
                             <div class="fwm-timeline-track" id="fwm-timeline-track"></div>
                         </div>
-                        <div class="fwm-timeline-zoom">
-                            <button onclick="fwTimelineZoom(1)">+</button>
-                            <button onclick="fwTimelineZoom(-1)">−</button>
+                        <div class="fwm-timeline-side-controls">
+                            <div class="fwm-timeline-zoom">
+                                <button onclick="fwTimelineZoom(1)">+</button>
+                                <button onclick="fwTimelineZoom(-1)">−</button>
+                            </div>
+                            <div class="fwm-timeline-lines">
+                                <span id="fwm-timeline-lines-count">3 lignes</span>
+                                <button onclick="fwShow3ChangeLineCount(1)">+</button>
+                                <button onclick="fwShow3ChangeLineCount(-1)">−</button>
+                            </div>
                         </div>
                     </div>
+                    <p style="font-size: 0.68rem; color: var(--text-grey); margin: 0 0 8px 0;">💡 Astuce : plusieurs lignes = plusieurs feux superposés au même instant. Jusqu'à 10 lignes.</p>
 
                     <p class="fwm-section-title">Effets disponibles (clique pour ajouter)</p>
                     <div id="fwm-effects-palette" class="fwm-effects-palette"></div>
@@ -2417,6 +2580,28 @@ function toggleFireworkShow(key) {
 const FW_SHOW3_DURATION = 120; // durée fixe du spectacle : 2 minutes
 let fwShow3Effects = [];        // [{ id, recipeKey, timeSec }] du spectacle en cours d'édition
 let fwShow3PxPerSec = 4;        // échelle de zoom (pixels par seconde)
+const FW_TIMELINE_ROW_HEIGHT = 34;
+let fwShow3LineCount = Math.max(1, Math.min(10, parseInt(localStorage.getItem('fwShow3LineCount'), 10) || 3)); // nb de lignes superposables (1 à 10)
+
+// Change le nombre de lignes de la timeline (1 à 10). En cas de réduction, les effets des
+// lignes supprimées sont reportés sur la dernière ligne restante pour ne rien perdre.
+function fwShow3ChangeLineCount(direction) {
+    const newCount = Math.max(1, Math.min(10, fwShow3LineCount + direction));
+    if (newCount === fwShow3LineCount) return;
+    if (newCount < fwShow3LineCount) {
+        fwShow3Effects.forEach(e => { if ((e.line || 0) >= newCount) e.line = newCount - 1; });
+    }
+    fwShow3LineCount = newCount;
+    localStorage.setItem('fwShow3LineCount', String(fwShow3LineCount));
+    updateFwLineCountLabel();
+    renderFwTimeline();
+    renderFwShow3List();
+}
+
+function updateFwLineCountLabel() {
+    const el = document.getElementById('fwm-timeline-lines-count');
+    if (el) el.innerText = `${fwShow3LineCount} ligne${fwShow3LineCount > 1 ? 's' : ''}`;
+}
 let fwShow3SelectedId = null;   // icône sélectionnée sur la timeline, en attente d'un nouveau clic pour la déplacer
 let fwShow3EditingId = null;    // id du spectacle enregistré en cours de modification (null = nouvelle création)
 
@@ -2437,6 +2622,7 @@ function toggleFwShow3Form() {
     if (isHidden) {
         if (!fwShow3EditingId) {
             fwShow3Effects = [];
+            fwShow3LineCount = Math.max(1, Math.min(10, parseInt(localStorage.getItem('fwShow3LineCount'), 10) || 3));
             const nameInput = document.getElementById('fwm-show3-name');
             if (nameInput) nameInput.value = '';
         }
@@ -2472,12 +2658,19 @@ function renderFwEffectsPalette() {
     });
 }
 
-// Ajoute l'effet cliqué au premier créneau libre de la timeline (espacé d'au moins 1s des autres)
+// Ajoute l'effet cliqué au premier créneau libre de la timeline (espacé d'au moins 1s des autres
+// effets DE LA MÊME LIGNE — deux lignes différentes peuvent parfaitement se superposer dans le temps).
 function fwShow3AddEffect(recipeKey) {
-    let t = 0;
-    while (fwShow3Effects.some(e => Math.abs(e.timeSec - t) < 1) && t < FW_SHOW3_DURATION) t += 3;
-    t = Math.min(t, FW_SHOW3_DURATION - 1);
-    fwShow3Effects.push({ id: 'fx_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6), recipeKey, timeSec: t });
+    let bestLine = 0, bestT = 0, found = false;
+    for (let line = 0; line < fwShow3LineCount && !found; line++) {
+        let t = 0;
+        while (fwShow3Effects.some(e => (e.line || 0) === line && Math.abs(e.timeSec - t) < 1) && t < FW_SHOW3_DURATION) t += 3;
+        t = Math.min(t, FW_SHOW3_DURATION - 1);
+        if (!fwShow3Effects.some(e => (e.line || 0) === line && Math.abs(e.timeSec - t) < 1)) {
+            bestLine = line; bestT = t; found = true;
+        }
+    }
+    fwShow3Effects.push({ id: 'fx_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6), recipeKey, timeSec: bestT, line: bestLine });
     renderFwTimeline();
     renderFwShow3List();
 }
@@ -2489,37 +2682,77 @@ function fwShow3RemoveEffect(id) {
     renderFwShow3List();
 }
 
-// Clic sur la timeline : si une icône est sélectionnée, la déplace à l'endroit cliqué (réajustement
-// facile en 2 clics : je clique l'icône à déplacer, puis je clique son nouvel emplacement)
-function fwShow3HandleTrackClick(e) {
+// Clic sur une ligne de la timeline : si une icône est sélectionnée, la déplace à l'endroit cliqué,
+// sur CETTE ligne (réajustement facile en 2 clics : je clique l'icône à déplacer, puis je clique
+// son nouvel emplacement, éventuellement sur une autre ligne pour la superposer à un autre feu).
+function fwShow3HandleRowClick(e, line) {
     if (!fwShow3SelectedId) return;
-    const track = document.getElementById('fwm-timeline-track');
-    const rect = track.getBoundingClientRect();
+    const row = e.currentTarget;
+    const rect = row.getBoundingClientRect();
     const xPx = e.clientX - rect.left;
     let timeSec = xPx / fwShow3PxPerSec;
     timeSec = Math.round(timeSec * 2) / 2; // aimantation à 0,5s
     timeSec = Math.max(0, Math.min(FW_SHOW3_DURATION, timeSec));
 
     const effect = fwShow3Effects.find(x => x.id === fwShow3SelectedId);
-    if (effect) effect.timeSec = timeSec;
+    if (effect) { effect.timeSec = timeSec; effect.line = line; }
     fwShow3SelectedId = null;
     renderFwTimeline();
     renderFwShow3List();
 }
 
+// Sélectionne un effet depuis la liste "Effets présents" ET fait défiler la timeline jusqu'à lui,
+// pour voir immédiatement où il se trouve et pouvoir cliquer ailleurs sur sa ligne pour le déplacer.
+function fwShow3LocateEffect(id) {
+    fwShow3SelectedId = (fwShow3SelectedId === id) ? null : id;
+    renderFwTimeline();
+    renderFwShow3List();
+    if (!fwShow3SelectedId) return;
+    const effect = fwShow3Effects.find(x => x.id === id);
+    const scroller = document.getElementById('fwm-timeline-scroll');
+    if (!effect || !scroller) return;
+    const targetX = effect.timeSec * fwShow3PxPerSec;
+    const targetY = (effect.line || 0) * FW_TIMELINE_ROW_HEIGHT;
+    scroller.scrollTo({
+        left: Math.max(0, targetX - scroller.clientWidth / 2),
+        top: Math.max(0, targetY - scroller.clientHeight / 2 + FW_TIMELINE_ROW_HEIGHT / 2),
+        behavior: 'smooth'
+    });
+}
+
 function renderFwTimeline() {
     const track = document.getElementById('fwm-timeline-track');
     if (!track) return;
+    updateFwLineCountLabel();
+
     const widthPx = FW_SHOW3_DURATION * fwShow3PxPerSec;
+    const rowH = FW_TIMELINE_ROW_HEIGHT;
     track.style.width = `${widthPx}px`;
-    track.onclick = fwShow3HandleTrackClick;
+    track.style.height = `${fwShow3LineCount * rowH}px`;
     track.innerHTML = '';
+
+    // Une ligne par piste (jusqu'à 10) : chacune reçoit son propre gestionnaire de clic pour
+    // savoir immédiatement sur quelle ligne on dépose/déplace un effet.
+    for (let line = 0; line < fwShow3LineCount; line++) {
+        const row = document.createElement('div');
+        row.className = 'fwm-timeline-row';
+        row.style.top = `${line * rowH}px`;
+        row.style.height = `${rowH}px`;
+        row.style.width = `${widthPx}px`;
+        row.onclick = (e) => fwShow3HandleRowClick(e, line);
+        const label = document.createElement('div');
+        label.className = 'fwm-timeline-row-label';
+        label.innerText = `L${line + 1}`;
+        row.appendChild(label);
+        track.appendChild(row);
+    }
 
     const gradStep = fwShow3PxPerSec > 12 ? 5 : (fwShow3PxPerSec > 5 ? 10 : 15);
     for (let t = 0; t <= FW_SHOW3_DURATION; t += gradStep) {
         const mark = document.createElement('div');
         mark.className = 'fwm-timeline-mark';
         mark.style.left = `${t * fwShow3PxPerSec}px`;
+        mark.style.height = `${fwShow3LineCount * rowH}px`;
         mark.innerText = fwFormatShowTime(t);
         track.appendChild(mark);
     }
@@ -2528,33 +2761,25 @@ function renderFwTimeline() {
     finaleZone.className = 'fwm-timeline-finale-zone';
     finaleZone.style.left = `${(FW_SHOW3_DURATION - 20) * fwShow3PxPerSec}px`;
     finaleZone.style.width = `${20 * fwShow3PxPerSec}px`;
+    finaleZone.style.height = `${fwShow3LineCount * rowH}px`;
     track.appendChild(finaleZone);
 
-    const sorted = [...fwShow3Effects].sort((a, b) => a.timeSec - b.timeSec);
-    const groupThresholdSec = 16 / fwShow3PxPerSec;
-    const groups = [];
-    sorted.forEach(effect => {
-        let group = groups.find(g => Math.abs(g.timeSec - effect.timeSec) < groupThresholdSec);
-        if (!group) { group = { timeSec: effect.timeSec, items: [] }; groups.push(group); }
-        group.items.push(effect);
-    });
-
-    groups.forEach(group => {
-        group.items.forEach((effect, i) => {
-            const def = FIREWORK_RECIPES[effect.recipeKey];
-            const icon = document.createElement('div');
-            icon.className = 'fwm-timeline-icon' + (fwShow3SelectedId === effect.id ? ' selected' : '');
-            icon.style.left = `${effect.timeSec * fwShow3PxPerSec}px`;
-            icon.style.bottom = `${6 + i * 20}px`;
-            icon.style.background = (def.colors && def.colors[0]) || '#1DB954';
-            icon.title = `${def.label} — ${fwFormatShowTime(effect.timeSec)}`;
-            icon.onclick = (e) => {
-                e.stopPropagation();
-                fwShow3SelectedId = (fwShow3SelectedId === effect.id) ? null : effect.id;
-                renderFwTimeline();
-            };
-            track.appendChild(icon);
-        });
+    fwShow3Effects.forEach(effect => {
+        const def = FIREWORK_RECIPES[effect.recipeKey];
+        if (!def) return;
+        const line = Math.max(0, Math.min(fwShow3LineCount - 1, effect.line || 0));
+        const icon = document.createElement('div');
+        icon.className = 'fwm-timeline-icon' + (fwShow3SelectedId === effect.id ? ' selected' : '');
+        icon.style.left = `${effect.timeSec * fwShow3PxPerSec}px`;
+        icon.style.top = `${line * rowH + rowH / 2 - 8}px`;
+        icon.style.background = (def.colors && def.colors[0]) || '#1DB954';
+        icon.title = `${def.label} — ${fwFormatShowTime(effect.timeSec)} — Ligne ${line + 1}`;
+        icon.onclick = (e) => {
+            e.stopPropagation();
+            fwShow3SelectedId = (fwShow3SelectedId === effect.id) ? null : effect.id;
+            renderFwTimeline();
+        };
+        track.appendChild(icon);
     });
 }
 
@@ -2568,9 +2793,11 @@ function renderFwShow3List() {
     const sorted = [...fwShow3Effects].sort((a, b) => a.timeSec - b.timeSec);
     container.innerHTML = sorted.map(effect => {
         const def = FIREWORK_RECIPES[effect.recipeKey];
-        return `<div class="fwm-show3-item">
-            <span>${fwFormatShowTime(effect.timeSec)} — ${def.label}</span>
-            <span class="fwm-show3-remove" onclick="fwShow3RemoveEffect('${effect.id}')">✕</span>
+        const line = Math.max(0, Math.min(fwShow3LineCount - 1, effect.line || 0));
+        const selected = fwShow3SelectedId === effect.id;
+        return `<div class="fwm-show3-item${selected ? ' selected' : ''}" onclick="fwShow3LocateEffect('${effect.id}')" style="cursor: pointer;">
+            <span>${fwFormatShowTime(effect.timeSec)} · L${line + 1} — ${def.label}</span>
+            <span class="fwm-show3-remove" onclick="event.stopPropagation(); fwShow3RemoveEffect('${effect.id}')">✕</span>
         </div>`;
     }).join('');
 }
@@ -2583,14 +2810,15 @@ function saveCustomShow3() {
 
     if (fwShow3EditingId) {
         const show = customShows.find(s => s.id === fwShow3EditingId);
-        if (show) { show.name = name; show.effects = fwShow3Effects.map(e => ({ ...e })); }
+        if (show) { show.name = name; show.effects = fwShow3Effects.map(e => ({ ...e })); show.lineCount = fwShow3LineCount; }
     } else {
         customShowsCounter++;
         localStorage.setItem('customShowsCounter', String(customShowsCounter));
         customShows.push({
             id: 'show_' + Date.now(),
             name,
-            effects: fwShow3Effects.map(e => ({ ...e }))
+            effects: fwShow3Effects.map(e => ({ ...e })),
+            lineCount: fwShow3LineCount
         });
     }
     localStorage.setItem('customShowsList', JSON.stringify(customShows));
@@ -2607,6 +2835,7 @@ function editCustomShow(id) {
     if (!show) return;
     fwShow3EditingId = id;
     fwShow3Effects = show.effects.map(e => ({ ...e }));
+    fwShow3LineCount = Math.max(1, Math.min(10, show.lineCount || 3));
     document.getElementById('fwm-show3-name').value = show.name;
     document.getElementById('fwm-show3-form').style.display = 'block';
     renderFwEffectsPalette();
