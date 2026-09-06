@@ -1122,19 +1122,32 @@ function fwPatternSerpentin(origin, def) {
 }
 
 // --- Motif "cascade" : rideau suspendu depuis lequel les étincelles tombent en continu (Niagara) ---
-function fwPatternCascade(def) {
-    const lineY = window.innerHeight * 0.35;
+function fwPatternCascade(origin, def) {
+    // Éclatement d'abord (comme un vrai feu d'artifice), puis les étincelles retombent en rideau
+    // sous le point d'éclatement — plutôt qu'un simple rideau suspendu sans explosion initiale.
+    const burstCount = 22;
+    for (let i = 0; i < burstCount; i++) {
+        const angle = (i / burstCount) * Math.PI * 2;
+        const dist = 60 + Math.random() * 40;
+        const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+        fwSpawnParticle('fw-generic-particle', origin.x, origin.y, 5, color, 700, {
+            '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
+        });
+    }
+
+    // La cascade : les étincelles retombent ensuite en rideau, réparties sous la largeur de l'éclatement
     const count = def.count;
     for (let i = 0; i < count; i++) {
-        const x = (window.innerWidth / count) * i + Math.random() * 20;
+        const startX = origin.x + (Math.random() - 0.5) * 220;
+        const startY = origin.y + 20;
         const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
         const color = def.colors[Math.floor(Math.random() * def.colors.length)];
         const fallDist = def.distance[0] + Math.random() * (def.distance[1] - def.distance[0]);
         setTimeout(() => {
-            fwSpawnParticle('fw-generic-particle', x, lineY, size, color, def.duration, {
+            fwSpawnParticle('fw-generic-particle', startX, startY, size, color, def.duration, {
                 '--dx': '0px', '--dy': `${fallDist}px`, '--end-scale': 0.4
             });
-        }, Math.random() * 500);
+        }, 350 + Math.random() * 400);
     }
 }
 
@@ -1781,7 +1794,7 @@ function launchFireworkRecipe(key, overrideDef) {
         case 'heart':              fwPatternHeart(origin, def); break;
         case 'scintillant':        fwPatternScintillant(origin, def); break;
         case 'serpentin':          fwPatternSerpentin(origin, def); break;
-        case 'cascade':            fwPatternCascade(def); break;
+        case 'cascade':            fwPatternCascade(origin, def); break;
         case 'colorChange':        fwPatternColorChange(origin, def); break;
         case 'rafale':             fwPatternRafale(origin, def); break;
     }
@@ -1827,6 +1840,43 @@ function injectFireworksManagerStyles() {
         .fwm-show-btn {
             background: var(--spotify-green, #1DB954); color: #000; border: none; border-radius: 20px;
             padding: 10px 14px; font-weight: bold; font-size: 0.9rem; cursor: pointer; width: 100%;
+        }
+        .fwm-timeline-outer { display: flex; align-items: stretch; gap: 8px; margin: 10px 0; }
+        .fwm-timeline-scroll { flex: 1; overflow-x: auto; overflow-y: hidden; background: #111; border-radius: 8px; height: 90px; }
+        .fwm-timeline-track { position: relative; height: 100%; background: linear-gradient(to right, #1a1a1a, #161616); cursor: crosshair; }
+        .fwm-timeline-mark {
+            position: absolute; top: 0; bottom: 0; border-left: 1px solid #333;
+            font-size: 0.6rem; color: var(--text-grey, #b3b3b3); padding-left: 3px; padding-top: 2px; pointer-events: none;
+        }
+        .fwm-timeline-finale-zone {
+            position: absolute; top: 0; bottom: 0;
+            background: rgba(212, 175, 55, 0.15); border-left: 1px dashed rgba(212, 175, 55, 0.6); pointer-events: none;
+        }
+        .fwm-timeline-icon {
+            position: absolute; width: 16px; height: 16px; border-radius: 50%; cursor: pointer;
+            border: 2px solid rgba(255, 255, 255, 0.45); box-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+            transform: translateX(-50%);
+        }
+        .fwm-timeline-icon.selected { border-color: var(--spotify-green, #1DB954); box-shadow: 0 0 8px 2px rgba(29, 185, 84, 0.8); }
+        .fwm-timeline-zoom { display: flex; flex-direction: column; gap: 4px; }
+        .fwm-timeline-zoom button {
+            width: 30px; height: 30px; border-radius: 8px; border: none; background: #1a1a1a;
+            color: #fff; font-size: 1rem; cursor: pointer;
+        }
+        .fwm-effects-palette { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; max-height: 150px; overflow-y: auto; }
+        .fwm-effect-swatch {
+            width: 36px; height: 36px; border-radius: 8px; cursor: pointer; display: flex; align-items: center;
+            justify-content: center; font-size: 0.6rem; font-weight: bold; color: #000;
+            text-shadow: 0 1px 1px rgba(255, 255, 255, 0.35); flex-shrink: 0; box-sizing: border-box;
+        }
+        .fwm-show3-item {
+            display: flex; align-items: center; justify-content: space-between; padding: 6px 10px;
+            background: #1a1a1a; border-radius: 8px; margin-bottom: 4px; font-size: 0.8rem; color: #fff;
+        }
+        .fwm-show3-remove { color: #ff5252; cursor: pointer; font-weight: bold; padding: 0 4px; }
+        .fwm-show3-name-input {
+            width: 100%; box-sizing: border-box; background: #121212; color: #fff; border: 1px solid #333;
+            border-radius: 8px; padding: 8px; font-size: 0.85rem; margin: 4px 0 10px 0;
         }
         .fwm-palette { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
         .fwm-swatch { width: 26px; height: 26px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; box-sizing: border-box; }
@@ -1888,6 +1938,33 @@ function ensureFireworksManagerOverlay() {
                         <span class="fwm-dot off" id="fwm-show-dot-1min30"></span>
                     </div>
                 </div>
+
+                <button class="fwm-create-btn" onclick="toggleFwShow3Form()">🎬 Spectacle 3.0 — créer le mien</button>
+                <div id="fwm-show3-form" style="display: none;">
+                    <label style="font-size: 0.75rem; color: var(--text-grey);">Nom du spectacle</label>
+                    <input type="text" id="fwm-show3-name" class="fwm-show3-name-input" placeholder="Mon spectacle">
+
+                    <div class="fwm-timeline-outer">
+                        <div class="fwm-timeline-scroll" id="fwm-timeline-scroll">
+                            <div class="fwm-timeline-track" id="fwm-timeline-track"></div>
+                        </div>
+                        <div class="fwm-timeline-zoom">
+                            <button onclick="fwTimelineZoom(1)">+</button>
+                            <button onclick="fwTimelineZoom(-1)">−</button>
+                        </div>
+                    </div>
+
+                    <p class="fwm-section-title">Effets disponibles (clique pour ajouter)</p>
+                    <div id="fwm-effects-palette" class="fwm-effects-palette"></div>
+
+                    <p class="fwm-section-title">Effets présents</p>
+                    <div id="fwm-show3-list"></div>
+
+                    <button class="fwm-create-btn" onclick="saveCustomShow3()">Enregistrer le spectacle</button>
+                </div>
+                <div id="fwm-show3-list-saved"></div>
+
+                <div style="height: 18px;"></div>
 
                 <p class="fwm-section-title">40 effets</p>
                 <div id="fwm-list"></div>
@@ -1964,6 +2041,7 @@ function toggleFireworksManager() {
         overlay.style.display = 'flex';
         renderFireworksManagerList();
         renderCustomFireworksList();
+        renderCustomShowsList();
         const soundToggle = document.getElementById('fwm-sound-toggle');
         if (soundToggle) soundToggle.checked = fireworksSoundEnabled;
     } else {
@@ -2185,9 +2263,10 @@ function initCustomFireworks() {
 // cours ; recliquer l'arrête et réinitialise (le suivant repart de 0).
 // ==========================================
 let fireworkShowActive = false;
-let fireworkShowKey = null; // '1min' ou '1min30'
+let fireworkShowKey = null; // '1min', '1min30', ou 'custom_<id>' pour un spectacle 3.0
 let fireworkShowTimeoutIds = [];
 let fireworkShowRecentKeys = []; // anti-répétition : évite de tirer 2x le même effet d'affilée
+let activeCustomShowId = null; // id du spectacle 3.0 en cours de lecture, le cas échéant
 
 function updateFireworkShowDots() {
     ['1min', '1min30'].forEach(key => {
@@ -2196,11 +2275,13 @@ function updateFireworkShowDots() {
         const isThisOne = fireworkShowActive && fireworkShowKey === key;
         dot.className = `fwm-dot ${isThisOne ? 'on' : 'off'}`;
     });
+    renderCustomShowsList();
 }
 
 function stopFireworkShow() {
     fireworkShowActive = false;
     fireworkShowKey = null;
+    activeCustomShowId = null;
     fireworkShowRecentKeys = [];
     fireworkShowTimeoutIds.forEach(id => clearTimeout(id));
     fireworkShowTimeoutIds = [];
@@ -2326,6 +2407,267 @@ function toggleFireworkShow(key) {
     }
 
     runOpening();
+}
+
+// ==========================================
+// SPECTACLE 3.0 — éditeur de timeline : on pose les effets à la main sur une barre de temps
+// fixe de 2 minutes, on les repositionne en cliquant, on zoome/dézoome et on peut faire défiler
+// la barre quand elle est zoomée. Très différent des 2 spectacles automatiques ci-dessus.
+// ==========================================
+const FW_SHOW3_DURATION = 120; // durée fixe du spectacle : 2 minutes
+let fwShow3Effects = [];        // [{ id, recipeKey, timeSec }] du spectacle en cours d'édition
+let fwShow3PxPerSec = 4;        // échelle de zoom (pixels par seconde)
+let fwShow3SelectedId = null;   // icône sélectionnée sur la timeline, en attente d'un nouveau clic pour la déplacer
+let fwShow3EditingId = null;    // id du spectacle enregistré en cours de modification (null = nouvelle création)
+
+let customShows = JSON.parse(localStorage.getItem('customShowsList') || '[]');
+let customShowsCounter = parseInt(localStorage.getItem('customShowsCounter') || '0', 10);
+
+function fwFormatShowTime(t) {
+    const m = Math.floor(t / 60);
+    const s = Math.round(t % 60);
+    return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function toggleFwShow3Form() {
+    const form = document.getElementById('fwm-show3-form');
+    if (!form) return;
+    const isHidden = form.style.display === 'none' || form.style.display === '';
+    form.style.display = isHidden ? 'block' : 'none';
+    if (isHidden) {
+        if (!fwShow3EditingId) {
+            fwShow3Effects = [];
+            const nameInput = document.getElementById('fwm-show3-name');
+            if (nameInput) nameInput.value = '';
+        }
+        fwShow3SelectedId = null;
+        renderFwEffectsPalette();
+        renderFwTimeline();
+        renderFwShow3List();
+    }
+}
+
+function fwTimelineZoom(direction) {
+    fwShow3PxPerSec = Math.max(2, Math.min(30, fwShow3PxPerSec + direction * 2));
+    renderFwTimeline();
+}
+
+// Couleurs de chaque effet dans la palette : reprend directement ses propres couleurs de recette
+// (pas d'icône par effet à trouver pour 40 effets — plus lisible et cohérent visuellement)
+function renderFwEffectsPalette() {
+    const container = document.getElementById('fwm-effects-palette');
+    if (!container) return;
+    container.innerHTML = '';
+    Object.keys(FIREWORK_RECIPES).forEach(key => {
+        const def = FIREWORK_RECIPES[key];
+        const swatch = document.createElement('div');
+        swatch.className = 'fwm-effect-swatch';
+        const c1 = (def.colors && def.colors[0]) || '#1DB954';
+        const c2 = (def.colors && def.colors[1]) || c1;
+        swatch.style.background = `linear-gradient(135deg, ${c1}, ${c2})`;
+        swatch.title = def.label;
+        swatch.innerText = def.label.slice(0, 2).toUpperCase();
+        swatch.onclick = () => fwShow3AddEffect(key);
+        container.appendChild(swatch);
+    });
+}
+
+// Ajoute l'effet cliqué au premier créneau libre de la timeline (espacé d'au moins 1s des autres)
+function fwShow3AddEffect(recipeKey) {
+    let t = 0;
+    while (fwShow3Effects.some(e => Math.abs(e.timeSec - t) < 1) && t < FW_SHOW3_DURATION) t += 3;
+    t = Math.min(t, FW_SHOW3_DURATION - 1);
+    fwShow3Effects.push({ id: 'fx_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6), recipeKey, timeSec: t });
+    renderFwTimeline();
+    renderFwShow3List();
+}
+
+function fwShow3RemoveEffect(id) {
+    fwShow3Effects = fwShow3Effects.filter(e => e.id !== id);
+    if (fwShow3SelectedId === id) fwShow3SelectedId = null;
+    renderFwTimeline();
+    renderFwShow3List();
+}
+
+// Clic sur la timeline : si une icône est sélectionnée, la déplace à l'endroit cliqué (réajustement
+// facile en 2 clics : je clique l'icône à déplacer, puis je clique son nouvel emplacement)
+function fwShow3HandleTrackClick(e) {
+    if (!fwShow3SelectedId) return;
+    const track = document.getElementById('fwm-timeline-track');
+    const rect = track.getBoundingClientRect();
+    const xPx = e.clientX - rect.left;
+    let timeSec = xPx / fwShow3PxPerSec;
+    timeSec = Math.round(timeSec * 2) / 2; // aimantation à 0,5s
+    timeSec = Math.max(0, Math.min(FW_SHOW3_DURATION, timeSec));
+
+    const effect = fwShow3Effects.find(x => x.id === fwShow3SelectedId);
+    if (effect) effect.timeSec = timeSec;
+    fwShow3SelectedId = null;
+    renderFwTimeline();
+    renderFwShow3List();
+}
+
+function renderFwTimeline() {
+    const track = document.getElementById('fwm-timeline-track');
+    if (!track) return;
+    const widthPx = FW_SHOW3_DURATION * fwShow3PxPerSec;
+    track.style.width = `${widthPx}px`;
+    track.onclick = fwShow3HandleTrackClick;
+    track.innerHTML = '';
+
+    const gradStep = fwShow3PxPerSec > 12 ? 5 : (fwShow3PxPerSec > 5 ? 10 : 15);
+    for (let t = 0; t <= FW_SHOW3_DURATION; t += gradStep) {
+        const mark = document.createElement('div');
+        mark.className = 'fwm-timeline-mark';
+        mark.style.left = `${t * fwShow3PxPerSec}px`;
+        mark.innerText = fwFormatShowTime(t);
+        track.appendChild(mark);
+    }
+
+    const finaleZone = document.createElement('div');
+    finaleZone.className = 'fwm-timeline-finale-zone';
+    finaleZone.style.left = `${(FW_SHOW3_DURATION - 20) * fwShow3PxPerSec}px`;
+    finaleZone.style.width = `${20 * fwShow3PxPerSec}px`;
+    track.appendChild(finaleZone);
+
+    const sorted = [...fwShow3Effects].sort((a, b) => a.timeSec - b.timeSec);
+    const groupThresholdSec = 16 / fwShow3PxPerSec;
+    const groups = [];
+    sorted.forEach(effect => {
+        let group = groups.find(g => Math.abs(g.timeSec - effect.timeSec) < groupThresholdSec);
+        if (!group) { group = { timeSec: effect.timeSec, items: [] }; groups.push(group); }
+        group.items.push(effect);
+    });
+
+    groups.forEach(group => {
+        group.items.forEach((effect, i) => {
+            const def = FIREWORK_RECIPES[effect.recipeKey];
+            const icon = document.createElement('div');
+            icon.className = 'fwm-timeline-icon' + (fwShow3SelectedId === effect.id ? ' selected' : '');
+            icon.style.left = `${effect.timeSec * fwShow3PxPerSec}px`;
+            icon.style.bottom = `${6 + i * 20}px`;
+            icon.style.background = (def.colors && def.colors[0]) || '#1DB954';
+            icon.title = `${def.label} — ${fwFormatShowTime(effect.timeSec)}`;
+            icon.onclick = (e) => {
+                e.stopPropagation();
+                fwShow3SelectedId = (fwShow3SelectedId === effect.id) ? null : effect.id;
+                renderFwTimeline();
+            };
+            track.appendChild(icon);
+        });
+    });
+}
+
+function renderFwShow3List() {
+    const container = document.getElementById('fwm-show3-list');
+    if (!container) return;
+    if (fwShow3Effects.length === 0) {
+        container.innerHTML = "<p style='font-size:0.8rem; color:var(--text-grey); margin:4px 0;'>Aucun effet placé pour l'instant — clique sur un effet ci-dessus.</p>";
+        return;
+    }
+    const sorted = [...fwShow3Effects].sort((a, b) => a.timeSec - b.timeSec);
+    container.innerHTML = sorted.map(effect => {
+        const def = FIREWORK_RECIPES[effect.recipeKey];
+        return `<div class="fwm-show3-item">
+            <span>${fwFormatShowTime(effect.timeSec)} — ${def.label}</span>
+            <span class="fwm-show3-remove" onclick="fwShow3RemoveEffect('${effect.id}')">✕</span>
+        </div>`;
+    }).join('');
+}
+
+function saveCustomShow3() {
+    const nameInput = document.getElementById('fwm-show3-name');
+    const name = (nameInput.value || '').trim();
+    if (!name) { alert("Donne un nom à ton spectacle."); return; }
+    if (fwShow3Effects.length === 0) { alert("Place au moins un effet sur la timeline."); return; }
+
+    if (fwShow3EditingId) {
+        const show = customShows.find(s => s.id === fwShow3EditingId);
+        if (show) { show.name = name; show.effects = fwShow3Effects.map(e => ({ ...e })); }
+    } else {
+        customShowsCounter++;
+        localStorage.setItem('customShowsCounter', String(customShowsCounter));
+        customShows.push({
+            id: 'show_' + Date.now(),
+            name,
+            effects: fwShow3Effects.map(e => ({ ...e }))
+        });
+    }
+    localStorage.setItem('customShowsList', JSON.stringify(customShows));
+
+    fwShow3Effects = [];
+    fwShow3EditingId = null;
+    fwShow3SelectedId = null;
+    document.getElementById('fwm-show3-form').style.display = 'none';
+    renderCustomShowsList();
+}
+
+function editCustomShow(id) {
+    const show = customShows.find(s => s.id === id);
+    if (!show) return;
+    fwShow3EditingId = id;
+    fwShow3Effects = show.effects.map(e => ({ ...e }));
+    document.getElementById('fwm-show3-name').value = show.name;
+    document.getElementById('fwm-show3-form').style.display = 'block';
+    renderFwEffectsPalette();
+    renderFwTimeline();
+    renderFwShow3List();
+}
+
+function deleteCustomShow(id) {
+    customShows = customShows.filter(s => s.id !== id);
+    localStorage.setItem('customShowsList', JSON.stringify(customShows));
+    if (activeCustomShowId === id) stopFireworkShow();
+    renderCustomShowsList();
+}
+
+function toggleCustomShow(id) {
+    if (fireworkShowActive) {
+        const wasThisOne = activeCustomShowId === id;
+        stopFireworkShow();
+        if (wasThisOne) return;
+    }
+    const show = customShows.find(s => s.id === id);
+    if (!show || show.effects.length === 0) return;
+
+    fireworkShowActive = true;
+    fireworkShowKey = 'custom_' + id;
+    activeCustomShowId = id;
+    updateFireworkShowDots();
+
+    show.effects.forEach(effect => {
+        const timeoutId = setTimeout(() => {
+            if (fireworkShowActive && activeCustomShowId === id) launchFireworkRecipe(effect.recipeKey);
+        }, effect.timeSec * 1000);
+        fireworkShowTimeoutIds.push(timeoutId);
+    });
+
+    const lastTime = Math.max(...show.effects.map(e => e.timeSec));
+    const endId = setTimeout(() => {
+        if (fireworkShowActive && activeCustomShowId === id) stopFireworkShow();
+    }, (lastTime + 3) * 1000);
+    fireworkShowTimeoutIds.push(endId);
+}
+
+function renderCustomShowsList() {
+    const container = document.getElementById('fwm-show3-list-saved');
+    if (!container) return;
+    container.innerHTML = '';
+    customShows.forEach(show => {
+        const chip = document.createElement('div');
+        chip.className = 'fwm-custom-chip';
+        chip.innerHTML = `
+            <div class="fwm-custom-chip-top">
+                <span>🎬 ${show.name}</span>
+                <span class="fwm-dot ${activeCustomShowId === show.id ? 'on' : 'off'}" onclick="toggleCustomShow('${show.id}')"></span>
+            </div>
+            <div class="fwm-custom-chip-bottom">
+                <button onclick="editCustomShow('${show.id}')">✏️ Modifier</button>
+                <button onclick="deleteCustomShow('${show.id}')">✕</button>
+            </div>
+        `;
+        container.appendChild(chip);
+    });
 }
 
 let fwEditorSelectedColors = {}; // { customFireworkId: ['#ff5252', 'random', ...] }
