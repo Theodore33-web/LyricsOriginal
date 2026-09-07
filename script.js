@@ -413,9 +413,10 @@ function initSpectrum2() {
 }
 
 // ==========================================
-// SPECTRE AUDIO ANIMÉ 3.0 — anneau circulaire de pointes lumineuses qui pulse
-// AUTOUR de la pochette (#track-art), avec rotation lente. Volontairement très
-// différent des 2 spectres en barres horizontales ci-dessus.
+// SPECTRE AUDIO ANIMÉ 3.0 — placé au MÊME endroit que les 2 premiers (bande en bas, sur toute la
+// largeur), mais avec un style radicalement différent : au lieu de barres verticales qui montent
+// depuis le bas, c'est un RUBAN D'ONDE LUMINEUX, symétrique (miroir haut/bas autour d'une ligne
+// centrale), avec un remplissage dégradé arc-en-ciel qui défile en continu.
 // ==========================================
 function injectSpectrum3Styles() {
     if (document.getElementById('spectrum3-inline-style')) return;
@@ -423,13 +424,15 @@ function injectSpectrum3Styles() {
     styleTag.id = 'spectrum3-inline-style';
     styleTag.textContent = `
         #spectrum3-canvas {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            pointer-events: none;
-            z-index: 5;
             display: none;
+            position: fixed;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            height: 60px;
+            z-index: 500;
+            pointer-events: none;
+            background: transparent;
         }
     `;
     document.head.appendChild(styleTag);
@@ -441,41 +444,33 @@ function ensureSpectrum3Canvas() {
     if (!canvas) {
         canvas = document.createElement('canvas');
         canvas.id = 'spectrum3-canvas';
-        const art = document.getElementById('track-art');
-        const host = art && art.parentElement ? art.parentElement : document.body;
-        if (getComputedStyle(host).position === 'static') {
-            host.style.position = 'relative';
-        }
-        host.appendChild(canvas);
+        document.body.appendChild(canvas);
     }
     return canvas;
 }
 
 let spectrum3Bars = [];
 let spectrum3AnimId = null;
-let spectrum3Rotation = 0;
+let spectrum3HueScroll = 0;
 
 function initSpectrum3() {
     const canvas = ensureSpectrum3Canvas();
     const ctx = canvas.getContext('2d');
-    const barCount = 60;
+    const barCount = 70;
 
     spectrum3Bars = Array.from({ length: barCount }, () => ({
         phase: Math.random() * Math.PI * 2,
-        speed: 0.02 + Math.random() * 0.04,
-        current: 0.05
+        speed: 0.02 + Math.random() * 0.035,
+        current: 0.03
     }));
 
-    function sizeCanvas() {
-        const art = document.getElementById('track-art');
-        const size = art ? Math.max(art.offsetWidth, art.offsetHeight) + 90 : 260;
-        canvas.style.width = `${size}px`;
-        canvas.style.height = `${size}px`;
-        canvas.width = size * window.devicePixelRatio;
-        canvas.height = size * window.devicePixelRatio;
+    function resizeCanvas() {
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * window.devicePixelRatio;
+        canvas.height = rect.height * window.devicePixelRatio;
     }
-    sizeCanvas();
-    window.addEventListener('resize', sizeCanvas);
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
 
     function draw() {
         spectrum3AnimId = requestAnimationFrame(draw);
@@ -485,45 +480,62 @@ function initSpectrum3() {
         ctx.clearRect(0, 0, w, h);
 
         if (!spectrum3Enabled) {
-            spectrum3Bars.forEach(bar => { bar.current = 0.05; });
+            spectrum3Bars.forEach(bar => { bar.current = 0.03; });
             return;
         }
 
         const active = spectrum3Enabled && isCurrentlyPlaying;
-        const cx = w / 2;
-        const cy = h / 2;
-        const innerRadius = Math.min(w, h) * 0.34;
-        const maxSpikeLength = Math.min(w, h) * 0.16;
+        const midY = h / 2;
+        if (active) spectrum3HueScroll += 0.6;
 
-        // Rotation lente et continue de l'anneau entier, seulement pendant la lecture
-        if (active) spectrum3Rotation += 0.0035;
-
-        spectrum3Bars.forEach((bar, i) => {
+        const points = spectrum3Bars.map((bar, i) => {
             bar.phase += bar.speed;
-            const targetAmplitude = active
-                ? (0.2 + 0.8 * Math.abs(Math.sin(bar.phase)))
-                : 0.05;
-            bar.current += (targetAmplitude - bar.current) * 0.09;
-
-            const angle = (i / spectrum3Bars.length) * Math.PI * 2 + spectrum3Rotation;
-            const spikeLength = Math.max(3, bar.current * maxSpikeLength);
-            const hue = (i / spectrum3Bars.length) * 360 + spectrum3Rotation * 200;
-
-            const x1 = cx + Math.cos(angle) * innerRadius;
-            const y1 = cy + Math.sin(angle) * innerRadius;
-            const x2 = cx + Math.cos(angle) * (innerRadius + spikeLength);
-            const y2 = cy + Math.sin(angle) * (innerRadius + spikeLength);
-
-            ctx.strokeStyle = `hsl(${hue}, 95%, 62%)`;
-            ctx.lineWidth = Math.max(2, (Math.min(w, h) / spectrum3Bars.length) * 0.55);
-            ctx.lineCap = 'round';
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = `hsl(${hue}, 95%, 62%)`;
-            ctx.beginPath();
-            ctx.moveTo(x1, y1);
-            ctx.lineTo(x2, y2);
-            ctx.stroke();
+            const target = active ? (0.15 + 0.85 * Math.abs(Math.sin(bar.phase))) : 0.04;
+            bar.current += (target - bar.current) * 0.09;
+            const x = (i / (spectrum3Bars.length - 1)) * w;
+            const amp = bar.current * midY * 0.92;
+            return { x, yTop: midY - amp, yBottom: midY + amp };
         });
+
+        // Ruban rempli entre l'onde du haut et l'onde du bas, dégradé arc-en-ciel qui défile
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].yTop);
+        for (let i = 1; i < points.length; i++) {
+            const prev = points[i - 1];
+            const midX = (prev.x + points[i].x) / 2;
+            const midYc = (prev.yTop + points[i].yTop) / 2;
+            ctx.quadraticCurveTo(prev.x, prev.yTop, midX, midYc);
+        }
+        ctx.lineTo(points[points.length - 1].x, points[points.length - 1].yBottom);
+        for (let i = points.length - 2; i >= 0; i--) {
+            ctx.lineTo(points[i].x, points[i].yBottom);
+        }
+        ctx.closePath();
+        const grad = ctx.createLinearGradient(0, 0, w, 0);
+        for (let i = 0; i <= 6; i++) {
+            grad.addColorStop(i / 6, `hsla(${(spectrum3HueScroll + i * 55) % 360}, 92%, 60%, 0.32)`);
+        }
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        // Ligne lumineuse du haut
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].yTop);
+        for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].yTop);
+        ctx.strokeStyle = `hsl(${spectrum3HueScroll % 360}, 95%, 65%)`;
+        ctx.lineWidth = 3 * window.devicePixelRatio;
+        ctx.lineJoin = 'round';
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = ctx.strokeStyle;
+        ctx.stroke();
+
+        // Ligne lumineuse du bas (miroir, teinte opposée sur le cercle chromatique)
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].yBottom);
+        for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].yBottom);
+        ctx.strokeStyle = `hsl(${(spectrum3HueScroll + 180) % 360}, 95%, 65%)`;
+        ctx.shadowColor = ctx.strokeStyle;
+        ctx.stroke();
         ctx.shadowBlur = 0;
     }
     draw();
@@ -1342,6 +1354,181 @@ function fwPatternSpiral(origin, def) {
 
 // --- Motif "willow" (saule) : montée puis retombée gracieuse avec traînée
 //     (chrysanthème, brocart, palmier, kamuro, queue de cheval) ---
+// ==========================================
+// 6 NOUVEAUX MOTIFS ORIGINAUX (remplacent d'anciens effets pour un rendu plus réaliste et distinctif)
+// ==========================================
+
+// COMÈTE : une tête brillante traverse le ciel en diagonale en laissant une traînée qui s'estompe,
+// puis une petite explosion discrète à l'arrivée — un vrai mouvement de comète, pas un simple éclatement.
+function fwPatternComet(origin, def) {
+    const angle = (200 + Math.random() * 40) * (Math.PI / 180);
+    const dist = def.distance[0] + Math.random() * (def.distance[1] - def.distance[0]);
+    const dx = Math.cos(angle) * dist;
+    const dy = Math.abs(Math.sin(angle)) * dist * 0.5;
+
+    fwSpawnParticle('fw-generic-particle', origin.x, origin.y, def.size[1], def.colors[0], def.duration, {
+        '--dx': `${dx}px`, '--dy': `${dy}px`
+    });
+
+    const trailCount = def.count;
+    for (let i = 1; i <= trailCount; i++) {
+        const frac = i / trailCount;
+        setTimeout(() => {
+            const c = def.colors[Math.floor(Math.random() * def.colors.length)];
+            fwSpawnParticle('fw-generic-particle', origin.x, origin.y, Math.max(1.5, def.size[1] * (1 - frac * 0.7)), c, def.duration * (1 - frac * 0.5), {
+                '--dx': `${dx * frac}px`, '--dy': `${dy * frac}px`
+            });
+        }, frac * def.duration * 0.5);
+    }
+
+    setTimeout(() => {
+        for (let i = 0; i < 12; i++) {
+            const a = Math.random() * Math.PI * 2;
+            const d = 20 + Math.random() * 30;
+            const c = def.colors[Math.floor(Math.random() * def.colors.length)];
+            fwSpawnParticle('fw-generic-particle', origin.x + dx, origin.y + dy, 2.5, c, 500, {
+                '--dx': `${Math.cos(a) * d}px`, '--dy': `${Math.sin(a) * d}px`
+            });
+        }
+    }, def.duration * 0.5);
+}
+
+// ÉVENTAIL ARC-EN-CIEL : un véritable dégradé continu (rouge → violet) réparti sur la largeur de
+// l'éventail, plutôt que des couleurs choisies au hasard — un vrai arc-en-ciel, pas un mélange.
+function fwPatternFanRainbow(origin, def) {
+    const count = def.count;
+    const spreadDeg = def.spreadDeg || 100;
+    const baseAngle = -90 + (Math.random() - 0.5) * 16;
+    for (let i = 0; i < count; i++) {
+        const frac = count === 1 ? 0.5 : i / (count - 1);
+        const angleDeg = baseAngle - spreadDeg / 2 + frac * spreadDeg;
+        const angle = angleDeg * (Math.PI / 180);
+        const dist = def.distance[0] + Math.random() * (def.distance[1] - def.distance[0]);
+        const hue = frac * 300;
+        const color = `hsl(${hue}, 90%, 60%)`;
+        const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
+        fwSpawnParticle('fw-generic-particle', origin.x, origin.y, size, color, def.duration, {
+            '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
+        });
+    }
+}
+
+// PIVOINE BICOLORE : véritable structure à deux étages — un cœur compact d'une couleur, suivi
+// (avec un léger décalage) d'un anneau extérieur plus large de la seconde couleur, pour un vrai
+// effet de profondeur bicolore plutôt qu'un simple mélange aléatoire des deux teintes.
+function fwPatternBicolorPeony(origin, def) {
+    const colorInner = def.colors[0];
+    const colorOuter = def.colors[1] || def.colors[0];
+    const innerCount = Math.round(def.count * 0.4);
+    const outerCount = def.count - innerCount;
+
+    for (let i = 0; i < innerCount; i++) {
+        const angle = (i / innerCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.15;
+        const dist = def.distance[0] * 0.55 + Math.random() * (def.distance[1] - def.distance[0]) * 0.25;
+        const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
+        fwSpawnParticle('fw-generic-particle', origin.x, origin.y, size, colorInner, def.duration * 0.85, {
+            '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
+        });
+    }
+    setTimeout(() => {
+        for (let i = 0; i < outerCount; i++) {
+            const angle = (i / outerCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.15;
+            const dist = def.distance[0] + Math.random() * (def.distance[1] - def.distance[0]);
+            const size = def.size[1] * 0.8 + Math.random() * (def.size[1] * 0.4);
+            fwSpawnParticle('fw-generic-particle', origin.x, origin.y, size, colorOuter, def.duration, {
+                '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
+            });
+        }
+    }, 90);
+}
+
+// CHRYSANTHÈME VIOLET SCINTILLANT : un vrai "saule" violet qui tombe en longues traînées, ENRICHI
+// de petites étincelles blanches qui clignotent au sein de la chute — un scintillement réel intégré
+// au mouvement, pas juste un saule coloré différemment.
+function fwPatternScintillantWillow(origin, def) {
+    for (let i = 0; i < def.count; i++) {
+        const angle = (-160 + Math.random() * 140) * (Math.PI / 180);
+        const upDist = def.distance[0] + Math.random() * (def.distance[1] - def.distance[0]);
+        const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
+        const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+        const fallDist = def.fallDistance ? def.fallDistance[0] + Math.random() * (def.fallDistance[1] - def.fallDistance[0]) : 100;
+        fwSpawnParticle('fw-generic-willow', origin.x, origin.y, size, color, def.duration, {
+            '--dx': `${Math.cos(angle) * upDist * 1.15}px`,
+            '--dy-up': `${Math.sin(angle) * upDist}px`,
+            '--dy-down': `${fallDist}px`
+        });
+    }
+    for (let i = 0; i < Math.round(def.count * 0.6); i++) {
+        setTimeout(() => {
+            const angle = Math.random() * Math.PI * 2;
+            const dist = 20 + Math.random() * 60;
+            const midX = origin.x + (Math.random() - 0.5) * 160;
+            const midY = origin.y + 60 + Math.random() * 120;
+            fwSpawnParticle('fw-generic-particle', midX, midY, 2, '#ffffff', 350, {
+                '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
+            });
+        }, 300 + Math.random() * def.duration * 0.7);
+    }
+}
+
+// BENGALE BLEU : la lueur continue d'origine, D'OÙ crépitent désormais en continu de petites
+// étincelles bleues — un vrai bengale qui grésille, pas juste une lueur statique.
+function fwPatternBengalSpark(origin, def) {
+    const el = document.createElement('div');
+    el.className = 'fw-generic-flare';
+    el.style.left = `${origin.x - 20}px`;
+    el.style.top = `${origin.y - 20}px`;
+    el.style.width = '40px';
+    el.style.height = '40px';
+    el.style.background = def.colors[0];
+    el.style.boxShadow = `0 0 30px 12px ${def.colors[0]}`;
+    el.style.animationDuration = `${def.duration}ms`;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), def.duration + 100);
+
+    const sparkCount = Math.round(def.duration / 90);
+    for (let i = 0; i < sparkCount; i++) {
+        setTimeout(() => {
+            const angle = Math.random() * Math.PI * 2;
+            const dist = 15 + Math.random() * 35;
+            const c = def.colors[Math.floor(Math.random() * def.colors.length)];
+            fwSpawnParticle('fw-generic-particle', origin.x, origin.y, 2 + Math.random() * 1.5, c, 450, {
+                '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
+            });
+        }, i * 90);
+    }
+}
+
+// CASCADE ARC-EN-CIEL : la couleur de chaque étincelle du rideau dépend de sa position HORIZONTALE
+// dans le rideau (dégradé continu de gauche à droite) — un vrai rideau arc-en-ciel, pas des couleurs
+// choisies au hasard indépendamment les unes des autres.
+function fwPatternRainbowCascade(origin, def) {
+    const burstCount = 22;
+    for (let i = 0; i < burstCount; i++) {
+        const angle = (i / burstCount) * Math.PI * 2;
+        const dist = 60 + Math.random() * 40;
+        const hue = (i / burstCount) * 360;
+        fwSpawnParticle('fw-generic-particle', origin.x, origin.y, 5, `hsl(${hue}, 90%, 60%)`, 700, {
+            '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
+        });
+    }
+
+    const count = def.count;
+    for (let i = 0; i < count; i++) {
+        const frac = i / count;
+        const startX = origin.x + (frac - 0.5) * 260;
+        const startY = origin.y + 20;
+        const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
+        const hue = frac * 320;
+        const fallDist = def.distance[0] + Math.random() * (def.distance[1] - def.distance[0]);
+        setTimeout(() => {
+            fwSpawnParticle('fw-generic-particle', startX, startY, size, `hsl(${hue}, 90%, 62%)`, def.duration, {
+                '--dx': '0px', '--dy': `${fallDist}px`, '--end-scale': 0.4
+            });
+        }, 350 + Math.random() * 400);
+    }
+}
+
 function fwPatternWillow(origin, def) {
     for (let i = 0; i < def.count; i++) {
         const angle = (-160 + Math.random() * 140) * (Math.PI / 180);
@@ -1567,13 +1754,13 @@ const FIREWORK_RECIPES = {
     rafale:              { label: "Rafale",                        pattern: 'rafale',  count: 16, size: [4, 5], distance: [60, 90],  duration: 700, colors: ['#ff8a52', '#ffd452', '#ff5252'], minDelay: 1600, maxDelay: 2200 },
 
     // --- 10 NOUVEAUX EFFETS DE FEUX D'ARTIFICE RÉALISTES ---
-    cometeArgentee:        { label: "Comète argentée",            pattern: 'willow',  count: 24, size: [2, 3],  distance: [110, 150], fallDistance: [180, 230], duration: 2300, colors: ['#e8e8e8', '#ffffff', '#c0d8ff'], minDelay: 1100, maxDelay: 1700 },
-    eventailArcEnCiel:      { label: "Éventail arc-en-ciel",       pattern: 'radial',  shape: 'fan', count: 30, size: [4, 6],  distance: [100, 160], duration: 1300, colors: ['#ff5252', '#ff8a52', '#ffd452', '#52ff8a', '#52c8ff', '#c452ff'], minDelay: 1000, maxDelay: 1500 },
-    pivoineBicoloreGeante: { label: "Pivoine bicolore géante",    pattern: 'radial',  count: 50, size: [7, 10], distance: [160, 220], duration: 1700, colors: ['#ff1a1a', '#ffffff'], minDelay: 1800, maxDelay: 2400 },
-    chrysanthemeVioletScintillant: { label: "Chrysanthème violet scintillant", pattern: 'willow', count: 38, size: [2, 4], distance: [100, 150], fallDistance: [130, 180], duration: 2200, colors: ['#a352ff', '#e0c2ff', '#ffffff'], minDelay: 1100, maxDelay: 1700 },
+    cometeArgentee:        { label: "Comète argentée",            pattern: 'comet', count: 10, size: [3, 6], distance: [280, 380], duration: 1600, colors: ['#e8e8e8', '#ffffff', '#c0d8ff'], minDelay: 1100, maxDelay: 1700 },
+    eventailArcEnCiel:      { label: "Éventail arc-en-ciel",       pattern: 'fanRainbow', spreadDeg: 110, count: 34, size: [3, 5],  distance: [110, 170], duration: 1300, colors: ['#ff5252', '#a352ff'], minDelay: 1000, maxDelay: 1500 },
+    pivoineBicoloreGeante: { label: "Pivoine bicolore géante",    pattern: 'bicolorPeony', count: 56, size: [5, 10], distance: [150, 220], duration: 1700, colors: ['#ff1a1a', '#ffffff'], minDelay: 1800, maxDelay: 2400 },
+    chrysanthemeVioletScintillant: { label: "Chrysanthème violet scintillant", pattern: 'scintillantWillow', count: 34, size: [2, 4], distance: [100, 150], fallDistance: [130, 180], duration: 2200, colors: ['#a352ff', '#e0c2ff'], minDelay: 1100, maxDelay: 1700 },
     crossetteDoree:        { label: "Crossette dorée",             pattern: 'radial',  count: 12, size: [5, 7],  distance: [110, 110], duration: 1400, colors: ['#ffd452', '#d4af37'], crossette: true, minDelay: 1000, maxDelay: 1500 },
-    bengaleBleu:           { label: "Bengale bleu",                pattern: 'flare',   duration: 2000, colors: ['#2196ff'], minDelay: 2200, maxDelay: 2200 },
-    cascadeArcEnCiel:      { label: "Cascade arc-en-ciel",         pattern: 'cascade', count: 32, size: [2, 4],  distance: [260, 380], duration: 2100, colors: ['#ff5252', '#ffd452', '#52ff8a', '#52c8ff', '#c452ff'], minDelay: 550, maxDelay: 900 },
+    bengaleBleu:           { label: "Bengale bleu",                pattern: 'bengalSpark', duration: 2000, colors: ['#2196ff', '#5ec8ff'], minDelay: 2200, maxDelay: 2200 },
+    cascadeArcEnCiel:      { label: "Cascade arc-en-ciel",         pattern: 'rainbowCascade', count: 32, size: [2, 4],  distance: [260, 380], duration: 2100, colors: ['#ff5252', '#52c8ff'], minDelay: 550, maxDelay: 900 },
     mandalaEmeraude:       { label: "Mandala émeraude",            pattern: 'mandala', count: 14, size: [4, 5],  distance: [60, 140],  duration: 1400, colors: ['#00c896', '#52ffb8', '#ffffff'], minDelay: 1200, maxDelay: 1800 },
     spiraleDeFeu:          { label: "Spirale de feu",              pattern: 'spiral',  count: 26, size: [5, 5],  distanceStep: 5.8, delayStep: 14, duration: 1200, colors: ['#ff3300', '#ff8a00', '#ffd452'], minDelay: 800, maxDelay: 1300 },
     bouquetNocturne:       { label: "Bouquet nocturne",            pattern: 'multi',   count: 20, size: [4, 6],  distance: [90, 150],  duration: 1400, colors: ['#1a1a4e', '#4b3f8f', '#c9c9ff', '#ffffff'], minDelay: 1700, maxDelay: 2300 }
@@ -1890,7 +2077,14 @@ const FW_SOUND_BY_PATTERN = {
     serpentin:          () => { fwPlayWhoosh(); fwPlayBuzz(); },
     cascade:            fwPlayHiss,
     colorChange:        () => { fwPlayBoom(); setTimeout(fwPlayBoom, 380); fwPlayCrackle(); },
-    rafale:             () => { fwPlayBoom(); setTimeout(fwPlayBoom, 280); setTimeout(fwPlayBoom, 560); }
+    rafale:             () => { fwPlayBoom(); setTimeout(fwPlayBoom, 280); setTimeout(fwPlayBoom, 560); },
+    // --- Sons pour les 6 nouveaux motifs originaux ---
+    comet:              () => { fwPlayWhoosh(); setTimeout(fwPlayCrackle, 350); },
+    fanRainbow:         () => { fwPlayBoom(); fwPlayCrackle(); },
+    bicolorPeony:       () => { fwPlayBoom(); setTimeout(fwPlayBoom, 90); fwPlayCrackle(); },
+    scintillantWillow:  () => { fwPlayWhoosh(); fwPlayCrackle(); setTimeout(fwPlayCrackle, 300); },
+    bengalSpark:        () => { fwPlayFlareHum(); fwPlayCrackle(); },
+    rainbowCascade:     fwPlayHiss
 };
 
 let fireworksSoundEnabled = localStorage.getItem('fireworksSoundEnabled') === 'true';
@@ -1917,6 +2111,12 @@ function launchFireworkRecipe(key, overrideDef) {
 
     switch (def.pattern) {
         case 'radial':      fwPatternRadial(origin, def); break;
+        case 'comet':          fwPatternComet(origin, def); break;
+        case 'fanRainbow':      fwPatternFanRainbow(origin, def); break;
+        case 'bicolorPeony':     fwPatternBicolorPeony(origin, def); break;
+        case 'scintillantWillow': fwPatternScintillantWillow(origin, def); break;
+        case 'bengalSpark':        fwPatternBengalSpark(origin, def); break;
+        case 'rainbowCascade':      fwPatternRainbowCascade(origin, def); break;
         case 'spiral':       fwPatternSpiral(origin, def); break;
         case 'willow':       fwPatternWillow(origin, def); break;
         case 'fountain':     fwPatternFountain(def); break;
@@ -2023,6 +2223,12 @@ function injectFireworksManagerStyles() {
             width: 36px; height: 36px; border-radius: 8px; cursor: pointer; display: flex; align-items: center;
             justify-content: center; font-size: 0.6rem; font-weight: bold; color: #000;
             text-shadow: 0 1px 1px rgba(255, 255, 255, 0.35); flex-shrink: 0; box-sizing: border-box;
+            border: 2px solid transparent;
+        }
+        .fwm-effect-swatch.pending {
+            border-color: var(--spotify-green, #1DB954);
+            box-shadow: 0 0 8px 2px rgba(29, 185, 84, 0.7);
+            transform: scale(1.08);
         }
         .fwm-show3-item {
             display: flex; align-items: center; justify-content: space-between; padding: 6px 10px;
@@ -2117,7 +2323,7 @@ function ensureFireworksManagerOverlay() {
                     </div>
                     <p style="font-size: 0.68rem; color: var(--text-grey); margin: 0 0 8px 0;">💡 Astuce : plusieurs lignes = plusieurs feux superposés au même instant. Jusqu'à 10 lignes.</p>
 
-                    <p class="fwm-section-title">Effets disponibles (clique pour ajouter)</p>
+                    <p class="fwm-section-title">Effets disponibles (clique un effet, puis clique la timeline pour le placer)</p>
                     <div id="fwm-effects-palette" class="fwm-effects-palette"></div>
 
                     <p class="fwm-section-title">Effets présents</p>
@@ -2602,7 +2808,8 @@ function updateFwLineCountLabel() {
     const el = document.getElementById('fwm-timeline-lines-count');
     if (el) el.innerText = `${fwShow3LineCount} ligne${fwShow3LineCount > 1 ? 's' : ''}`;
 }
-let fwShow3SelectedId = null;   // icône sélectionnée sur la timeline, en attente d'un nouveau clic pour la déplacer
+let fwShow3SelectedId = null;   // icône déjà posée, sélectionnée sur la timeline, en attente d'un nouveau clic pour la déplacer
+let fwShow3PendingRecipe = null; // effet choisi dans la palette, en attente d'un clic sur la timeline pour le poser
 let fwShow3EditingId = null;    // id du spectacle enregistré en cours de modification (null = nouvelle création)
 
 let customShows = JSON.parse(localStorage.getItem('customShowsList') || '[]');
@@ -2627,6 +2834,7 @@ function toggleFwShow3Form() {
             if (nameInput) nameInput.value = '';
         }
         fwShow3SelectedId = null;
+        fwShow3PendingRecipe = null;
         renderFwEffectsPalette();
         renderFwTimeline();
         renderFwShow3List();
@@ -2639,7 +2847,7 @@ function fwTimelineZoom(direction) {
 }
 
 // Couleurs de chaque effet dans la palette : reprend directement ses propres couleurs de recette
-// (pas d'icône par effet à trouver pour 40 effets — plus lisible et cohérent visuellement)
+// (pas d'icône par effet à trouver pour 40+ effets — plus lisible et cohérent visuellement)
 function renderFwEffectsPalette() {
     const container = document.getElementById('fwm-effects-palette');
     if (!container) return;
@@ -2647,32 +2855,22 @@ function renderFwEffectsPalette() {
     Object.keys(FIREWORK_RECIPES).forEach(key => {
         const def = FIREWORK_RECIPES[key];
         const swatch = document.createElement('div');
-        swatch.className = 'fwm-effect-swatch';
+        swatch.className = 'fwm-effect-swatch' + (fwShow3PendingRecipe === key ? ' pending' : '');
         const c1 = (def.colors && def.colors[0]) || '#1DB954';
         const c2 = (def.colors && def.colors[1]) || c1;
         swatch.style.background = `linear-gradient(135deg, ${c1}, ${c2})`;
         swatch.title = def.label;
         swatch.innerText = def.label.slice(0, 2).toUpperCase();
-        swatch.onclick = () => fwShow3AddEffect(key);
+        // Ne place plus rien automatiquement : le clic sélectionne juste l'effet, c'est le clic
+        // suivant sur la timeline qui le pose réellement à l'endroit choisi.
+        swatch.onclick = () => {
+            fwShow3PendingRecipe = (fwShow3PendingRecipe === key) ? null : key;
+            fwShow3SelectedId = null;
+            renderFwEffectsPalette();
+            renderFwTimeline();
+        };
         container.appendChild(swatch);
     });
-}
-
-// Ajoute l'effet cliqué au premier créneau libre de la timeline (espacé d'au moins 1s des autres
-// effets DE LA MÊME LIGNE — deux lignes différentes peuvent parfaitement se superposer dans le temps).
-function fwShow3AddEffect(recipeKey) {
-    let bestLine = 0, bestT = 0, found = false;
-    for (let line = 0; line < fwShow3LineCount && !found; line++) {
-        let t = 0;
-        while (fwShow3Effects.some(e => (e.line || 0) === line && Math.abs(e.timeSec - t) < 1) && t < FW_SHOW3_DURATION) t += 3;
-        t = Math.min(t, FW_SHOW3_DURATION - 1);
-        if (!fwShow3Effects.some(e => (e.line || 0) === line && Math.abs(e.timeSec - t) < 1)) {
-            bestLine = line; bestT = t; found = true;
-        }
-    }
-    fwShow3Effects.push({ id: 'fx_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6), recipeKey, timeSec: bestT, line: bestLine });
-    renderFwTimeline();
-    renderFwShow3List();
 }
 
 function fwShow3RemoveEffect(id) {
@@ -2682,11 +2880,13 @@ function fwShow3RemoveEffect(id) {
     renderFwShow3List();
 }
 
-// Clic sur une ligne de la timeline : si une icône est sélectionnée, la déplace à l'endroit cliqué,
-// sur CETTE ligne (réajustement facile en 2 clics : je clique l'icône à déplacer, puis je clique
-// son nouvel emplacement, éventuellement sur une autre ligne pour la superposer à un autre feu).
+// Clic sur une ligne de la timeline :
+// - si une icône déjà posée est sélectionnée, la déplace à l'endroit cliqué (sur CETTE ligne) ;
+// - sinon, si un effet de la palette est en attente, le POSE à l'endroit cliqué (plus de placement
+//   automatique : c'est ce clic sur la timeline qui ajoute réellement l'effet) ;
+// - sinon, ce clic ne fait rien.
 function fwShow3HandleRowClick(e, line) {
-    if (!fwShow3SelectedId) return;
+    if (!fwShow3SelectedId && !fwShow3PendingRecipe) return;
     const row = e.currentTarget;
     const rect = row.getBoundingClientRect();
     const xPx = e.clientX - rect.left;
@@ -2694,9 +2894,19 @@ function fwShow3HandleRowClick(e, line) {
     timeSec = Math.round(timeSec * 2) / 2; // aimantation à 0,5s
     timeSec = Math.max(0, Math.min(FW_SHOW3_DURATION, timeSec));
 
-    const effect = fwShow3Effects.find(x => x.id === fwShow3SelectedId);
-    if (effect) { effect.timeSec = timeSec; effect.line = line; }
-    fwShow3SelectedId = null;
+    if (fwShow3SelectedId) {
+        const effect = fwShow3Effects.find(x => x.id === fwShow3SelectedId);
+        if (effect) { effect.timeSec = timeSec; effect.line = line; }
+        fwShow3SelectedId = null;
+    } else if (fwShow3PendingRecipe) {
+        fwShow3Effects.push({
+            id: 'fx_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+            recipeKey: fwShow3PendingRecipe,
+            timeSec, line
+        });
+        fwShow3PendingRecipe = null;
+    }
+    renderFwEffectsPalette();
     renderFwTimeline();
     renderFwShow3List();
 }
@@ -2704,7 +2914,9 @@ function fwShow3HandleRowClick(e, line) {
 // Sélectionne un effet depuis la liste "Effets présents" ET fait défiler la timeline jusqu'à lui,
 // pour voir immédiatement où il se trouve et pouvoir cliquer ailleurs sur sa ligne pour le déplacer.
 function fwShow3LocateEffect(id) {
+    fwShow3PendingRecipe = null;
     fwShow3SelectedId = (fwShow3SelectedId === id) ? null : id;
+    renderFwEffectsPalette();
     renderFwTimeline();
     renderFwShow3List();
     if (!fwShow3SelectedId) return;
@@ -2776,7 +2988,9 @@ function renderFwTimeline() {
         icon.title = `${def.label} — ${fwFormatShowTime(effect.timeSec)} — Ligne ${line + 1}`;
         icon.onclick = (e) => {
             e.stopPropagation();
+            fwShow3PendingRecipe = null;
             fwShow3SelectedId = (fwShow3SelectedId === effect.id) ? null : effect.id;
+            renderFwEffectsPalette();
             renderFwTimeline();
         };
         track.appendChild(icon);
@@ -2836,6 +3050,8 @@ function editCustomShow(id) {
     fwShow3EditingId = id;
     fwShow3Effects = show.effects.map(e => ({ ...e }));
     fwShow3LineCount = Math.max(1, Math.min(10, show.lineCount || 3));
+    fwShow3SelectedId = null;
+    fwShow3PendingRecipe = null;
     document.getElementById('fwm-show3-name').value = show.name;
     document.getElementById('fwm-show3-form').style.display = 'block';
     renderFwEffectsPalette();
