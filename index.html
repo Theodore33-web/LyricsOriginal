@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v2.11";
+        const APP_VERSION = "v2.12";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -430,9 +430,6 @@
 
     <div id="dashboard">
         <div class="lyrics-section" id="lyrics-container">
-            <div id="lyrics-download-row" style="display: flex; justify-content: flex-end; margin-bottom: 8px;">
-                <button id="download-a4-btn" onclick="downloadLyricsA4()" style="background: none; border: 1px solid var(--spotify-green); color: var(--spotify-green); border-radius: 16px; padding: 6px 14px; font-size: 0.75rem; font-weight: bold; cursor: pointer;">📄 Télécharger paroles (A4)</button>
-            </div>
             <div id="lyrics-content">Lancez une musique sur Spotify...</div>
         </div>
     
@@ -494,7 +491,7 @@
 </div>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Spectre audio animé 3.0 (halo circulaire pochette)</span>
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Spectre audio animé 3.0 (ruban d'onde miroir)</span>
     <label class="switch">
         <input type="checkbox" id="spectrum3-toggle" onchange="toggleSpectrum3Setting(this.checked)">
         <span class="slider"></span>
@@ -1801,8 +1798,9 @@ async function fetchLyrics(artist, title, album, duration) {
         } else if (data.plainLyrics) {
             const plainLines = data.plainLyrics.split('\n');
             
-            // On crée le titre en vert avec le même style que tes autres sections
-            const titleHeader = `<p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;">PAROLES</p>`;
+            // On crée le titre en vert avec le même style que tes autres sections, et le bouton
+            // de téléchargement (emoji) juste à droite, sur la même ligne, pour ne pas laisser de vide
+            const titleHeader = parolesHeaderHtml();
             
             // ✅ STRUCTURE CONSERVÉE : On garde STRICTEMENT tes divs d'origine avec ton style inline d'origine
             const linesHtml = plainLines
@@ -1814,7 +1812,7 @@ async function fetchLyrics(artist, title, album, duration) {
         } else {
             // ✅ STRUCTURE CONSERVÉE : On garde ton style inline ici aussi avec le titre vert devant
             document.getElementById('lyrics-content').innerHTML = `
-                <p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;">PAROLES</p>
+                ${parolesHeaderHtml()}
                 <div class="lyric-line" style="opacity: 1;">Paroles indisponibles.</div>
             `;
             currentLyrics = [];
@@ -1822,6 +1820,15 @@ async function fetchLyrics(artist, title, album, duration) {
     } catch (e) {
         document.getElementById('lyrics-content').innerText = "Erreur de chargement des paroles.";
     }
+}
+
+// En-tête "PAROLES" + bouton de téléchargement (emoji seul) sur la MÊME ligne, à droite —
+// évite tout espace vide au-dessus des paroles (plus de rangée dédiée séparée).
+function parolesHeaderHtml() {
+    return `<div style="display: flex; align-items: center; justify-content: space-between; margin: 5px 0 10px 5px;">
+        <p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 0;">PAROLES</p>
+        <button onclick="downloadLyricsA4()" title="Télécharger paroles (A4)" style="background: none; border: none; color: var(--spotify-green); font-size: 1.15rem; cursor: pointer; padding: 0 8px 0 0;">📥</button>
+    </div>`;
 }
 
 function parseLyrics(lrc) {
@@ -1834,8 +1841,9 @@ function parseLyrics(lrc) {
         return null;
     }).filter(l => l && l.text !== "");
     
-    // On ajoute aussi le titre en vert pour le mode synchronisé
-    const titleHeader = `<p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 5px 0 10px 5px;">PAROLES</p>`;
+    // On ajoute aussi le titre en vert pour le mode synchronisé, avec le bouton de téléchargement
+    // (emoji) sur la même ligne pour éviter tout vide au-dessus des paroles
+    const titleHeader = parolesHeaderHtml();
     const linesHtml = currentLyrics.map((l, i) => `<div id="line-${i}" class="lyric-line" onclick="seekToLyricLine(${i})" style="cursor: pointer;">${l.text}</div>`).join('');
     
     document.getElementById('lyrics-content').innerHTML = titleHeader + linesHtml;
@@ -1874,6 +1882,13 @@ function downloadLyricsA4() {
         durationStr = `${Math.floor(durationSec / 60)}:${String(durationSec % 60).padStart(2, '0')}`;
     }
 
+    buildA4LyricsSheet(trackName, trackArtist, trackImage, durationStr, lyricsLines);
+}
+
+// Construit et ouvre la feuille A4 imprimable, commune aux 2 boutons de téléchargement (lecteur
+// principal et interface Paroles). Un script embarqué RÉDUIT AUTOMATIQUEMENT la taille du texte
+// jusqu'à ce que pochette + titre/artiste/durée + paroles tiennent tous sur UNE SEULE page.
+function buildA4LyricsSheet(trackName, trackArtist, trackImage, durationStr, lyricsLines) {
     const escapeHtml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
     const printWin = window.open('', '_blank', 'width=850,height=1100');
@@ -1889,15 +1904,17 @@ function downloadLyricsA4() {
         <meta charset="UTF-8">
         <title>${escapeHtml(trackName)} — Paroles</title>
         <style>
-            @page { size: A4; margin: 18mm; }
+            @page { size: A4; margin: 16mm; }
+            html, body { height: 100%; }
             body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #111; margin: 0; }
-            .a4-header { display: flex; align-items: center; gap: 20px; border-bottom: 2px solid #1DB954; padding-bottom: 14px; margin-bottom: 22px; }
-            .a4-cover { width: 100px; height: 100px; object-fit: cover; border-radius: 6px; flex-shrink: 0; }
-            .a4-infos { display: flex; flex-direction: column; gap: 5px; }
-            .a4-title { font-size: 1.4rem; font-weight: bold; margin: 0; }
-            .a4-artist { font-size: 1rem; color: #444; margin: 0; }
-            .a4-duration { font-size: 0.85rem; color: #777; margin: 0; }
-            .a4-lyrics { font-size: 1rem; line-height: 1.8; white-space: pre-wrap; }
+            #a4-content { font-size: 16px; }
+            .a4-header { display: flex; align-items: center; gap: 1.25em; border-bottom: 0.15em solid #1DB954; padding-bottom: 0.9em; margin-bottom: 1.4em; }
+            .a4-cover { width: 6.25em; height: 6.25em; object-fit: cover; border-radius: 0.4em; flex-shrink: 0; }
+            .a4-infos { display: flex; flex-direction: column; gap: 0.3em; }
+            .a4-title { font-size: 1.4em; font-weight: bold; margin: 0; }
+            .a4-artist { font-size: 1em; color: #444; margin: 0; }
+            .a4-duration { font-size: 0.85em; color: #777; margin: 0; }
+            .a4-lyrics { font-size: 1em; line-height: 1.7; white-space: pre-wrap; }
             .a4-noprint { text-align: right; margin-bottom: 14px; }
             .a4-noprint button {
                 padding: 9px 18px; font-weight: bold; cursor: pointer; border-radius: 20px;
@@ -1908,15 +1925,33 @@ function downloadLyricsA4() {
         </head>
         <body>
             <div class="a4-noprint"><button onclick="window.print()">🖨️ Imprimer / Enregistrer en PDF</button></div>
-            <div class="a4-header">
-                ${trackImage ? `<img class="a4-cover" src="${trackImage}" alt="">` : ''}
-                <div class="a4-infos">
-                    <p class="a4-title">${escapeHtml(trackName)}</p>
-                    <p class="a4-artist">${escapeHtml(trackArtist)}</p>
-                    <p class="a4-duration">Durée : ${escapeHtml(durationStr)}</p>
+            <div id="a4-content">
+                <div class="a4-header">
+                    ${trackImage ? `<img class="a4-cover" src="${trackImage}" alt="">` : ''}
+                    <div class="a4-infos">
+                        <p class="a4-title">${escapeHtml(trackName)}</p>
+                        <p class="a4-artist">${escapeHtml(trackArtist)}</p>
+                        <p class="a4-duration">Durée : ${escapeHtml(durationStr)}</p>
+                    </div>
                 </div>
+                <div class="a4-lyrics">${lyricsLines.map(escapeHtml).join('<br>')}</div>
             </div>
-            <div class="a4-lyrics">${lyricsLines.map(escapeHtml).join('<br>')}</div>
+            <script>
+                // Réduit progressivement la taille du texte tant que tout (pochette + infos + paroles)
+                // ne tient pas dans la hauteur d'une page A4 (297mm - marges), pour ne jamais déborder
+                // sur une 2e page.
+                (function fitOnePage() {
+                    var el = document.getElementById('a4-content');
+                    var maxHeightPx = 297 * 3.7795275591 - 2 * (16 * 3.7795275591); // A4 - 2x marges 16mm, en px
+                    var fontSizePx = 16;
+                    var guard = 0;
+                    while (el.scrollHeight > maxHeightPx && fontSizePx > 8 && guard < 80) {
+                        fontSizePx -= 0.25;
+                        el.style.fontSize = fontSizePx + 'px';
+                        guard++;
+                    }
+                })();
+            <\/script>
         </body>
         </html>
     `);
@@ -6334,6 +6369,20 @@ function injectTexteParolesStyles() {
             font-weight: bold;
             font-size: 1rem;
         }
+        #tp-topbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        #tp-download-a4-btn {
+            background: none;
+            border: none;
+            color: var(--spotify-green, #1DB954);
+            font-size: 1.25rem;
+            cursor: pointer;
+            line-height: 1;
+            padding: 0;
+        }
         #tp-close-btn {
             background: none;
             border: none;
@@ -6527,21 +6576,6 @@ function injectTexteParolesStyles() {
             overflow-x: visible;
             padding-left: 6px;
         }
-        #tp-lyrics-download-row {
-            display: flex;
-            justify-content: flex-end;
-            margin-bottom: 10px;
-        }
-        #tp-download-a4-btn {
-            background: none;
-            border: 1px solid var(--spotify-green, #1DB954);
-            color: var(--spotify-green, #1DB954);
-            border-radius: 16px;
-            padding: 6px 14px;
-            font-size: 0.75rem;
-            font-weight: bold;
-            cursor: pointer;
-        }
         .tp-lyric-line {
             cursor: pointer;
             transition: color 0.2s, transform 0.2s;
@@ -6570,7 +6604,10 @@ function ensureTexteParolesOverlay() {
     overlay.innerHTML = `
         <div id="tp-topbar">
             <span id="tp-topbar-title">📃 Paroles</span>
-            <button id="tp-close-btn" onclick="texteparoles()">✕</button>
+            <div id="tp-topbar-actions">
+                <button id="tp-download-a4-btn" onclick="tpDownloadLyricsA4()" title="Télécharger paroles (A4)">📥</button>
+                <button id="tp-close-btn" onclick="texteparoles()">✕</button>
+            </div>
         </div>
 
         <div id="tp-search-zone" class="tp-panel">
@@ -6613,9 +6650,6 @@ function ensureTexteParolesOverlay() {
             </div>
 
             <div class="tp-panel" id="tp-lyrics-panel">
-                <div id="tp-lyrics-download-row">
-                    <button id="tp-download-a4-btn" onclick="tpDownloadLyricsA4()">📄 Télécharger paroles (A4)</button>
-                </div>
                 <div id="tp-lyrics-content"></div>
             </div>
         </div>
@@ -6838,53 +6872,7 @@ function tpDownloadLyricsA4() {
     const durationSec = Math.round((t.durationMs || 0) / 1000);
     const durationStr = `${Math.floor(durationSec / 60)}:${String(durationSec % 60).padStart(2, '0')}`;
 
-    const escapeHtml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
-    const printWin = window.open('', '_blank', 'width=850,height=1100');
-    if (!printWin) {
-        alert("Le navigateur a bloqué l'ouverture de la fenêtre. Autorise les pop-ups pour télécharger la feuille de paroles.");
-        return;
-    }
-
-    printWin.document.write(`
-        <!DOCTYPE html>
-        <html lang="fr">
-        <head>
-        <meta charset="UTF-8">
-        <title>${escapeHtml(t.name)} — Paroles</title>
-        <style>
-            @page { size: A4; margin: 18mm; }
-            body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #111; margin: 0; }
-            .a4-header { display: flex; align-items: center; gap: 20px; border-bottom: 2px solid #1DB954; padding-bottom: 14px; margin-bottom: 22px; }
-            .a4-cover { width: 100px; height: 100px; object-fit: cover; border-radius: 6px; flex-shrink: 0; }
-            .a4-infos { display: flex; flex-direction: column; gap: 5px; }
-            .a4-title { font-size: 1.4rem; font-weight: bold; margin: 0; }
-            .a4-artist { font-size: 1rem; color: #444; margin: 0; }
-            .a4-duration { font-size: 0.85rem; color: #777; margin: 0; }
-            .a4-lyrics { font-size: 1rem; line-height: 1.8; white-space: pre-wrap; }
-            .a4-noprint { text-align: right; margin-bottom: 14px; }
-            .a4-noprint button {
-                padding: 9px 18px; font-weight: bold; cursor: pointer; border-radius: 20px;
-                border: 1px solid #1DB954; background: #1DB954; color: #000;
-            }
-            @media print { .a4-noprint { display: none; } }
-        </style>
-        </head>
-        <body>
-            <div class="a4-noprint"><button onclick="window.print()">🖨️ Imprimer / Enregistrer en PDF</button></div>
-            <div class="a4-header">
-                <img class="a4-cover" src="${t.image}" alt="">
-                <div class="a4-infos">
-                    <p class="a4-title">${escapeHtml(t.name)}</p>
-                    <p class="a4-artist">${escapeHtml(t.artist)}</p>
-                    <p class="a4-duration">Durée : ${durationStr}</p>
-                </div>
-            </div>
-            <div class="a4-lyrics">${lyricsLines.map(escapeHtml).join('<br>')}</div>
-        </body>
-        </html>
-    `);
-    printWin.document.close();
+    buildA4LyricsSheet(t.name, t.artist, t.image, durationStr, lyricsLines);
 }
 
 function tpHighlightLyrics() {
