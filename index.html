@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v2.12";
+        const APP_VERSION = "v2.13";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -96,6 +96,10 @@
             border: 1px solid rgba(255, 255, 255, 0.08);
         }
         .lyrics-section::-webkit-scrollbar { width: 0px; }
+        .lyrics-section.fond-parole-active {
+            background: linear-gradient(165deg, rgba(var(--fond-parole-color, 29, 185, 84), 0.55) 0%, rgba(var(--fond-parole-color, 29, 185, 84), 0.14) 60%, var(--card-grey) 100%);
+            transition: background 0.6s ease;
+        }
 
         .lyric-line {
             font-size: 1.5rem;
@@ -491,9 +495,17 @@
 </div>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Spectre audio animé 3.0 (ruban d'onde miroir)</span>
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Spectre audio animé 3.0 (barres miroir)</span>
     <label class="switch">
         <input type="checkbox" id="spectrum3-toggle" onchange="toggleSpectrum3Setting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Fond parole (couleur dominante de la pochette)</span>
+    <label class="switch">
+        <input type="checkbox" id="fond-parole-toggle" onchange="toggleFondParoleSetting(this.checked)">
         <span class="slider"></span>
     </label>
 </div>
@@ -1287,6 +1299,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 initFeuxGeantsState();
                 initSpectrum2State();
                 initSpectrum3State();
+                initFondParoleState();
                 initFeuxDoubleState();
                 initPetardClicClacState();
                 initVinyleState();
@@ -1297,6 +1310,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 initPartyPopperState();
                 initRideauBtnState();
                 initAllFireworkTypes();
+                initThemeModeState();
                 initCustomFireworks();
                 initVoiceCommand();
             } catch (e) {
@@ -1822,12 +1836,12 @@ async function fetchLyrics(artist, title, album, duration) {
     }
 }
 
-// En-tête "PAROLES" + bouton de téléchargement (emoji seul) sur la MÊME ligne, à droite —
-// évite tout espace vide au-dessus des paroles (plus de rangée dédiée séparée).
+// En-tête "PAROLES" (toujours centré, comme à l'origine) + bouton de téléchargement (emoji seul)
+// positionné en absolu à droite, SANS décentrer le titre — comme si l'emoji n'était pas là.
 function parolesHeaderHtml() {
-    return `<div style="display: flex; align-items: center; justify-content: space-between; margin: 5px 0 10px 5px;">
-        <p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 0;">PAROLES</p>
-        <button onclick="downloadLyricsA4()" title="Télécharger paroles (A4)" style="background: none; border: none; color: var(--spotify-green); font-size: 1.15rem; cursor: pointer; padding: 0 8px 0 0;">📥</button>
+    return `<div style="position: relative; margin: 5px 0 10px 0;">
+        <p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 0; text-align: center;">PAROLES</p>
+        <button onclick="downloadLyricsA4()" title="Télécharger paroles (A4)" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--spotify-green); font-size: 1.15rem; cursor: pointer; padding: 0; line-height: 1;">📥</button>
     </div>`;
 }
 
@@ -1904,37 +1918,60 @@ function buildA4LyricsSheet(trackName, trackArtist, trackImage, durationStr, lyr
         <meta charset="UTF-8">
         <title>${escapeHtml(trackName)} — Paroles</title>
         <style>
-            @page { size: A4; margin: 16mm; }
+            @page { size: A4; margin: 14mm; }
             html, body { height: 100%; }
-            body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #111; margin: 0; }
+            * { -webkit-print-color-adjust: exact; print-color-adjust: exact; color-adjust: exact; }
+            body {
+                font-family: 'Helvetica Neue', Arial, sans-serif; color: #1a1a1a; margin: 0;
+                background: linear-gradient(160deg, #f2f5f3 0%, #e9f7ef 45%, #eef2ff 100%);
+            }
+            #a4-page {
+                background: #ffffff;
+                border-radius: 1em;
+                box-shadow: 0 0.3em 1.2em rgba(0, 0, 0, 0.08);
+                padding: 1.6em 1.8em;
+                box-sizing: border-box;
+            }
             #a4-content { font-size: 16px; }
-            .a4-header { display: flex; align-items: center; gap: 1.25em; border-bottom: 0.15em solid #1DB954; padding-bottom: 0.9em; margin-bottom: 1.4em; }
-            .a4-cover { width: 6.25em; height: 6.25em; object-fit: cover; border-radius: 0.4em; flex-shrink: 0; }
+            .a4-header {
+                display: flex; align-items: center; gap: 1.25em;
+                background: linear-gradient(120deg, rgba(29, 185, 84, 0.12), rgba(29, 185, 84, 0.02));
+                border-left: 0.3em solid #1DB954;
+                border-radius: 0.6em;
+                padding: 1em 1.2em;
+                margin-bottom: 1.4em;
+            }
+            .a4-cover { width: 6.25em; height: 6.25em; object-fit: cover; border-radius: 0.5em; flex-shrink: 0; box-shadow: 0 0.2em 0.6em rgba(0, 0, 0, 0.18); }
             .a4-infos { display: flex; flex-direction: column; gap: 0.3em; }
-            .a4-title { font-size: 1.4em; font-weight: bold; margin: 0; }
-            .a4-artist { font-size: 1em; color: #444; margin: 0; }
-            .a4-duration { font-size: 0.85em; color: #777; margin: 0; }
-            .a4-lyrics { font-size: 1em; line-height: 1.7; white-space: pre-wrap; }
+            .a4-title { font-size: 1.4em; font-weight: bold; margin: 0; color: #111; }
+            .a4-artist { font-size: 1em; color: #3c3c3c; margin: 0; }
+            .a4-duration { font-size: 0.85em; color: #1DB954; font-weight: bold; margin: 0; }
+            .a4-lyrics {
+                font-size: 1em; line-height: 1.7; white-space: pre-wrap;
+                padding-left: 1.5em; border-left: 0.15em solid rgba(29, 185, 84, 0.25);
+            }
             .a4-noprint { text-align: right; margin-bottom: 14px; }
             .a4-noprint button {
                 padding: 9px 18px; font-weight: bold; cursor: pointer; border-radius: 20px;
                 border: 1px solid #1DB954; background: #1DB954; color: #000;
             }
-            @media print { .a4-noprint { display: none; } }
+            @media print { .a4-noprint { display: none; } body { background: #ffffff; } #a4-page { box-shadow: none; } }
         </style>
         </head>
         <body>
             <div class="a4-noprint"><button onclick="window.print()">🖨️ Imprimer / Enregistrer en PDF</button></div>
-            <div id="a4-content">
-                <div class="a4-header">
-                    ${trackImage ? `<img class="a4-cover" src="${trackImage}" alt="">` : ''}
-                    <div class="a4-infos">
-                        <p class="a4-title">${escapeHtml(trackName)}</p>
-                        <p class="a4-artist">${escapeHtml(trackArtist)}</p>
-                        <p class="a4-duration">Durée : ${escapeHtml(durationStr)}</p>
+            <div id="a4-page">
+                <div id="a4-content">
+                    <div class="a4-header">
+                        ${trackImage ? `<img class="a4-cover" src="${trackImage}" alt="">` : ''}
+                        <div class="a4-infos">
+                            <p class="a4-title">${escapeHtml(trackName)}</p>
+                            <p class="a4-artist">${escapeHtml(trackArtist)}</p>
+                            <p class="a4-duration">Durée : ${escapeHtml(durationStr)}</p>
+                        </div>
                     </div>
+                    <div class="a4-lyrics">${lyricsLines.map(escapeHtml).join('<br>')}</div>
                 </div>
-                <div class="a4-lyrics">${lyricsLines.map(escapeHtml).join('<br>')}</div>
             </div>
             <script>
                 // Réduit progressivement la taille du texte tant que tout (pochette + infos + paroles)
@@ -1942,7 +1979,7 @@ function buildA4LyricsSheet(trackName, trackArtist, trackImage, durationStr, lyr
                 // sur une 2e page.
                 (function fitOnePage() {
                     var el = document.getElementById('a4-content');
-                    var maxHeightPx = 297 * 3.7795275591 - 2 * (16 * 3.7795275591); // A4 - 2x marges 16mm, en px
+                    var maxHeightPx = 297 * 3.7795275591 - 2 * (14 * 3.7795275591) - 2 * (1.6 * 16); // A4 - marges page - padding carte
                     var fontSizePx = 16;
                     var guard = 0;
                     while (el.scrollHeight > maxHeightPx && fontSizePx > 8 && guard < 80) {
@@ -2091,6 +2128,8 @@ function highlightLyrics(currentTime) {
                         art.onload = () => {
                             updateDynamicBackground();
                             updatePochetteHaloColor();
+                            updateFondParoleColor();
+                            updateThemeModeColors();
                         };
                     }
 
@@ -2113,6 +2152,12 @@ function highlightLyrics(currentTime) {
                         if (djModeEnabled) {
                             djLastKnownPlayingState = data.is_playing;
                             scheduleDjAnnouncement(data.item.duration_ms - data.progress_ms);
+                        }
+
+                        // Nouveau titre : reprogramme le mode thématique des feux d'artifice (bouquet
+                        // final à 20s de la fin, silence à 5s de la fin, reprise 5s après le début)
+                        if (!isEpisode) {
+                            scheduleThemeModeForCurrentTrack(data.progress_ms, data.item.duration_ms);
                         }
                     }
                 }
@@ -2544,6 +2589,7 @@ let feuxCrepitantsEnabled = localStorage.getItem('feuxCrepitantsEnabled') === 't
 let feuxGeantsEnabled = localStorage.getItem('feuxGeantsEnabled') === 'true';
 let spectrum2Enabled = localStorage.getItem('spectrum2Enabled') === 'true';
 let spectrum3Enabled = localStorage.getItem('spectrum3Enabled') === 'true';
+let fondParoleEnabled = localStorage.getItem('fondParoleEnabled') === 'true'; // désactivé par défaut
 let feuxDoubleEnabled = localStorage.getItem('feuxDoubleEnabled') === 'true';
 
 // --- 5 NOUVEAUX EFFETS (style DJ / musique) ---
@@ -2663,6 +2709,8 @@ function toggleSettings() {
         if (spectrum2Toggle) spectrum2Toggle.checked = spectrum2Enabled;
         const spectrum3Toggle = document.getElementById('spectrum3-toggle');
         if (spectrum3Toggle) spectrum3Toggle.checked = spectrum3Enabled;
+        const fondParoleToggle = document.getElementById('fond-parole-toggle');
+        if (fondParoleToggle) fondParoleToggle.checked = fondParoleEnabled;
 
         const vinyleToggle = document.getElementById('vinyle-toggle');
         if (vinyleToggle) vinyleToggle.checked = vinyleEnabled;
@@ -8270,6 +8318,37 @@ function initPochetteHaloState() {
     const art = document.getElementById('track-art');
     if (art) art.classList.toggle('pochette-halo-effect', pochetteHaloEnabled);
     if (pochetteHaloEnabled) updatePochetteHaloColor();
+}
+
+// --- FOND PAROLE : quand activé, l'encadré des paroles prend une couleur dominante de la
+// pochette au lieu du fond noir/gris habituel. Désactivé par défaut. Se réactualise à chaque
+// changement de titre (même hook que le halo pochette, voir updateNowPlaying).
+function getFondParoleTargetElement() {
+    return document.getElementById('lyrics-container');
+}
+
+function updateFondParoleColor() {
+    if (!fondParoleEnabled) return;
+    const art = document.getElementById('track-art');
+    const target = getFondParoleTargetElement();
+    if (!art || !art.src || !target) return;
+    getDominantColorFromImageSrc(art.src, (rgb) => {
+        if (rgb) target.style.setProperty('--fond-parole-color', rgb);
+    });
+}
+
+function toggleFondParoleSetting(checked) {
+    fondParoleEnabled = checked;
+    localStorage.setItem('fondParoleEnabled', checked ? 'true' : 'false');
+    const target = getFondParoleTargetElement();
+    if (target) target.classList.toggle('fond-parole-active', checked);
+    if (checked) updateFondParoleColor();
+}
+
+function initFondParoleState() {
+    const target = getFondParoleTargetElement();
+    if (target) target.classList.toggle('fond-parole-active', fondParoleEnabled);
+    if (fondParoleEnabled) updateFondParoleColor();
 }
 
 // --- GUIRLANDE À SCINTILLEMENT ALÉATOIRE INDÉPENDANT ---
