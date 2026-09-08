@@ -413,11 +413,11 @@ function initSpectrum2() {
 }
 
 // ==========================================
-// SPECTRE AUDIO ANIMÉ 3.0 — reconstruit depuis zéro sur une base simple et fiable.
-// Même emplacement que les 2 premiers (bande fixe en bas, pleine largeur), mais un style
-// radicalement différent : des barres MIROIR qui partent d'une ligne centrale et s'étendent à
-// la fois vers le haut ET vers le bas (au lieu de monter depuis le bas), chacune avec son propre
-// dégradé vertical et une teinte qui défile en continu le long de la bande.
+// SPECTRE AUDIO ANIMÉ 3.0 — reconstruit ENTIÈREMENT depuis zéro, sur un concept visuel différent
+// des barres (spectres 1, 2 ET les tentatives précédentes de celui-ci) : des PARTICULES LUMINEUSES
+// qui dansent au-dessus d'une ligne de base, chacune reliée à celle-ci par un fin fil lumineux, avec
+// une traînée qui s'estompe derrière elle. Même emplacement que les 2 premiers (bande fixe en bas,
+// pleine largeur).
 // ==========================================
 function injectSpectrum3Styles() {
     if (document.getElementById('spectrum3-inline-style')) return;
@@ -457,12 +457,13 @@ let spectrum3HueScroll = 0;
 function initSpectrum3() {
     const canvas = ensureSpectrum3Canvas();
     const ctx = canvas.getContext('2d');
-    const barCount = 46;
+    const laneCount = 40;
 
-    spectrum3Bars = Array.from({ length: barCount }, () => ({
+    spectrum3Bars = Array.from({ length: laneCount }, () => ({
         phase: Math.random() * Math.PI * 2,
-        speed: 0.02 + Math.random() * 0.035,
-        current: 0.03
+        speed: 0.02 + Math.random() * 0.03,
+        current: 0.05,
+        trail: []
     }));
 
     function resizeCanvas() {
@@ -481,38 +482,56 @@ function initSpectrum3() {
         ctx.clearRect(0, 0, w, h);
 
         if (!spectrum3Enabled) {
-            spectrum3Bars.forEach(bar => { bar.current = 0.03; });
+            spectrum3Bars.forEach(p => { p.current = 0.05; p.trail = []; });
             return;
         }
 
         const active = spectrum3Enabled && isCurrentlyPlaying;
-        const midY = h / 2;
-        if (active) spectrum3HueScroll = (spectrum3HueScroll + 0.6) % 360;
+        const laneW = w / spectrum3Bars.length;
+        spectrum3HueScroll = (spectrum3HueScroll + (active ? 0.8 : 0.15)) % 360;
 
-        const barW = w / spectrum3Bars.length;
-        const gap = barW * 0.22;
+        spectrum3Bars.forEach((p, i) => {
+            p.phase += p.speed;
+            const target = active ? (0.1 + 0.9 * Math.abs(Math.sin(p.phase))) : 0.05;
+            p.current += (target - p.current) * 0.12;
 
-        spectrum3Bars.forEach((bar, i) => {
-            bar.phase += bar.speed;
-            const target = active ? (0.15 + 0.85 * Math.abs(Math.sin(bar.phase))) : 0.04;
-            bar.current += (target - bar.current) * 0.09;
+            const x = i * laneW + laneW / 2;
+            const y = h - p.current * h * 0.85 - 6 * window.devicePixelRatio;
+            const radius = (2.5 + p.current * 6.5) * window.devicePixelRatio;
+            const hue = (spectrum3HueScroll + i * 8) % 360;
 
-            const barH = Math.max(2, bar.current * midY * 0.92);
-            const x = i * barW;
-            const hue = (spectrum3HueScroll + i * 5) % 360;
+            // Traînée : quelques positions précédentes de la particule, de plus en plus transparentes
+            p.trail.push({ x, y, radius });
+            if (p.trail.length > 6) p.trail.shift();
+            p.trail.forEach((t, ti) => {
+                const alpha = ((ti + 1) / p.trail.length) * 0.3;
+                ctx.beginPath();
+                ctx.arc(t.x, t.y, t.radius * 0.65, 0, Math.PI * 2);
+                ctx.fillStyle = `hsla(${hue}, 95%, 65%, ${alpha})`;
+                ctx.fill();
+            });
 
-            const grad = ctx.createLinearGradient(0, midY - barH, 0, midY + barH);
-            grad.addColorStop(0, `hsl(${hue}, 95%, 68%)`);
-            grad.addColorStop(0.5, `hsl(${hue}, 95%, 48%)`);
-            grad.addColorStop(1, `hsl(${hue}, 95%, 68%)`);
+            // Fil lumineux reliant la particule à la ligne de base
+            ctx.strokeStyle = `hsla(${hue}, 90%, 60%, 0.35)`;
+            ctx.lineWidth = Math.max(1, 1.4 * window.devicePixelRatio);
+            ctx.beginPath();
+            ctx.moveTo(x, h);
+            ctx.lineTo(x, y);
+            ctx.stroke();
 
-            ctx.fillStyle = grad;
-            ctx.fillRect(x + gap / 2, midY - barH, barW - gap, barH * 2);
+            // Particule lumineuse
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fillStyle = `hsl(${hue}, 95%, 68%)`;
+            ctx.shadowBlur = 12 * window.devicePixelRatio;
+            ctx.shadowColor = `hsl(${hue}, 95%, 60%)`;
+            ctx.fill();
+            ctx.shadowBlur = 0;
         });
 
-        // Ligne centrale lumineuse fine, sur toute la largeur
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
-        ctx.fillRect(0, midY - 1 * window.devicePixelRatio, w, 2 * window.devicePixelRatio);
+        // Ligne de base fine
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+        ctx.fillRect(0, h - 1 * window.devicePixelRatio, w, 1 * window.devicePixelRatio);
     }
     draw();
 }
@@ -1456,6 +1475,132 @@ function fwPatternNova(origin, def) {
     }, 130);
 }
 
+// ==========================================
+// 5 NOUVEAUX MOTIFS INÉDITS (mécaniques jamais utilisées jusqu'ici dans le moteur)
+// ==========================================
+
+// BALAYAGE : un seul bras tourne progressivement sur lui-même (comme un phare/radar), au lieu
+// d'un éclatement simultané dans toutes les directions — un vrai mouvement de rotation continue.
+function fwPatternSweep(origin, def) {
+    const totalSteps = def.count;
+    const totalRotations = 1.6;
+    for (let i = 0; i < totalSteps; i++) {
+        const frac = i / totalSteps;
+        const angle = frac * Math.PI * 2 * totalRotations;
+        const dist = def.distance[0] + Math.random() * (def.distance[1] - def.distance[0]);
+        const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
+        const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+        setTimeout(() => {
+            fwSpawnParticle('fw-generic-particle', origin.x, origin.y, size, color, def.duration * 0.55, {
+                '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
+            });
+        }, frac * def.duration * 0.9);
+    }
+}
+
+// ÉTOILE À 5 BRANCHES : les particules sont réparties le long des arêtes d'une vraie silhouette
+// d'étoile à 5 branches (géométrie calculée), pas un cercle — la forme se reconnaît clairement.
+function fwPatternStarShape(origin, def) {
+    const points = 5;
+    const outerR = def.distance[1];
+    const innerR = def.distance[0];
+    const vertices = [];
+    for (let i = 0; i < points * 2; i++) {
+        const r = (i % 2 === 0) ? outerR : innerR;
+        const angle = (i / (points * 2)) * Math.PI * 2 - Math.PI / 2;
+        vertices.push({ x: Math.cos(angle) * r, y: Math.sin(angle) * r });
+    }
+    const perEdge = Math.max(2, Math.round(def.count / vertices.length));
+    for (let v = 0; v < vertices.length; v++) {
+        const a = vertices[v];
+        const b = vertices[(v + 1) % vertices.length];
+        for (let i = 0; i < perEdge; i++) {
+            const t = i / perEdge;
+            const dx = a.x + (b.x - a.x) * t;
+            const dy = a.y + (b.y - a.y) * t;
+            const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
+            const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+            fwSpawnParticle('fw-generic-particle', origin.x, origin.y, size, color, def.duration, {
+                '--dx': `${dx}px`, '--dy': `${dy}px`
+            });
+        }
+    }
+}
+
+// IMPLOSION : des particules convergent d'abord de l'extérieur VERS le centre, puis, une fois
+// l'implosion terminée, une vraie explosion part du centre — un mouvement en 2 temps inversé,
+// jamais utilisé ailleurs dans le moteur (tout part toujours du centre vers l'extérieur).
+function fwPatternImplode(origin, def) {
+    for (let i = 0; i < def.count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = def.distance[0] + Math.random() * (def.distance[1] - def.distance[0]);
+        const startX = origin.x + Math.cos(angle) * dist;
+        const startY = origin.y + Math.sin(angle) * dist;
+        const size = (def.size[0] + Math.random() * (def.size[1] - def.size[0])) * 0.7;
+        const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+        fwSpawnParticle('fw-generic-particle', startX, startY, size, color, def.duration * 0.45, {
+            '--dx': `${-Math.cos(angle) * dist}px`, '--dy': `${-Math.sin(angle) * dist}px`
+        });
+    }
+    setTimeout(() => {
+        for (let i = 0; i < def.count; i++) {
+            const angle = (i / def.count) * Math.PI * 2;
+            const dist = def.distance[0] + Math.random() * (def.distance[1] - def.distance[0]);
+            const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
+            const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+            fwSpawnParticle('fw-generic-particle', origin.x, origin.y, size, color, def.duration * 0.7, {
+                '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
+            });
+        }
+    }, def.duration * 0.45);
+}
+
+// DOUBLE HÉLICE : deux bras tournent en sens opposés en s'écartant du centre, comme une double
+// spirale ADN — chaque bras a sa propre couleur, contrairement au vortex à 4 bras dans le même sens.
+function fwPatternDoubleHelix(origin, def) {
+    const perArm = Math.max(1, Math.round(def.count / 2));
+    for (let arm = 0; arm < 2; arm++) {
+        const armOffset = arm * Math.PI;
+        const direction = arm === 0 ? 1 : -1;
+        for (let i = 0; i < perArm; i++) {
+            const frac = i / perArm;
+            const angle = armOffset + frac * Math.PI * 3 * direction;
+            const dist = def.distance[0] + frac * (def.distance[1] - def.distance[0]);
+            const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
+            const color = def.colors[arm % def.colors.length];
+            setTimeout(() => {
+                fwSpawnParticle('fw-generic-particle', origin.x, origin.y, size, color, def.duration * (0.6 + frac * 0.4), {
+                    '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
+                });
+            }, frac * 300);
+        }
+    }
+}
+
+// RÉACTION EN CHAÎNE : plusieurs mini-explosions se déclenchent l'une après l'autre tout autour
+// d'un grand cercle, comme une ligne de pétards — un vrai enchaînement séquentiel, pas un tir unique.
+function fwPatternChainReaction(origin, def) {
+    const bursts = 8;
+    const perBurst = Math.max(3, Math.round(def.count / bursts));
+    const ringDist = (def.distance[0] + def.distance[1]) / 2;
+    for (let b = 0; b < bursts; b++) {
+        const baseAngle = (b / bursts) * Math.PI * 2;
+        setTimeout(() => {
+            const bx = origin.x + Math.cos(baseAngle) * ringDist;
+            const by = origin.y + Math.sin(baseAngle) * ringDist;
+            for (let i = 0; i < perBurst; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const dist = 20 + Math.random() * 40;
+                const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
+                const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+                fwSpawnParticle('fw-generic-particle', bx, by, size, color, def.duration * 0.5, {
+                    '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
+                });
+            }
+        }, b * 110);
+    }
+}
+
 function fwPatternWillow(origin, def) {
     for (let i = 0; i < def.count; i++) {
         const angle = (-160 + Math.random() * 140) * (Math.PI / 180);
@@ -1692,8 +1837,20 @@ const FIREWORK_RECIPES = {
     // bengale bleu et cascade arc-en-ciel, jugés décevants) ---
     vortexTourbillonnant: { label: "Vortex tourbillonnant",       pattern: 'vortex', count: 48, size: [3, 5], distance: [70, 190], duration: 1400, colors: ['#7c4dff', '#00e5ff', '#ff4de1'], minDelay: 1300, maxDelay: 1900 },
     pluieDoreeScintillante: { label: "Pluie dorée scintillante",  pattern: 'goldRain', count: 30, size: [2, 4], distance: [90, 140], fallDistance: [200, 260], duration: 2400, colors: ['#ffd700', '#ffe97a', '#fff6c8'], minDelay: 1400, maxDelay: 2000 },
-    couronneDoublePulsee: { label: "Couronne double pulsée",      pattern: 'doubleCrown', count: 26, size: [4, 6], distance: [70, 170], duration: 1300, colors: ['#ff2d55', '#ffffff'], minDelay: 1500, maxDelay: 2100 },
-    novaEtincelante:      { label: "Nova étincelante",            pattern: 'nova', count: 40, size: [3, 5], distance: [130, 210], duration: 1200, colors: ['#ffffff', '#66d9ff', '#3366ff'], minDelay: 1600, maxDelay: 2200 }
+    couronneDoublePulsee: { label: "Couronne double pulsée",      pattern: 'doubleCrown', count: 26, size: [4, 6], distance: [70, 170], duration: 1300, colors: ['#8affc1', '#0b6b32'], minDelay: 1500, maxDelay: 2100 },
+    novaEtincelante:      { label: "Nova étincelante",            pattern: 'nova', count: 40, size: [3, 5], distance: [130, 210], duration: 1200, colors: ['#ffffff', '#66d9ff', '#3366ff'], minDelay: 1600, maxDelay: 2200 },
+
+    // --- 10 NOUVEAUX EFFETS (5 nouveaux motifs inédits + 5 nouvelles identités) ---
+    balayageEcarlate:     { label: "Balayage écarlate",           pattern: 'sweep', count: 40, size: [3, 5], distance: [90, 180], duration: 1300, colors: ['#ff1744', '#ff6e40'], minDelay: 1400, maxDelay: 2000 },
+    etoileCinqBranches:   { label: "Étoile à 5 branches",         pattern: 'starShape', count: 45, size: [3, 5], distance: [50, 170], duration: 1200, colors: ['#ffd700', '#fff3b0'], minDelay: 1500, maxDelay: 2100 },
+    implosionCarmin:      { label: "Implosion carmin",            pattern: 'implode', count: 24, size: [3, 6], distance: [100, 170], duration: 1600, colors: ['#d81b60', '#ff8a80'], minDelay: 1600, maxDelay: 2200 },
+    doubleHelice:         { label: "Double hélice",               pattern: 'doubleHelix', count: 44, size: [3, 5], distance: [60, 180], duration: 1300, colors: ['#00e5ff', '#ff4de1'], minDelay: 1400, maxDelay: 2000 },
+    reactionEnChaine:     { label: "Réaction en chaîne",          pattern: 'chainReaction', count: 48, size: [3, 5], distance: [90, 150], duration: 1300, colors: ['#ff9100', '#ffea00'], minDelay: 1300, maxDelay: 1900 },
+    auroreBoreale:        { label: "Aurore boréale",              pattern: 'ghost', count: 22, size: [6, 10], distance: [90, 150], duration: 2600, colors: ['#4dffb8', '#7c4dff', '#4dc9ff'], minDelay: 1800, maxDelay: 2400 },
+    braisesArdentes:      { label: "Braises ardentes",            pattern: 'leaves', count: 20, size: [3, 5], distance: [400, 600], duration: 2800, colors: ['#ff3d00', '#ff8f00', '#b71c1c'], minDelay: 1900, maxDelay: 2500 },
+    perleNacree:          { label: "Perle nacrée",                pattern: 'scintillant', count: 30, size: [4, 5], distance: [90, 150], duration: 1500, colors: ['#ffffff', '#ffe0f0', '#e0e0ff'], minDelay: 1300, maxDelay: 1900 },
+    tempeteDeGlace:       { label: "Tempête de glace",            pattern: 'serpentin', count: 26, size: [3, 4], distance: [110, 170], duration: 1600, colors: ['#b3ecff', '#ffffff', '#66d9ff'], minDelay: 1400, maxDelay: 2000 },
+    couronneImperiale:    { label: "Couronne impériale",          pattern: 'kamuroStrobe', count: 30, size: [3, 5], distance: [100, 160], fallDistance: [130, 180], duration: 1700, colors: ['#7c3aed', '#ffd700'], minDelay: 1700, maxDelay: 2300 }
 };
 
 let fireworkTypeEnabled = {};
@@ -1773,11 +1930,27 @@ function updateThemeModeColors() {
 function toggleThemeModeSetting(checked) {
     themeModeEnabled = checked;
     localStorage.setItem('themeModeEnabled', checked ? 'true' : 'false');
-    if (checked) updateThemeModeColors();
+    if (checked) {
+        updateThemeModeColors();
+        // BUG CORRIGÉ : avant, le bouquet final/silence n'étaient programmés qu'au CHANGEMENT de
+        // titre — si on activait le mode en cours de lecture, rien ne se programmait pour ce titre.
+        // On programme donc aussi immédiatement pour le titre en cours, avec sa progression actuelle.
+        if (typeof trackDurationMs !== 'undefined' && trackDurationMs) {
+            scheduleThemeModeForCurrentTrack(currentProgressMs || 0, trackDurationMs);
+        }
+    } else {
+        clearThemeModeTimers();
+        themeModeSuppressed = false;
+    }
 }
 
 function initThemeModeState() {
-    if (themeModeEnabled) updateThemeModeColors();
+    if (themeModeEnabled) {
+        updateThemeModeColors();
+        if (typeof trackDurationMs !== 'undefined' && trackDurationMs) {
+            scheduleThemeModeForCurrentTrack(currentProgressMs || 0, trackDurationMs);
+        }
+    }
 }
 
 function clearThemeModeTimers() {
@@ -2139,7 +2312,12 @@ const FW_SOUND_BY_PATTERN = {
     vortex:             () => { fwPlayBoom(); fwPlayCrackle(); },
     goldRain:           () => { fwPlayWhoosh(); setTimeout(fwPlayCrackle, 200); },
     doubleCrown:        () => { fwPlayBoom(); setTimeout(fwPlayBoom, 260); },
-    nova:               () => { fwPlayFlareHum(); fwPlayBoom(); }
+    nova:               () => { fwPlayFlareHum(); fwPlayBoom(); },
+    sweep:              () => { fwPlayWhoosh(); fwPlayCrackle(); },
+    starShape:          () => { fwPlayBoom(); fwPlayCrackle(); },
+    implode:            () => { fwPlayHiss(); setTimeout(fwPlayBoom, 300); },
+    doubleHelix:        () => { fwPlayWhoosh(); fwPlayBoom(); },
+    chainReaction:      () => { fwPlayBoom(); setTimeout(fwPlayBoom, 220); setTimeout(fwPlayBoom, 440); }
 };
 
 let fireworksSoundEnabled = localStorage.getItem('fireworksSoundEnabled') === 'true';
@@ -2158,9 +2336,26 @@ function playFireworkSoundForPattern(pattern) {
 
 // --- launchFireworkRecipe() modifiée : joue le son correspondant, et accepte une "recette"
 //     surchargée (utilisé par les feux personnalisés pour appliquer couleurs/taille custom) ---
+let hypersonicModeEnabled = localStorage.getItem('hypersonicModeEnabled') === 'true';
+
+function toggleHypersonicModeSetting(checked) {
+    hypersonicModeEnabled = checked;
+    localStorage.setItem('hypersonicModeEnabled', checked ? 'true' : 'false');
+}
+
 function launchFireworkRecipe(key, overrideDef) {
-    const def = overrideDef || FIREWORK_RECIPES[key];
+    let def = overrideDef || FIREWORK_RECIPES[key];
     if (!def) return;
+    // MODE HYPERSONIQUE : le feu sélectionné est doublé (plus de particules) et son temps divisé
+    // par 3 (plus rapide, plus intense) — s'applique à tout tir, y compris les feux personnalisés
+    // et le mode thématique.
+    if (hypersonicModeEnabled) {
+        def = {
+            ...def,
+            count: def.count ? Math.round(def.count * 2) : def.count,
+            duration: def.duration ? Math.max(80, Math.round(def.duration / 3)) : def.duration
+        };
+    }
     playFireworkSoundForPattern(def.pattern);
     const origin = fwRandomOrigin();
 
@@ -2172,6 +2367,11 @@ function launchFireworkRecipe(key, overrideDef) {
         case 'goldRain':        fwPatternGoldRain(origin, def); break;
         case 'doubleCrown':     fwPatternDoubleCrown(origin, def); break;
         case 'nova':            fwPatternNova(origin, def); break;
+        case 'sweep':           fwPatternSweep(origin, def); break;
+        case 'starShape':       fwPatternStarShape(origin, def); break;
+        case 'implode':         fwPatternImplode(origin, def); break;
+        case 'doubleHelix':     fwPatternDoubleHelix(origin, def); break;
+        case 'chainReaction':   fwPatternChainReaction(origin, def); break;
         case 'spiral':       fwPatternSpiral(origin, def); break;
         case 'willow':       fwPatternWillow(origin, def); break;
         case 'fountain':     fwPatternFountain(def); break;
@@ -2350,6 +2550,14 @@ function ensureFireworksManagerOverlay() {
                 </label>
             </div>
             <p style="font-size: 0.68rem; color: var(--text-grey); margin: -6px 0 8px 0;">💡 Les feux explosent avec les couleurs dominantes de la pochette en cours (réactualisées à chaque titre), avec un bouquet final 20s avant la fin du titre.</p>
+            <div class="fwm-sound-row">
+                <span>⚡ Mode hypersonique (x2 particules, ÷3 temps)</span>
+                <label class="switch">
+                    <input type="checkbox" id="fwm-hypersonic-toggle" onchange="toggleHypersonicModeSetting(this.checked)">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <p style="font-size: 0.68rem; color: var(--text-grey); margin: -6px 0 8px 0;">💡 Chaque feu tiré (ambiance, personnalisé ou spectacle) est deux fois plus dense et trois fois plus rapide.</p>
             <div class="fwm-scroll">
                 <p class="fwm-section-title fwm-spectacle-title">🎪 Spectacle</p>
                 <div class="fwm-show-row">
@@ -2399,7 +2607,7 @@ function ensureFireworksManagerOverlay() {
 
                 <div style="height: 18px;"></div>
 
-                <p class="fwm-section-title">50 effets</p>
+                <p class="fwm-section-title">60 effets</p>
                 <div id="fwm-list"></div>
 
                 <div style="height: 18px;"></div>
@@ -2479,6 +2687,8 @@ function toggleFireworksManager() {
         if (soundToggle) soundToggle.checked = fireworksSoundEnabled;
         const themeModeToggle = document.getElementById('fwm-theme-mode-toggle');
         if (themeModeToggle) themeModeToggle.checked = themeModeEnabled;
+        const hypersonicToggle = document.getElementById('fwm-hypersonic-toggle');
+        if (hypersonicToggle) hypersonicToggle.checked = hypersonicModeEnabled;
     } else {
         overlay.style.display = 'none';
     }
@@ -2689,7 +2899,7 @@ function initCustomFireworks() {
 
 // ==========================================
 // SPECTACLE — 2 boutons (1 min / 1 min 30), lancent un enchaînement automatique de tirs parmi
-// les 50 effets, qui s'intensifie et se termine par un bouquet final. Un point rouge/vert indique
+// les 60 effets, qui s'intensifie et se termine par un bouquet final. Un point rouge/vert indique
 // si un spectacle est en cours ; recliquer l'arrête et réinitialise (le suivant repart de 0).
 // ==========================================
 // SPECTACLE — 2 boutons (1 min / 1 min 30), déroulé en plusieurs phases (ouverture → montée →
