@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v2.14";
+        const APP_VERSION = "v2.15";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -503,9 +503,33 @@
 </div>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Spectre audio animé 4.0 (vague)</span>
+    <label class="switch">
+        <input type="checkbox" id="spectrum4-toggle" onchange="toggleSpectrum4Setting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Spectre audio animé 5.0 (losanges pulsés)</span>
+    <label class="switch">
+        <input type="checkbox" id="spectrum5-toggle" onchange="toggleSpectrum5Setting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
     <span style="font-size: 0.85rem; color: var(--text-grey);">Fond parole (couleur dominante de la pochette)</span>
     <label class="switch">
         <input type="checkbox" id="fond-parole-toggle" onchange="toggleFondParoleSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Mini-lecteur flottant (barre toujours visible en haut)</span>
+    <label class="switch">
+        <input type="checkbox" id="mini-player-toggle" onchange="toggleMiniPlayerSetting(this.checked)">
         <span class="slider"></span>
     </label>
 </div>
@@ -1299,7 +1323,10 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 initFeuxGeantsState();
                 initSpectrum2State();
                 initSpectrum3State();
+                initSpectrum4State();
+                initSpectrum5State();
                 initFondParoleState();
+                initMiniPlayerState();
                 initFeuxDoubleState();
                 initPetardClicClacState();
                 initVinyleState();
@@ -1896,14 +1923,23 @@ function downloadLyricsA4() {
         durationStr = `${Math.floor(durationSec / 60)}:${String(durationSec % 60).padStart(2, '0')}`;
     }
 
-    buildA4LyricsSheet(trackName, trackArtist, trackImage, durationStr, lyricsLines);
+    if (trackImage) {
+        getDominantColorFromImageSrc(trackImage, (rgb) => {
+            buildA4LyricsSheet(trackName, trackArtist, trackImage, durationStr, lyricsLines, rgb);
+        });
+    } else {
+        buildA4LyricsSheet(trackName, trackArtist, trackImage, durationStr, lyricsLines, null);
+    }
 }
 
 // Construit et ouvre la feuille A4 imprimable, commune aux 2 boutons de téléchargement (lecteur
-// principal et interface Paroles). Un script embarqué RÉDUIT AUTOMATIQUEMENT la taille du texte
-// jusqu'à ce que pochette + titre/artiste/durée + paroles tiennent tous sur UNE SEULE page.
-function buildA4LyricsSheet(trackName, trackArtist, trackImage, durationStr, lyricsLines) {
+// principal et interface Paroles). Le fond utilise désormais la couleur DOMINANTE de la pochette du
+// titre (réextraite à chaque téléchargement) au lieu d'un dégradé fixe. Un script embarqué RÉDUIT
+// AUTOMATIQUEMENT la taille du texte jusqu'à ce que pochette + titre/artiste/durée + paroles
+// tiennent tous sur UNE SEULE page.
+function buildA4LyricsSheet(trackName, trackArtist, trackImage, durationStr, lyricsLines, dominantRgb) {
     const escapeHtml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const rgb = dominantRgb || '29, 185, 84';
 
     const printWin = window.open('', '_blank', 'width=850,height=1100');
     if (!printWin) {
@@ -1923,10 +1959,10 @@ function buildA4LyricsSheet(trackName, trackArtist, trackImage, durationStr, lyr
             * { -webkit-print-color-adjust: exact; print-color-adjust: exact; color-adjust: exact; }
             body {
                 font-family: 'Helvetica Neue', Arial, sans-serif; color: #1a1a1a; margin: 0;
-                background: linear-gradient(160deg, #f2f5f3 0%, #e9f7ef 45%, #eef2ff 100%);
+                background: linear-gradient(160deg, rgba(${rgb}, 0.16) 0%, rgba(${rgb}, 0.05) 45%, #ffffff 100%);
             }
             #a4-page {
-                background: linear-gradient(165deg, #fdfefd 0%, #eafbf1 55%, #eef4ff 100%);
+                background: linear-gradient(165deg, #ffffff 0%, rgba(${rgb}, 0.16) 60%, rgba(${rgb}, 0.26) 100%);
                 border-radius: 1em;
                 box-shadow: 0 0.3em 1.2em rgba(0, 0, 0, 0.08);
                 padding: 1.6em 1.8em;
@@ -1935,8 +1971,8 @@ function buildA4LyricsSheet(trackName, trackArtist, trackImage, durationStr, lyr
             #a4-content { font-size: 16px; }
             .a4-header {
                 display: flex; align-items: center; gap: 1.25em;
-                background: linear-gradient(120deg, rgba(29, 185, 84, 0.12), rgba(29, 185, 84, 0.02));
-                border-left: 0.3em solid #1DB954;
+                background: linear-gradient(120deg, rgba(${rgb}, 0.24), rgba(${rgb}, 0.04));
+                border-left: 0.3em solid rgb(${rgb});
                 border-radius: 0.6em;
                 padding: 1em 1.2em;
                 margin-bottom: 1.4em;
@@ -1945,15 +1981,15 @@ function buildA4LyricsSheet(trackName, trackArtist, trackImage, durationStr, lyr
             .a4-infos { display: flex; flex-direction: column; gap: 0.3em; }
             .a4-title { font-size: 1.4em; font-weight: bold; margin: 0; color: #111; }
             .a4-artist { font-size: 1em; color: #3c3c3c; margin: 0; }
-            .a4-duration { font-size: 0.85em; color: #1DB954; font-weight: bold; margin: 0; }
+            .a4-duration { font-size: 0.85em; color: rgb(${rgb}); font-weight: bold; margin: 0; }
             .a4-lyrics {
                 font-size: 1em; line-height: 1.7; white-space: pre-wrap;
-                padding-left: 1.5em; border-left: 0.15em solid rgba(29, 185, 84, 0.25);
+                padding-left: 1.5em; border-left: 0.15em solid rgba(${rgb}, 0.4);
             }
             .a4-noprint { text-align: right; margin-bottom: 14px; }
             .a4-noprint button {
                 padding: 9px 18px; font-weight: bold; cursor: pointer; border-radius: 20px;
-                border: 1px solid #1DB954; background: #1DB954; color: #000;
+                border: 1px solid rgb(${rgb}); background: rgb(${rgb}); color: #000;
             }
             @media print { .a4-noprint { display: none; } #a4-page { box-shadow: none; } }
         </style>
@@ -2589,7 +2625,10 @@ let feuxCrepitantsEnabled = localStorage.getItem('feuxCrepitantsEnabled') === 't
 let feuxGeantsEnabled = localStorage.getItem('feuxGeantsEnabled') === 'true';
 let spectrum2Enabled = localStorage.getItem('spectrum2Enabled') === 'true';
 let spectrum3Enabled = localStorage.getItem('spectrum3Enabled') === 'true';
+let spectrum4Enabled = localStorage.getItem('spectrum4Enabled') === 'true';
+let spectrum5Enabled = localStorage.getItem('spectrum5Enabled') === 'true';
 let fondParoleEnabled = localStorage.getItem('fondParoleEnabled') === 'true'; // désactivé par défaut
+let miniPlayerEnabled = localStorage.getItem('miniPlayerEnabled') === 'true'; // désactivé par défaut
 let feuxDoubleEnabled = localStorage.getItem('feuxDoubleEnabled') === 'true';
 
 // --- 5 NOUVEAUX EFFETS (style DJ / musique) ---
@@ -2709,8 +2748,14 @@ function toggleSettings() {
         if (spectrum2Toggle) spectrum2Toggle.checked = spectrum2Enabled;
         const spectrum3Toggle = document.getElementById('spectrum3-toggle');
         if (spectrum3Toggle) spectrum3Toggle.checked = spectrum3Enabled;
+        const spectrum4Toggle = document.getElementById('spectrum4-toggle');
+        if (spectrum4Toggle) spectrum4Toggle.checked = spectrum4Enabled;
+        const spectrum5Toggle = document.getElementById('spectrum5-toggle');
+        if (spectrum5Toggle) spectrum5Toggle.checked = spectrum5Enabled;
         const fondParoleToggle = document.getElementById('fond-parole-toggle');
         if (fondParoleToggle) fondParoleToggle.checked = fondParoleEnabled;
+        const miniPlayerToggle = document.getElementById('mini-player-toggle');
+        if (miniPlayerToggle) miniPlayerToggle.checked = miniPlayerEnabled;
 
         const vinyleToggle = document.getElementById('vinyle-toggle');
         if (vinyleToggle) vinyleToggle.checked = vinyleEnabled;
@@ -6920,7 +6965,13 @@ function tpDownloadLyricsA4() {
     const durationSec = Math.round((t.durationMs || 0) / 1000);
     const durationStr = `${Math.floor(durationSec / 60)}:${String(durationSec % 60).padStart(2, '0')}`;
 
-    buildA4LyricsSheet(t.name, t.artist, t.image, durationStr, lyricsLines);
+    if (t.image) {
+        getDominantColorFromImageSrc(t.image, (rgb) => {
+            buildA4LyricsSheet(t.name, t.artist, t.image, durationStr, lyricsLines, rgb);
+        });
+    } else {
+        buildA4LyricsSheet(t.name, t.artist, t.image, durationStr, lyricsLines, null);
+    }
 }
 
 function tpHighlightLyrics() {
@@ -8349,6 +8400,118 @@ function initFondParoleState() {
     const target = getFondParoleTargetElement();
     if (target) target.classList.toggle('fond-parole-active', fondParoleEnabled);
     if (fondParoleEnabled) updateFondParoleColor();
+}
+
+// --- MINI-LECTEUR FLOTTANT : petite barre toujours visible en haut de l'écran, même en
+// consultant un autre panneau (paramètres, feux d'artifice, paroles...). Contient la pochette,
+// le titre, l'artiste, la durée du titre et une barre de progression ultra fine sur toute la
+// largeur. Se synchronise en continu sur le lecteur principal, désactivé par défaut.
+function injectMiniPlayerStyles() {
+    if (document.getElementById('mini-player-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'mini-player-inline-style';
+    styleTag.textContent = `
+        #mini-player-bar {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%;
+            z-index: 10000;
+            background: rgba(18, 18, 18, 0.92);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+        }
+        #mini-player-content {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 14px;
+        }
+        #mini-player-art { width: 32px; height: 32px; border-radius: 4px; object-fit: cover; flex-shrink: 0; background: #333; }
+        #mini-player-info { flex: 1; min-width: 0; overflow: hidden; }
+        #mini-player-title { font-size: 0.8rem; font-weight: bold; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        #mini-player-artist { font-size: 0.7rem; color: #b3b3b3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        #mini-player-times { font-size: 0.68rem; color: #b3b3b3; flex-shrink: 0; white-space: nowrap; }
+        #mini-player-progress-track { width: 100%; height: 2px; background: rgba(255, 255, 255, 0.15); }
+        #mini-player-progress-fill { height: 100%; width: 0%; background: var(--spotify-green, #1DB954); }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectMiniPlayerStyles();
+
+function ensureMiniPlayerBar() {
+    let bar = document.getElementById('mini-player-bar');
+    if (!bar) {
+        bar = document.createElement('div');
+        bar.id = 'mini-player-bar';
+        bar.innerHTML = `
+            <div id="mini-player-content">
+                <img id="mini-player-art" src="" alt="">
+                <div id="mini-player-info">
+                    <div id="mini-player-title">Aucune lecture</div>
+                    <div id="mini-player-artist"></div>
+                </div>
+                <div id="mini-player-times"><span id="mini-player-time-current">0:00</span> / <span id="mini-player-time-total">0:00</span></div>
+            </div>
+            <div id="mini-player-progress-track">
+                <div id="mini-player-progress-fill"></div>
+            </div>
+        `;
+        document.body.appendChild(bar);
+    }
+    return bar;
+}
+
+let miniPlayerSyncInterval = null;
+
+// Recopie l'état du lecteur principal (pochette, titre, artiste, progression, durée) dans la
+// barre flottante — lue directement depuis le DOM du lecteur, donc toujours à jour quel que soit
+// l'endroit du code qui a mis à jour la lecture en cours.
+function syncMiniPlayer() {
+    if (!miniPlayerEnabled) return;
+    const art = document.getElementById('track-art');
+    const title = document.getElementById('track-title');
+    const artist = document.getElementById('track-artist');
+    const fill = document.getElementById('progress-fill');
+    const timeCurrent = document.getElementById('time-current');
+    const timeMax = document.getElementById('time-max');
+
+    const mpArt = document.getElementById('mini-player-art');
+    const mpTitle = document.getElementById('mini-player-title');
+    const mpArtist = document.getElementById('mini-player-artist');
+    const mpFill = document.getElementById('mini-player-progress-fill');
+    const mpTimeCurrent = document.getElementById('mini-player-time-current');
+    const mpTimeTotal = document.getElementById('mini-player-time-total');
+
+    if (art && mpArt && art.src && mpArt.src !== art.src) mpArt.src = art.src;
+    if (title && mpTitle) mpTitle.innerText = title.innerText;
+    if (artist && mpArtist) mpArtist.innerText = artist.innerText;
+    if (fill && mpFill) mpFill.style.width = fill.style.width || '0%';
+    if (timeCurrent && mpTimeCurrent) mpTimeCurrent.innerText = timeCurrent.innerText;
+    if (timeMax && mpTimeTotal) mpTimeTotal.innerText = timeMax.innerText;
+}
+
+function toggleMiniPlayerSetting(checked) {
+    miniPlayerEnabled = checked;
+    localStorage.setItem('miniPlayerEnabled', checked ? 'true' : 'false');
+    const bar = ensureMiniPlayerBar();
+    bar.style.display = checked ? 'block' : 'none';
+    if (checked) {
+        syncMiniPlayer();
+        if (!miniPlayerSyncInterval) miniPlayerSyncInterval = setInterval(syncMiniPlayer, 400);
+    } else if (miniPlayerSyncInterval) {
+        clearInterval(miniPlayerSyncInterval);
+        miniPlayerSyncInterval = null;
+    }
+}
+
+function initMiniPlayerState() {
+    const bar = ensureMiniPlayerBar();
+    bar.style.display = miniPlayerEnabled ? 'block' : 'none';
+    if (miniPlayerEnabled) {
+        syncMiniPlayer();
+        if (!miniPlayerSyncInterval) miniPlayerSyncInterval = setInterval(syncMiniPlayer, 400);
+    }
 }
 
 // --- GUIRLANDE À SCINTILLEMENT ALÉATOIRE INDÉPENDANT ---
