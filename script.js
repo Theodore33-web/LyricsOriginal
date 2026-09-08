@@ -550,6 +550,248 @@ function initSpectrum3State() {
     if (spectrum3Enabled) initSpectrum3();
 }
 
+// ==========================================
+// SPECTRE AUDIO ANIMÉ 4.0 — « Vague » : une ligne fluide unique qui ondule sur toute la largeur,
+// remplie en dégradé en dessous, comme une véritable vague lumineuse (pas des barres, pas des
+// particules — une courbe continue).
+// ==========================================
+function injectSpectrum4Styles() {
+    if (document.getElementById('spectrum4-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'spectrum4-inline-style';
+    styleTag.textContent = `
+        #spectrum4-canvas {
+            display: none;
+            position: fixed;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            height: 60px;
+            z-index: 500;
+            pointer-events: none;
+            background: transparent;
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectSpectrum4Styles();
+
+function ensureSpectrum4Canvas() {
+    let canvas = document.getElementById('spectrum4-canvas');
+    if (!canvas) {
+        canvas = document.createElement('canvas');
+        canvas.id = 'spectrum4-canvas';
+        document.body.appendChild(canvas);
+    }
+    return canvas;
+}
+
+let spectrum4Points = [];
+let spectrum4AnimId = null;
+let spectrum4HueScroll = 0;
+
+function initSpectrum4() {
+    const canvas = ensureSpectrum4Canvas();
+    const ctx = canvas.getContext('2d');
+    const pointCount = 56;
+
+    spectrum4Points = Array.from({ length: pointCount }, () => ({
+        phase: Math.random() * Math.PI * 2,
+        speed: 0.02 + Math.random() * 0.03,
+        current: 0.1
+    }));
+
+    function resizeCanvas() {
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = Math.max(1, rect.width) * window.devicePixelRatio;
+        canvas.height = Math.max(1, rect.height) * window.devicePixelRatio;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    function draw() {
+        spectrum4AnimId = requestAnimationFrame(draw);
+
+        const w = canvas.width;
+        const h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+
+        if (!spectrum4Enabled) {
+            spectrum4Points.forEach(p => { p.current = 0.1; });
+            return;
+        }
+
+        const active = spectrum4Enabled && isCurrentlyPlaying;
+        spectrum4HueScroll = (spectrum4HueScroll + (active ? 0.7 : 0.12)) % 360;
+
+        const points = spectrum4Points.map((p, i) => {
+            p.phase += p.speed;
+            const target = active ? (0.15 + 0.8 * Math.abs(Math.sin(p.phase))) : 0.1;
+            p.current += (target - p.current) * 0.1;
+            const x = (i / (spectrum4Points.length - 1)) * w;
+            const y = h / 2 - (p.current - 0.5) * h * 0.8;
+            return { x, y };
+        });
+
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length - 1; i++) {
+            const midX = (points[i].x + points[i + 1].x) / 2;
+            const midY = (points[i].y + points[i + 1].y) / 2;
+            ctx.quadraticCurveTo(points[i].x, points[i].y, midX, midY);
+        }
+        ctx.lineTo(points[points.length - 1].x, points[points.length - 1].y);
+
+        ctx.strokeStyle = `hsl(${spectrum4HueScroll}, 95%, 65%)`;
+        ctx.lineWidth = 3 * window.devicePixelRatio;
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+        ctx.shadowBlur = 12 * window.devicePixelRatio;
+        ctx.shadowColor = ctx.strokeStyle;
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        // Remplissage dégradé sous la vague, pour un rendu plus riche
+        ctx.lineTo(w, h);
+        ctx.lineTo(0, h);
+        ctx.closePath();
+        const grad = ctx.createLinearGradient(0, 0, 0, h);
+        grad.addColorStop(0, `hsla(${spectrum4HueScroll}, 95%, 60%, 0.28)`);
+        grad.addColorStop(1, `hsla(${spectrum4HueScroll}, 95%, 60%, 0)`);
+        ctx.fillStyle = grad;
+        ctx.fill();
+    }
+    draw();
+}
+
+function toggleSpectrum4Setting(checked) {
+    spectrum4Enabled = checked;
+    localStorage.setItem('spectrum4Enabled', checked ? 'true' : 'false');
+    const canvas = ensureSpectrum4Canvas();
+    canvas.style.display = checked ? 'block' : 'none';
+    if (checked && !spectrum4AnimId) initSpectrum4();
+}
+
+function initSpectrum4State() {
+    const canvas = ensureSpectrum4Canvas();
+    canvas.style.display = spectrum4Enabled ? 'block' : 'none';
+    if (spectrum4Enabled) initSpectrum4();
+}
+
+// ==========================================
+// SPECTRE AUDIO ANIMÉ 5.0 — « Losanges pulsés » : une rangée de losanges (carrés tournés à 45°)
+// qui grossissent et rapetissent individuellement au rythme de la musique, chacun avec sa propre
+// teinte — un concept géométrique totalement inédit dans ce moteur (ni barre, ni cercle, ni vague).
+// ==========================================
+function injectSpectrum5Styles() {
+    if (document.getElementById('spectrum5-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'spectrum5-inline-style';
+    styleTag.textContent = `
+        #spectrum5-canvas {
+            display: none;
+            position: fixed;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            height: 60px;
+            z-index: 500;
+            pointer-events: none;
+            background: transparent;
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectSpectrum5Styles();
+
+function ensureSpectrum5Canvas() {
+    let canvas = document.getElementById('spectrum5-canvas');
+    if (!canvas) {
+        canvas = document.createElement('canvas');
+        canvas.id = 'spectrum5-canvas';
+        document.body.appendChild(canvas);
+    }
+    return canvas;
+}
+
+let spectrum5Bars = [];
+let spectrum5AnimId = null;
+let spectrum5HueScroll = 0;
+
+function initSpectrum5() {
+    const canvas = ensureSpectrum5Canvas();
+    const ctx = canvas.getContext('2d');
+    const laneCount = 32;
+
+    spectrum5Bars = Array.from({ length: laneCount }, () => ({
+        phase: Math.random() * Math.PI * 2,
+        speed: 0.02 + Math.random() * 0.03,
+        current: 0.12
+    }));
+
+    function resizeCanvas() {
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = Math.max(1, rect.width) * window.devicePixelRatio;
+        canvas.height = Math.max(1, rect.height) * window.devicePixelRatio;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    function draw() {
+        spectrum5AnimId = requestAnimationFrame(draw);
+
+        const w = canvas.width;
+        const h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+
+        if (!spectrum5Enabled) {
+            spectrum5Bars.forEach(p => { p.current = 0.12; });
+            return;
+        }
+
+        const active = spectrum5Enabled && isCurrentlyPlaying;
+        spectrum5HueScroll = (spectrum5HueScroll + (active ? 0.7 : 0.12)) % 360;
+
+        const laneW = w / spectrum5Bars.length;
+        const midY = h / 2;
+
+        spectrum5Bars.forEach((p, i) => {
+            p.phase += p.speed;
+            const target = active ? (0.2 + 0.8 * Math.abs(Math.sin(p.phase))) : 0.12;
+            p.current += (target - p.current) * 0.1;
+
+            const size = p.current * Math.min(laneW * 0.95, h * 0.78);
+            const cx = i * laneW + laneW / 2;
+            const hue = (spectrum5HueScroll + i * 7) % 360;
+
+            ctx.save();
+            ctx.translate(cx, midY);
+            ctx.rotate(Math.PI / 4);
+            ctx.fillStyle = `hsl(${hue}, 90%, 58%)`;
+            ctx.shadowBlur = 8 * window.devicePixelRatio;
+            ctx.shadowColor = `hsl(${hue}, 90%, 55%)`;
+            ctx.fillRect(-size / 2, -size / 2, size, size);
+            ctx.restore();
+        });
+        ctx.shadowBlur = 0;
+    }
+    draw();
+}
+
+function toggleSpectrum5Setting(checked) {
+    spectrum5Enabled = checked;
+    localStorage.setItem('spectrum5Enabled', checked ? 'true' : 'false');
+    const canvas = ensureSpectrum5Canvas();
+    canvas.style.display = checked ? 'block' : 'none';
+    if (checked && !spectrum5AnimId) initSpectrum5();
+}
+
+function initSpectrum5State() {
+    const canvas = ensureSpectrum5Canvas();
+    canvas.style.display = spectrum5Enabled ? 'block' : 'none';
+    if (spectrum5Enabled) initSpectrum5();
+}
+
 function toggleSpectrum2Setting(checked) {
     spectrum2Enabled = checked;
     localStorage.setItem('spectrum2Enabled', checked ? 'true' : 'false');
@@ -1601,6 +1843,178 @@ function fwPatternChainReaction(origin, def) {
     }
 }
 
+// ==========================================
+// 6 NOUVEAUX MOTIFS SUPPLÉMENTAIRES (2 crépitements inédits + 3 motifs + le plus gros bouquet
+// final jamais créé dans le moteur)
+// ==========================================
+
+// CRÉPITEMENT MULTIPLE : plusieurs petites zones de crépitement, réparties autour du point de tir,
+// pop indépendamment les unes des autres — un vrai crépitement à PLUSIEURS endroits à la fois.
+function fwPatternCrackleMulti(origin, def) {
+    const zones = 4;
+    const popsPerZone = Math.max(3, Math.round(def.count / zones));
+    for (let z = 0; z < zones; z++) {
+        const zoneAngle = Math.random() * Math.PI * 2;
+        const zoneDist = 30 + Math.random() * 60;
+        const zx = origin.x + Math.cos(zoneAngle) * zoneDist;
+        const zy = origin.y + Math.sin(zoneAngle) * zoneDist;
+        for (let i = 0; i < popsPerZone; i++) {
+            const delay = Math.random() * def.duration;
+            setTimeout(() => {
+                const angle = Math.random() * Math.PI * 2;
+                const dist = 15 + Math.random() * 30;
+                const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
+                const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+                fwSpawnParticle('fw-generic-particle', zx, zy, size, color, 200 + Math.random() * 150, {
+                    '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
+                });
+            }, delay);
+        }
+    }
+}
+
+// CRÉPITEMENT DOUBLE : une première vague de pops, un court silence, puis une seconde vague — un
+// vrai crépitement en 2 temps, pas un unique crépitement continu.
+function fwPatternCrackleDouble(origin, def) {
+    function wave(delayOffset) {
+        const half = Math.round(def.count / 2);
+        for (let i = 0; i < half; i++) {
+            const delay = delayOffset + Math.random() * (def.duration * 0.4);
+            setTimeout(() => {
+                const angle = Math.random() * Math.PI * 2;
+                const dist = def.distance[0] + Math.random() * (def.distance[1] - def.distance[0]);
+                const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
+                const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+                fwSpawnParticle('fw-generic-particle', origin.x, origin.y, size, color, 200 + Math.random() * 150, {
+                    '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
+                });
+            }, delay);
+        }
+    }
+    wave(0);
+    wave(def.duration * 0.6);
+}
+
+// ÉCLAIR FOURCHU : plusieurs bras principaux qui se ramifient aléatoirement en sous-branches,
+// comme un vrai éclair — une géométrie brisée et asymétrique, jamais utilisée ailleurs.
+function fwPatternForkedLightning(origin, def) {
+    function branch(x, y, angle, depth, dist) {
+        if (depth <= 0 || dist < 10) return;
+        const segments = 4;
+        let cx = x, cy = y;
+        for (let s = 0; s < segments; s++) {
+            const segAngle = angle + (Math.random() - 0.5) * 0.6;
+            const segDist = dist / segments;
+            const nx = cx + Math.cos(segAngle) * segDist;
+            const ny = cy + Math.sin(segAngle) * segDist;
+            const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
+            const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+            fwSpawnParticle('fw-generic-particle', origin.x, origin.y, size, color, def.duration * 0.5, {
+                '--dx': `${nx - origin.x}px`, '--dy': `${ny - origin.y}px`
+            });
+            if (Math.random() < 0.35 && depth > 1) {
+                branch(cx, cy, segAngle + (Math.random() > 0.5 ? 0.7 : -0.7), depth - 1, dist * 0.5);
+            }
+            cx = nx; cy = ny;
+        }
+    }
+    const arms = 5;
+    for (let a = 0; a < arms; a++) {
+        const angle = (a / arms) * Math.PI * 2 + Math.random() * 0.3;
+        branch(origin.x, origin.y, angle, 3, def.distance[1]);
+    }
+}
+
+// ONDE SISMIQUE : plusieurs anneaux complets qui s'étendent l'un après l'autre à intervalle
+// régulier, comme des vagues concentriques dans l'eau — un vrai effet d'onde qui se propage.
+function fwPatternSeismicWave(origin, def) {
+    const ringCount = 4;
+    for (let r = 0; r < ringCount; r++) {
+        setTimeout(() => {
+            const perRing = Math.round(def.count / ringCount);
+            for (let i = 0; i < perRing; i++) {
+                const angle = (i / perRing) * Math.PI * 2;
+                const dist = def.distance[0] + (def.distance[1] - def.distance[0]) * (r / (ringCount - 1));
+                const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
+                const color = def.colors[r % def.colors.length];
+                fwSpawnParticle('fw-generic-particle', origin.x, origin.y, size, color, def.duration * 0.6, {
+                    '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
+                });
+            }
+        }, r * 180);
+    }
+}
+
+// FRACTAL RAMIFIÉ : plusieurs branches principales qui se divisent chacune en 2 sous-branches,
+// selon une vraie géométrie arborescente récursive — un feu qui "pousse" comme un arbre.
+function fwPatternFractalBranch(origin, def) {
+    function grow(x, y, angle, length, depth) {
+        if (depth <= 0) return;
+        const steps = 3;
+        let cx = x, cy = y;
+        for (let s = 0; s < steps; s++) {
+            const nx = cx + Math.cos(angle) * (length / steps);
+            const ny = cy + Math.sin(angle) * (length / steps);
+            const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
+            const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+            fwSpawnParticle('fw-generic-particle', origin.x, origin.y, size, color, def.duration * 0.6, {
+                '--dx': `${nx - origin.x}px`, '--dy': `${ny - origin.y}px`
+            });
+            cx = nx; cy = ny;
+        }
+        grow(cx, cy, angle - 0.5, length * 0.65, depth - 1);
+        grow(cx, cy, angle + 0.5, length * 0.65, depth - 1);
+    }
+    const mainBranches = 5;
+    for (let b = 0; b < mainBranches; b++) {
+        const angle = (b / mainBranches) * Math.PI * 2;
+        grow(origin.x, origin.y, angle, def.distance[1] * 0.5, 2);
+    }
+}
+
+// BOUQUET FINAL XXL : le plus gros effet jamais créé dans le moteur — un flash central géant, un
+// éclatement radial massif, 3 ondes de choc échelonnées ET plusieurs comètes qui filent en plus,
+// tous combinés dans le même tir.
+function fwPatternGrandFinale(origin, def) {
+    fwSpawnParticle('fw-generic-particle', origin.x, origin.y, def.size[1] * 2.2, '#ffffff', 260, {
+        '--dx': '0px', '--dy': '0px'
+    });
+    setTimeout(() => {
+        for (let i = 0; i < def.count; i++) {
+            const angle = (i / def.count) * Math.PI * 2;
+            const dist = def.distance[0] + Math.random() * (def.distance[1] - def.distance[0]);
+            const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
+            const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+            fwSpawnParticle('fw-generic-particle', origin.x, origin.y, size, color, def.duration, {
+                '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
+            });
+        }
+    }, 150);
+    for (let r = 0; r < 3; r++) {
+        setTimeout(() => {
+            const ringCount = 24;
+            for (let i = 0; i < ringCount; i++) {
+                const angle = (i / ringCount) * Math.PI * 2;
+                const dist = def.distance[1] * (0.5 + r * 0.25);
+                const color = def.colors[(r + 1) % def.colors.length];
+                fwSpawnParticle('fw-generic-particle', origin.x, origin.y, 4, color, def.duration * 0.7, {
+                    '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
+                });
+            }
+        }, 350 + r * 200);
+    }
+    for (let c = 0; c < 4; c++) {
+        setTimeout(() => {
+            const angle = Math.random() * Math.PI * 2;
+            const dist = def.distance[1] * 1.3;
+            const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+            fwSpawnParticle('fw-generic-particle', origin.x, origin.y, def.size[1], color, def.duration * 0.9, {
+                '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
+            });
+        }, 100 + c * 130);
+    }
+}
+
 function fwPatternWillow(origin, def) {
     for (let i = 0; i < def.count; i++) {
         const angle = (-160 + Math.random() * 140) * (Math.PI / 180);
@@ -1846,11 +2260,27 @@ const FIREWORK_RECIPES = {
     implosionCarmin:      { label: "Implosion carmin",            pattern: 'implode', count: 24, size: [3, 6], distance: [100, 170], duration: 1600, colors: ['#d81b60', '#ff8a80'], minDelay: 1600, maxDelay: 2200 },
     doubleHelice:         { label: "Double hélice",               pattern: 'doubleHelix', count: 44, size: [3, 5], distance: [60, 180], duration: 1300, colors: ['#00e5ff', '#ff4de1'], minDelay: 1400, maxDelay: 2000 },
     reactionEnChaine:     { label: "Réaction en chaîne",          pattern: 'chainReaction', count: 48, size: [3, 5], distance: [90, 150], duration: 1300, colors: ['#ff9100', '#ffea00'], minDelay: 1300, maxDelay: 1900 },
-    auroreBoreale:        { label: "Aurore boréale",              pattern: 'ghost', count: 22, size: [6, 10], distance: [90, 150], duration: 2600, colors: ['#4dffb8', '#7c4dff', '#4dc9ff'], minDelay: 1800, maxDelay: 2400 },
     braisesArdentes:      { label: "Braises ardentes",            pattern: 'leaves', count: 20, size: [3, 5], distance: [400, 600], duration: 2800, colors: ['#ff3d00', '#ff8f00', '#b71c1c'], minDelay: 1900, maxDelay: 2500 },
     perleNacree:          { label: "Perle nacrée",                pattern: 'scintillant', count: 30, size: [4, 5], distance: [90, 150], duration: 1500, colors: ['#ffffff', '#ffe0f0', '#e0e0ff'], minDelay: 1300, maxDelay: 1900 },
-    tempeteDeGlace:       { label: "Tempête de glace",            pattern: 'serpentin', count: 26, size: [3, 4], distance: [110, 170], duration: 1600, colors: ['#b3ecff', '#ffffff', '#66d9ff'], minDelay: 1400, maxDelay: 2000 },
-    couronneImperiale:    { label: "Couronne impériale",          pattern: 'kamuroStrobe', count: 30, size: [3, 5], distance: [100, 160], fallDistance: [130, 180], duration: 1700, colors: ['#7c3aed', '#ffd700'], minDelay: 1700, maxDelay: 2300 }
+    couronneImperiale:    { label: "Couronne impériale",          pattern: 'kamuroStrobe', count: 30, size: [3, 5], distance: [100, 160], fallDistance: [130, 180], duration: 1700, colors: ['#7c3aed', '#ffd700'], minDelay: 1700, maxDelay: 2300 },
+
+    // --- 12 NOUVEAUX EFFETS (10 de plus + 2 en remplacement d'Aurore boréale et Tempête de glace) ---
+    // 5 crépitements : 1 multiple, 1 double, 3 identités nouvelles
+    crepitementMultiple: { label: "Crépitement multiple",         pattern: 'crackleMulti', count: 40, size: [1.5, 2.5], distance: [15, 40], duration: 900, colors: ['#fff45c', '#ffffff', '#ffcf40'], minDelay: 900, maxDelay: 1400 },
+    crepitementDouble:   { label: "Crépitement double",           pattern: 'crackleDouble', count: 44, size: [1.5, 2.5], distance: [20, 50], duration: 1100, colors: ['#ffffff', '#a0e8ff'], minDelay: 1000, maxDelay: 1500 },
+    crepitementArcEnCiel: { label: "Crépitement arc-en-ciel",     pattern: 'radial', count: 50, size: [1.5, 2.5], distance: [15, 45], duration: 550, colors: ['#ff5252', '#ffd452', '#52ff8a', '#52c8ff', '#c452ff'], minDelay: 350, maxDelay: 550 },
+    crepitementGlace:     { label: "Crépitement glacé",           pattern: 'radial', count: 50, size: [1.5, 2.5], distance: [15, 45], duration: 550, colors: ['#e0faff', '#ffffff', '#66d9ff'], minDelay: 350, maxDelay: 550 },
+    crepitementRubis:     { label: "Crépitement rubis",           pattern: 'radial', count: 50, size: [1.5, 2.5], distance: [15, 45], duration: 550, colors: ['#ff1744', '#ff8a9b', '#ffffff'], minDelay: 350, maxDelay: 550 },
+    // 3 motifs inédits
+    eclairFourchu:       { label: "Éclair fourchu",               pattern: 'forkedLightning', count: 30, size: [2, 4], distance: [110, 190], duration: 900, colors: ['#c9e8ff', '#ffffff', '#7ecbff'], minDelay: 1500, maxDelay: 2100 },
+    ondeSismique:        { label: "Onde sismique",                pattern: 'seismicWave', count: 60, size: [3, 5], distance: [50, 200], duration: 1500, colors: ['#ff6b00', '#ffb300', '#ff2d00'], minDelay: 1600, maxDelay: 2200 },
+    fractalRamifie:      { label: "Fractal ramifié",              pattern: 'fractalBranch', count: 45, size: [2, 4], distance: [90, 170], duration: 1300, colors: ['#00e676', '#69f0ae', '#ffffff'], minDelay: 1500, maxDelay: 2100 },
+    // 3 originaux (nouvelles identités sur des motifs existants)
+    cometeEmeraude:      { label: "Comète émeraude",              pattern: 'comet', count: 10, size: [3, 6], distance: [280, 380], duration: 1600, colors: ['#00e676', '#a7ffeb', '#ffffff'], minDelay: 1100, maxDelay: 1700 },
+    floraisonPourpre:    { label: "Floraison pourpre",            pattern: 'mandala', count: 16, size: [4, 5], distance: [60, 150], duration: 1500, colors: ['#9c27b0', '#e040fb', '#ffffff'], minDelay: 1300, maxDelay: 1900 },
+    tourbillonSaphir:    { label: "Tourbillon saphir",            pattern: 'vortex', count: 48, size: [3, 5], distance: [70, 190], duration: 1400, colors: ['#0d47a1', '#2979ff', '#82b1ff'], minDelay: 1300, maxDelay: 1900 },
+    // Le bouquet final le plus gros jamais créé
+    bouquetFinalXXL:      { label: "Bouquet final XXL",           pattern: 'grandFinale', count: 70, size: [4, 7], distance: [140, 260], duration: 1800, colors: ['#ffd700', '#ff1744', '#00e5ff', '#ffffff', '#c452ff'], minDelay: 2600, maxDelay: 3400 }
 };
 
 let fireworkTypeEnabled = {};
@@ -2317,7 +2747,13 @@ const FW_SOUND_BY_PATTERN = {
     starShape:          () => { fwPlayBoom(); fwPlayCrackle(); },
     implode:            () => { fwPlayHiss(); setTimeout(fwPlayBoom, 300); },
     doubleHelix:        () => { fwPlayWhoosh(); fwPlayBoom(); },
-    chainReaction:      () => { fwPlayBoom(); setTimeout(fwPlayBoom, 220); setTimeout(fwPlayBoom, 440); }
+    chainReaction:      () => { fwPlayBoom(); setTimeout(fwPlayBoom, 220); setTimeout(fwPlayBoom, 440); },
+    crackleMulti:       () => { fwPlayCrackle(); setTimeout(fwPlayCrackle, 200); setTimeout(fwPlayCrackle, 400); },
+    crackleDouble:      () => { fwPlayCrackle(); setTimeout(fwPlayCrackle, 500); },
+    forkedLightning:    () => { fwPlayWhoosh(); fwPlayCrackle(); },
+    seismicWave:        () => { fwPlayBoom(); setTimeout(fwPlayBoom, 180); setTimeout(fwPlayBoom, 360); },
+    fractalBranch:      () => { fwPlayCrackle(); fwPlayWhoosh(); },
+    grandFinale:        () => { fwPlayFlareHum(); fwPlayBoom(); setTimeout(fwPlayBoom, 350); setTimeout(fwPlayBoom, 550); }
 };
 
 let fireworksSoundEnabled = localStorage.getItem('fireworksSoundEnabled') === 'true';
@@ -2347,13 +2783,13 @@ function launchFireworkRecipe(key, overrideDef) {
     let def = overrideDef || FIREWORK_RECIPES[key];
     if (!def) return;
     // MODE HYPERSONIQUE : le feu sélectionné est doublé (plus de particules) et son temps divisé
-    // par 3 (plus rapide, plus intense) — s'applique à tout tir, y compris les feux personnalisés
-    // et le mode thématique.
+    // par 2 (plus rapide, plus intense, tout en restant réaliste) — s'applique à tout tir, y compris
+    // les feux personnalisés et le mode thématique.
     if (hypersonicModeEnabled) {
         def = {
             ...def,
             count: def.count ? Math.round(def.count * 2) : def.count,
-            duration: def.duration ? Math.max(80, Math.round(def.duration / 3)) : def.duration
+            duration: def.duration ? Math.max(80, Math.round(def.duration / 2)) : def.duration
         };
     }
     playFireworkSoundForPattern(def.pattern);
@@ -2372,6 +2808,12 @@ function launchFireworkRecipe(key, overrideDef) {
         case 'implode':         fwPatternImplode(origin, def); break;
         case 'doubleHelix':     fwPatternDoubleHelix(origin, def); break;
         case 'chainReaction':   fwPatternChainReaction(origin, def); break;
+        case 'crackleMulti':    fwPatternCrackleMulti(origin, def); break;
+        case 'crackleDouble':   fwPatternCrackleDouble(origin, def); break;
+        case 'forkedLightning': fwPatternForkedLightning(origin, def); break;
+        case 'seismicWave':     fwPatternSeismicWave(origin, def); break;
+        case 'fractalBranch':   fwPatternFractalBranch(origin, def); break;
+        case 'grandFinale':     fwPatternGrandFinale(origin, def); break;
         case 'spiral':       fwPatternSpiral(origin, def); break;
         case 'willow':       fwPatternWillow(origin, def); break;
         case 'fountain':     fwPatternFountain(def); break;
@@ -2535,29 +2977,6 @@ function ensureFireworksManagerOverlay() {
                 <span class="fwm-title">🎆 Feux d'artifice</span>
                 <button class="fwm-close-btn" onclick="toggleFireworksManager()">✕</button>
             </div>
-            <div class="fwm-sound-row">
-                <span>🔊 Activer les sons</span>
-                <label class="switch">
-                    <input type="checkbox" id="fwm-sound-toggle" onchange="toggleFireworksSoundSetting(this.checked)">
-                    <span class="slider"></span>
-                </label>
-            </div>
-            <div class="fwm-sound-row">
-                <span>🎨 Mode thématique (couleurs de la pochette)</span>
-                <label class="switch">
-                    <input type="checkbox" id="fwm-theme-mode-toggle" onchange="toggleThemeModeSetting(this.checked)">
-                    <span class="slider"></span>
-                </label>
-            </div>
-            <p style="font-size: 0.68rem; color: var(--text-grey); margin: -6px 0 8px 0;">💡 Les feux explosent avec les couleurs dominantes de la pochette en cours (réactualisées à chaque titre), avec un bouquet final 20s avant la fin du titre.</p>
-            <div class="fwm-sound-row">
-                <span>⚡ Mode hypersonique (x2 particules, ÷3 temps)</span>
-                <label class="switch">
-                    <input type="checkbox" id="fwm-hypersonic-toggle" onchange="toggleHypersonicModeSetting(this.checked)">
-                    <span class="slider"></span>
-                </label>
-            </div>
-            <p style="font-size: 0.68rem; color: var(--text-grey); margin: -6px 0 8px 0;">💡 Chaque feu tiré (ambiance, personnalisé ou spectacle) est deux fois plus dense et trois fois plus rapide.</p>
             <div class="fwm-scroll">
                 <p class="fwm-section-title fwm-spectacle-title">🎪 Spectacle</p>
                 <div class="fwm-show-row">
@@ -2607,7 +3026,7 @@ function ensureFireworksManagerOverlay() {
 
                 <div style="height: 18px;"></div>
 
-                <p class="fwm-section-title">60 effets</p>
+                <p class="fwm-section-title">70 effets</p>
                 <div id="fwm-list"></div>
 
                 <div style="height: 18px;"></div>
@@ -2641,6 +3060,32 @@ function ensureFireworksManagerOverlay() {
                     </div>
                 </div>
                 <div id="fwm-custom-list"></div>
+
+                <div style="height: 18px;"></div>
+                <p class="fwm-section-title">⚙️ Réglages avancés</p>
+                <div class="fwm-sound-row">
+                    <span>🔊 Activer les sons</span>
+                    <label class="switch">
+                        <input type="checkbox" id="fwm-sound-toggle" onchange="toggleFireworksSoundSetting(this.checked)">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="fwm-sound-row">
+                    <span>🎨 Mode thématique (couleurs de la pochette)</span>
+                    <label class="switch">
+                        <input type="checkbox" id="fwm-theme-mode-toggle" onchange="toggleThemeModeSetting(this.checked)">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <p style="font-size: 0.68rem; color: var(--text-grey); margin: -6px 0 8px 0;">💡 Les feux explosent avec les couleurs dominantes de la pochette en cours (réactualisées à chaque titre), avec un bouquet final 20s avant la fin du titre.</p>
+                <div class="fwm-sound-row">
+                    <span>⚡ Mode hypersonique (x2 particules, ÷2 temps)</span>
+                    <label class="switch">
+                        <input type="checkbox" id="fwm-hypersonic-toggle" onchange="toggleHypersonicModeSetting(this.checked)">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <p style="font-size: 0.68rem; color: var(--text-grey); margin: -6px 0 8px 0;">💡 Chaque feu tiré (ambiance, personnalisé ou spectacle) est deux fois plus dense et deux fois plus rapide.</p>
             </div>
         `;
         document.body.appendChild(overlay);
@@ -2899,7 +3344,7 @@ function initCustomFireworks() {
 
 // ==========================================
 // SPECTACLE — 2 boutons (1 min / 1 min 30), lancent un enchaînement automatique de tirs parmi
-// les 60 effets, qui s'intensifie et se termine par un bouquet final. Un point rouge/vert indique
+// les 70 effets, qui s'intensifie et se termine par un bouquet final. Un point rouge/vert indique
 // si un spectacle est en cours ; recliquer l'arrête et réinitialise (le suivant repart de 0).
 // ==========================================
 // SPECTACLE — 2 boutons (1 min / 1 min 30), déroulé en plusieurs phases (ouverture → montée →
