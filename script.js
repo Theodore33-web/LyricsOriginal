@@ -413,10 +413,11 @@ function initSpectrum2() {
 }
 
 // ==========================================
-// SPECTRE AUDIO ANIMÉ 3.0 — placé au MÊME endroit que les 2 premiers (bande en bas, sur toute la
-// largeur), mais avec un style radicalement différent : au lieu de barres verticales qui montent
-// depuis le bas, c'est un RUBAN D'ONDE LUMINEUX, symétrique (miroir haut/bas autour d'une ligne
-// centrale), avec un remplissage dégradé arc-en-ciel qui défile en continu.
+// SPECTRE AUDIO ANIMÉ 3.0 — reconstruit depuis zéro sur une base simple et fiable.
+// Même emplacement que les 2 premiers (bande fixe en bas, pleine largeur), mais un style
+// radicalement différent : des barres MIROIR qui partent d'une ligne centrale et s'étendent à
+// la fois vers le haut ET vers le bas (au lieu de monter depuis le bas), chacune avec son propre
+// dégradé vertical et une teinte qui défile en continu le long de la bande.
 // ==========================================
 function injectSpectrum3Styles() {
     if (document.getElementById('spectrum3-inline-style')) return;
@@ -456,7 +457,7 @@ let spectrum3HueScroll = 0;
 function initSpectrum3() {
     const canvas = ensureSpectrum3Canvas();
     const ctx = canvas.getContext('2d');
-    const barCount = 70;
+    const barCount = 46;
 
     spectrum3Bars = Array.from({ length: barCount }, () => ({
         phase: Math.random() * Math.PI * 2,
@@ -466,8 +467,8 @@ function initSpectrum3() {
 
     function resizeCanvas() {
         const rect = canvas.getBoundingClientRect();
-        canvas.width = rect.width * window.devicePixelRatio;
-        canvas.height = rect.height * window.devicePixelRatio;
+        canvas.width = Math.max(1, rect.width) * window.devicePixelRatio;
+        canvas.height = Math.max(1, rect.height) * window.devicePixelRatio;
     }
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
@@ -486,57 +487,32 @@ function initSpectrum3() {
 
         const active = spectrum3Enabled && isCurrentlyPlaying;
         const midY = h / 2;
-        if (active) spectrum3HueScroll += 0.6;
+        if (active) spectrum3HueScroll = (spectrum3HueScroll + 0.6) % 360;
 
-        const points = spectrum3Bars.map((bar, i) => {
+        const barW = w / spectrum3Bars.length;
+        const gap = barW * 0.22;
+
+        spectrum3Bars.forEach((bar, i) => {
             bar.phase += bar.speed;
             const target = active ? (0.15 + 0.85 * Math.abs(Math.sin(bar.phase))) : 0.04;
             bar.current += (target - bar.current) * 0.09;
-            const x = (i / (spectrum3Bars.length - 1)) * w;
-            const amp = bar.current * midY * 0.92;
-            return { x, yTop: midY - amp, yBottom: midY + amp };
+
+            const barH = Math.max(2, bar.current * midY * 0.92);
+            const x = i * barW;
+            const hue = (spectrum3HueScroll + i * 5) % 360;
+
+            const grad = ctx.createLinearGradient(0, midY - barH, 0, midY + barH);
+            grad.addColorStop(0, `hsl(${hue}, 95%, 68%)`);
+            grad.addColorStop(0.5, `hsl(${hue}, 95%, 48%)`);
+            grad.addColorStop(1, `hsl(${hue}, 95%, 68%)`);
+
+            ctx.fillStyle = grad;
+            ctx.fillRect(x + gap / 2, midY - barH, barW - gap, barH * 2);
         });
 
-        // Ruban rempli entre l'onde du haut et l'onde du bas, dégradé arc-en-ciel qui défile
-        ctx.beginPath();
-        ctx.moveTo(points[0].x, points[0].yTop);
-        for (let i = 1; i < points.length; i++) {
-            const prev = points[i - 1];
-            const midX = (prev.x + points[i].x) / 2;
-            const midYc = (prev.yTop + points[i].yTop) / 2;
-            ctx.quadraticCurveTo(prev.x, prev.yTop, midX, midYc);
-        }
-        ctx.lineTo(points[points.length - 1].x, points[points.length - 1].yBottom);
-        for (let i = points.length - 2; i >= 0; i--) {
-            ctx.lineTo(points[i].x, points[i].yBottom);
-        }
-        ctx.closePath();
-        const grad = ctx.createLinearGradient(0, 0, w, 0);
-        for (let i = 0; i <= 6; i++) {
-            grad.addColorStop(i / 6, `hsla(${(spectrum3HueScroll + i * 55) % 360}, 92%, 60%, 0.32)`);
-        }
-        ctx.fillStyle = grad;
-        ctx.fill();
-
-        // Ligne lumineuse du haut
-        ctx.beginPath();
-        ctx.moveTo(points[0].x, points[0].yTop);
-        for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].yTop);
-        ctx.strokeStyle = `hsl(${spectrum3HueScroll % 360}, 95%, 65%)`;
-        ctx.lineWidth = 3 * window.devicePixelRatio;
-        ctx.lineJoin = 'round';
-        ctx.shadowBlur = 12;
-        ctx.shadowColor = ctx.strokeStyle;
-        ctx.stroke();
-
-        // Ligne lumineuse du bas (miroir, teinte opposée sur le cercle chromatique)
-        ctx.beginPath();
-        ctx.moveTo(points[0].x, points[0].yBottom);
-        for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].yBottom);
-        ctx.strokeStyle = `hsl(${(spectrum3HueScroll + 180) % 360}, 95%, 65%)`;
-        ctx.shadowColor = ctx.strokeStyle;
-        ctx.stroke();
-        ctx.shadowBlur = 0;
+        // Ligne centrale lumineuse fine, sur toute la largeur
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+        ctx.fillRect(0, midY - 1 * window.devicePixelRatio, w, 2 * window.devicePixelRatio);
     }
     draw();
 }
@@ -1393,140 +1369,91 @@ function fwPatternComet(origin, def) {
     }, def.duration * 0.5);
 }
 
-// ÉVENTAIL ARC-EN-CIEL : un véritable dégradé continu (rouge → violet) réparti sur la largeur de
-// l'éventail, plutôt que des couleurs choisies au hasard — un vrai arc-en-ciel, pas un mélange.
-function fwPatternFanRainbow(origin, def) {
-    const count = def.count;
-    const spreadDeg = def.spreadDeg || 100;
-    const baseAngle = -90 + (Math.random() - 0.5) * 16;
-    for (let i = 0; i < count; i++) {
-        const frac = count === 1 ? 0.5 : i / (count - 1);
-        const angleDeg = baseAngle - spreadDeg / 2 + frac * spreadDeg;
-        const angle = angleDeg * (Math.PI / 180);
-        const dist = def.distance[0] + Math.random() * (def.distance[1] - def.distance[0]);
-        const hue = frac * 300;
-        const color = `hsl(${hue}, 90%, 60%)`;
-        const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
-        fwSpawnParticle('fw-generic-particle', origin.x, origin.y, size, color, def.duration, {
-            '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
-        });
-    }
-}
-
-// PIVOINE BICOLORE : véritable structure à deux étages — un cœur compact d'une couleur, suivi
-// (avec un léger décalage) d'un anneau extérieur plus large de la seconde couleur, pour un vrai
-// effet de profondeur bicolore plutôt qu'un simple mélange aléatoire des deux teintes.
-function fwPatternBicolorPeony(origin, def) {
-    const colorInner = def.colors[0];
-    const colorOuter = def.colors[1] || def.colors[0];
-    const innerCount = Math.round(def.count * 0.4);
-    const outerCount = def.count - innerCount;
-
-    for (let i = 0; i < innerCount; i++) {
-        const angle = (i / innerCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.15;
-        const dist = def.distance[0] * 0.55 + Math.random() * (def.distance[1] - def.distance[0]) * 0.25;
-        const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
-        fwSpawnParticle('fw-generic-particle', origin.x, origin.y, size, colorInner, def.duration * 0.85, {
-            '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
-        });
-    }
-    setTimeout(() => {
-        for (let i = 0; i < outerCount; i++) {
-            const angle = (i / outerCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.15;
-            const dist = def.distance[0] + Math.random() * (def.distance[1] - def.distance[0]);
-            const size = def.size[1] * 0.8 + Math.random() * (def.size[1] * 0.4);
-            fwSpawnParticle('fw-generic-particle', origin.x, origin.y, size, colorOuter, def.duration, {
-                '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
-            });
+// VORTEX TOURBILLONNANT : plusieurs bras qui tournent en s'écartant du centre (spirale galactique),
+// chaque bras se déployant progressivement — un vrai mouvement giratoire, pas un éclatement statique.
+function fwPatternVortex(origin, def) {
+    const arms = 4;
+    const perArm = Math.max(1, Math.round(def.count / arms));
+    for (let a = 0; a < arms; a++) {
+        const armOffset = (a / arms) * Math.PI * 2;
+        for (let i = 0; i < perArm; i++) {
+            const frac = i / perArm;
+            const angle = armOffset + frac * Math.PI * 2.4;
+            const dist = def.distance[0] + frac * (def.distance[1] - def.distance[0]);
+            const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
+            const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+            setTimeout(() => {
+                fwSpawnParticle('fw-generic-particle', origin.x, origin.y, size, color, def.duration * (0.6 + frac * 0.4), {
+                    '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
+                });
+            }, frac * 260);
         }
-    }, 90);
+    }
 }
 
-// CHRYSANTHÈME VIOLET SCINTILLANT : un vrai "saule" violet qui tombe en longues traînées, ENRICHI
-// de petites étincelles blanches qui clignotent au sein de la chute — un scintillement réel intégré
-// au mouvement, pas juste un saule coloré différemment.
-function fwPatternScintillantWillow(origin, def) {
+// PLUIE DORÉE SCINTILLANTE : une pluie fine qui monte légèrement puis retombe lentement en
+// scintillant tout du long — un vrai effet de pluie qui dure, pas un simple saule doré.
+function fwPatternGoldRain(origin, def) {
     for (let i = 0; i < def.count; i++) {
-        const angle = (-160 + Math.random() * 140) * (Math.PI / 180);
-        const upDist = def.distance[0] + Math.random() * (def.distance[1] - def.distance[0]);
+        const angle = (-150 + Math.random() * 120) * (Math.PI / 180);
+        const upDist = def.distance[0] + Math.random() * (def.distance[1] - def.distance[0]) * 0.4;
         const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
+        const fallDist = def.fallDistance ? def.fallDistance[0] + Math.random() * (def.fallDistance[1] - def.fallDistance[0]) : 220;
         const color = def.colors[Math.floor(Math.random() * def.colors.length)];
-        const fallDist = def.fallDistance ? def.fallDistance[0] + Math.random() * (def.fallDistance[1] - def.fallDistance[0]) : 100;
         fwSpawnParticle('fw-generic-willow', origin.x, origin.y, size, color, def.duration, {
-            '--dx': `${Math.cos(angle) * upDist * 1.15}px`,
+            '--dx': `${Math.cos(angle) * upDist * 0.5}px`,
             '--dy-up': `${Math.sin(angle) * upDist}px`,
             '--dy-down': `${fallDist}px`
         });
     }
-    for (let i = 0; i < Math.round(def.count * 0.6); i++) {
+    for (let i = 0; i < Math.round(def.count * 0.8); i++) {
         setTimeout(() => {
-            const angle = Math.random() * Math.PI * 2;
-            const dist = 20 + Math.random() * 60;
-            const midX = origin.x + (Math.random() - 0.5) * 160;
-            const midY = origin.y + 60 + Math.random() * 120;
-            fwSpawnParticle('fw-generic-particle', midX, midY, 2, '#ffffff', 350, {
-                '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
+            const x = origin.x + (Math.random() - 0.5) * 200;
+            const y = origin.y + 40 + Math.random() * 200;
+            fwSpawnParticle('fw-generic-particle', x, y, 1.8, '#fff6c8', 300, {
+                '--dx': `${(Math.random() - 0.5) * 20}px`, '--dy': `${10 + Math.random() * 20}px`
             });
-        }, 300 + Math.random() * def.duration * 0.7);
+        }, 400 + Math.random() * def.duration * 0.8);
     }
 }
 
-// BENGALE BLEU : la lueur continue d'origine, D'OÙ crépitent désormais en continu de petites
-// étincelles bleues — un vrai bengale qui grésille, pas juste une lueur statique.
-function fwPatternBengalSpark(origin, def) {
-    const el = document.createElement('div');
-    el.className = 'fw-generic-flare';
-    el.style.left = `${origin.x - 20}px`;
-    el.style.top = `${origin.y - 20}px`;
-    el.style.width = '40px';
-    el.style.height = '40px';
-    el.style.background = def.colors[0];
-    el.style.boxShadow = `0 0 30px 12px ${def.colors[0]}`;
-    el.style.animationDuration = `${def.duration}ms`;
-    document.body.appendChild(el);
-    setTimeout(() => el.remove(), def.duration + 100);
-
-    const sparkCount = Math.round(def.duration / 90);
-    for (let i = 0; i < sparkCount; i++) {
+// COURONNE DOUBLE PULSÉE : deux anneaux concentriques tirés l'un après l'autre à très court
+// intervalle — un vrai effet de pulsation/battement, pas un simple anneau unique.
+function fwPatternDoubleCrown(origin, def) {
+    function ring(radiusFrac, delay, sizeMult) {
         setTimeout(() => {
-            const angle = Math.random() * Math.PI * 2;
-            const dist = 15 + Math.random() * 35;
-            const c = def.colors[Math.floor(Math.random() * def.colors.length)];
-            fwSpawnParticle('fw-generic-particle', origin.x, origin.y, 2 + Math.random() * 1.5, c, 450, {
-                '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
-            });
-        }, i * 90);
+            for (let i = 0; i < def.count; i++) {
+                const angle = (i / def.count) * Math.PI * 2;
+                const dist = def.distance[0] + (def.distance[1] - def.distance[0]) * radiusFrac;
+                const size = (def.size[0] + Math.random() * (def.size[1] - def.size[0])) * sizeMult;
+                const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+                fwSpawnParticle('fw-generic-particle', origin.x, origin.y, size, color, def.duration, {
+                    '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
+                });
+            }
+        }, delay);
     }
+    ring(0.55, 0, 0.85);
+    ring(1, 260, 1);
 }
 
-// CASCADE ARC-EN-CIEL : la couleur de chaque étincelle du rideau dépend de sa position HORIZONTALE
-// dans le rideau (dégradé continu de gauche à droite) — un vrai rideau arc-en-ciel, pas des couleurs
-// choisies au hasard indépendamment les unes des autres.
-function fwPatternRainbowCascade(origin, def) {
-    const burstCount = 22;
-    for (let i = 0; i < burstCount; i++) {
-        const angle = (i / burstCount) * Math.PI * 2;
-        const dist = 60 + Math.random() * 40;
-        const hue = (i / burstCount) * 360;
-        fwSpawnParticle('fw-generic-particle', origin.x, origin.y, 5, `hsl(${hue}, 90%, 60%)`, 700, {
-            '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
-        });
-    }
-
-    const count = def.count;
-    for (let i = 0; i < count; i++) {
-        const frac = i / count;
-        const startX = origin.x + (frac - 0.5) * 260;
-        const startY = origin.y + 20;
-        const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
-        const hue = frac * 320;
-        const fallDist = def.distance[0] + Math.random() * (def.distance[1] - def.distance[0]);
-        setTimeout(() => {
-            fwSpawnParticle('fw-generic-particle', startX, startY, size, `hsl(${hue}, 90%, 62%)`, def.duration, {
-                '--dx': '0px', '--dy': `${fallDist}px`, '--end-scale': 0.4
+// NOVA ÉTINCELANTE : un flash central blanc et bref, suivi (léger différé) d'une onde de choc qui
+// s'étend rapidement en changeant de couleur — comme une vraie mini-supernova.
+function fwPatternNova(origin, def) {
+    fwSpawnParticle('fw-generic-particle', origin.x, origin.y, def.size[1] * 1.6, '#ffffff', 220, {
+        '--dx': '0px', '--dy': '0px'
+    });
+    setTimeout(() => {
+        for (let i = 0; i < def.count; i++) {
+            const angle = (i / def.count) * Math.PI * 2;
+            const dist = def.distance[0] + Math.random() * (def.distance[1] - def.distance[0]);
+            const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
+            const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+            fwSpawnParticle('fw-generic-particle', origin.x, origin.y, size, color, def.duration, {
+                '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
             });
-        }, 350 + Math.random() * 400);
-    }
+        }
+    }, 130);
 }
 
 function fwPatternWillow(origin, def) {
@@ -1755,15 +1682,18 @@ const FIREWORK_RECIPES = {
 
     // --- 10 NOUVEAUX EFFETS DE FEUX D'ARTIFICE RÉALISTES ---
     cometeArgentee:        { label: "Comète argentée",            pattern: 'comet', count: 10, size: [3, 6], distance: [280, 380], duration: 1600, colors: ['#e8e8e8', '#ffffff', '#c0d8ff'], minDelay: 1100, maxDelay: 1700 },
-    eventailArcEnCiel:      { label: "Éventail arc-en-ciel",       pattern: 'fanRainbow', spreadDeg: 110, count: 34, size: [3, 5],  distance: [110, 170], duration: 1300, colors: ['#ff5252', '#a352ff'], minDelay: 1000, maxDelay: 1500 },
-    pivoineBicoloreGeante: { label: "Pivoine bicolore géante",    pattern: 'bicolorPeony', count: 56, size: [5, 10], distance: [150, 220], duration: 1700, colors: ['#ff1a1a', '#ffffff'], minDelay: 1800, maxDelay: 2400 },
     chrysanthemeVioletScintillant: { label: "Chrysanthème violet scintillant", pattern: 'scintillantWillow', count: 34, size: [2, 4], distance: [100, 150], fallDistance: [130, 180], duration: 2200, colors: ['#a352ff', '#e0c2ff'], minDelay: 1100, maxDelay: 1700 },
     crossetteDoree:        { label: "Crossette dorée",             pattern: 'radial',  count: 12, size: [5, 7],  distance: [110, 110], duration: 1400, colors: ['#ffd452', '#d4af37'], crossette: true, minDelay: 1000, maxDelay: 1500 },
-    bengaleBleu:           { label: "Bengale bleu",                pattern: 'bengalSpark', duration: 2000, colors: ['#2196ff', '#5ec8ff'], minDelay: 2200, maxDelay: 2200 },
-    cascadeArcEnCiel:      { label: "Cascade arc-en-ciel",         pattern: 'rainbowCascade', count: 32, size: [2, 4],  distance: [260, 380], duration: 2100, colors: ['#ff5252', '#52c8ff'], minDelay: 550, maxDelay: 900 },
     mandalaEmeraude:       { label: "Mandala émeraude",            pattern: 'mandala', count: 14, size: [4, 5],  distance: [60, 140],  duration: 1400, colors: ['#00c896', '#52ffb8', '#ffffff'], minDelay: 1200, maxDelay: 1800 },
     spiraleDeFeu:          { label: "Spirale de feu",              pattern: 'spiral',  count: 26, size: [5, 5],  distanceStep: 5.8, delayStep: 14, duration: 1200, colors: ['#ff3300', '#ff8a00', '#ffd452'], minDelay: 800, maxDelay: 1300 },
-    bouquetNocturne:       { label: "Bouquet nocturne",            pattern: 'multi',   count: 20, size: [4, 6],  distance: [90, 150],  duration: 1400, colors: ['#1a1a4e', '#4b3f8f', '#c9c9ff', '#ffffff'], minDelay: 1700, maxDelay: 2300 }
+    bouquetNocturne:       { label: "Bouquet nocturne",            pattern: 'multi',   count: 20, size: [4, 6],  distance: [90, 150],  duration: 1400, colors: ['#1a1a4e', '#4b3f8f', '#c9c9ff', '#ffffff'], minDelay: 1700, maxDelay: 2300 },
+
+    // --- 4 NOUVEAUX EFFETS ORIGINAUX (remplacent éventail arc-en-ciel, pivoine bicolore géante,
+    // bengale bleu et cascade arc-en-ciel, jugés décevants) ---
+    vortexTourbillonnant: { label: "Vortex tourbillonnant",       pattern: 'vortex', count: 48, size: [3, 5], distance: [70, 190], duration: 1400, colors: ['#7c4dff', '#00e5ff', '#ff4de1'], minDelay: 1300, maxDelay: 1900 },
+    pluieDoreeScintillante: { label: "Pluie dorée scintillante",  pattern: 'goldRain', count: 30, size: [2, 4], distance: [90, 140], fallDistance: [200, 260], duration: 2400, colors: ['#ffd700', '#ffe97a', '#fff6c8'], minDelay: 1400, maxDelay: 2000 },
+    couronneDoublePulsee: { label: "Couronne double pulsée",      pattern: 'doubleCrown', count: 26, size: [4, 6], distance: [70, 170], duration: 1300, colors: ['#ff2d55', '#ffffff'], minDelay: 1500, maxDelay: 2100 },
+    novaEtincelante:      { label: "Nova étincelante",            pattern: 'nova', count: 40, size: [3, 5], distance: [130, 210], duration: 1200, colors: ['#ffffff', '#66d9ff', '#3366ff'], minDelay: 1600, maxDelay: 2200 }
 };
 
 let fireworkTypeEnabled = {};
@@ -1773,6 +1703,125 @@ Object.keys(FIREWORK_RECIPES).forEach(key => {
     fireworkTypeEnabled[key] = localStorage.getItem('fw_' + key + '_enabled') === 'true';
 });
 
+// ==========================================
+// 🎨 MODE THÉMATIQUE — quand activé, les feux d'artifice explosent avec les couleurs dominantes
+// de la pochette du titre en cours (réactualisées à chaque changement de titre), et le rythme des
+// tirs suit la durée du morceau : bouquet final à 20s de la fin, silence total à 5s de la fin, puis
+// reprise normale 5s après le début du titre suivant.
+// ==========================================
+let themeModeEnabled = localStorage.getItem('themeModeEnabled') === 'true';
+let themeModeColors = null;      // couleurs dominantes actuelles de la pochette (tableau de "rgb(r,g,b)")
+let themeModeSuppressed = false; // true = aucun tir d'ambiance pendant ce laps de temps (fin/début de titre)
+let themeModeFinaleTimer = null;
+let themeModeSilenceTimer = null;
+let themeModeRestartTimer = null;
+
+// Analyse une petite miniature de la pochette et regroupe ses pixels par teinte pour en extraire
+// jusqu'à 4 couleurs dominantes distinctes (pas juste une moyenne globale, qui donnerait une
+// couleur terne) — même technique CORS que getDominantColorFromImageSrc().
+function getThemeColorsFromImageSrc(src, callback) {
+    const tempImg = new Image();
+    tempImg.crossOrigin = "Anonymous";
+    tempImg.onload = function () {
+        try {
+            const canvas = document.createElement('canvas');
+            canvas.width = 32;
+            canvas.height = 32;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(tempImg, 0, 0, 32, 32);
+            const data = ctx.getImageData(0, 0, 32, 32).data;
+
+            const buckets = {};
+            for (let i = 0; i < data.length; i += 4) {
+                const r = data[i], g = data[i + 1], b = data[i + 2];
+                const max = Math.max(r, g, b), min = Math.min(r, g, b);
+                let h = 0;
+                if (max !== min) {
+                    if (max === r) h = ((g - b) / (max - min)) % 6;
+                    else if (max === g) h = (b - r) / (max - min) + 2;
+                    else h = (r - g) / (max - min) + 4;
+                    h = Math.round(h * 60);
+                    if (h < 0) h += 360;
+                }
+                const bucketKey = Math.floor(h / 30);
+                if (!buckets[bucketKey]) buckets[bucketKey] = { r: 0, g: 0, b: 0, count: 0 };
+                buckets[bucketKey].r += r; buckets[bucketKey].g += g; buckets[bucketKey].b += b; buckets[bucketKey].count++;
+            }
+            const sorted = Object.values(buckets).sort((a, b) => b.count - a.count).slice(0, 4);
+            const colors = sorted.map(bucket => `rgb(${Math.round(bucket.r / bucket.count)}, ${Math.round(bucket.g / bucket.count)}, ${Math.round(bucket.b / bucket.count)})`);
+            callback(colors.length ? colors : null);
+        } catch (e) {
+            console.error("Impossible d'extraire les couleurs dominantes de la pochette :", e);
+            callback(null);
+        }
+    };
+    tempImg.onerror = () => callback(null);
+    tempImg.src = src;
+}
+
+// Recalcule les couleurs du thème à partir de la pochette actuellement affichée.
+// Appelée à l'activation du mode ET à chaque changement de titre (voir hook dans updateNowPlaying).
+function updateThemeModeColors() {
+    if (!themeModeEnabled) return;
+    const art = document.getElementById('track-art');
+    if (!art || !art.src) return;
+    getThemeColorsFromImageSrc(art.src, (colors) => {
+        if (colors) themeModeColors = colors;
+    });
+}
+
+function toggleThemeModeSetting(checked) {
+    themeModeEnabled = checked;
+    localStorage.setItem('themeModeEnabled', checked ? 'true' : 'false');
+    if (checked) updateThemeModeColors();
+}
+
+function initThemeModeState() {
+    if (themeModeEnabled) updateThemeModeColors();
+}
+
+function clearThemeModeTimers() {
+    [themeModeFinaleTimer, themeModeSilenceTimer, themeModeRestartTimer].forEach(t => { if (t) clearTimeout(t); });
+    themeModeFinaleTimer = null;
+    themeModeSilenceTimer = null;
+    themeModeRestartTimer = null;
+}
+
+// Bouquet final : plusieurs feux tirés rapidement à la suite, dans les couleurs du thème — un vrai
+// final de spectacle plutôt qu'un simple tir isolé.
+function launchThemeModeFinale() {
+    const keys = Object.keys(FIREWORK_RECIPES);
+    for (let i = 0; i < 10; i++) {
+        setTimeout(() => {
+            const key = keys[Math.floor(Math.random() * keys.length)];
+            const def = FIREWORK_RECIPES[key];
+            const overrideColors = (themeModeColors && themeModeColors.length) ? themeModeColors : def.colors;
+            launchFireworkRecipe(key, { ...def, colors: overrideColors });
+        }, i * 220);
+    }
+}
+
+// Programme, pour le titre en cours, le silence de début (5s), le bouquet final (20s avant la fin)
+// et le silence de fin (5s avant la fin) — remis à zéro à chaque changement de titre.
+function scheduleThemeModeForCurrentTrack(progressMs, durationMs) {
+    clearThemeModeTimers();
+    if (!themeModeEnabled || !durationMs) return;
+
+    // Silence de 5s au redémarrage d'un nouveau titre avant de reprendre les tirs d'ambiance
+    themeModeSuppressed = true;
+    themeModeRestartTimer = setTimeout(() => { themeModeSuppressed = false; }, 5000);
+
+    const msToFinale = durationMs - 20000 - progressMs;
+    if (msToFinale > 5000) {
+        themeModeFinaleTimer = setTimeout(() => { if (themeModeEnabled) launchThemeModeFinale(); }, msToFinale);
+    }
+
+    const msToSilence = durationMs - 5000 - progressMs;
+    if (msToSilence > 0) {
+        themeModeSilenceTimer = setTimeout(() => { themeModeSuppressed = true; }, msToSilence);
+    }
+}
+
 // launchFireworkRecipe() est défini plus bas, avec gestion du son + surcharge pour les feux personnalisés.
 
 function scheduleFireworkType(key) {
@@ -1780,7 +1829,13 @@ function scheduleFireworkType(key) {
     if (!fireworkTypeEnabled[key]) return;
     const delay = def.minDelay + Math.random() * (def.maxDelay - def.minDelay);
     fireworkTypeIntervalId[key] = setTimeout(() => {
-        if (fireworkTypeEnabled[key]) launchFireworkRecipe(key);
+        if (fireworkTypeEnabled[key] && !(themeModeEnabled && themeModeSuppressed)) {
+            if (themeModeEnabled && themeModeColors && themeModeColors.length) {
+                launchFireworkRecipe(key, { ...def, colors: themeModeColors });
+            } else {
+                launchFireworkRecipe(key);
+            }
+        }
         scheduleFireworkType(key);
     }, delay);
 }
@@ -2080,11 +2135,11 @@ const FW_SOUND_BY_PATTERN = {
     rafale:             () => { fwPlayBoom(); setTimeout(fwPlayBoom, 280); setTimeout(fwPlayBoom, 560); },
     // --- Sons pour les 6 nouveaux motifs originaux ---
     comet:              () => { fwPlayWhoosh(); setTimeout(fwPlayCrackle, 350); },
-    fanRainbow:         () => { fwPlayBoom(); fwPlayCrackle(); },
-    bicolorPeony:       () => { fwPlayBoom(); setTimeout(fwPlayBoom, 90); fwPlayCrackle(); },
     scintillantWillow:  () => { fwPlayWhoosh(); fwPlayCrackle(); setTimeout(fwPlayCrackle, 300); },
-    bengalSpark:        () => { fwPlayFlareHum(); fwPlayCrackle(); },
-    rainbowCascade:     fwPlayHiss
+    vortex:             () => { fwPlayBoom(); fwPlayCrackle(); },
+    goldRain:           () => { fwPlayWhoosh(); setTimeout(fwPlayCrackle, 200); },
+    doubleCrown:        () => { fwPlayBoom(); setTimeout(fwPlayBoom, 260); },
+    nova:               () => { fwPlayFlareHum(); fwPlayBoom(); }
 };
 
 let fireworksSoundEnabled = localStorage.getItem('fireworksSoundEnabled') === 'true';
@@ -2112,11 +2167,11 @@ function launchFireworkRecipe(key, overrideDef) {
     switch (def.pattern) {
         case 'radial':      fwPatternRadial(origin, def); break;
         case 'comet':          fwPatternComet(origin, def); break;
-        case 'fanRainbow':      fwPatternFanRainbow(origin, def); break;
-        case 'bicolorPeony':     fwPatternBicolorPeony(origin, def); break;
         case 'scintillantWillow': fwPatternScintillantWillow(origin, def); break;
-        case 'bengalSpark':        fwPatternBengalSpark(origin, def); break;
-        case 'rainbowCascade':      fwPatternRainbowCascade(origin, def); break;
+        case 'vortex':          fwPatternVortex(origin, def); break;
+        case 'goldRain':        fwPatternGoldRain(origin, def); break;
+        case 'doubleCrown':     fwPatternDoubleCrown(origin, def); break;
+        case 'nova':            fwPatternNova(origin, def); break;
         case 'spiral':       fwPatternSpiral(origin, def); break;
         case 'willow':       fwPatternWillow(origin, def); break;
         case 'fountain':     fwPatternFountain(def); break;
@@ -2287,6 +2342,14 @@ function ensureFireworksManagerOverlay() {
                     <span class="slider"></span>
                 </label>
             </div>
+            <div class="fwm-sound-row">
+                <span>🎨 Mode thématique (couleurs de la pochette)</span>
+                <label class="switch">
+                    <input type="checkbox" id="fwm-theme-mode-toggle" onchange="toggleThemeModeSetting(this.checked)">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <p style="font-size: 0.68rem; color: var(--text-grey); margin: -6px 0 8px 0;">💡 Les feux explosent avec les couleurs dominantes de la pochette en cours (réactualisées à chaque titre), avec un bouquet final 20s avant la fin du titre.</p>
             <div class="fwm-scroll">
                 <p class="fwm-section-title fwm-spectacle-title">🎪 Spectacle</p>
                 <div class="fwm-show-row">
@@ -2325,6 +2388,7 @@ function ensureFireworksManagerOverlay() {
 
                     <p class="fwm-section-title">Effets disponibles (clique un effet, puis clique la timeline pour le placer)</p>
                     <div id="fwm-effects-palette" class="fwm-effects-palette"></div>
+                    <p id="fwm-pending-status" style="font-size: 0.72rem; color: var(--spotify-green, #1DB954); min-height: 1.2em; margin: 2px 0 8px 0; font-weight: bold;"></p>
 
                     <p class="fwm-section-title">Effets présents</p>
                     <div id="fwm-show3-list"></div>
@@ -2335,7 +2399,7 @@ function ensureFireworksManagerOverlay() {
 
                 <div style="height: 18px;"></div>
 
-                <p class="fwm-section-title">40 effets</p>
+                <p class="fwm-section-title">50 effets</p>
                 <div id="fwm-list"></div>
 
                 <div style="height: 18px;"></div>
@@ -2413,6 +2477,8 @@ function toggleFireworksManager() {
         renderCustomShowsList();
         const soundToggle = document.getElementById('fwm-sound-toggle');
         if (soundToggle) soundToggle.checked = fireworksSoundEnabled;
+        const themeModeToggle = document.getElementById('fwm-theme-mode-toggle');
+        if (themeModeToggle) themeModeToggle.checked = themeModeEnabled;
     } else {
         overlay.style.display = 'none';
     }
@@ -2623,7 +2689,7 @@ function initCustomFireworks() {
 
 // ==========================================
 // SPECTACLE — 2 boutons (1 min / 1 min 30), lancent un enchaînement automatique de tirs parmi
-// les 40 effets, qui s'intensifie et se termine par un bouquet final. Un point rouge/vert indique
+// les 50 effets, qui s'intensifie et se termine par un bouquet final. Un point rouge/vert indique
 // si un spectacle est en cours ; recliquer l'arrête et réinitialise (le suivant repart de 0).
 // ==========================================
 // SPECTACLE — 2 boutons (1 min / 1 min 30), déroulé en plusieurs phases (ouverture → montée →
@@ -2871,6 +2937,21 @@ function renderFwEffectsPalette() {
         };
         container.appendChild(swatch);
     });
+    updateFwPendingStatus();
+}
+
+// Message d'état visible au-dessus de la timeline : confirme explicitement qu'un effet est
+// bien sélectionné et en attente d'un clic sur la grille pour être posé.
+function updateFwPendingStatus() {
+    const statusEl = document.getElementById('fwm-pending-status');
+    if (!statusEl) return;
+    if (fwShow3PendingRecipe && FIREWORK_RECIPES[fwShow3PendingRecipe]) {
+        statusEl.innerText = `🎯 « ${FIREWORK_RECIPES[fwShow3PendingRecipe].label} » sélectionné — clique sur la grille pour le placer`;
+    } else if (fwShow3SelectedId) {
+        statusEl.innerText = `✋ Effet en cours de déplacement — clique sur la grille pour choisir son nouvel emplacement`;
+    } else {
+        statusEl.innerText = '';
+    }
 }
 
 function fwShow3RemoveEffect(id) {
