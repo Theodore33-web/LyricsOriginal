@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v2.13";
+        const APP_VERSION = "v2.14";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -495,7 +495,7 @@
 </div>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Spectre audio animé 3.0 (barres miroir)</span>
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Spectre audio animé 3.0 (particules dansantes)</span>
     <label class="switch">
         <input type="checkbox" id="spectrum3-toggle" onchange="toggleSpectrum3Setting(this.checked)">
         <span class="slider"></span>
@@ -1926,7 +1926,7 @@ function buildA4LyricsSheet(trackName, trackArtist, trackImage, durationStr, lyr
                 background: linear-gradient(160deg, #f2f5f3 0%, #e9f7ef 45%, #eef2ff 100%);
             }
             #a4-page {
-                background: #ffffff;
+                background: linear-gradient(165deg, #fdfefd 0%, #eafbf1 55%, #eef4ff 100%);
                 border-radius: 1em;
                 box-shadow: 0 0.3em 1.2em rgba(0, 0, 0, 0.08);
                 padding: 1.6em 1.8em;
@@ -1955,7 +1955,7 @@ function buildA4LyricsSheet(trackName, trackArtist, trackImage, durationStr, lyr
                 padding: 9px 18px; font-weight: bold; cursor: pointer; border-radius: 20px;
                 border: 1px solid #1DB954; background: #1DB954; color: #000;
             }
-            @media print { .a4-noprint { display: none; } body { background: #ffffff; } #a4-page { box-shadow: none; } }
+            @media print { .a4-noprint { display: none; } #a4-page { box-shadow: none; } }
         </style>
         </head>
         <body>
