@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v2.17";
+        const APP_VERSION = "v2.18";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -97,7 +97,7 @@
         }
         .lyrics-section::-webkit-scrollbar { width: 0px; }
         .lyrics-section.fond-parole-active {
-            background: linear-gradient(165deg, rgba(var(--fond-parole-color, 29, 185, 84), 0.55) 0%, rgba(var(--fond-parole-color, 29, 185, 84), 0.14) 60%, var(--card-grey) 100%);
+            background: #123b27;
             transition: background 0.6s ease;
         }
 
@@ -1321,6 +1321,21 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 initFeuxFontaineState();
                 initFeuxCrepitantsState();
                 initFeuxGeantsState();
+                // Rattrape d'éventuelles anciennes configurations où plusieurs spectres (2 à 5)
+                // avaient été enregistrés actifs en même temps (avant l'exclusivité mutuelle) :
+                // ne garde que le premier trouvé, dans l'ordre 2 → 3 → 4 → 5.
+                (function cleanupLegacyMultiSpectrum() {
+                    const flags = [spectrum2Enabled, spectrum3Enabled, spectrum4Enabled, spectrum5Enabled];
+                    const activeCount = flags.filter(Boolean).length;
+                    if (activeCount > 1) {
+                        let kept = false;
+                        if (spectrum2Enabled) { kept = true; }
+                        else if (spectrum3Enabled) { kept = true; }
+                        if (spectrum3Enabled && kept && spectrum2Enabled) { spectrum3Enabled = false; localStorage.setItem('spectrum3Enabled', 'false'); }
+                        if (spectrum4Enabled && (spectrum2Enabled || spectrum3Enabled)) { spectrum4Enabled = false; localStorage.setItem('spectrum4Enabled', 'false'); }
+                        if (spectrum5Enabled && (spectrum2Enabled || spectrum3Enabled || spectrum4Enabled)) { spectrum5Enabled = false; localStorage.setItem('spectrum5Enabled', 'false'); }
+                    }
+                })();
                 initSpectrum2State();
                 initSpectrum3State();
                 initSpectrum4State();
@@ -2164,7 +2179,6 @@ function highlightLyrics(currentTime) {
                         art.onload = () => {
                             updateDynamicBackground();
                             updatePochetteHaloColor();
-                            updateFondParoleColor();
                             updateThemeModeColors();
                         };
                     }
@@ -8372,20 +8386,9 @@ function initPochetteHaloState() {
 }
 
 // --- FOND PAROLE : quand activé, l'encadré des paroles prend une couleur dominante de la
-// pochette au lieu du fond noir/gris habituel. Désactivé par défaut. Se réactualise à chaque
-// changement de titre (même hook que le halo pochette, voir updateNowPlaying).
+// pochette. Couleur UNIE et FIXE (ne change plus selon le titre) — désactivé par défaut.
 function getFondParoleTargetElement() {
     return document.getElementById('lyrics-container');
-}
-
-function updateFondParoleColor() {
-    if (!fondParoleEnabled) return;
-    const art = document.getElementById('track-art');
-    const target = getFondParoleTargetElement();
-    if (!art || !art.src || !target) return;
-    getDominantColorFromImageSrc(art.src, (rgb) => {
-        if (rgb) target.style.setProperty('--fond-parole-color', rgb);
-    });
 }
 
 function toggleFondParoleSetting(checked) {
@@ -8393,13 +8396,11 @@ function toggleFondParoleSetting(checked) {
     localStorage.setItem('fondParoleEnabled', checked ? 'true' : 'false');
     const target = getFondParoleTargetElement();
     if (target) target.classList.toggle('fond-parole-active', checked);
-    if (checked) updateFondParoleColor();
 }
 
 function initFondParoleState() {
     const target = getFondParoleTargetElement();
     if (target) target.classList.toggle('fond-parole-active', fondParoleEnabled);
-    if (fondParoleEnabled) updateFondParoleColor();
 }
 
 // --- MINI-LECTEUR FLOTTANT : petite barre toujours visible en haut de l'écran, même en
@@ -8432,8 +8433,15 @@ function injectMiniPlayerStyles() {
         #mini-player-title { font-size: 0.8rem; font-weight: bold; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         #mini-player-artist { font-size: 0.7rem; color: #b3b3b3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         #mini-player-times { font-size: 0.68rem; color: #b3b3b3; flex-shrink: 0; white-space: nowrap; }
+        #mini-player-playpause-btn {
+            background: none; border: none; color: #fff; font-size: 1rem; cursor: pointer;
+            flex-shrink: 0; padding: 0 2px; line-height: 1;
+        }
         #mini-player-progress-track { width: 100%; height: 2px; background: rgba(255, 255, 255, 0.15); }
         #mini-player-progress-fill { height: 100%; width: 0%; background: var(--spotify-green, #1DB954); }
+        /* Décale légèrement le contenu des panneaux plein écran vers le bas quand le mini-lecteur
+           flottant est actif, pour ne pas cacher leur bouton de fermeture (✕) sous la barre. */
+        .mp-offset { padding-top: 50px !important; }
     `;
     document.head.appendChild(styleTag);
 }
@@ -8452,6 +8460,7 @@ function ensureMiniPlayerBar() {
                     <div id="mini-player-artist"></div>
                 </div>
                 <div id="mini-player-times"><span id="mini-player-time-current">0:00</span> / <span id="mini-player-time-total">0:00</span></div>
+                <button id="mini-player-playpause-btn" onclick="togglePlay()">▶️</button>
             </div>
             <div id="mini-player-progress-track">
                 <div id="mini-player-progress-fill"></div>
@@ -8463,12 +8472,25 @@ function ensureMiniPlayerBar() {
 }
 
 let miniPlayerSyncInterval = null;
+const MP_OFFSET_OVERLAY_IDS = ['fireworks-manager-overlay', 'puzzle-overlay', 'blindtest-overlay', 'quiz-overlay', 'texteparoles-overlay'];
+
+// Applique (ou retire) le décalage vers le bas sur les grands panneaux plein écran (feux d'artifice,
+// les 3 mini-jeux, cahier de paroles) pour que leur croix de fermeture reste accessible sous la
+// barre du mini-lecteur flottant. Appelée au toggle, au démarrage, et en continu pendant la
+// synchronisation pour couvrir les panneaux créés après coup.
+function applyMiniPlayerOffsetToOverlays() {
+    MP_OFFSET_OVERLAY_IDS.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.toggle('mp-offset', miniPlayerEnabled);
+    });
+}
 
 // Recopie l'état du lecteur principal (pochette, titre, artiste, progression, durée) dans la
 // barre flottante — lue directement depuis le DOM du lecteur, donc toujours à jour quel que soit
 // l'endroit du code qui a mis à jour la lecture en cours.
 function syncMiniPlayer() {
     if (!miniPlayerEnabled) return;
+    applyMiniPlayerOffsetToOverlays();
     const art = document.getElementById('track-art');
     const title = document.getElementById('track-title');
     const artist = document.getElementById('track-artist');
@@ -8482,6 +8504,8 @@ function syncMiniPlayer() {
     const mpFill = document.getElementById('mini-player-progress-fill');
     const mpTimeCurrent = document.getElementById('mini-player-time-current');
     const mpTimeTotal = document.getElementById('mini-player-time-total');
+    const mpPlayPause = document.getElementById('mini-player-playpause-btn');
+    const mainPlayPause = document.getElementById('play-pause-btn');
 
     if (art && mpArt && art.src && mpArt.src !== art.src) mpArt.src = art.src;
     if (title && mpTitle) mpTitle.innerText = title.innerText;
@@ -8489,6 +8513,7 @@ function syncMiniPlayer() {
     if (fill && mpFill) mpFill.style.width = fill.style.width || '0%';
     if (timeCurrent && mpTimeCurrent) mpTimeCurrent.innerText = timeCurrent.innerText;
     if (timeMax && mpTimeTotal) mpTimeTotal.innerText = timeMax.innerText;
+    if (mainPlayPause && mpPlayPause) mpPlayPause.innerText = mainPlayPause.innerText;
 }
 
 function toggleMiniPlayerSetting(checked) {
@@ -8496,6 +8521,7 @@ function toggleMiniPlayerSetting(checked) {
     localStorage.setItem('miniPlayerEnabled', checked ? 'true' : 'false');
     const bar = ensureMiniPlayerBar();
     bar.style.display = checked ? 'block' : 'none';
+    applyMiniPlayerOffsetToOverlays();
     if (checked) {
         syncMiniPlayer();
         if (!miniPlayerSyncInterval) miniPlayerSyncInterval = setInterval(syncMiniPlayer, 400);
@@ -8508,6 +8534,7 @@ function toggleMiniPlayerSetting(checked) {
 function initMiniPlayerState() {
     const bar = ensureMiniPlayerBar();
     bar.style.display = miniPlayerEnabled ? 'block' : 'none';
+    applyMiniPlayerOffsetToOverlays();
     if (miniPlayerEnabled) {
         syncMiniPlayer();
         if (!miniPlayerSyncInterval) miniPlayerSyncInterval = setInterval(syncMiniPlayer, 400);
