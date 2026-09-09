@@ -536,12 +536,47 @@ function initSpectrum3() {
     draw();
 }
 
+// Les spectres 2, 3, 4 et 5 occupent tous EXACTEMENT le même emplacement fixe (bande en bas,
+// pleine largeur) : en activer plusieurs à la fois les fait se superposer et rend l'affichage
+// confus / non fonctionnel en pratique. On les rend donc mutuellement exclusifs : n'en activer un
+// désactive automatiquement les 3 autres. Le spectre 1.0 (dans la carte "lecture en cours") n'est
+// pas concerné car il ne partage pas cet emplacement.
+const SPECTRUM_OVERLAY_REGISTRY = {
+    spectrum2: { toggleId: 'spectrum2-toggle', canvasId: 'spectrum2-canvas', storageKey: 'spectrum2Enabled', setVar: v => { spectrum2Enabled = v; } },
+    spectrum3: { toggleId: 'spectrum3-toggle', canvasId: 'spectrum3-canvas', storageKey: 'spectrum3Enabled', setVar: v => { spectrum3Enabled = v; } },
+    spectrum4: { toggleId: 'spectrum4-toggle', canvasId: 'spectrum4-canvas', storageKey: 'spectrum4Enabled', setVar: v => { spectrum4Enabled = v; } },
+    spectrum5: { toggleId: 'spectrum5-toggle', canvasId: 'spectrum5-canvas', storageKey: 'spectrum5Enabled', setVar: v => { spectrum5Enabled = v; } }
+};
+
+function enforceExclusiveSpectrumOverlay(activeKey) {
+    Object.keys(SPECTRUM_OVERLAY_REGISTRY).forEach(key => {
+        if (key === activeKey) return;
+        const info = SPECTRUM_OVERLAY_REGISTRY[key];
+        info.setVar(false);
+        localStorage.setItem(info.storageKey, 'false');
+        const canvas = document.getElementById(info.canvasId);
+        if (canvas) canvas.style.display = 'none';
+        const toggle = document.getElementById(info.toggleId);
+        if (toggle) toggle.checked = false;
+    });
+    if (activeKey !== 'spectrum2' && spectrum2AnimId) { cancelAnimationFrame(spectrum2AnimId); spectrum2AnimId = null; }
+    if (activeKey !== 'spectrum3' && spectrum3AnimId) { cancelAnimationFrame(spectrum3AnimId); spectrum3AnimId = null; }
+    if (activeKey !== 'spectrum4' && spectrum4AnimId) { cancelAnimationFrame(spectrum4AnimId); spectrum4AnimId = null; }
+    if (activeKey !== 'spectrum5' && spectrum5AnimId) { cancelAnimationFrame(spectrum5AnimId); spectrum5AnimId = null; }
+}
+
 function toggleSpectrum3Setting(checked) {
     spectrum3Enabled = checked;
     localStorage.setItem('spectrum3Enabled', checked ? 'true' : 'false');
     const canvas = ensureSpectrum3Canvas();
     canvas.style.display = checked ? 'block' : 'none';
-    if (checked && !spectrum3AnimId) initSpectrum3();
+    if (checked) {
+        enforceExclusiveSpectrumOverlay('spectrum3');
+        if (!spectrum3AnimId) initSpectrum3();
+    } else if (spectrum3AnimId) {
+        cancelAnimationFrame(spectrum3AnimId);
+        spectrum3AnimId = null;
+    }
 }
 
 function initSpectrum3State() {
@@ -669,7 +704,13 @@ function toggleSpectrum4Setting(checked) {
     localStorage.setItem('spectrum4Enabled', checked ? 'true' : 'false');
     const canvas = ensureSpectrum4Canvas();
     canvas.style.display = checked ? 'block' : 'none';
-    if (checked && !spectrum4AnimId) initSpectrum4();
+    if (checked) {
+        enforceExclusiveSpectrumOverlay('spectrum4');
+        if (!spectrum4AnimId) initSpectrum4();
+    } else if (spectrum4AnimId) {
+        cancelAnimationFrame(spectrum4AnimId);
+        spectrum4AnimId = null;
+    }
 }
 
 function initSpectrum4State() {
@@ -783,7 +824,13 @@ function toggleSpectrum5Setting(checked) {
     localStorage.setItem('spectrum5Enabled', checked ? 'true' : 'false');
     const canvas = ensureSpectrum5Canvas();
     canvas.style.display = checked ? 'block' : 'none';
-    if (checked && !spectrum5AnimId) initSpectrum5();
+    if (checked) {
+        enforceExclusiveSpectrumOverlay('spectrum5');
+        if (!spectrum5AnimId) initSpectrum5();
+    } else if (spectrum5AnimId) {
+        cancelAnimationFrame(spectrum5AnimId);
+        spectrum5AnimId = null;
+    }
 }
 
 function initSpectrum5State() {
@@ -797,7 +844,13 @@ function toggleSpectrum2Setting(checked) {
     localStorage.setItem('spectrum2Enabled', checked ? 'true' : 'false');
     const canvas = ensureSpectrum2Canvas();
     canvas.style.display = checked ? 'block' : 'none';
-    if (checked && !spectrum2AnimId) initSpectrum2();
+    if (checked) {
+        enforceExclusiveSpectrumOverlay('spectrum2');
+        if (!spectrum2AnimId) initSpectrum2();
+    } else if (spectrum2AnimId) {
+        cancelAnimationFrame(spectrum2AnimId);
+        spectrum2AnimId = null;
+    }
 }
 
 function initSpectrum2State() {
@@ -2198,89 +2251,89 @@ function fwPatternGroundPop(def) {
 
 // --- Table des recettes ---
 const FIREWORK_RECIPES = {
-    pivoine:            { label: "Pivoine",                    pattern: 'radial',  count: 26, size: [4, 6], distance: [80, 130],  duration: 1100, colors: ['#ff5252', '#ff8a52', '#ffd452'], minDelay: 700,  maxDelay: 1200 },
-    chrysantheme:        { label: "Chrysanthème",                pattern: 'willow',  count: 30, size: [3, 5], distance: [90, 140],  fallDistance: [90, 140],  duration: 1900, colors: ['#52c8ff', '#c452ff', '#ffffff'], minDelay: 900, maxDelay: 1400 },
-    dahlia:              { label: "Dahlia",                      pattern: 'radial',  count: 14, size: [6, 8], distance: [100, 150], duration: 1200, colors: ['#ff5252', '#ffd452'], minDelay: 800, maxDelay: 1300 },
-    brocart:             { label: "Brocart doré",                pattern: 'willow',  count: 34, size: [2, 4], distance: [90, 140],  fallDistance: [110, 160], duration: 2100, colors: ['#ffd452', '#fff1c2'], minDelay: 1000, maxDelay: 1500 },
-    palmier:             { label: "Palmier",                     pattern: 'willow',  count: 8,  size: [4, 6], distance: [130, 170], fallDistance: [130, 170], duration: 1900, colors: ['#52ff8a', '#ffd452'], minDelay: 1100, maxDelay: 1600 },
-    anneau:              { label: "Anneau",                      pattern: 'radial',  count: 28, size: [4, 5], distance: [100, 100], duration: 1200, colors: ['#52c8ff'], shape: 'ring', minDelay: 800, maxDelay: 1300 },
-    etoile:              { label: "Étoile",                      pattern: 'radial',  count: 25, size: [5, 7], distance: [90, 140],  duration: 1100, colors: ['#ffd452'], shape: 'star', minDelay: 800, maxDelay: 1300 },
+    // --- 💥 CRÉPITEMENTS ---
     crepitementIntense:  { label: "Crépitement intense",         pattern: 'radial',  count: 55, size: [1.5, 2.5], distance: [15, 45], duration: 550,  colors: ['#fff45c', '#ffffff'], minDelay: 300, maxDelay: 500 },
-    crossette:           { label: "Crossette",                   pattern: 'radial',  count: 10, size: [4, 6], distance: [95, 95],   duration: 1300, colors: ['#ff5252', '#52c8ff'], crossette: true, minDelay: 900, maxDelay: 1400 },
-    marronAir:           { label: "Marron d'air (bang)",         pattern: 'flash',   count: 6,  size: [3, 3], distance: [20, 40],   duration: 400,  colors: ['#ffffff'], minDelay: 600, maxDelay: 1000 },
-    potsAFeu:            { label: "Pots à feu",                  pattern: 'fountain', count: 14, size: [3, 5], distance: [50, 90],   duration: 1100, colors: ['#ff8a52', '#ffd452'], minDelay: 400, maxDelay: 700 },
-    kamuro:              { label: "Kamuro",                      pattern: 'willow',  count: 42, size: [2, 4], distance: [120, 170], fallDistance: [150, 200], duration: 2500, colors: ['#fff1c2', '#ffd452'], minDelay: 1200, maxDelay: 1800 },
-    queueDeCheval:       { label: "Queue de cheval",             pattern: 'willow',  count: 6,  size: [4, 5], distance: [140, 180], fallDistance: [160, 200], duration: 2000, colors: ['#52c8ff', '#ffffff'], minDelay: 1000, maxDelay: 1500 },
-    fontainePyro:        { label: "Fontaine pyrotechnique",      pattern: 'fountain', count: 18, size: [3, 4], distance: [60, 100],  duration: 1200, colors: ['#52c8ff', '#a0e8ff', '#ffffff'], minDelay: 400, maxDelay: 700 },
-    mortier:             { label: "Mortier",                     pattern: 'radial',  count: 36, size: [5, 7], distance: [130, 190], duration: 1300, colors: ['#ff5252', '#52c8ff', '#ffd452'], minDelay: 900, maxDelay: 1400 },
-    fusee:                { label: "Fusée",                       pattern: 'rocket',  colors: ['#ffd452', '#ffffff'], minDelay: 1000, maxDelay: 1600 },
-    clignotant:          { label: "Clignotant",                  pattern: 'strobe',  count: 20, size: [4, 6], distance: [80, 120],  duration: 1500, colors: ['#ffffff', '#52c8ff'], minDelay: 900, maxDelay: 1400 },
-    abeillePoisson:      { label: "Abeille / Poisson",           pattern: 'dart',    count: 14, size: [2, 4], distance: [50, 90],   duration: 1400, colors: ['#ffd452', '#ff8a52'], minDelay: 700, maxDelay: 1200 },
-    compact:             { label: "Compact",                     pattern: 'radial',  count: 14, size: [4, 5], distance: [50, 70],   duration: 700,  colors: ['#c452ff', '#52ff8a'], minDelay: 500, maxDelay: 800 },
-    chandelle:           { label: "Chandelle (roman candle)",    pattern: 'romanCandle', colors: ['#ff5252', '#ffd452', '#52c8ff'], minDelay: 1300, maxDelay: 1900 },
-    bengale:             { label: "Bengale",                     pattern: 'flare',   duration: 2000, colors: ['#ff3366'], minDelay: 2200, maxDelay: 2200 },
-    bombeArtifice:       { label: "Bombe d'artifice",            pattern: 'radial',  count: 46, size: [5, 8], distance: [140, 200], duration: 1500, colors: ['#ff5252', '#ffffff'], minDelay: 1000, maxDelay: 1500 },
-    fontaineArtificeSol: { label: "Fontaine au sol",             pattern: 'fountain', count: 20, size: [3, 4], distance: [60, 100],  duration: 1300, colors: ['#ffd452', '#c452ff'], minDelay: 400, maxDelay: 700 },
-    bouquet:             { label: "Bouquet (plusieurs à la fois)", pattern: 'multi', count: 18, size: [4, 6], distance: [90, 140],  duration: 1200, colors: ['#ff5252', '#ffd452', '#52ff8a', '#52c8ff', '#c452ff'], minDelay: 1600, maxDelay: 2200 },
-    saulePleureur:       { label: "Saule pleureur",                pattern: 'willow',  count: 20, size: [3, 4],   distance: [40, 70], fallDistance: [120, 180], duration: 2100, colors: ['#ffd452', '#ffb347', '#fff1c2'], minDelay: 1000, maxDelay: 1700 },
-    spirale:             { label: "En spirale",                    pattern: 'spiral',  count: 24, size: [5, 5],   distanceStep: 5.4, delayStep: 15, duration: 1100, colors: ['#c452ff', '#52c8ff', '#ff5252', '#ffd452'], minDelay: 700, maxDelay: 1200 },
-    kamuroStrobe:        { label: "Kamuro strobe",                 pattern: 'kamuroStrobe', count: 32, size: [2, 4], distance: [110, 160], fallDistance: [140, 190], duration: 2200, colors: ['#ffffff', '#a0e8ff', '#ffd452'], minDelay: 1200, maxDelay: 1800 },
-    ghost:               { label: "Ghost",                         pattern: 'ghost',   count: 16, size: [6, 10],  distance: [40, 90],  duration: 2600, colors: ['#e8e8ff', '#c9f7ff', '#ffffff'], minDelay: 1400, maxDelay: 2000 },
-    strobeFallingLeaves: { label: "Strobe falling leaves",         pattern: 'leaves',  count: 20, size: [3, 5],   distance: [400, 650], duration: 3000, colors: ['#ff8a52', '#ffd452', '#c9a24b'], minDelay: 700, maxDelay: 1100 },
-    volcano:             { label: "Volcano",                       pattern: 'fountain', count: 34, size: [3, 6],  distance: [90, 220],  duration: 1400, colors: ['#ff5252', '#ff8a52', '#ffd452', '#8b0000'], minDelay: 300, maxDelay: 550 },
-    pattern:             { label: "Motif",                          pattern: 'mandala', count: 12, size: [4, 5],   distance: [50, 130], duration: 1300, colors: ['#c452ff', '#52c8ff', '#ffd452', '#ff5252'], minDelay: 1100, maxDelay: 1700 },
-    horsetail:           { label: "Horsetail",                     pattern: 'willow',  count: 50, size: [2, 3],   distance: [100, 130], fallDistance: [200, 260], duration: 2400, colors: ['#ffffff', '#a0e8ff'], minDelay: 1300, maxDelay: 1900 },
-    ultraGeant:          { label: "Ultra géant",                   pattern: 'ultraGiant', count: 60, size: [10, 14], distance: [180, 260], duration: 1900, colors: ['#ff5252', '#ffd452', '#52ff8a', '#52c8ff', '#c452ff', '#ff8a52', '#ffffff'], minDelay: 2200, maxDelay: 3000 },
-    bouquetBlancDore:    { label: "Bouquet blanc et doré",         pattern: 'ensembleBlancDore', size: [4, 4], duration: 1500, colors: ['#ffffff', '#fff1c2', '#ffd452', '#d4af37'], minDelay: 2400, maxDelay: 3200 },
-    coeur:               { label: "Cœur",                          pattern: 'heart',   count: 34, size: [5, 5],   distance: [90, 90],  duration: 1300, colors: ['#ff1493', '#ff5252'], minDelay: 1400, maxDelay: 2000 },
-    scintillant:         { label: "Scintillant",                   pattern: 'scintillant', count: 24, size: [4, 5], distance: [90, 140], duration: 1400, colors: ['#ffffff', '#a0e8ff', '#ffd452'], minDelay: 900, maxDelay: 1400 },
-    serpentin:           { label: "Serpentin",                     pattern: 'serpentin', count: 20, size: [3, 4], distance: [80, 130], duration: 1800, colors: ['#52ff8a', '#c452ff', '#ffd452'], minDelay: 800, maxDelay: 1300 },
-    cascadeNiagara:      { label: "Cascade",                       pattern: 'cascade', count: 28, size: [2, 4], distance: [260, 380], duration: 2000, colors: ['#ffd452', '#ffffff', '#ff8a52'], minDelay: 500, maxDelay: 850 },
-    pivoineChangeante:   { label: "Pivoine à couleur changeante",  pattern: 'colorChange', count: 26, size: [5, 6], distance: [100, 150], duration: 1600, colors: ['#52c8ff', '#ff5252'], minDelay: 1300, maxDelay: 1900 },
-    rafale:              { label: "Rafale",                        pattern: 'rafale',  count: 16, size: [4, 5], distance: [60, 90],  duration: 700, colors: ['#ff8a52', '#ffd452', '#ff5252'], minDelay: 1600, maxDelay: 2200 },
-
-    // --- 10 NOUVEAUX EFFETS DE FEUX D'ARTIFICE RÉALISTES ---
-    cometeArgentee:        { label: "Comète argentée",            pattern: 'comet', count: 10, size: [3, 6], distance: [280, 380], duration: 1600, colors: ['#e8e8e8', '#ffffff', '#c0d8ff'], minDelay: 1100, maxDelay: 1700 },
-    chrysanthemeVioletScintillant: { label: "Chrysanthème violet scintillant", pattern: 'scintillantWillow', count: 34, size: [2, 4], distance: [100, 150], fallDistance: [130, 180], duration: 2200, colors: ['#a352ff', '#e0c2ff'], minDelay: 1100, maxDelay: 1700 },
-    crossetteDoree:        { label: "Crossette dorée",             pattern: 'radial',  count: 12, size: [5, 7],  distance: [110, 110], duration: 1400, colors: ['#ffd452', '#d4af37'], crossette: true, minDelay: 1000, maxDelay: 1500 },
-    mandalaEmeraude:       { label: "Mandala émeraude",            pattern: 'mandala', count: 14, size: [4, 5],  distance: [60, 140],  duration: 1400, colors: ['#00c896', '#52ffb8', '#ffffff'], minDelay: 1200, maxDelay: 1800 },
-    spiraleDeFeu:          { label: "Spirale de feu",              pattern: 'spiral',  count: 26, size: [5, 5],  distanceStep: 5.8, delayStep: 14, duration: 1200, colors: ['#ff3300', '#ff8a00', '#ffd452'], minDelay: 800, maxDelay: 1300 },
-    bouquetNocturne:       { label: "Bouquet nocturne",            pattern: 'multi',   count: 20, size: [4, 6],  distance: [90, 150],  duration: 1400, colors: ['#1a1a4e', '#4b3f8f', '#c9c9ff', '#ffffff'], minDelay: 1700, maxDelay: 2300 },
-
-    // --- 4 NOUVEAUX EFFETS ORIGINAUX (remplacent éventail arc-en-ciel, pivoine bicolore géante,
-    // bengale bleu et cascade arc-en-ciel, jugés décevants) ---
-    vortexTourbillonnant: { label: "Vortex tourbillonnant",       pattern: 'vortex', count: 48, size: [3, 5], distance: [70, 190], duration: 1400, colors: ['#7c4dff', '#00e5ff', '#ff4de1'], minDelay: 1300, maxDelay: 1900 },
-    pluieDoreeScintillante: { label: "Pluie dorée scintillante",  pattern: 'goldRain', count: 30, size: [2, 4], distance: [90, 140], fallDistance: [200, 260], duration: 2400, colors: ['#ffd700', '#ffe97a', '#fff6c8'], minDelay: 1400, maxDelay: 2000 },
-    couronneDoublePulsee: { label: "Couronne double pulsée",      pattern: 'doubleCrown', count: 26, size: [4, 6], distance: [70, 170], duration: 1300, colors: ['#8affc1', '#0b6b32'], minDelay: 1500, maxDelay: 2100 },
-    novaEtincelante:      { label: "Nova étincelante",            pattern: 'nova', count: 40, size: [3, 5], distance: [130, 210], duration: 1200, colors: ['#ffffff', '#66d9ff', '#3366ff'], minDelay: 1600, maxDelay: 2200 },
-
-    // --- 10 NOUVEAUX EFFETS (5 nouveaux motifs inédits + 5 nouvelles identités) ---
-    balayageEcarlate:     { label: "Balayage écarlate",           pattern: 'sweep', count: 40, size: [3, 5], distance: [90, 180], duration: 1300, colors: ['#ff1744', '#ff6e40'], minDelay: 1400, maxDelay: 2000 },
-    etoileCinqBranches:   { label: "Étoile à 5 branches",         pattern: 'starShape', count: 45, size: [3, 5], distance: [50, 170], duration: 1200, colors: ['#ffd700', '#fff3b0'], minDelay: 1500, maxDelay: 2100 },
-    implosionCarmin:      { label: "Implosion carmin",            pattern: 'implode', count: 24, size: [3, 6], distance: [100, 170], duration: 1600, colors: ['#d81b60', '#ff8a80'], minDelay: 1600, maxDelay: 2200 },
-    doubleHelice:         { label: "Double hélice",               pattern: 'doubleHelix', count: 44, size: [3, 5], distance: [60, 180], duration: 1300, colors: ['#00e5ff', '#ff4de1'], minDelay: 1400, maxDelay: 2000 },
-    reactionEnChaine:     { label: "Réaction en chaîne",          pattern: 'chainReaction', count: 48, size: [3, 5], distance: [90, 150], duration: 1300, colors: ['#ff9100', '#ffea00'], minDelay: 1300, maxDelay: 1900 },
-    braisesArdentes:      { label: "Braises ardentes",            pattern: 'leaves', count: 20, size: [3, 5], distance: [400, 600], duration: 2800, colors: ['#ff3d00', '#ff8f00', '#b71c1c'], minDelay: 1900, maxDelay: 2500 },
-    perleNacree:          { label: "Perle nacrée",                pattern: 'scintillant', count: 30, size: [4, 5], distance: [90, 150], duration: 1500, colors: ['#ffffff', '#ffe0f0', '#e0e0ff'], minDelay: 1300, maxDelay: 1900 },
-    couronneImperiale:    { label: "Couronne impériale",          pattern: 'kamuroStrobe', count: 30, size: [3, 5], distance: [100, 160], fallDistance: [130, 180], duration: 1700, colors: ['#7c3aed', '#ffd700'], minDelay: 1700, maxDelay: 2300 },
-
-    // --- 12 NOUVEAUX EFFETS (10 de plus + 2 en remplacement d'Aurore boréale et Tempête de glace) ---
-    // 5 crépitements : 1 multiple, 1 double, 3 identités nouvelles
     crepitementMultiple: { label: "Crépitement multiple",         pattern: 'crackleMulti', count: 40, size: [1.5, 2.5], distance: [15, 40], duration: 900, colors: ['#fff45c', '#ffffff', '#ffcf40'], minDelay: 900, maxDelay: 1400 },
     crepitementDouble:   { label: "Crépitement double",           pattern: 'crackleDouble', count: 44, size: [1.5, 2.5], distance: [20, 50], duration: 1100, colors: ['#ffffff', '#a0e8ff'], minDelay: 1000, maxDelay: 1500 },
     crepitementArcEnCiel: { label: "Crépitement arc-en-ciel",     pattern: 'radial', count: 50, size: [1.5, 2.5], distance: [15, 45], duration: 550, colors: ['#ff5252', '#ffd452', '#52ff8a', '#52c8ff', '#c452ff'], minDelay: 350, maxDelay: 550 },
     crepitementGlace:     { label: "Crépitement glacé",           pattern: 'radial', count: 50, size: [1.5, 2.5], distance: [15, 45], duration: 550, colors: ['#e0faff', '#ffffff', '#66d9ff'], minDelay: 350, maxDelay: 550 },
     crepitementRubis:     { label: "Crépitement rubis",           pattern: 'radial', count: 50, size: [1.5, 2.5], distance: [15, 45], duration: 550, colors: ['#ff1744', '#ff8a9b', '#ffffff'], minDelay: 350, maxDelay: 550 },
-    // 3 motifs inédits
-    eclairFourchu:       { label: "Éclair fourchu",               pattern: 'forkedLightning', count: 30, size: [2, 4], distance: [110, 190], duration: 900, colors: ['#c9e8ff', '#ffffff', '#7ecbff'], minDelay: 1500, maxDelay: 2100 },
-    ondeSismique:        { label: "Onde sismique",                pattern: 'seismicWave', count: 60, size: [3, 5], distance: [50, 200], duration: 1500, colors: ['#ff6b00', '#ffb300', '#ff2d00'], minDelay: 1600, maxDelay: 2200 },
-    fractalRamifie:      { label: "Fractal ramifié",              pattern: 'fractalBranch', count: 45, size: [2, 4], distance: [90, 170], duration: 1300, colors: ['#00e676', '#69f0ae', '#ffffff'], minDelay: 1500, maxDelay: 2100 },
-    // 3 originaux (nouvelles identités sur des motifs existants)
-    cometeEmeraude:      { label: "Comète émeraude",              pattern: 'comet', count: 10, size: [3, 6], distance: [280, 380], duration: 1600, colors: ['#00e676', '#a7ffeb', '#ffffff'], minDelay: 1100, maxDelay: 1700 },
+    clignotant:          { label: "Clignotant",                  pattern: 'strobe',  count: 20, size: [4, 6], distance: [80, 120],  duration: 1500, colors: ['#ffffff', '#52c8ff'], minDelay: 900, maxDelay: 1400 },
+    rafale:              { label: "Rafale",                        pattern: 'rafale',  count: 16, size: [4, 5], distance: [60, 90],  duration: 700, colors: ['#ff8a52', '#ffd452', '#ff5252'], minDelay: 1600, maxDelay: 2200 },
+
+    // --- ⭕ RONDS / ÉCLATEMENTS CLASSIQUES ---
+    pivoine:            { label: "Pivoine",                    pattern: 'radial',  count: 26, size: [4, 6], distance: [80, 130],  duration: 1100, colors: ['#ff5252', '#ff8a52', '#ffd452'], minDelay: 700,  maxDelay: 1200 },
+    dahlia:              { label: "Dahlia",                      pattern: 'radial',  count: 14, size: [6, 8], distance: [100, 150], duration: 1200, colors: ['#ff5252', '#ffd452'], minDelay: 800, maxDelay: 1300 },
+    anneau:              { label: "Anneau",                      pattern: 'radial',  count: 28, size: [4, 5], distance: [100, 100], duration: 1200, colors: ['#52c8ff'], shape: 'ring', minDelay: 800, maxDelay: 1300 },
+    etoile:              { label: "Étoile",                      pattern: 'radial',  count: 25, size: [5, 7], distance: [90, 140],  duration: 1100, colors: ['#ffd452'], shape: 'star', minDelay: 800, maxDelay: 1300 },
+    crossette:           { label: "Crossette",                   pattern: 'radial',  count: 10, size: [4, 6], distance: [95, 95],   duration: 1300, colors: ['#ff5252', '#52c8ff'], crossette: true, minDelay: 900, maxDelay: 1400 },
+    crossetteDoree:        { label: "Crossette dorée",             pattern: 'radial',  count: 12, size: [5, 7],  distance: [110, 110], duration: 1400, colors: ['#ffd452', '#d4af37'], crossette: true, minDelay: 1000, maxDelay: 1500 },
+    compact:             { label: "Compact",                     pattern: 'radial',  count: 14, size: [4, 5], distance: [50, 70],   duration: 700,  colors: ['#c452ff', '#52ff8a'], minDelay: 500, maxDelay: 800 },
+    bombeArtifice:       { label: "Bombe d'artifice",            pattern: 'radial',  count: 46, size: [5, 8], distance: [140, 200], duration: 1500, colors: ['#ff5252', '#ffffff'], minDelay: 1000, maxDelay: 1500 },
+    mortier:             { label: "Mortier",                     pattern: 'radial',  count: 36, size: [5, 7], distance: [130, 190], duration: 1300, colors: ['#ff5252', '#52c8ff', '#ffd452'], minDelay: 900, maxDelay: 1400 },
+    pivoineChangeante:   { label: "Pivoine à couleur changeante",  pattern: 'colorChange', count: 26, size: [5, 6], distance: [100, 150], duration: 1600, colors: ['#52c8ff', '#ff5252'], minDelay: 1300, maxDelay: 1900 },
+    novaEtincelante:      { label: "Nova étincelante",            pattern: 'nova', count: 40, size: [3, 5], distance: [130, 210], duration: 1200, colors: ['#ffffff', '#66d9ff', '#3366ff'], minDelay: 1600, maxDelay: 2200 },
+    couronneDoublePulsee: { label: "Couronne double pulsée",      pattern: 'doubleCrown', count: 26, size: [4, 6], distance: [70, 170], duration: 1300, colors: ['#8affc1', '#0b6b32'], minDelay: 1500, maxDelay: 2100 },
+    marronAir:           { label: "Marron d'air (bang)",         pattern: 'flash',   count: 6,  size: [3, 3], distance: [20, 40],   duration: 400,  colors: ['#ffffff'], minDelay: 600, maxDelay: 1000 },
+
+    // --- ⛲ FONTAINES ---
+    potsAFeu:            { label: "Pots à feu",                  pattern: 'fountain', count: 14, size: [3, 5], distance: [50, 90],   duration: 1100, colors: ['#ff8a52', '#ffd452'], minDelay: 400, maxDelay: 700 },
+    fontainePyro:        { label: "Fontaine pyrotechnique",      pattern: 'fountain', count: 18, size: [3, 4], distance: [60, 100],  duration: 1200, colors: ['#52c8ff', '#a0e8ff', '#ffffff'], minDelay: 400, maxDelay: 700 },
+    fontaineArtificeSol: { label: "Fontaine au sol",             pattern: 'fountain', count: 20, size: [3, 4], distance: [60, 100],  duration: 1300, colors: ['#ffd452', '#c452ff'], minDelay: 400, maxDelay: 700 },
+    volcano:             { label: "Volcano",                       pattern: 'fountain', count: 34, size: [3, 6],  distance: [90, 220],  duration: 1400, colors: ['#ff5252', '#ff8a52', '#ffd452', '#8b0000'], minDelay: 300, maxDelay: 550 },
+    chandelle:           { label: "Chandelle (roman candle)",    pattern: 'romanCandle', colors: ['#ff5252', '#ffd452', '#52c8ff'], minDelay: 1300, maxDelay: 1900 },
+    bengale:             { label: "Bengale",                     pattern: 'flare',   duration: 2000, colors: ['#ff3366'], minDelay: 2200, maxDelay: 2200 },
+    fusee:                { label: "Fusée",                       pattern: 'rocket',  colors: ['#ffd452', '#ffffff'], minDelay: 1000, maxDelay: 1600 },
+
+    // --- 🔷 MOTIFS / FORMES ---
+    pattern:             { label: "Motif",                          pattern: 'mandala', count: 12, size: [4, 5],   distance: [50, 130], duration: 1300, colors: ['#c452ff', '#52c8ff', '#ffd452', '#ff5252'], minDelay: 1100, maxDelay: 1700 },
+    mandalaEmeraude:       { label: "Mandala émeraude",            pattern: 'mandala', count: 14, size: [4, 5],  distance: [60, 140],  duration: 1400, colors: ['#00c896', '#52ffb8', '#ffffff'], minDelay: 1200, maxDelay: 1800 },
     floraisonPourpre:    { label: "Floraison pourpre",            pattern: 'mandala', count: 16, size: [4, 5], distance: [60, 150], duration: 1500, colors: ['#9c27b0', '#e040fb', '#ffffff'], minDelay: 1300, maxDelay: 1900 },
+    coeur:               { label: "Cœur",                          pattern: 'heart',   count: 34, size: [5, 5],   distance: [90, 90],  duration: 1300, colors: ['#ff1493', '#ff5252'], minDelay: 1400, maxDelay: 2000 },
+    etoileCinqBranches:   { label: "Étoile à 5 branches",         pattern: 'starShape', count: 45, size: [3, 5], distance: [50, 170], duration: 1200, colors: ['#ffd700', '#fff3b0'], minDelay: 1500, maxDelay: 2100 },
+    eclairFourchu:       { label: "Éclair fourchu",               pattern: 'forkedLightning', count: 30, size: [2, 4], distance: [110, 190], duration: 900, colors: ['#c9e8ff', '#ffffff', '#7ecbff'], minDelay: 1500, maxDelay: 2100 },
+    fractalRamifie:      { label: "Fractal ramifié",              pattern: 'fractalBranch', count: 45, size: [2, 4], distance: [90, 170], duration: 1300, colors: ['#00e676', '#69f0ae', '#ffffff'], minDelay: 1500, maxDelay: 2100 },
+    ondeSismique:        { label: "Onde sismique",                pattern: 'seismicWave', count: 60, size: [3, 5], distance: [50, 200], duration: 1500, colors: ['#ff6b00', '#ffb300', '#ff2d00'], minDelay: 1600, maxDelay: 2200 },
+    doubleHelice:         { label: "Double hélice",               pattern: 'doubleHelix', count: 44, size: [3, 5], distance: [60, 180], duration: 1300, colors: ['#00e5ff', '#ff4de1'], minDelay: 1400, maxDelay: 2000 },
+    reactionEnChaine:     { label: "Réaction en chaîne",          pattern: 'chainReaction', count: 48, size: [3, 5], distance: [90, 150], duration: 1300, colors: ['#ff9100', '#ffea00'], minDelay: 1300, maxDelay: 1900 },
+    vortexTourbillonnant: { label: "Vortex tourbillonnant",       pattern: 'vortex', count: 48, size: [3, 5], distance: [70, 190], duration: 1400, colors: ['#7c4dff', '#00e5ff', '#ff4de1'], minDelay: 1300, maxDelay: 1900 },
     tourbillonSaphir:    { label: "Tourbillon saphir",            pattern: 'vortex', count: 48, size: [3, 5], distance: [70, 190], duration: 1400, colors: ['#0d47a1', '#2979ff', '#82b1ff'], minDelay: 1300, maxDelay: 1900 },
-    // Le bouquet final le plus gros jamais créé
-    bouquetFinalXXL:      { label: "Bouquet final XXL",           pattern: 'grandFinale', count: 70, size: [4, 7], distance: [140, 260], duration: 1800, colors: ['#ffd700', '#ff1744', '#00e5ff', '#ffffff', '#c452ff'], minDelay: 2600, maxDelay: 3400 }
+    spirale:             { label: "En spirale",                    pattern: 'spiral',  count: 24, size: [5, 5],   distanceStep: 5.4, delayStep: 15, duration: 1100, colors: ['#c452ff', '#52c8ff', '#ff5252', '#ffd452'], minDelay: 700, maxDelay: 1200 },
+    spiraleDeFeu:          { label: "Spirale de feu",              pattern: 'spiral',  count: 26, size: [5, 5],  distanceStep: 5.8, delayStep: 14, duration: 1200, colors: ['#ff3300', '#ff8a00', '#ffd452'], minDelay: 800, maxDelay: 1300 },
+    balayageEcarlate:     { label: "Balayage écarlate",           pattern: 'sweep', count: 40, size: [3, 5], distance: [90, 180], duration: 1300, colors: ['#ff1744', '#ff6e40'], minDelay: 1400, maxDelay: 2000 },
+    implosionCarmin:      { label: "Implosion carmin",            pattern: 'implode', count: 24, size: [3, 6], distance: [100, 170], duration: 1600, colors: ['#d81b60', '#ff8a80'], minDelay: 1600, maxDelay: 2200 },
+
+    // --- 🌾 SAULES / BRANCHES TOMBANTES ---
+    chrysantheme:        { label: "Chrysanthème",                pattern: 'willow',  count: 30, size: [3, 5], distance: [90, 140],  fallDistance: [90, 140],  duration: 1900, colors: ['#52c8ff', '#c452ff', '#ffffff'], minDelay: 900, maxDelay: 1400 },
+    brocart:             { label: "Brocart doré",                pattern: 'willow',  count: 34, size: [2, 4], distance: [90, 140],  fallDistance: [110, 160], duration: 2100, colors: ['#ffd452', '#fff1c2'], minDelay: 1000, maxDelay: 1500 },
+    palmier:             { label: "Palmier",                     pattern: 'willow',  count: 8,  size: [4, 6], distance: [130, 170], fallDistance: [130, 170], duration: 1900, colors: ['#52ff8a', '#ffd452'], minDelay: 1100, maxDelay: 1600 },
+    kamuro:              { label: "Kamuro",                      pattern: 'willow',  count: 42, size: [2, 4], distance: [120, 170], fallDistance: [150, 200], duration: 2500, colors: ['#fff1c2', '#ffd452'], minDelay: 1200, maxDelay: 1800 },
+    queueDeCheval:       { label: "Queue de cheval",             pattern: 'willow',  count: 6,  size: [4, 5], distance: [140, 180], fallDistance: [160, 200], duration: 2000, colors: ['#52c8ff', '#ffffff'], minDelay: 1000, maxDelay: 1500 },
+    saulePleureur:       { label: "Saule pleureur",                pattern: 'willow',  count: 20, size: [3, 4],   distance: [40, 70], fallDistance: [120, 180], duration: 2100, colors: ['#ffd452', '#ffb347', '#fff1c2'], minDelay: 1000, maxDelay: 1700 },
+    horsetail:           { label: "Horsetail",                     pattern: 'willow',  count: 50, size: [2, 3],   distance: [100, 130], fallDistance: [200, 260], duration: 2400, colors: ['#ffffff', '#a0e8ff'], minDelay: 1300, maxDelay: 1900 },
+    strobeFallingLeaves: { label: "Strobe falling leaves",         pattern: 'leaves',  count: 20, size: [3, 5],   distance: [400, 650], duration: 3000, colors: ['#ff8a52', '#ffd452', '#c9a24b'], minDelay: 700, maxDelay: 1100 },
+    braisesArdentes:      { label: "Braises ardentes",            pattern: 'leaves', count: 20, size: [3, 5], distance: [400, 600], duration: 2800, colors: ['#ff3d00', '#ff8f00', '#b71c1c'], minDelay: 1900, maxDelay: 2500 },
+    chrysanthemeVioletScintillant: { label: "Chrysanthème violet scintillant", pattern: 'scintillantWillow', count: 34, size: [2, 4], distance: [100, 150], fallDistance: [130, 180], duration: 2200, colors: ['#a352ff', '#e0c2ff'], minDelay: 1100, maxDelay: 1700 },
+    ghost:               { label: "Ghost",                         pattern: 'ghost',   count: 16, size: [6, 10],  distance: [40, 90],  duration: 2600, colors: ['#e8e8ff', '#c9f7ff', '#ffffff'], minDelay: 1400, maxDelay: 2000 },
+    scintillant:         { label: "Scintillant",                   pattern: 'scintillant', count: 24, size: [4, 5], distance: [90, 140], duration: 1400, colors: ['#ffffff', '#a0e8ff', '#ffd452'], minDelay: 900, maxDelay: 1400 },
+    perleNacree:          { label: "Perle nacrée",                pattern: 'scintillant', count: 30, size: [4, 5], distance: [90, 150], duration: 1500, colors: ['#ffffff', '#ffe0f0', '#e0e0ff'], minDelay: 1300, maxDelay: 1900 },
+    serpentin:           { label: "Serpentin",                     pattern: 'serpentin', count: 20, size: [3, 4], distance: [80, 130], duration: 1800, colors: ['#52ff8a', '#c452ff', '#ffd452'], minDelay: 800, maxDelay: 1300 },
+    cascadeNiagara:      { label: "Cascade",                       pattern: 'cascade', count: 28, size: [2, 4], distance: [260, 380], duration: 2000, colors: ['#ffd452', '#ffffff', '#ff8a52'], minDelay: 500, maxDelay: 850 },
+    pluieDoreeScintillante: { label: "Pluie dorée scintillante",  pattern: 'goldRain', count: 30, size: [2, 4], distance: [90, 140], fallDistance: [200, 260], duration: 2400, colors: ['#ffd700', '#ffe97a', '#fff6c8'], minDelay: 1400, maxDelay: 2000 },
+
+    // --- ☄️ COMÈTES / TRAITS FILANTS ---
+    cometeArgentee:        { label: "Comète argentée",            pattern: 'comet', count: 10, size: [3, 6], distance: [280, 380], duration: 1600, colors: ['#e8e8e8', '#ffffff', '#c0d8ff'], minDelay: 1100, maxDelay: 1700 },
+    cometeEmeraude:      { label: "Comète émeraude",              pattern: 'comet', count: 10, size: [3, 6], distance: [280, 380], duration: 1600, colors: ['#00e676', '#a7ffeb', '#ffffff'], minDelay: 1100, maxDelay: 1700 },
+    abeillePoisson:      { label: "Abeille / Poisson",           pattern: 'dart',    count: 14, size: [2, 4], distance: [50, 90],   duration: 1400, colors: ['#ffd452', '#ff8a52'], minDelay: 700, maxDelay: 1200 },
+
+    // --- 🎇 BOUQUETS / GRANDS FINALS ---
+    bouquet:             { label: "Bouquet (plusieurs à la fois)", pattern: 'multi', count: 18, size: [4, 6], distance: [90, 140],  duration: 1200, colors: ['#ff5252', '#ffd452', '#52ff8a', '#52c8ff', '#c452ff'], minDelay: 1600, maxDelay: 2200 },
+    bouquetBlancDore:    { label: "Bouquet blanc et doré",         pattern: 'ensembleBlancDore', size: [4, 4], duration: 1500, colors: ['#ffffff', '#fff1c2', '#ffd452', '#d4af37'], minDelay: 2400, maxDelay: 3200 },
+    bouquetNocturne:       { label: "Bouquet nocturne",            pattern: 'multi',   count: 20, size: [4, 6],  distance: [90, 150],  duration: 1400, colors: ['#1a1a4e', '#4b3f8f', '#c9c9ff', '#ffffff'], minDelay: 1700, maxDelay: 2300 },
+    bouquetFinalXXL:      { label: "Bouquet final XXL",           pattern: 'grandFinale', count: 70, size: [4, 7], distance: [140, 260], duration: 1800, colors: ['#ffd700', '#ff1744', '#00e5ff', '#ffffff', '#c452ff'], minDelay: 2600, maxDelay: 3400 },
+    kamuroStrobe:        { label: "Kamuro strobe",                 pattern: 'kamuroStrobe', count: 32, size: [2, 4], distance: [110, 160], fallDistance: [140, 190], duration: 2200, colors: ['#ffffff', '#a0e8ff', '#ffd452'], minDelay: 1200, maxDelay: 1800 },
+    couronneImperiale:    { label: "Couronne impériale",          pattern: 'kamuroStrobe', count: 30, size: [3, 5], distance: [100, 160], fallDistance: [130, 180], duration: 1700, colors: ['#7c3aed', '#ffd700'], minDelay: 1700, maxDelay: 2300 },
+    ultraGeant:          { label: "Ultra géant",                   pattern: 'ultraGiant', count: 60, size: [10, 14], distance: [180, 260], duration: 1900, colors: ['#ff5252', '#ffd452', '#52ff8a', '#52c8ff', '#c452ff', '#ff8a52', '#ffffff'], minDelay: 2200, maxDelay: 3000 }
 };
 
 let fireworkTypeEnabled = {};
