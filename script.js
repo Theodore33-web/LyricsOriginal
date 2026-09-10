@@ -2,7 +2,7 @@
 // ==========================================
 // 5 EFFETS FEUX D'ARTIFICE — réguliers, intenses, rapides, 5 types différents
 // ==========================================
-
+  
 // --- 1. FEUX D'ARTIFICE CLASSIQUES RAPIDES (éclatement radial classique, très fréquent) ---
 function injectFeuxClassiquesStyles() {
     if (document.getElementById('feux-classiques-inline-style')) return;
