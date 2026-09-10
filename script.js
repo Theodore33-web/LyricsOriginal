@@ -545,7 +545,8 @@ const SPECTRUM_OVERLAY_REGISTRY = {
     spectrum2: { toggleId: 'spectrum2-toggle', canvasId: 'spectrum2-canvas', storageKey: 'spectrum2Enabled', setVar: v => { spectrum2Enabled = v; } },
     spectrum3: { toggleId: 'spectrum3-toggle', canvasId: 'spectrum3-canvas', storageKey: 'spectrum3Enabled', setVar: v => { spectrum3Enabled = v; } },
     spectrum4: { toggleId: 'spectrum4-toggle', canvasId: 'spectrum4-canvas', storageKey: 'spectrum4Enabled', setVar: v => { spectrum4Enabled = v; } },
-    spectrum5: { toggleId: 'spectrum5-toggle', canvasId: 'spectrum5-canvas', storageKey: 'spectrum5Enabled', setVar: v => { spectrum5Enabled = v; } }
+    spectrum5: { toggleId: 'spectrum5-toggle', canvasId: 'spectrum5-canvas', storageKey: 'spectrum5Enabled', setVar: v => { spectrum5Enabled = v; } },
+    spectrum6: { toggleId: 'spectrum6-toggle', canvasId: 'spectrum6-canvas', storageKey: 'spectrum6Enabled', setVar: v => { spectrum6Enabled = v; } }
 };
 
 function enforceExclusiveSpectrumOverlay(activeKey) {
@@ -563,6 +564,7 @@ function enforceExclusiveSpectrumOverlay(activeKey) {
     if (activeKey !== 'spectrum3' && spectrum3AnimId) { cancelAnimationFrame(spectrum3AnimId); spectrum3AnimId = null; }
     if (activeKey !== 'spectrum4' && spectrum4AnimId) { cancelAnimationFrame(spectrum4AnimId); spectrum4AnimId = null; }
     if (activeKey !== 'spectrum5' && spectrum5AnimId) { cancelAnimationFrame(spectrum5AnimId); spectrum5AnimId = null; }
+    if (activeKey !== 'spectrum6' && spectrum6AnimId) { cancelAnimationFrame(spectrum6AnimId); spectrum6AnimId = null; }
 }
 
 function toggleSpectrum3Setting(checked) {
@@ -837,6 +839,121 @@ function initSpectrum5State() {
     const canvas = ensureSpectrum5Canvas();
     canvas.style.display = spectrum5Enabled ? 'block' : 'none';
     if (spectrum5Enabled) initSpectrum5();
+}
+
+// ==========================================
+// SPECTRE AUDIO ANIMÉ 6.0 — « Code-barres pulsé » : des bandes verticales PLEINE HAUTEUR (jamais
+// de variation de hauteur ici, contrairement aux 5 précédents) dont c'est la LARGEUR qui respire
+// au rythme de la musique — un principe 100% inédit dans ce moteur.
+// ==========================================
+function injectSpectrum6Styles() {
+    if (document.getElementById('spectrum6-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'spectrum6-inline-style';
+    styleTag.textContent = `
+        #spectrum6-canvas {
+            display: none;
+            position: fixed;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            height: 60px;
+            z-index: 500;
+            pointer-events: none;
+            background: transparent;
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectSpectrum6Styles();
+
+function ensureSpectrum6Canvas() {
+    let canvas = document.getElementById('spectrum6-canvas');
+    if (!canvas) {
+        canvas = document.createElement('canvas');
+        canvas.id = 'spectrum6-canvas';
+        document.body.appendChild(canvas);
+    }
+    return canvas;
+}
+
+let spectrum6Bars = [];
+let spectrum6AnimId = null;
+let spectrum6HueScroll = 0;
+
+function initSpectrum6() {
+    const canvas = ensureSpectrum6Canvas();
+    const ctx = canvas.getContext('2d');
+    const laneCount = 44;
+
+    spectrum6Bars = Array.from({ length: laneCount }, () => ({
+        phase: Math.random() * Math.PI * 2,
+        speed: 0.02 + Math.random() * 0.03,
+        current: 0.15
+    }));
+
+    function resizeCanvas() {
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = Math.max(1, rect.width) * window.devicePixelRatio;
+        canvas.height = Math.max(1, rect.height) * window.devicePixelRatio;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    function draw() {
+        spectrum6AnimId = requestAnimationFrame(draw);
+
+        const w = canvas.width;
+        const h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+
+        if (!spectrum6Enabled) {
+            spectrum6Bars.forEach(p => { p.current = 0.15; });
+            return;
+        }
+
+        const active = spectrum6Enabled && isCurrentlyPlaying;
+        spectrum6HueScroll = (spectrum6HueScroll + (active ? 0.7 : 0.12)) % 360;
+
+        const laneW = w / spectrum6Bars.length;
+
+        spectrum6Bars.forEach((p, i) => {
+            p.phase += p.speed;
+            const target = active ? (0.15 + 0.85 * Math.abs(Math.sin(p.phase))) : 0.15;
+            p.current += (target - p.current) * 0.12;
+
+            const stripeW = Math.max(1.5 * window.devicePixelRatio, p.current * laneW * 0.9);
+            const cx = i * laneW + laneW / 2;
+            const hue = (spectrum6HueScroll + i * 6) % 360;
+
+            ctx.fillStyle = `hsl(${hue}, 90%, 58%)`;
+            ctx.shadowBlur = 6 * window.devicePixelRatio;
+            ctx.shadowColor = `hsl(${hue}, 90%, 55%)`;
+            ctx.fillRect(cx - stripeW / 2, 0, stripeW, h);
+        });
+        ctx.shadowBlur = 0;
+    }
+    draw();
+}
+
+function toggleSpectrum6Setting(checked) {
+    spectrum6Enabled = checked;
+    localStorage.setItem('spectrum6Enabled', checked ? 'true' : 'false');
+    const canvas = ensureSpectrum6Canvas();
+    canvas.style.display = checked ? 'block' : 'none';
+    if (checked) {
+        enforceExclusiveSpectrumOverlay('spectrum6');
+        if (!spectrum6AnimId) initSpectrum6();
+    } else if (spectrum6AnimId) {
+        cancelAnimationFrame(spectrum6AnimId);
+        spectrum6AnimId = null;
+    }
+}
+
+function initSpectrum6State() {
+    const canvas = ensureSpectrum6Canvas();
+    canvas.style.display = spectrum6Enabled ? 'block' : 'none';
+    if (spectrum6Enabled) initSpectrum6();
 }
 
 function toggleSpectrum2Setting(checked) {
@@ -1707,6 +1824,35 @@ function fwPatternVortex(origin, def) {
 
 // PLUIE DORÉE SCINTILLANTE : une pluie fine qui monte légèrement puis retombe lentement en
 // scintillant tout du long — un vrai effet de pluie qui dure, pas un simple saule doré.
+// CHRYSANTHÈME VIOLET SCINTILLANT : un vrai "saule" violet qui tombe en longues traînées, ENRICHI
+// de petites étincelles blanches qui clignotent au sein de la chute — un scintillement réel intégré
+// au mouvement, pas juste un saule coloré différemment.
+function fwPatternScintillantWillow(origin, def) {
+    for (let i = 0; i < def.count; i++) {
+        const angle = (-160 + Math.random() * 140) * (Math.PI / 180);
+        const upDist = def.distance[0] + Math.random() * (def.distance[1] - def.distance[0]);
+        const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
+        const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+        const fallDist = def.fallDistance ? def.fallDistance[0] + Math.random() * (def.fallDistance[1] - def.fallDistance[0]) : 100;
+        fwSpawnParticle('fw-generic-willow', origin.x, origin.y, size, color, def.duration, {
+            '--dx': `${Math.cos(angle) * upDist * 1.15}px`,
+            '--dy-up': `${Math.sin(angle) * upDist}px`,
+            '--dy-down': `${fallDist}px`
+        });
+    }
+    for (let i = 0; i < Math.round(def.count * 0.6); i++) {
+        setTimeout(() => {
+            const angle = Math.random() * Math.PI * 2;
+            const dist = 20 + Math.random() * 60;
+            const midX = origin.x + (Math.random() - 0.5) * 160;
+            const midY = origin.y + 60 + Math.random() * 120;
+            fwSpawnParticle('fw-generic-particle', midX, midY, 2, '#ffffff', 350, {
+                '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
+            });
+        }, 300 + Math.random() * def.duration * 0.7);
+    }
+}
+
 function fwPatternGoldRain(origin, def) {
     for (let i = 0; i < def.count; i++) {
         const angle = (-150 + Math.random() * 120) * (Math.PI / 180);
@@ -2068,6 +2214,85 @@ function fwPatternGrandFinale(origin, def) {
     }
 }
 
+// ==========================================
+// 3 NOUVEAUX MOTIFS INÉDITS (remplacent Clignotant, Bengale et Comète émeraude)
+// ==========================================
+
+// PULSATION CARDIAQUE : deux petits battements rapprochés suivis d'un grand — un vrai rythme "lub-
+// dub-BOUM" en 3 temps, jamais utilisé ailleurs (tout le reste est soit instantané soit régulier).
+function fwPatternHeartbeat(origin, def) {
+    function beat(scale, delay) {
+        setTimeout(() => {
+            const c = Math.max(4, Math.round(def.count * scale));
+            for (let i = 0; i < c; i++) {
+                const angle = (i / c) * Math.PI * 2;
+                const dist = (def.distance[0] + Math.random() * (def.distance[1] - def.distance[0])) * scale;
+                const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
+                const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+                fwSpawnParticle('fw-generic-particle', origin.x, origin.y, size, color, def.duration * scale, {
+                    '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
+                });
+            }
+        }, delay);
+    }
+    beat(0.35, 0);
+    beat(0.35, 220);
+    beat(1, 520);
+}
+
+// CRISTAUX BRISÉS : des éclats en forme de lignes (segments qui rétrécissent vers leur pointe),
+// répartis en fragments angulaires distincts — un vrai effet de verre brisé, pas un nuage de points
+// aléatoires comme les motifs radiaux classiques.
+function fwPatternShatteredCrystal(origin, def) {
+    const shards = 9;
+    for (let s = 0; s < shards; s++) {
+        const baseAngle = (s / shards) * Math.PI * 2 + (Math.random() - 0.5) * 0.2;
+        const shardLength = def.distance[0] + Math.random() * (def.distance[1] - def.distance[0]);
+        const segments = 5;
+        for (let i = 0; i < segments; i++) {
+            const frac = (i + 1) / segments;
+            const dist = shardLength * frac;
+            const size = def.size[1] - (def.size[1] - def.size[0]) * frac;
+            const color = def.colors[s % def.colors.length];
+            fwSpawnParticle('fw-generic-particle', origin.x, origin.y, size, color, def.duration * (0.5 + frac * 0.5), {
+                '--dx': `${Math.cos(baseAngle) * dist}px`, '--dy': `${Math.sin(baseAngle) * dist}px`
+            });
+        }
+    }
+}
+
+// TOUPIE ASCENDANTE : une spirale qui monte en tournant sur elle-même comme une toupie, puis
+// éclate au sommet — combine montée ET rotation ET éclatement final, une vraie trajectoire en 3
+// phases jamais vue ailleurs dans le moteur.
+function fwPatternRisingFunnel(origin, def) {
+    const spirals = def.count;
+    for (let i = 0; i < spirals; i++) {
+        const frac = i / spirals;
+        const angle = frac * Math.PI * 6;
+        const riseHeight = def.distance[1] * 0.6 * frac;
+        const radius = 15 + frac * 20;
+        const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
+        const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+        setTimeout(() => {
+            fwSpawnParticle('fw-generic-particle', origin.x, origin.y, size, color, def.duration * 0.5, {
+                '--dx': `${Math.cos(angle) * radius}px`, '--dy': `${-riseHeight}px`
+            });
+        }, frac * def.duration * 0.5);
+    }
+    setTimeout(() => {
+        const burstCount = Math.round(def.count * 0.7);
+        for (let i = 0; i < burstCount; i++) {
+            const angle = (i / burstCount) * Math.PI * 2;
+            const dist = def.distance[0] + Math.random() * (def.distance[1] - def.distance[0]);
+            const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
+            const color = def.colors[Math.floor(Math.random() * def.colors.length)];
+            fwSpawnParticle('fw-generic-particle', origin.x, origin.y - def.distance[1] * 0.6, size, color, def.duration * 0.6, {
+                '--dx': `${Math.cos(angle) * dist}px`, '--dy': `${Math.sin(angle) * dist}px`
+            });
+        }
+    }, def.duration * 0.55);
+}
+
 function fwPatternWillow(origin, def) {
     for (let i = 0; i < def.count; i++) {
         const angle = (-160 + Math.random() * 140) * (Math.PI / 180);
@@ -2258,7 +2483,6 @@ const FIREWORK_RECIPES = {
     crepitementArcEnCiel: { label: "Crépitement arc-en-ciel",     pattern: 'radial', count: 50, size: [1.5, 2.5], distance: [15, 45], duration: 550, colors: ['#ff5252', '#ffd452', '#52ff8a', '#52c8ff', '#c452ff'], minDelay: 350, maxDelay: 550 },
     crepitementGlace:     { label: "Crépitement glacé",           pattern: 'radial', count: 50, size: [1.5, 2.5], distance: [15, 45], duration: 550, colors: ['#e0faff', '#ffffff', '#66d9ff'], minDelay: 350, maxDelay: 550 },
     crepitementRubis:     { label: "Crépitement rubis",           pattern: 'radial', count: 50, size: [1.5, 2.5], distance: [15, 45], duration: 550, colors: ['#ff1744', '#ff8a9b', '#ffffff'], minDelay: 350, maxDelay: 550 },
-    clignotant:          { label: "Clignotant",                  pattern: 'strobe',  count: 20, size: [4, 6], distance: [80, 120],  duration: 1500, colors: ['#ffffff', '#52c8ff'], minDelay: 900, maxDelay: 1400 },
     rafale:              { label: "Rafale",                        pattern: 'rafale',  count: 16, size: [4, 5], distance: [60, 90],  duration: 700, colors: ['#ff8a52', '#ffd452', '#ff5252'], minDelay: 1600, maxDelay: 2200 },
 
     // --- ⭕ RONDS / ÉCLATEMENTS CLASSIQUES ---
@@ -2275,6 +2499,7 @@ const FIREWORK_RECIPES = {
     novaEtincelante:      { label: "Nova étincelante",            pattern: 'nova', count: 40, size: [3, 5], distance: [130, 210], duration: 1200, colors: ['#ffffff', '#66d9ff', '#3366ff'], minDelay: 1600, maxDelay: 2200 },
     couronneDoublePulsee: { label: "Couronne double pulsée",      pattern: 'doubleCrown', count: 26, size: [4, 6], distance: [70, 170], duration: 1300, colors: ['#8affc1', '#0b6b32'], minDelay: 1500, maxDelay: 2100 },
     marronAir:           { label: "Marron d'air (bang)",         pattern: 'flash',   count: 6,  size: [3, 3], distance: [20, 40],   duration: 400,  colors: ['#ffffff'], minDelay: 600, maxDelay: 1000 },
+    pulsationCardiaque:  { label: "Pulsation cardiaque",          pattern: 'heartbeat', count: 40, size: [3, 5], distance: [90, 170], duration: 1300, colors: ['#ff1744', '#ff8a80'], minDelay: 1600, maxDelay: 2200 },
 
     // --- ⛲ FONTAINES ---
     potsAFeu:            { label: "Pots à feu",                  pattern: 'fountain', count: 14, size: [3, 5], distance: [50, 90],   duration: 1100, colors: ['#ff8a52', '#ffd452'], minDelay: 400, maxDelay: 700 },
@@ -2282,7 +2507,6 @@ const FIREWORK_RECIPES = {
     fontaineArtificeSol: { label: "Fontaine au sol",             pattern: 'fountain', count: 20, size: [3, 4], distance: [60, 100],  duration: 1300, colors: ['#ffd452', '#c452ff'], minDelay: 400, maxDelay: 700 },
     volcano:             { label: "Volcano",                       pattern: 'fountain', count: 34, size: [3, 6],  distance: [90, 220],  duration: 1400, colors: ['#ff5252', '#ff8a52', '#ffd452', '#8b0000'], minDelay: 300, maxDelay: 550 },
     chandelle:           { label: "Chandelle (roman candle)",    pattern: 'romanCandle', colors: ['#ff5252', '#ffd452', '#52c8ff'], minDelay: 1300, maxDelay: 1900 },
-    bengale:             { label: "Bengale",                     pattern: 'flare',   duration: 2000, colors: ['#ff3366'], minDelay: 2200, maxDelay: 2200 },
     fusee:                { label: "Fusée",                       pattern: 'rocket',  colors: ['#ffd452', '#ffffff'], minDelay: 1000, maxDelay: 1600 },
 
     // --- 🔷 MOTIFS / FORMES ---
@@ -2302,12 +2526,16 @@ const FIREWORK_RECIPES = {
     spiraleDeFeu:          { label: "Spirale de feu",              pattern: 'spiral',  count: 26, size: [5, 5],  distanceStep: 5.8, delayStep: 14, duration: 1200, colors: ['#ff3300', '#ff8a00', '#ffd452'], minDelay: 800, maxDelay: 1300 },
     balayageEcarlate:     { label: "Balayage écarlate",           pattern: 'sweep', count: 40, size: [3, 5], distance: [90, 180], duration: 1300, colors: ['#ff1744', '#ff6e40'], minDelay: 1400, maxDelay: 2000 },
     implosionCarmin:      { label: "Implosion carmin",            pattern: 'implode', count: 24, size: [3, 6], distance: [100, 170], duration: 1600, colors: ['#d81b60', '#ff8a80'], minDelay: 1600, maxDelay: 2200 },
+    cristauxBrises:      { label: "Cristaux brisés",              pattern: 'shatteredCrystal', count: 45, size: [2, 5], distance: [100, 190], duration: 1400, colors: ['#b3e5fc', '#ffffff', '#80deea'], minDelay: 1500, maxDelay: 2100 },
+    toupieAscendante:    { label: "Toupie ascendante",            pattern: 'risingFunnel', count: 36, size: [3, 5], distance: [140, 220], duration: 1600, colors: ['#ffd700', '#ff9100', '#ffffff'], minDelay: 1700, maxDelay: 2300 },
 
-    // --- 🌾 SAULES / BRANCHES TOMBANTES ---
+    // --- 🌾 SAULES / BRANCHES TOMBANTES (KAMURO) ---
     chrysantheme:        { label: "Chrysanthème",                pattern: 'willow',  count: 30, size: [3, 5], distance: [90, 140],  fallDistance: [90, 140],  duration: 1900, colors: ['#52c8ff', '#c452ff', '#ffffff'], minDelay: 900, maxDelay: 1400 },
     brocart:             { label: "Brocart doré",                pattern: 'willow',  count: 34, size: [2, 4], distance: [90, 140],  fallDistance: [110, 160], duration: 2100, colors: ['#ffd452', '#fff1c2'], minDelay: 1000, maxDelay: 1500 },
     palmier:             { label: "Palmier",                     pattern: 'willow',  count: 8,  size: [4, 6], distance: [130, 170], fallDistance: [130, 170], duration: 1900, colors: ['#52ff8a', '#ffd452'], minDelay: 1100, maxDelay: 1600 },
     kamuro:              { label: "Kamuro",                      pattern: 'willow',  count: 42, size: [2, 4], distance: [120, 170], fallDistance: [150, 200], duration: 2500, colors: ['#fff1c2', '#ffd452'], minDelay: 1200, maxDelay: 1800 },
+    kamuroStrobe:        { label: "Kamuro strobe",                 pattern: 'kamuroStrobe', count: 32, size: [2, 4], distance: [110, 160], fallDistance: [140, 190], duration: 2200, colors: ['#ffffff', '#a0e8ff', '#ffd452'], minDelay: 1200, maxDelay: 1800 },
+    couronneImperiale:    { label: "Couronne impériale",          pattern: 'kamuroStrobe', count: 30, size: [3, 5], distance: [100, 160], fallDistance: [130, 180], duration: 1700, colors: ['#7c3aed', '#ffd700'], minDelay: 1700, maxDelay: 2300 },
     queueDeCheval:       { label: "Queue de cheval",             pattern: 'willow',  count: 6,  size: [4, 5], distance: [140, 180], fallDistance: [160, 200], duration: 2000, colors: ['#52c8ff', '#ffffff'], minDelay: 1000, maxDelay: 1500 },
     saulePleureur:       { label: "Saule pleureur",                pattern: 'willow',  count: 20, size: [3, 4],   distance: [40, 70], fallDistance: [120, 180], duration: 2100, colors: ['#ffd452', '#ffb347', '#fff1c2'], minDelay: 1000, maxDelay: 1700 },
     horsetail:           { label: "Horsetail",                     pattern: 'willow',  count: 50, size: [2, 3],   distance: [100, 130], fallDistance: [200, 260], duration: 2400, colors: ['#ffffff', '#a0e8ff'], minDelay: 1300, maxDelay: 1900 },
@@ -2323,7 +2551,6 @@ const FIREWORK_RECIPES = {
 
     // --- ☄️ COMÈTES / TRAITS FILANTS ---
     cometeArgentee:        { label: "Comète argentée",            pattern: 'comet', count: 10, size: [3, 6], distance: [280, 380], duration: 1600, colors: ['#e8e8e8', '#ffffff', '#c0d8ff'], minDelay: 1100, maxDelay: 1700 },
-    cometeEmeraude:      { label: "Comète émeraude",              pattern: 'comet', count: 10, size: [3, 6], distance: [280, 380], duration: 1600, colors: ['#00e676', '#a7ffeb', '#ffffff'], minDelay: 1100, maxDelay: 1700 },
     abeillePoisson:      { label: "Abeille / Poisson",           pattern: 'dart',    count: 14, size: [2, 4], distance: [50, 90],   duration: 1400, colors: ['#ffd452', '#ff8a52'], minDelay: 700, maxDelay: 1200 },
 
     // --- 🎇 BOUQUETS / GRANDS FINALS ---
@@ -2331,8 +2558,6 @@ const FIREWORK_RECIPES = {
     bouquetBlancDore:    { label: "Bouquet blanc et doré",         pattern: 'ensembleBlancDore', size: [4, 4], duration: 1500, colors: ['#ffffff', '#fff1c2', '#ffd452', '#d4af37'], minDelay: 2400, maxDelay: 3200 },
     bouquetNocturne:       { label: "Bouquet nocturne",            pattern: 'multi',   count: 20, size: [4, 6],  distance: [90, 150],  duration: 1400, colors: ['#1a1a4e', '#4b3f8f', '#c9c9ff', '#ffffff'], minDelay: 1700, maxDelay: 2300 },
     bouquetFinalXXL:      { label: "Bouquet final XXL",           pattern: 'grandFinale', count: 70, size: [4, 7], distance: [140, 260], duration: 1800, colors: ['#ffd700', '#ff1744', '#00e5ff', '#ffffff', '#c452ff'], minDelay: 2600, maxDelay: 3400 },
-    kamuroStrobe:        { label: "Kamuro strobe",                 pattern: 'kamuroStrobe', count: 32, size: [2, 4], distance: [110, 160], fallDistance: [140, 190], duration: 2200, colors: ['#ffffff', '#a0e8ff', '#ffd452'], minDelay: 1200, maxDelay: 1800 },
-    couronneImperiale:    { label: "Couronne impériale",          pattern: 'kamuroStrobe', count: 30, size: [3, 5], distance: [100, 160], fallDistance: [130, 180], duration: 1700, colors: ['#7c3aed', '#ffd700'], minDelay: 1700, maxDelay: 2300 },
     ultraGeant:          { label: "Ultra géant",                   pattern: 'ultraGiant', count: 60, size: [10, 14], distance: [180, 260], duration: 1900, colors: ['#ff5252', '#ffd452', '#52ff8a', '#52c8ff', '#c452ff', '#ff8a52', '#ffffff'], minDelay: 2200, maxDelay: 3000 }
 };
 
@@ -2806,7 +3031,10 @@ const FW_SOUND_BY_PATTERN = {
     forkedLightning:    () => { fwPlayWhoosh(); fwPlayCrackle(); },
     seismicWave:        () => { fwPlayBoom(); setTimeout(fwPlayBoom, 180); setTimeout(fwPlayBoom, 360); },
     fractalBranch:      () => { fwPlayCrackle(); fwPlayWhoosh(); },
-    grandFinale:        () => { fwPlayFlareHum(); fwPlayBoom(); setTimeout(fwPlayBoom, 350); setTimeout(fwPlayBoom, 550); }
+    grandFinale:        () => { fwPlayFlareHum(); fwPlayBoom(); setTimeout(fwPlayBoom, 350); setTimeout(fwPlayBoom, 550); },
+    heartbeat:          () => { fwPlayBoom(); setTimeout(fwPlayBoom, 220); setTimeout(fwPlayBoom, 520); },
+    shatteredCrystal:   () => { fwPlayCrackle(); fwPlayHiss(); },
+    risingFunnel:       () => { fwPlayWhoosh(); setTimeout(fwPlayBoom, 850); }
 };
 
 let fireworksSoundEnabled = localStorage.getItem('fireworksSoundEnabled') === 'true';
@@ -2867,6 +3095,9 @@ function launchFireworkRecipe(key, overrideDef) {
         case 'seismicWave':     fwPatternSeismicWave(origin, def); break;
         case 'fractalBranch':   fwPatternFractalBranch(origin, def); break;
         case 'grandFinale':     fwPatternGrandFinale(origin, def); break;
+        case 'heartbeat':        fwPatternHeartbeat(origin, def); break;
+        case 'shatteredCrystal': fwPatternShatteredCrystal(origin, def); break;
+        case 'risingFunnel':     fwPatternRisingFunnel(origin, def); break;
         case 'spiral':       fwPatternSpiral(origin, def); break;
         case 'willow':       fwPatternWillow(origin, def); break;
         case 'fountain':     fwPatternFountain(def); break;
