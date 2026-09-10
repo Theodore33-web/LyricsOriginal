@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v2.18";
+        const APP_VERSION = "v2.19";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -98,6 +98,10 @@
         .lyrics-section::-webkit-scrollbar { width: 0px; }
         .lyrics-section.fond-parole-active {
             background: #123b27;
+            transition: background 0.6s ease;
+        }
+        .lyrics-section.fond-parole-adaptatif-active {
+            background: rgb(var(--fond-parole-adaptatif-color, 29, 185, 84));
             transition: background 0.6s ease;
         }
 
@@ -519,9 +523,25 @@
 </div>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Fond parole (couleur dominante de la pochette)</span>
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Spectre audio animé 6.0 (code-barres pulsé)</span>
+    <label class="switch">
+        <input type="checkbox" id="spectrum6-toggle" onchange="toggleSpectrum6Setting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Fond parole vert</span>
     <label class="switch">
         <input type="checkbox" id="fond-parole-toggle" onchange="toggleFondParoleSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Fond parole adaptatif (couleur dominante de la pochette)</span>
+    <label class="switch">
+        <input type="checkbox" id="fond-parole-adaptatif-toggle" onchange="toggleFondParoleAdaptatifSetting(this.checked)">
         <span class="slider"></span>
     </label>
 </div>
@@ -1340,7 +1360,9 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 initSpectrum3State();
                 initSpectrum4State();
                 initSpectrum5State();
+                initSpectrum6State();
                 initFondParoleState();
+                initFondParoleAdaptatifState();
                 initMiniPlayerState();
                 initFeuxDoubleState();
                 initPetardClicClacState();
@@ -2179,6 +2201,7 @@ function highlightLyrics(currentTime) {
                         art.onload = () => {
                             updateDynamicBackground();
                             updatePochetteHaloColor();
+                            updateFondParoleAdaptatifColor();
                             updateThemeModeColors();
                         };
                     }
@@ -2641,7 +2664,9 @@ let spectrum2Enabled = localStorage.getItem('spectrum2Enabled') === 'true';
 let spectrum3Enabled = localStorage.getItem('spectrum3Enabled') === 'true';
 let spectrum4Enabled = localStorage.getItem('spectrum4Enabled') === 'true';
 let spectrum5Enabled = localStorage.getItem('spectrum5Enabled') === 'true';
+let spectrum6Enabled = localStorage.getItem('spectrum6Enabled') === 'true';
 let fondParoleEnabled = localStorage.getItem('fondParoleEnabled') === 'true'; // désactivé par défaut
+let fondParoleAdaptatifEnabled = localStorage.getItem('fondParoleAdaptatifEnabled') === 'true'; // désactivé par défaut
 let miniPlayerEnabled = localStorage.getItem('miniPlayerEnabled') === 'true'; // désactivé par défaut
 let feuxDoubleEnabled = localStorage.getItem('feuxDoubleEnabled') === 'true';
 
@@ -2766,8 +2791,12 @@ function toggleSettings() {
         if (spectrum4Toggle) spectrum4Toggle.checked = spectrum4Enabled;
         const spectrum5Toggle = document.getElementById('spectrum5-toggle');
         if (spectrum5Toggle) spectrum5Toggle.checked = spectrum5Enabled;
+        const spectrum6Toggle = document.getElementById('spectrum6-toggle');
+        if (spectrum6Toggle) spectrum6Toggle.checked = spectrum6Enabled;
         const fondParoleToggle = document.getElementById('fond-parole-toggle');
         if (fondParoleToggle) fondParoleToggle.checked = fondParoleEnabled;
+        const fondParoleAdaptatifToggle = document.getElementById('fond-parole-adaptatif-toggle');
+        if (fondParoleAdaptatifToggle) fondParoleAdaptatifToggle.checked = fondParoleAdaptatifEnabled;
         const miniPlayerToggle = document.getElementById('mini-player-toggle');
         if (miniPlayerToggle) miniPlayerToggle.checked = miniPlayerEnabled;
 
@@ -8385,8 +8414,10 @@ function initPochetteHaloState() {
     if (pochetteHaloEnabled) updatePochetteHaloColor();
 }
 
-// --- FOND PAROLE : quand activé, l'encadré des paroles prend une couleur dominante de la
-// pochette. Couleur UNIE et FIXE (ne change plus selon le titre) — désactivé par défaut.
+// --- FOND PAROLE : 2 styles mutuellement exclusifs pour l'encadré des paroles.
+// "Fond parole vert" = couleur unie fixe (ne change jamais). "Fond parole adaptatif" = 1 couleur,
+// la couleur DOMINANTE de la pochette, réactualisée à chaque changement de titre. Tous deux
+// désactivés par défaut.
 function getFondParoleTargetElement() {
     return document.getElementById('lyrics-container');
 }
@@ -8396,11 +8427,53 @@ function toggleFondParoleSetting(checked) {
     localStorage.setItem('fondParoleEnabled', checked ? 'true' : 'false');
     const target = getFondParoleTargetElement();
     if (target) target.classList.toggle('fond-parole-active', checked);
+    if (checked && fondParoleAdaptatifEnabled) {
+        fondParoleAdaptatifEnabled = false;
+        localStorage.setItem('fondParoleAdaptatifEnabled', 'false');
+        const adaptatifToggle = document.getElementById('fond-parole-adaptatif-toggle');
+        if (adaptatifToggle) adaptatifToggle.checked = false;
+        if (target) target.classList.remove('fond-parole-adaptatif-active');
+    }
 }
 
 function initFondParoleState() {
     const target = getFondParoleTargetElement();
     if (target) target.classList.toggle('fond-parole-active', fondParoleEnabled);
+}
+
+function toggleFondParoleAdaptatifSetting(checked) {
+    fondParoleAdaptatifEnabled = checked;
+    localStorage.setItem('fondParoleAdaptatifEnabled', checked ? 'true' : 'false');
+    const target = getFondParoleTargetElement();
+    if (target) target.classList.toggle('fond-parole-adaptatif-active', checked);
+    if (checked) {
+        if (fondParoleEnabled) {
+            fondParoleEnabled = false;
+            localStorage.setItem('fondParoleEnabled', 'false');
+            const greenToggle = document.getElementById('fond-parole-toggle');
+            if (greenToggle) greenToggle.checked = false;
+            if (target) target.classList.remove('fond-parole-active');
+        }
+        updateFondParoleAdaptatifColor();
+    }
+}
+
+function initFondParoleAdaptatifState() {
+    const target = getFondParoleTargetElement();
+    if (target) target.classList.toggle('fond-parole-adaptatif-active', fondParoleAdaptatifEnabled);
+    if (fondParoleAdaptatifEnabled) updateFondParoleAdaptatifColor();
+}
+
+// Réextrait la couleur dominante de la pochette actuelle et l'applique au fond des paroles —
+// appelée à l'activation ET à chaque changement de titre (voir hook dans updateNowPlaying).
+function updateFondParoleAdaptatifColor() {
+    if (!fondParoleAdaptatifEnabled) return;
+    const art = document.getElementById('track-art');
+    const target = getFondParoleTargetElement();
+    if (!art || !art.src || !target) return;
+    getDominantColorFromImageSrc(art.src, (rgb) => {
+        if (rgb) target.style.setProperty('--fond-parole-adaptatif-color', rgb);
+    });
 }
 
 // --- MINI-LECTEUR FLOTTANT : petite barre toujours visible en haut de l'écran, même en
