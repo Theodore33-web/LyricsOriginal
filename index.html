@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v2.21";
+        const APP_VERSION = "v2.22";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,6 +14,9 @@
     <link rel="icon" type="image/x-icon" href="favicon.ico.png">
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://apis.google.com/js/api.js" async defer></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
    :root {
             --spotify-green: #1DB954;
@@ -103,6 +106,29 @@
         .lyrics-section.fond-parole-adaptatif-active {
             background: rgb(var(--fond-parole-adaptatif-color, 29, 185, 84));
             transition: background 0.6s ease;
+        }
+
+        /* Typographie étoile : police et lueur scintillante appliquées au titre, à l'artiste, à la
+           durée et aux paroles — désactivé par défaut (typographie d'origine conservée sinon). */
+        body.typo-etoile-active #track-title,
+        body.typo-etoile-active #track-artist,
+        body.typo-etoile-active #time-current,
+        body.typo-etoile-active #time-max,
+        body.typo-etoile-active #lyrics-content,
+        body.typo-etoile-active #lyrics-content .lyric-line,
+        body.typo-etoile-active #tp-track-title,
+        body.typo-etoile-active #tp-track-artist,
+        body.typo-etoile-active #tp-timer-display,
+        body.typo-etoile-active #tp-lyrics-content,
+        body.typo-etoile-active #mini-player-title,
+        body.typo-etoile-active #mini-player-artist,
+        body.typo-etoile-active #mini-player-times {
+            font-family: 'Orbitron', 'Segoe UI', sans-serif !important;
+            letter-spacing: 0.06em;
+            text-shadow:
+                0 0 4px rgba(255, 255, 255, 0.55),
+                0 0 10px rgba(180, 220, 255, 0.35),
+                0 0 18px rgba(120, 180, 255, 0.2);
         }
 
         .lyric-line {
@@ -555,6 +581,14 @@
 </div>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Typographie étoile</span>
+    <label class="switch">
+        <input type="checkbox" id="typo-etoile-toggle" onchange="toggleTypoEtoileSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
     <span style="font-size: 0.85rem; color: var(--text-grey);">Bouton pétard 🎉</span>
     <label class="switch">
         <input type="checkbox" id="party-popper-toggle" onchange="togglePartyPopperSetting(this.checked)">
@@ -959,6 +993,7 @@
 // Fonction qui crée et affiche le badge de version en bas à droite
 function displayVersionBadge() {
     const badge = document.createElement('div');
+    badge.id = 'app-version-badge';
     
     // Style CSS appliqué directement en JavaScript pour éviter de toucher au style.css
     badge.style.position = 'fixed';
@@ -1180,6 +1215,9 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
         } else {
             document.getElementById('login-btn').onclick = () => {
                 rollLyricsColorChoice(); // tirage au moment exact du clic
+                // Le badge de version n'a de sens que sur l'écran d'accueil : on le masque dès la connexion
+                const versionBadge = document.getElementById('app-version-badge');
+                if (versionBadge) versionBadge.style.display = 'none';
                 redirectToSpotify();
             };
         }
@@ -1298,6 +1336,11 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 
                 document.getElementById('dashboard').style.display = 'flex';
                 hideLoadingScreen(loadingStartedAt);
+
+                // Le badge de version n'est pertinent que sur l'écran d'accueil : masqué dès que
+                // le tableau de bord (utilisateur connecté) est affiché.
+                const versionBadge = document.getElementById('app-version-badge');
+                if (versionBadge) versionBadge.style.display = 'none';
                 
                 setTimeout(() => {
                     if (document.getElementById('profile-card-name')) {
@@ -1364,6 +1407,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 initFondParoleState();
                 initFondParoleAdaptatifState();
                 initMiniPlayerState();
+                initTypoEtoileState();
                 initFeuxDoubleState();
                 initPetardClicClacState();
                 initVinyleState();
@@ -2668,6 +2712,7 @@ let spectrum6Enabled = localStorage.getItem('spectrum6Enabled') === 'true';
 let fondParoleEnabled = localStorage.getItem('fondParoleEnabled') === 'true'; // désactivé par défaut
 let fondParoleAdaptatifEnabled = localStorage.getItem('fondParoleAdaptatifEnabled') === 'true'; // désactivé par défaut
 let miniPlayerEnabled = localStorage.getItem('miniPlayerEnabled') === 'true'; // désactivé par défaut
+let typoEtoileEnabled = localStorage.getItem('typoEtoileEnabled') === 'true'; // désactivé par défaut
 let feuxDoubleEnabled = localStorage.getItem('feuxDoubleEnabled') === 'true';
 
 // --- 5 NOUVEAUX EFFETS (style DJ / musique) ---
@@ -2799,6 +2844,8 @@ function toggleSettings() {
         if (fondParoleAdaptatifToggle) fondParoleAdaptatifToggle.checked = fondParoleAdaptatifEnabled;
         const miniPlayerToggle = document.getElementById('mini-player-toggle');
         if (miniPlayerToggle) miniPlayerToggle.checked = miniPlayerEnabled;
+        const typoEtoileToggle = document.getElementById('typo-etoile-toggle');
+        if (typoEtoileToggle) typoEtoileToggle.checked = typoEtoileEnabled;
 
         const vinyleToggle = document.getElementById('vinyle-toggle');
         if (vinyleToggle) vinyleToggle.checked = vinyleEnabled;
@@ -3722,26 +3769,73 @@ function ensureCreditsModal() {
     overlay.innerHTML = `
         <button id="credits-close-btn" onclick="toggleCreditsModal()">✕</button>
         <h2>À propos de Lyrics Original</h2>
-        <p>Lyrics Original est une application web compagnon pour Spotify, pensée pour enrichir ton écoute au quotidien avec des paroles synchronisées et des outils pratiques réunis au même endroit.</p>
+        <p>Lyrics Original est une application web compagnon pour Spotify, pensée pour enrichir ton écoute au quotidien avec des paroles synchronisées et une foule d'outils et d'ambiances réunis au même endroit.</p>
 
-        <h3>🎵 Fonctionnalités principales</h3>
+        <h3>🎵 Lecture & Spotify</h3>
         <ul>
-            <li><strong>Paroles synchronisées</strong> — s'affichent et défilent en rythme avec le titre en cours.</li>
-            <li><strong>Recherche</strong> — trouve n'importe quel titre ou artiste sur Spotify.</li>
-            <li><strong>Favoris</strong> — ajoute/retire un titre en un clic, retrouve toute ta bibliothèque likée.</li>
-            <li><strong>Playlists</strong> — parcours tes playlists et lance un titre directement.</li>
-            <li><strong>File d'attente</strong> — consulte et alimente ce qui va être joué ensuite.</li>
-            <li><strong>Écoutes récentes</strong> — retrouve les titres que tu as écoutés dernièrement.</li>
-            <li><strong>Top titres</strong> — classement France basé sur les tendances Last.fm.</li>
+            <li><strong>Lecture complète</strong> — pause/reprendre, titre précédent/suivant, barre de progression cliquable, changement d'appareil, volume.</li>
+            <li><strong>Recherche</strong> — artistes, titres, retrouver un son précis.</li>
+            <li><strong>Favoris ❤️</strong> — like/unlike en un clic, retrouve toute ta bibliothèque likée.</li>
+            <li><strong>Playlists & bibliothèque</strong> — parcours tes playlists et lance un titre directement.</li>
+            <li><strong>File d'attente</strong> — consulte et alimente ce qui va être joué ensuite, mets un titre en file d'attente.</li>
+            <li><strong>Écoutes récentes</strong> et <strong>titres populaires</strong> — retrouve tes derniers titres et les tendances du moment.</li>
             <li><strong>Lecture aléatoire 🔀</strong> — tire un titre au hasard dans tes favoris ou tes playlists.</li>
-            <li><strong>Commande vocale 🗣️</strong> — pilote la lecture à la voix ("chanson suivante", "mets en pause"...).</li>
-            <li><strong>Soundboard 📣</strong> — 20 petits sons rigolos synthétisés, juste pour le plaisir.</li>
-            <li><strong>Statistiques 📊</strong> — visualise ton temps d'écoute par jour ou par semaine.</li>
-            <li><strong>Réglages ⚙️</strong> — spectre audio animé, défilement des paroles, boule à facettes, bouton pétard.</li>
+            <li><strong>Profil</strong> — nom et photo Spotify affichés dans l'app.</li>
+            <li><strong>Audio sur Google Drive</strong> — intégration pour écouter des fichiers audio personnels.</li>
+            <li><strong>Intégration podcasts</strong> et <strong>synthèse vocale</strong>.</li>
         </ul>
 
-        <h3>🔒 Confidentialité</h3>
-        <p>Tes réglages, ton historique d'écoute affiché dans les statistiques, et quelques préférences sont stockés uniquement dans ton navigateur (localStorage) — rien n'est envoyé ni partagé sur un serveur externe, à l'exception des appels nécessaires à l'API Spotify elle-même pour faire fonctionner l'app.</p>
+        <h3>🎤 Paroles & typographie</h3>
+        <ul>
+            <li><strong>Paroles synchronisées</strong> — s'affichent et défilent en rythme avec le titre en cours, avec réglage du défilement automatique.</li>
+            <li><strong>Interface Paroles dédiée 📃</strong> — pochette, titre, artiste et durée en en-tête, paroles en dessous.</li>
+            <li><strong>Téléchargement paroles (A4) 📥</strong> — génère une feuille imprimable/PDF au fond adapté à la pochette du titre.</li>
+            <li><strong>Fond parole vert</strong> et <strong>Fond parole adaptatif</strong> — deux styles de fond pour l'encadré des paroles, l'un fixe, l'autre calé sur la couleur dominante de la pochette (réactualisée à chaque titre).</li>
+            <li><strong>Typographie étoile ⭐</strong> — police et lueur scintillante façon constellation appliquées au titre, à l'artiste, à la durée et aux paroles (désactivé par défaut).</li>
+        </ul>
+
+        <h3>🎨 Interface & ambiance</h3>
+        <ul>
+            <li><strong>Fond dynamique</strong> — les couleurs de fond de l'app s'adaptent à la pochette du titre en cours.</li>
+            <li><strong>6 spectres audio animés</strong> — barres classiques, barres colorées, particules dansantes, vague, losanges pulsés, code-barres pulsé (un seul actif à la fois).</li>
+            <li><strong>Mini-lecteur flottant</strong> — barre toujours visible en haut de l'écran (pochette, titre, artiste, durée, pause/reprendre), même en consultant un autre panneau.</li>
+            <li><strong>Boule à facettes 🪩</strong>, <strong>projecteurs</strong>, <strong>guirlande lumineuse</strong>, <strong>bouton pétard 🎉</strong> interactif.</li>
+            <li><strong>Personnalisation</strong> — chaque ambiance se règle et se retient indépendamment dans les Paramètres.</li>
+        </ul>
+
+        <h3>🎆 Feux d'artifice</h3>
+        <ul>
+            <li><strong>70 effets</strong>, réorganisés en 7 catégories logiques : 💥 Crépitements, ⭕ Ronds/éclatements classiques, ⛲ Fontaines, 🔷 Motifs/formes, 🌾 Saules/branches tombantes, ☄️ Comètes/traits filants, 🎇 Bouquets/grands finals.</li>
+            <li><strong>Créer un feu personnalisé</strong> — choisis un effet et ses couleurs pour un tir sur mesure.</li>
+            <li><strong>Créer votre spectacle 🎬</strong> — timeline à plusieurs lignes (jusqu'à 10) pour composer et superposer tes propres feux dans le temps.</li>
+            <li><strong>Mode thématique 🎨</strong> — les feux explosent avec les couleurs dominantes de la pochette, avec un bouquet final automatique 20s avant la fin du titre.</li>
+            <li><strong>Mode hypersonique ⚡</strong> — chaque tir voit ses particules doublées et son temps divisé par deux.</li>
+        </ul>
+
+        <h3>🎮 Mini-jeux & DJ</h3>
+        <ul>
+            <li><strong>Puzzle pochette 🧩</strong> — reconstitue la pochette du titre en cours.</li>
+            <li><strong>Blind test express 🎯</strong> — devine le titre à partir de la pochette seule.</li>
+            <li><strong>Quiz musical 🧠</strong> — questions basées sur le son en cours.</li>
+            <li><strong>Mini-jeu rythme 🕹️</strong> et <strong>DJ (Gemini)</strong> — annonces et anecdotes DJ générées, petit son joué automatiquement.</li>
+        </ul>
+
+        <h3>🗣️ Commandes vocales</h3>
+        <ul>
+            <li>« Joue / Mets [artiste/titre] » — cherche et lance le premier résultat.</li>
+            <li>« Chanson suivante / précédente » — navigue dans la file.</li>
+            <li>« Pause / Joue / Reprends » — contrôle la lecture.</li>
+            <li>« Monte / Baisse le volume » (±15%), « Coupe le son / Mute ».</li>
+            <li>« J'aime / Like » — like le titre en cours.</li>
+            <li>« Playlists » / « File d'attente » — ouvre le panneau correspondant.</li>
+            <li>« Recherche [terme] » — lance une recherche sans lire automatiquement.</li>
+        </ul>
+
+        <h3>📣 Soundboard</h3>
+        <p>20 sons (trompette, guitare, tambour, cloche, sax, cymbale, corne, piano, violon, flûte, banjo, xylophone, harpe, orgue, maracas, gong, sifflet, laser, boing, clap...) — tous synthétisés en direct via la Web Audio API, sans aucun fichier audio externe.</p>
+
+        <h3>🔒 Confidentialité & stockage local</h3>
+        <p>Tes réglages (spectre, défilement des paroles, boule à facettes, bouton pétard, fonds de paroles, typographie...), ton historique d'écoute (utilisé pour les statistiques) et quelques préférences d'affichage sont stockés uniquement dans ton navigateur (localStorage) — rien n'est envoyé ni partagé sur un serveur externe, à l'exception des appels nécessaires à l'API Spotify elle-même pour faire fonctionner l'app.</p>
 
         <h3>⚠️ Avertissement</h3>
         <p>Ce site est un projet personnel non officiel, développé pour un usage personnel. Il n'est ni affilié à, ni approuvé par Spotify AB. Toutes les marques et contenus musicaux appartiennent à leurs ayants droit respectifs.</p>
@@ -8439,6 +8533,18 @@ function toggleFondParoleSetting(checked) {
 function initFondParoleState() {
     const target = getFondParoleTargetElement();
     if (target) target.classList.toggle('fond-parole-active', fondParoleEnabled);
+}
+
+// --- TYPOGRAPHIE ÉTOILE : applique une police et une lueur scintillante façon constellation
+// au titre, à l'artiste, à la durée et aux paroles. Désactivé par défaut (typographie d'origine).
+function toggleTypoEtoileSetting(checked) {
+    typoEtoileEnabled = checked;
+    localStorage.setItem('typoEtoileEnabled', checked ? 'true' : 'false');
+    document.body.classList.toggle('typo-etoile-active', checked);
+}
+
+function initTypoEtoileState() {
+    document.body.classList.toggle('typo-etoile-active', typoEtoileEnabled);
 }
 
 function toggleFondParoleAdaptatifSetting(checked) {
