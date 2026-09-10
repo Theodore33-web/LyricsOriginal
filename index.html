@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v2.22";
+        const APP_VERSION = "v2.23";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -2035,7 +2035,7 @@ function buildA4LyricsSheet(trackName, trackArtist, trackImage, durationStr, lyr
         <meta charset="UTF-8">
         <title>${escapeHtml(trackName)} — Paroles</title>
         <style>
-            @page { size: A4; margin: 14mm; }
+            @page { size: A4; margin: 8mm; }
             html, body { height: 100%; }
             * { -webkit-print-color-adjust: exact; print-color-adjust: exact; color-adjust: exact; }
             body {
@@ -2046,10 +2046,10 @@ function buildA4LyricsSheet(trackName, trackArtist, trackImage, durationStr, lyr
                 background: linear-gradient(165deg, #ffffff 0%, rgba(${rgb}, 0.16) 60%, rgba(${rgb}, 0.26) 100%);
                 border-radius: 1em;
                 box-shadow: 0 0.3em 1.2em rgba(0, 0, 0, 0.08);
-                padding: 1.6em 1.8em;
+                padding: 1em 1em;
                 box-sizing: border-box;
             }
-            #a4-content { font-size: 16px; }
+            #a4-content { font-size: 16px; transition: font-size 0.15s ease; }
             .a4-header {
                 display: flex; align-items: center; gap: 1.25em;
                 background: linear-gradient(120deg, rgba(${rgb}, 0.24), rgba(${rgb}, 0.04));
@@ -2067,16 +2067,30 @@ function buildA4LyricsSheet(trackName, trackArtist, trackImage, durationStr, lyr
                 font-size: 1em; line-height: 1.7; white-space: pre-wrap;
                 padding-left: 1.5em; border-left: 0.15em solid rgba(${rgb}, 0.4);
             }
-            .a4-noprint { text-align: right; margin-bottom: 14px; }
+            .a4-noprint {
+                display: flex; align-items: center; justify-content: flex-end; gap: 14px;
+                margin-bottom: 14px; flex-wrap: wrap;
+            }
             .a4-noprint button {
                 padding: 9px 18px; font-weight: bold; cursor: pointer; border-radius: 20px;
                 border: 1px solid rgb(${rgb}); background: rgb(${rgb}); color: #000;
             }
+            #a4-size-control {
+                display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #333;
+                font-family: 'Helvetica Neue', Arial, sans-serif;
+            }
+            #a4-size-control input[type="range"] { accent-color: rgb(${rgb}); }
             @media print { .a4-noprint { display: none; } #a4-page { box-shadow: none; } }
         </style>
         </head>
         <body>
-            <div class="a4-noprint"><button onclick="window.print()">🖨️ Imprimer / Enregistrer en PDF</button></div>
+            <div class="a4-noprint">
+                <div id="a4-size-control">
+                    <span>🔎 Taille : <strong id="a4-size-label">0</strong>/30</span>
+                    <input type="range" id="a4-size-slider" min="0" max="30" value="0" step="1">
+                </div>
+                <button onclick="window.print()">🖨️ Imprimer / Enregistrer en PDF</button>
+            </div>
             <div id="a4-page">
                 <div id="a4-content">
                     <div class="a4-header">
@@ -2091,20 +2105,44 @@ function buildA4LyricsSheet(trackName, trackArtist, trackImage, durationStr, lyr
                 </div>
             </div>
             <script>
-                // Réduit progressivement la taille du texte tant que tout (pochette + infos + paroles)
-                // ne tient pas dans la hauteur d'une page A4 (297mm - marges), pour ne jamais déborder
-                // sur une 2e page.
-                (function fitOnePage() {
-                    var el = document.getElementById('a4-content');
-                    var maxHeightPx = 297 * 3.7795275591 - 2 * (14 * 3.7795275591) - 2 * (1.6 * 16); // A4 - marges page - padding carte
-                    var fontSizePx = 16;
+                // Niveau 0 : on cherche la plus GRANDE taille de texte qui tient encore sur UNE SEULE
+                // page A4 (297mm - marges) — ça élimine le blanc perdu en haut/bas, quelle que soit la
+                // longueur des paroles (au lieu de partir d'une taille fixe et seulement réduire).
+                var a4El = document.getElementById('a4-content');
+                var a4MaxHeightPx = 297 * 3.7795275591 - 2 * (8 * 3.7795275591) - 2 * (1 * 16); // A4 - marges page - padding carte
+                var a4BaseFontSizePx = 10;
+
+                (function computeBaseFitSize() {
+                    a4El.style.transition = 'none'; // pas d'animation pendant le calcul initial
+                    a4El.style.fontSize = a4BaseFontSizePx + 'px';
                     var guard = 0;
-                    while (el.scrollHeight > maxHeightPx && fontSizePx > 8 && guard < 80) {
-                        fontSizePx -= 0.25;
-                        el.style.fontSize = fontSizePx + 'px';
+                    // Phase de croissance : on augmente tant que ça tient sur une page
+                    while (a4El.scrollHeight < a4MaxHeightPx && a4BaseFontSizePx < 60 && guard < 300) {
+                        a4BaseFontSizePx += 0.5;
+                        a4El.style.fontSize = a4BaseFontSizePx + 'px';
                         guard++;
                     }
+                    // Phase de réduction fine : on revient un peu en arrière si on vient de dépasser
+                    guard = 0;
+                    while (a4El.scrollHeight > a4MaxHeightPx && a4BaseFontSizePx > 6 && guard < 300) {
+                        a4BaseFontSizePx -= 0.25;
+                        a4El.style.fontSize = a4BaseFontSizePx + 'px';
+                        guard++;
+                    }
+                    requestAnimationFrame(() => { a4El.style.transition = 'font-size 0.15s ease'; });
                 })();
+
+                // Réglage 0 à 30 : 0 = tient sur une page (ci-dessus). Chaque cran au-delà agrandit
+                // doucement le texte (+8% par cran), pouvant alors s'étaler sur plusieurs pages —
+                // qui s'enchaînent naturellement sans espace vide entre elles à l'impression.
+                var a4Slider = document.getElementById('a4-size-slider');
+                var a4SizeLabel = document.getElementById('a4-size-label');
+                a4Slider.addEventListener('input', function () {
+                    var level = parseInt(a4Slider.value, 10);
+                    a4SizeLabel.innerText = level;
+                    var scale = 1 + level * 0.08;
+                    a4El.style.fontSize = (a4BaseFontSizePx * scale) + 'px';
+                });
             <\/script>
         </body>
         </html>
