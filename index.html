@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v2.23";
+        const APP_VERSION = "v2.24";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -2040,24 +2040,34 @@ function buildA4LyricsSheet(trackName, trackArtist, trackImage, durationStr, lyr
             * { -webkit-print-color-adjust: exact; print-color-adjust: exact; color-adjust: exact; }
             body {
                 font-family: 'Helvetica Neue', Arial, sans-serif; color: #1a1a1a; margin: 0;
-                background: linear-gradient(160deg, rgba(${rgb}, 0.16) 0%, rgba(${rgb}, 0.05) 45%, #ffffff 100%);
+                background-image: linear-gradient(160deg, rgba(${rgb}, 0.16) 0%, rgba(${rgb}, 0.05) 45%, #ffffff 100%);
+                background-repeat: repeat-y;
+                background-size: 100% 297mm;
+                transition: background-image 0.3s ease;
             }
+            body.a4-no-gradient { background-image: none; background-color: #ffffff; }
             #a4-page {
-                background: linear-gradient(165deg, #ffffff 0%, rgba(${rgb}, 0.16) 60%, rgba(${rgb}, 0.26) 100%);
+                background-image: linear-gradient(165deg, #ffffff 0%, rgba(${rgb}, 0.16) 60%, rgba(${rgb}, 0.26) 100%);
+                background-repeat: repeat-y;
+                background-size: 100% 297mm;
                 border-radius: 1em;
                 box-shadow: 0 0.3em 1.2em rgba(0, 0, 0, 0.08);
                 padding: 1em 1em;
                 box-sizing: border-box;
+                transition: background-image 0.3s ease;
             }
+            body.a4-no-gradient #a4-page { background-image: none; background-color: #ffffff; }
             #a4-content { font-size: 16px; transition: font-size 0.15s ease; }
             .a4-header {
                 display: flex; align-items: center; gap: 1.25em;
-                background: linear-gradient(120deg, rgba(${rgb}, 0.24), rgba(${rgb}, 0.04));
+                background-image: linear-gradient(120deg, rgba(${rgb}, 0.24), rgba(${rgb}, 0.04));
                 border-left: 0.3em solid rgb(${rgb});
                 border-radius: 0.6em;
                 padding: 1em 1.2em;
                 margin-bottom: 1.4em;
+                transition: background-image 0.3s ease;
             }
+            body.a4-no-gradient .a4-header { background-image: none; background-color: rgba(0, 0, 0, 0.03); }
             .a4-cover { width: 6.25em; height: 6.25em; object-fit: cover; border-radius: 0.5em; flex-shrink: 0; box-shadow: 0 0.2em 0.6em rgba(0, 0, 0, 0.18); }
             .a4-infos { display: flex; flex-direction: column; gap: 0.3em; }
             .a4-title { font-size: 1.4em; font-weight: bold; margin: 0; color: #111; }
@@ -2080,11 +2090,20 @@ function buildA4LyricsSheet(trackName, trackArtist, trackImage, durationStr, lyr
                 font-family: 'Helvetica Neue', Arial, sans-serif;
             }
             #a4-size-control input[type="range"] { accent-color: rgb(${rgb}); }
+            #a4-gradient-control {
+                display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: #333;
+                font-family: 'Helvetica Neue', Arial, sans-serif;
+            }
+            #a4-gradient-control input[type="checkbox"] { accent-color: rgb(${rgb}); width: 16px; height: 16px; }
             @media print { .a4-noprint { display: none; } #a4-page { box-shadow: none; } }
         </style>
         </head>
         <body>
             <div class="a4-noprint">
+                <label id="a4-gradient-control">
+                    <input type="checkbox" id="a4-gradient-toggle" checked>
+                    🎨 Dégradé coloré
+                </label>
                 <div id="a4-size-control">
                     <span>🔎 Taille : <strong id="a4-size-label">0</strong>/30</span>
                     <input type="range" id="a4-size-slider" min="0" max="30" value="0" step="1">
@@ -2142,6 +2161,11 @@ function buildA4LyricsSheet(trackName, trackArtist, trackImage, durationStr, lyr
                     a4SizeLabel.innerText = level;
                     var scale = 1 + level * 0.08;
                     a4El.style.fontSize = (a4BaseFontSizePx * scale) + 'px';
+                });
+
+                // Dégradé coloré activé par défaut — décoché = fond blanc uni
+                document.getElementById('a4-gradient-toggle').addEventListener('change', function (e) {
+                    document.body.classList.toggle('a4-no-gradient', !e.target.checked);
                 });
             <\/script>
         </body>
