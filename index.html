@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v2.25";
+        const APP_VERSION = "v2.26";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -458,12 +458,17 @@
     <div id="login-section">
         <h1 style="color: var(--spotify-green); font-size: 3rem; margin-bottom: 10px;">Lyrics Original</h1>
         <p style="color: var(--text-grey); margin-bottom: 30px;">Vos paroles synchronisées et votre bibliothèque réunies. Tout ça tient dans <span id="code-line-count">...</span> lignes de code et fait en 100% avec des émojis !</p>
-        <button id="login-btn">Se connecter avec Spotify</button>
-        <button id="credits-btn" onclick="toggleCreditsModal()">Crédit</button>
+        <div style="display: flex; align-items: center; justify-content: center; gap: 24px; flex-wrap: wrap;">
+            <div>
+                <button id="login-btn">Se connecter avec Spotify</button>
+                <button id="credits-btn" onclick="toggleCreditsModal()">Crédit</button>
+            </div>
+            <video src="telephone-chargement.mp4" autoplay loop muted playsinline style="width: 160px; border-radius: 12px; background: #fff;"></video>
+        </div>
     </div>
 
     <div id="dashboard">
-        <div class="lyrics-section" id="lyrics-container">
+        <div class="lyrics-section" id="lyrics-container" onclick="handleLyricsTripleClick()">
             <div id="lyrics-content">Lancez une musique sur Spotify...</div>
         </div>
     
@@ -1909,33 +1914,67 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
             return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
         }
 
-async function fetchLyrics(artist, title, album, duration) {
+// Essaie lrclib.net en premier (paroles synchronisées si dispo), puis Lyrics.ovh en repli
+// (paroles simples uniquement) si lrclib ne trouve rien pour ce titre.
+async function fetchLyricsFromLrclib(artist, title, album, duration) {
     try {
         const url = `https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}&album_name=${encodeURIComponent(album)}&duration=${Math.round(duration)}`;
         const response = await fetch(url);
+        if (!response.ok) return null;
         const data = await response.json();
-        
-        if (data.syncedLyrics) {
-            parseLyrics(data.syncedLyrics);
-        } else if (data.plainLyrics) {
-            const plainLines = data.plainLyrics.split('\n');
-            
+        if (data.syncedLyrics) return { type: 'synced', lyrics: data.syncedLyrics, source: 'lrclib.net' };
+        if (data.plainLyrics) return { type: 'plain', lyrics: data.plainLyrics, source: 'lrclib.net' };
+        return null;
+    } catch (e) {
+        return null;
+    }
+}
+
+async function fetchLyricsFromLyricsOvh(artist, title) {
+    try {
+        const url = `https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`;
+        const response = await fetch(url);
+        if (!response.ok) return null;
+        const data = await response.json();
+        if (data.lyrics) return { type: 'plain', lyrics: data.lyrics, source: 'Lyrics.ovh' };
+        return null;
+    } catch (e) {
+        return null;
+    }
+}
+
+async function fetchLyrics(artist, title, album, duration) {
+    try {
+        let result = await fetchLyricsFromLrclib(artist, title, album, duration);
+        if (!result) result = await fetchLyricsFromLyricsOvh(artist, title);
+
+        if (result && result.type === 'synced') {
+            parseLyrics(result.lyrics, result.source);
+        } else if (result && result.type === 'plain') {
+            const plainLines = result.lyrics.split('\n').filter(l => l.trim() !== '');
+
             // On crée le titre en vert avec le même style que tes autres sections, et le bouton
             // de téléchargement (emoji) juste à droite, sur la même ligne, pour ne pas laisser de vide
-            const titleHeader = parolesHeaderHtml();
-            
+            const titleHeader = parolesHeaderHtml(result.source);
+
             // ✅ STRUCTURE CONSERVÉE : On garde STRICTEMENT tes divs d'origine avec ton style inline d'origine
             const linesHtml = plainLines
                 .map(line => `<div class="lyric-line" style="opacity: 1; transform: scale(1);">${line.trim()}</div>`)
                 .join('');
-                
+
             document.getElementById('lyrics-content').innerHTML = titleHeader + linesHtml;
-            currentLyrics = []; 
+            currentLyrics = [];
         } else {
             // ✅ STRUCTURE CONSERVÉE : On garde ton style inline ici aussi avec le titre vert devant
             document.getElementById('lyrics-content').innerHTML = `
-                ${parolesHeaderHtml()}
-                <div class="lyric-line" style="opacity: 1;">Paroles indisponibles.</div>
+                ${parolesHeaderHtml(null)}
+                <div class="lyric-line" style="opacity: 1;">Paroles indisponibles automatiquement.</div>
+                <div class="lyric-line" style="opacity: 0.85; font-size: 0.8rem; margin-top: 10px;">
+                    Essaie une recherche manuelle :
+                    <a href="https://www.google.com/search?q=${encodeURIComponent(artist + ' ' + title + ' paroles')}" target="_blank" rel="noopener" style="color: var(--spotify-green); text-decoration: underline;">Google</a>
+                    ·
+                    <a href="https://www.musixmatch.com/search?query=${encodeURIComponent(artist + ' ' + title)}" target="_blank" rel="noopener" style="color: var(--spotify-green); text-decoration: underline;">Musixmatch</a>
+                </div>
             `;
             currentLyrics = [];
         }
@@ -1946,14 +1985,19 @@ async function fetchLyrics(artist, title, album, duration) {
 
 // En-tête "PAROLES" (toujours centré, comme à l'origine) + bouton de téléchargement (emoji seul)
 // positionné en absolu à droite, SANS décentrer le titre — comme si l'emoji n'était pas là.
-function parolesHeaderHtml() {
+// "source" affiche discrètement d'où viennent les paroles (lrclib.net, Lyrics.ovh...) quand connue.
+function parolesHeaderHtml(source) {
+    const sourceCaption = source
+        ? `<p style="font-size: 0.6rem; color: var(--text-grey); text-align: center; margin: 0 0 4px 0;">Paroles trouvées via ${source}</p>`
+        : '';
     return `<div style="position: relative; margin: 5px 0 10px 0;">
         <p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 0; text-align: center;">PAROLES</p>
+        ${sourceCaption}
         <button onclick="downloadLyricsA4()" title="Télécharger paroles (A4)" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--spotify-green); font-size: 1.15rem; cursor: pointer; padding: 0; line-height: 1;">📥</button>
     </div>`;
 }
 
-function parseLyrics(lrc) {
+function parseLyrics(lrc, source) {
     const lines = lrc.split('\n');
     currentLyrics = lines.map(line => {
         const match = line.match(/\[(\d+):(\d+\.\d+)\](.*)/);
@@ -1965,7 +2009,7 @@ function parseLyrics(lrc) {
     
     // On ajoute aussi le titre en vert pour le mode synchronisé, avec le bouton de téléchargement
     // (emoji) sur la même ligne pour éviter tout vide au-dessus des paroles
-    const titleHeader = parolesHeaderHtml();
+    const titleHeader = parolesHeaderHtml(source);
     const linesHtml = currentLyrics.map((l, i) => `<div id="line-${i}" class="lyric-line" onclick="seekToLyricLine(${i})" style="cursor: pointer;">${l.text}</div>`).join('');
     
     document.getElementById('lyrics-content').innerHTML = titleHeader + linesHtml;
@@ -2930,6 +2974,55 @@ function toggleSpectrumSetting(checked) {
 function toggleAutoScrollLyricsSetting(checked) {
     autoScrollLyricsEnabled = checked;
     localStorage.setItem('autoScrollLyricsEnabled', checked ? 'true' : 'false');
+    const scrollToggle = document.getElementById('autoscroll-lyrics-toggle');
+    if (scrollToggle) scrollToggle.checked = checked;
+}
+
+// --- RACCOURCI TRIPLE-CLIC : 3 clics rapprochés sur l'encadré des paroles active/désactive le
+// défilement automatique, sans passer par les Paramètres. Un petit message confirme l'état.
+let lyricsTripleClickCount = 0;
+let lyricsTripleClickTimer = null;
+
+function handleLyricsTripleClick() {
+    lyricsTripleClickCount++;
+    clearTimeout(lyricsTripleClickTimer);
+    lyricsTripleClickTimer = setTimeout(() => { lyricsTripleClickCount = 0; }, 600);
+
+    if (lyricsTripleClickCount >= 3) {
+        lyricsTripleClickCount = 0;
+        toggleAutoScrollLyricsSetting(!autoScrollLyricsEnabled);
+        showLyricsToggleMessage(autoScrollLyricsEnabled ? "Défilement automatique activé" : "Défilement automatique désactivé");
+    }
+}
+
+function ensureLyricsToggleMessageEl() {
+    let el = document.getElementById('lyrics-toggle-message');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'lyrics-toggle-message';
+        el.style.cssText = `
+            position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(20px);
+            background: rgba(20, 20, 20, 0.92); color: #fff; padding: 10px 20px; border-radius: 20px;
+            font-size: 0.85rem; font-weight: bold; z-index: 10000; opacity: 0;
+            transition: opacity 0.25s ease, transform 0.25s ease; pointer-events: none;
+            border: 1px solid var(--spotify-green, #1DB954);
+        `;
+        document.body.appendChild(el);
+    }
+    return el;
+}
+
+let lyricsToggleMessageTimer = null;
+function showLyricsToggleMessage(text) {
+    const el = ensureLyricsToggleMessageEl();
+    el.innerText = "🖱️🖱️🖱️ " + text;
+    el.style.opacity = '1';
+    el.style.transform = 'translateX(-50%) translateY(0)';
+    clearTimeout(lyricsToggleMessageTimer);
+    lyricsToggleMessageTimer = setTimeout(() => {
+        el.style.opacity = '0';
+        el.style.transform = 'translateX(-50%) translateY(20px)';
+    }, 1800);
 }
 
 // Injecte le style de la boule à facettes directement en JS — fonctionne même si le
@@ -6941,7 +7034,7 @@ function ensureTexteParolesOverlay() {
                 </div>
             </div>
 
-            <div class="tp-panel" id="tp-lyrics-panel">
+            <div class="tp-panel" id="tp-lyrics-panel" onclick="handleLyricsTripleClick()">
                 <div id="tp-lyrics-content"></div>
             </div>
         </div>
@@ -7088,7 +7181,8 @@ function tpToggleTimerDisplay(checked) {
     if (!checked) tpStopLocalTimer(); // masquer le chrono arrête aussi le défilement local
 }
 
-// Récupère les paroles synchronisées (lrclib, même source que fetchLyrics) pour le titre sélectionné
+// Récupère les paroles pour le titre sélectionné : lrclib en premier (synchronisées si dispo),
+// Lyrics.ovh en repli si lrclib ne trouve rien.
 async function tpFetchLyricsForTrack() {
     const t = texteparolesTrack;
     const lyricsContentEl = document.getElementById('tp-lyrics-content');
@@ -7098,18 +7192,26 @@ async function tpFetchLyricsForTrack() {
     texteparolesLyrics = [];
 
     try {
-        const url = `https://lrclib.net/api/get?artist_name=${encodeURIComponent(t.artist)}&track_name=${encodeURIComponent(t.name)}&album_name=${encodeURIComponent(t.album)}&duration=${Math.round(t.durationMs / 1000)}`;
-        const response = await fetch(url);
-        const data = await response.json();
+        let result = await fetchLyricsFromLrclib(t.artist, t.name, t.album, t.durationMs / 1000);
+        if (!result) result = await fetchLyricsFromLyricsOvh(t.artist, t.name);
 
-        if (data.syncedLyrics) {
-            tpParseLyrics(data.syncedLyrics);
-        } else if (data.plainLyrics) {
-            const plainLines = data.plainLyrics.split('\n');
-            lyricsContentEl.innerHTML = plainLines.map(line => `<div class="lyric-line tp-lyric-line">${line.trim()}</div>`).join('');
+        if (result && result.type === 'synced') {
+            tpParseLyrics(result.lyrics, result.source);
+        } else if (result && result.type === 'plain') {
+            const plainLines = result.lyrics.split('\n').filter(l => l.trim() !== '');
+            const sourceCaption = `<div class="lyric-line tp-lyric-line" style="opacity: 0.7; font-size: 0.65rem;">Paroles trouvées via ${result.source}</div>`;
+            lyricsContentEl.innerHTML = sourceCaption + plainLines.map(line => `<div class="lyric-line tp-lyric-line">${line.trim()}</div>`).join('');
             texteparolesLyrics = [];
         } else {
-            lyricsContentEl.innerHTML = "<div class='lyric-line tp-lyric-line'>Paroles indisponibles.</div>";
+            lyricsContentEl.innerHTML = `
+                <div class="lyric-line tp-lyric-line">Paroles indisponibles automatiquement.</div>
+                <div class="lyric-line tp-lyric-line" style="opacity: 0.85; font-size: 0.8rem; margin-top: 10px;">
+                    Essaie une recherche manuelle :
+                    <a href="https://www.google.com/search?q=${encodeURIComponent(t.artist + ' ' + t.name + ' paroles')}" target="_blank" rel="noopener" style="color: var(--spotify-green); text-decoration: underline;">Google</a>
+                    ·
+                    <a href="https://www.musixmatch.com/search?query=${encodeURIComponent(t.artist + ' ' + t.name)}" target="_blank" rel="noopener" style="color: var(--spotify-green); text-decoration: underline;">Musixmatch</a>
+                </div>
+            `;
         }
     } catch (e) {
         console.error(e);
@@ -7117,7 +7219,7 @@ async function tpFetchLyricsForTrack() {
     }
 }
 
-function tpParseLyrics(lrc) {
+function tpParseLyrics(lrc, source) {
     const lines = lrc.split('\n');
     texteparolesLyrics = lines.map(line => {
         const match = line.match(/\[(\d+):(\d+\.\d+)\](.*)/);
@@ -7127,10 +7229,13 @@ function tpParseLyrics(lrc) {
         return null;
     }).filter(l => l && l.text !== "");
 
+    const sourceCaption = source
+        ? `<div class="lyric-line tp-lyric-line" style="opacity: 0.7; font-size: 0.65rem;">Paroles trouvées via ${source}</div>`
+        : '';
     const linesHtml = texteparolesLyrics
         .map((l, i) => `<div id="tp-line-${i}" class="lyric-line tp-lyric-line" onclick="tpSeekToLyricLine(${i})">${l.text}</div>`)
         .join('');
-    document.getElementById('tp-lyrics-content').innerHTML = linesHtml;
+    document.getElementById('tp-lyrics-content').innerHTML = sourceCaption + linesHtml;
 }
 
 // Clic sur une ligne de paroles = resynchronisation manuelle de l'horloge locale sur ce moment précis.
