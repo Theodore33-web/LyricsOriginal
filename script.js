@@ -1209,8 +1209,16 @@ function toggleRideauClick() {
 
     const wrapper = ensureRideauWrapper();
     wrapper.style.display = 'block';
+
+    // BUG CORRIGÉ : sans ce reflow forcé, la toute première ouverture/fermeture juste après la
+    // création du rideau pouvait sauter directement à la position finale sans jouer l'animation —
+    // le navigateur n'avait pas eu l'occasion de "peindre" l'état de départ avant le changement de
+    // classe. Lire offsetHeight force ce rendu intermédiaire, donc la transition joue à chaque fois.
+    const panels = wrapper.querySelectorAll('.rideau-panel');
+    panels.forEach(p => p.offsetHeight);
+
     rideauBtnClosed = !rideauBtnClosed;
-    wrapper.querySelectorAll('.rideau-panel').forEach(p => p.classList.toggle('closed', rideauBtnClosed));
+    panels.forEach(p => p.classList.toggle('closed', rideauBtnClosed));
 }
 
 function toggleRideauBtnSetting(checked) {
@@ -2480,6 +2488,7 @@ const FIREWORK_RECIPES = {
     crepitementIntense:  { label: "Crépitement intense",         pattern: 'radial',  count: 55, size: [1.5, 2.5], distance: [15, 45], duration: 550,  colors: ['#fff45c', '#ffffff'], minDelay: 300, maxDelay: 500 },
     crepitementMultiple: { label: "Crépitement multiple",         pattern: 'crackleMulti', count: 40, size: [1.5, 2.5], distance: [15, 40], duration: 900, colors: ['#fff45c', '#ffffff', '#ffcf40'], minDelay: 900, maxDelay: 1400 },
     crepitementDouble:   { label: "Crépitement double",           pattern: 'crackleDouble', count: 44, size: [1.5, 2.5], distance: [20, 50], duration: 1100, colors: ['#ffffff', '#a0e8ff'], minDelay: 1000, maxDelay: 1500 },
+    crepitementDoreMultiple: { label: "Crépitement doré multiple", pattern: 'crackleMulti', count: 60, size: [1.5, 3], distance: [20, 55], duration: 1000, colors: ['#ffd700', '#fff3b0', '#ffffff'], minDelay: 1000, maxDelay: 1500 },
     crepitementArcEnCiel: { label: "Crépitement arc-en-ciel",     pattern: 'radial', count: 50, size: [1.5, 2.5], distance: [15, 45], duration: 550, colors: ['#ff5252', '#ffd452', '#52ff8a', '#52c8ff', '#c452ff'], minDelay: 350, maxDelay: 550 },
     crepitementGlace:     { label: "Crépitement glacé",           pattern: 'radial', count: 50, size: [1.5, 2.5], distance: [15, 45], duration: 550, colors: ['#e0faff', '#ffffff', '#66d9ff'], minDelay: 350, maxDelay: 550 },
     crepitementRubis:     { label: "Crépitement rubis",           pattern: 'radial', count: 50, size: [1.5, 2.5], distance: [15, 45], duration: 550, colors: ['#ff1744', '#ff8a9b', '#ffffff'], minDelay: 350, maxDelay: 550 },
@@ -2492,6 +2501,8 @@ const FIREWORK_RECIPES = {
     etoile:              { label: "Étoile",                      pattern: 'radial',  count: 25, size: [5, 7], distance: [90, 140],  duration: 1100, colors: ['#ffd452'], shape: 'star', minDelay: 800, maxDelay: 1300 },
     crossette:           { label: "Crossette",                   pattern: 'radial',  count: 10, size: [4, 6], distance: [95, 95],   duration: 1300, colors: ['#ff5252', '#52c8ff'], crossette: true, minDelay: 900, maxDelay: 1400 },
     crossetteDoree:        { label: "Crossette dorée",             pattern: 'radial',  count: 12, size: [5, 7],  distance: [110, 110], duration: 1400, colors: ['#ffd452', '#d4af37'], crossette: true, minDelay: 1000, maxDelay: 1500 },
+    mineDoreeMaritime:     { label: "Mine dorée maritime",         pattern: 'radial',  count: 70, size: [3, 6],  distance: [220, 320], duration: 1600, colors: ['#ffd700', '#fff3b0', '#ffffff'], minDelay: 2200, maxDelay: 2800 },
+    pivoineSaphirPailletee: { label: "Pivoine saphir pailletée",    pattern: 'scintillant', count: 42, size: [4, 6], distance: [140, 200], duration: 1600, colors: ['#1565c0', '#ffd700', '#ffffff'], minDelay: 1800, maxDelay: 2400 },
     compact:             { label: "Compact",                     pattern: 'radial',  count: 14, size: [4, 5], distance: [50, 70],   duration: 700,  colors: ['#c452ff', '#52ff8a'], minDelay: 500, maxDelay: 800 },
     bombeArtifice:       { label: "Bombe d'artifice",            pattern: 'radial',  count: 46, size: [5, 8], distance: [140, 200], duration: 1500, colors: ['#ff5252', '#ffffff'], minDelay: 1000, maxDelay: 1500 },
     mortier:             { label: "Mortier",                     pattern: 'radial',  count: 36, size: [5, 7], distance: [130, 190], duration: 1300, colors: ['#ff5252', '#52c8ff', '#ffd452'], minDelay: 900, maxDelay: 1400 },
@@ -2548,6 +2559,7 @@ const FIREWORK_RECIPES = {
     serpentin:           { label: "Serpentin",                     pattern: 'serpentin', count: 20, size: [3, 4], distance: [80, 130], duration: 1800, colors: ['#52ff8a', '#c452ff', '#ffd452'], minDelay: 800, maxDelay: 1300 },
     cascadeNiagara:      { label: "Cascade",                       pattern: 'cascade', count: 28, size: [2, 4], distance: [260, 380], duration: 2000, colors: ['#ffd452', '#ffffff', '#ff8a52'], minDelay: 500, maxDelay: 850 },
     pluieDoreeScintillante: { label: "Pluie dorée scintillante",  pattern: 'goldRain', count: 30, size: [2, 4], distance: [90, 140], fallDistance: [200, 260], duration: 2400, colors: ['#ffd700', '#ffe97a', '#fff6c8'], minDelay: 1400, maxDelay: 2000 },
+    sauleDorScintillant:  { label: "Saule d'or scintillant",      pattern: 'leaves', count: 24, size: [3, 5], distance: [420, 620], duration: 3000, colors: ['#ffd700', '#fff3b0', '#ffffff'], minDelay: 2000, maxDelay: 2600 },
 
     // --- ☄️ COMÈTES / TRAITS FILANTS ---
     cometeArgentee:        { label: "Comète argentée",            pattern: 'comet', count: 10, size: [3, 6], distance: [280, 380], duration: 1600, colors: ['#e8e8e8', '#ffffff', '#c0d8ff'], minDelay: 1100, maxDelay: 1700 },
@@ -2558,7 +2570,8 @@ const FIREWORK_RECIPES = {
     bouquetBlancDore:    { label: "Bouquet blanc et doré",         pattern: 'ensembleBlancDore', size: [4, 4], duration: 1500, colors: ['#ffffff', '#fff1c2', '#ffd452', '#d4af37'], minDelay: 2400, maxDelay: 3200 },
     bouquetNocturne:       { label: "Bouquet nocturne",            pattern: 'multi',   count: 20, size: [4, 6],  distance: [90, 150],  duration: 1400, colors: ['#1a1a4e', '#4b3f8f', '#c9c9ff', '#ffffff'], minDelay: 1700, maxDelay: 2300 },
     bouquetFinalXXL:      { label: "Bouquet final XXL",           pattern: 'grandFinale', count: 70, size: [4, 7], distance: [140, 260], duration: 1800, colors: ['#ffd700', '#ff1744', '#00e5ff', '#ffffff', '#c452ff'], minDelay: 2600, maxDelay: 3400 },
-    ultraGeant:          { label: "Ultra géant",                   pattern: 'ultraGiant', count: 60, size: [10, 14], distance: [180, 260], duration: 1900, colors: ['#ff5252', '#ffd452', '#52ff8a', '#52c8ff', '#c452ff', '#ff8a52', '#ffffff'], minDelay: 2200, maxDelay: 3000 }
+    ultraGeant:          { label: "Ultra géant",                   pattern: 'ultraGiant', count: 60, size: [10, 14], distance: [180, 260], duration: 1900, colors: ['#ff5252', '#ffd452', '#52ff8a', '#52c8ff', '#c452ff', '#ff8a52', '#ffffff'], minDelay: 2200, maxDelay: 3000 },
+    rafalePivoinesDorees: { label: "Rafale de pivoines dorées",    pattern: 'rafale',  count: 30, size: [5, 8],  distance: [130, 200], duration: 1200, colors: ['#ffd700', '#fff3b0', '#ffffff'], minDelay: 2000, maxDelay: 2600 }
 };
 
 let fireworkTypeEnabled = {};
@@ -3310,7 +3323,7 @@ function ensureFireworksManagerOverlay() {
 
                 <div style="height: 18px;"></div>
 
-                <p class="fwm-section-title">70 effets</p>
+                <p class="fwm-section-title">75 effets</p>
                 <div id="fwm-list"></div>
 
                 <div style="height: 18px;"></div>
@@ -3628,7 +3641,7 @@ function initCustomFireworks() {
 
 // ==========================================
 // SPECTACLE — 2 boutons (1 min / 1 min 30), lancent un enchaînement automatique de tirs parmi
-// les 70 effets, qui s'intensifie et se termine par un bouquet final. Un point rouge/vert indique
+// les 75 effets, qui s'intensifie et se termine par un bouquet final. Un point rouge/vert indique
 // si un spectacle est en cours ; recliquer l'arrête et réinitialise (le suivant repart de 0).
 // ==========================================
 // SPECTACLE — 2 boutons (1 min / 1 min 30), déroulé en plusieurs phases (ouverture → montée →
