@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v1.9";
+        const APP_VERSION = "v2.27";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -122,7 +122,9 @@
         body.typo-etoile-active #tp-lyrics-content,
         body.typo-etoile-active #mini-player-title,
         body.typo-etoile-active #mini-player-artist,
-        body.typo-etoile-active #mini-player-times {
+        body.typo-etoile-active #mini-player-times,
+        body.typo-etoile-active #explorer-rechercher-title,
+        body.typo-etoile-active #lecture-en-cours-title {
             font-family: 'Orbitron', 'Segoe UI', sans-serif !important;
             letter-spacing: 0.06em;
             text-shadow:
@@ -458,19 +460,24 @@
     <div id="login-section">
         <h1 style="color: var(--spotify-green); font-size: 3rem; margin-bottom: 10px;">Lyrics Original</h1>
         <p style="color: var(--text-grey); margin-bottom: 30px;">Vos paroles synchronisées et votre bibliothèque réunies. Tout ça tient dans <span id="code-line-count">...</span> lignes de code et fait en 100% avec des émojis !</p>
-        <button id="login-btn">Se connecter avec Spotify</button>
-        <button id="credits-btn" onclick="toggleCreditsModal()">Crédit</button>
+        <div style="display: flex; align-items: center; justify-content: center; gap: 24px; flex-wrap: wrap;">
+            <div>
+                <button id="login-btn">Se connecter avec Spotify</button>
+                <button id="credits-btn" onclick="toggleCreditsModal()">Crédit</button>
+            </div>
+            <img src="chargement2.gif" alt="Chargement Spotify" style="width: 160px; border-radius: 12px; background: #fff;">
+        </div>
     </div>
 
     <div id="dashboard">
-        <div class="lyrics-section" id="lyrics-container">
+        <div class="lyrics-section" id="lyrics-container" onclick="handleLyricsTripleClick()">
             <div id="lyrics-content">Lancez une musique sur Spotify...</div>
         </div>
     
         <div class="sidebar">   
             
             <div class="card">
-                <p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 0 0 10px 0; text-align: center;">EXPLORER & RECHERCHER</p>
+                <p id="explorer-rechercher-title" style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 0 0 10px 0; text-align: center;">EXPLORER & RECHERCHER</p>
                 
                 <div class="search-box" style="display: flex; flex-direction: column; gap: 8px; max-width: 400px; width: 100%;">
                     
@@ -925,7 +932,7 @@
                 
                 <div id="search-results"></div>
             </div> <div class="card">
-                <p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 0;">LECTURE EN COURS</p>
+                <p id="lecture-en-cours-title" style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 0;">LECTURE EN COURS</p>
                 <img id="track-art" src="" alt="" style="display:none;" crossorigin="anonymous">
                 <h3 id="track-title">Aucune lecture</h3>
                 <p id="track-artist"></p>
@@ -1909,33 +1916,85 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
             return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
         }
 
-async function fetchLyrics(artist, title, album, duration) {
+// Essaie lrclib.net en premier (paroles synchronisées si dispo), puis Lyrics.ovh en repli
+// (paroles simples uniquement) si lrclib ne trouve rien pour ce titre.
+async function fetchLyricsFromLrclib(artist, title, album, duration) {
     try {
         const url = `https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}&album_name=${encodeURIComponent(album)}&duration=${Math.round(duration)}`;
         const response = await fetch(url);
+        if (!response.ok) return null;
         const data = await response.json();
-        
-        if (data.syncedLyrics) {
-            parseLyrics(data.syncedLyrics);
-        } else if (data.plainLyrics) {
-            const plainLines = data.plainLyrics.split('\n');
-            
+        if (data.syncedLyrics) return { type: 'synced', lyrics: data.syncedLyrics, source: 'lrclib.net' };
+        if (data.plainLyrics) return { type: 'plain', lyrics: data.plainLyrics, source: 'lrclib.net' };
+        return null;
+    } catch (e) {
+        return null;
+    }
+}
+
+async function fetchLyricsFromLyricsOvh(artist, title) {
+    try {
+        const url = `https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`;
+        const response = await fetch(url);
+        if (!response.ok) return null;
+        const data = await response.json();
+        if (data.lyrics) return { type: 'plain', lyrics: data.lyrics, source: 'Lyrics.ovh' };
+        return null;
+    } catch (e) {
+        return null;
+    }
+}
+
+// Dernier recours : lrcmux.dev agrège plusieurs fournisseurs de paroles en un seul appel.
+// Son API est compatible avec le format lrclib (mêmes paramètres et même forme de réponse),
+// donc on réutilise exactement la même logique de lecture des résultats.
+async function fetchLyricsFromLrcmux(artist, title, album, duration) {
+    try {
+        const url = `https://lrcmux.dev/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}&album_name=${encodeURIComponent(album)}&duration=${Math.round(duration)}`;
+        const response = await fetch(url);
+        if (!response.ok) return null;
+        const data = await response.json();
+        if (data.syncedLyrics) return { type: 'synced', lyrics: data.syncedLyrics, source: 'lrcmux.dev' };
+        if (data.plainLyrics) return { type: 'plain', lyrics: data.plainLyrics, source: 'lrcmux.dev' };
+        return null;
+    } catch (e) {
+        return null;
+    }
+}
+
+async function fetchLyrics(artist, title, album, duration) {
+    try {
+        let result = await fetchLyricsFromLrclib(artist, title, album, duration);
+        if (!result) result = await fetchLyricsFromLyricsOvh(artist, title);
+        if (!result) result = await fetchLyricsFromLrcmux(artist, title, album, duration);
+
+        if (result && result.type === 'synced') {
+            parseLyrics(result.lyrics, result.source);
+        } else if (result && result.type === 'plain') {
+            const plainLines = result.lyrics.split('\n').filter(l => l.trim() !== '');
+
             // On crée le titre en vert avec le même style que tes autres sections, et le bouton
             // de téléchargement (emoji) juste à droite, sur la même ligne, pour ne pas laisser de vide
-            const titleHeader = parolesHeaderHtml();
-            
+            const titleHeader = parolesHeaderHtml(result.source);
+
             // ✅ STRUCTURE CONSERVÉE : On garde STRICTEMENT tes divs d'origine avec ton style inline d'origine
             const linesHtml = plainLines
                 .map(line => `<div class="lyric-line" style="opacity: 1; transform: scale(1);">${line.trim()}</div>`)
                 .join('');
-                
+
             document.getElementById('lyrics-content').innerHTML = titleHeader + linesHtml;
-            currentLyrics = []; 
+            currentLyrics = [];
         } else {
             // ✅ STRUCTURE CONSERVÉE : On garde ton style inline ici aussi avec le titre vert devant
             document.getElementById('lyrics-content').innerHTML = `
-                ${parolesHeaderHtml()}
-                <div class="lyric-line" style="opacity: 1;">Paroles indisponibles.</div>
+                ${parolesHeaderHtml(null)}
+                <div class="lyric-line" style="opacity: 1;">Paroles indisponibles automatiquement.</div>
+                <div class="lyric-line" style="opacity: 0.85; font-size: 0.8rem; margin-top: 10px;">
+                    Essaie une recherche manuelle :
+                    <a href="https://www.google.com/search?q=${encodeURIComponent(artist + ' ' + title + ' paroles')}" target="_blank" rel="noopener" style="color: var(--spotify-green); text-decoration: underline;">Google</a>
+                    ·
+                    <a href="https://www.musixmatch.com/search?query=${encodeURIComponent(artist + ' ' + title)}" target="_blank" rel="noopener" style="color: var(--spotify-green); text-decoration: underline;">Musixmatch</a>
+                </div>
             `;
             currentLyrics = [];
         }
@@ -1946,14 +2005,19 @@ async function fetchLyrics(artist, title, album, duration) {
 
 // En-tête "PAROLES" (toujours centré, comme à l'origine) + bouton de téléchargement (emoji seul)
 // positionné en absolu à droite, SANS décentrer le titre — comme si l'emoji n'était pas là.
-function parolesHeaderHtml() {
+// "source" affiche discrètement d'où viennent les paroles (lrclib.net, Lyrics.ovh...) quand connue.
+function parolesHeaderHtml(source) {
+    const sourceCaption = (source && source !== 'lrclib.net')
+        ? `<p style="font-size: 0.6rem; color: var(--text-grey); text-align: center; margin: 0 0 4px 0;">Paroles trouvées via ${source}</p>`
+        : '';
     return `<div style="position: relative; margin: 5px 0 10px 0;">
         <p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 0; text-align: center;">PAROLES</p>
+        ${sourceCaption}
         <button onclick="downloadLyricsA4()" title="Télécharger paroles (A4)" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--spotify-green); font-size: 1.15rem; cursor: pointer; padding: 0; line-height: 1;">📥</button>
     </div>`;
 }
 
-function parseLyrics(lrc) {
+function parseLyrics(lrc, source) {
     const lines = lrc.split('\n');
     currentLyrics = lines.map(line => {
         const match = line.match(/\[(\d+):(\d+\.\d+)\](.*)/);
@@ -1965,7 +2029,7 @@ function parseLyrics(lrc) {
     
     // On ajoute aussi le titre en vert pour le mode synchronisé, avec le bouton de téléchargement
     // (emoji) sur la même ligne pour éviter tout vide au-dessus des paroles
-    const titleHeader = parolesHeaderHtml();
+    const titleHeader = parolesHeaderHtml(source);
     const linesHtml = currentLyrics.map((l, i) => `<div id="line-${i}" class="lyric-line" onclick="seekToLyricLine(${i})" style="cursor: pointer;">${l.text}</div>`).join('');
     
     document.getElementById('lyrics-content').innerHTML = titleHeader + linesHtml;
@@ -2930,6 +2994,55 @@ function toggleSpectrumSetting(checked) {
 function toggleAutoScrollLyricsSetting(checked) {
     autoScrollLyricsEnabled = checked;
     localStorage.setItem('autoScrollLyricsEnabled', checked ? 'true' : 'false');
+    const scrollToggle = document.getElementById('autoscroll-lyrics-toggle');
+    if (scrollToggle) scrollToggle.checked = checked;
+}
+
+// --- RACCOURCI TRIPLE-CLIC : 3 clics rapprochés sur l'encadré des paroles active/désactive le
+// défilement automatique, sans passer par les Paramètres. Un petit message confirme l'état.
+let lyricsTripleClickCount = 0;
+let lyricsTripleClickTimer = null;
+
+function handleLyricsTripleClick() {
+    lyricsTripleClickCount++;
+    clearTimeout(lyricsTripleClickTimer);
+    lyricsTripleClickTimer = setTimeout(() => { lyricsTripleClickCount = 0; }, 600);
+
+    if (lyricsTripleClickCount >= 3) {
+        lyricsTripleClickCount = 0;
+        toggleAutoScrollLyricsSetting(!autoScrollLyricsEnabled);
+        showLyricsToggleMessage(autoScrollLyricsEnabled ? "Défilement automatique activé" : "Défilement automatique désactivé");
+    }
+}
+
+function ensureLyricsToggleMessageEl() {
+    let el = document.getElementById('lyrics-toggle-message');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'lyrics-toggle-message';
+        el.style.cssText = `
+            position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(20px);
+            background: rgba(20, 20, 20, 0.92); color: #fff; padding: 10px 20px; border-radius: 20px;
+            font-size: 0.85rem; font-weight: bold; z-index: 10000; opacity: 0;
+            transition: opacity 0.25s ease, transform 0.25s ease; pointer-events: none;
+            border: 1px solid var(--spotify-green, #1DB954);
+        `;
+        document.body.appendChild(el);
+    }
+    return el;
+}
+
+let lyricsToggleMessageTimer = null;
+function showLyricsToggleMessage(text) {
+    const el = ensureLyricsToggleMessageEl();
+    el.innerText = "🖱️🖱️🖱️ " + text;
+    el.style.opacity = '1';
+    el.style.transform = 'translateX(-50%) translateY(0)';
+    clearTimeout(lyricsToggleMessageTimer);
+    lyricsToggleMessageTimer = setTimeout(() => {
+        el.style.opacity = '0';
+        el.style.transform = 'translateX(-50%) translateY(20px)';
+    }, 1800);
 }
 
 // Injecte le style de la boule à facettes directement en JS — fonctionne même si le
@@ -6941,7 +7054,7 @@ function ensureTexteParolesOverlay() {
                 </div>
             </div>
 
-            <div class="tp-panel" id="tp-lyrics-panel">
+            <div class="tp-panel" id="tp-lyrics-panel" onclick="handleLyricsTripleClick()">
                 <div id="tp-lyrics-content"></div>
             </div>
         </div>
@@ -7088,7 +7201,8 @@ function tpToggleTimerDisplay(checked) {
     if (!checked) tpStopLocalTimer(); // masquer le chrono arrête aussi le défilement local
 }
 
-// Récupère les paroles synchronisées (lrclib, même source que fetchLyrics) pour le titre sélectionné
+// Récupère les paroles pour le titre sélectionné : lrclib en premier (synchronisées si dispo),
+// Lyrics.ovh en repli si lrclib ne trouve rien.
 async function tpFetchLyricsForTrack() {
     const t = texteparolesTrack;
     const lyricsContentEl = document.getElementById('tp-lyrics-content');
@@ -7098,18 +7212,29 @@ async function tpFetchLyricsForTrack() {
     texteparolesLyrics = [];
 
     try {
-        const url = `https://lrclib.net/api/get?artist_name=${encodeURIComponent(t.artist)}&track_name=${encodeURIComponent(t.name)}&album_name=${encodeURIComponent(t.album)}&duration=${Math.round(t.durationMs / 1000)}`;
-        const response = await fetch(url);
-        const data = await response.json();
+        let result = await fetchLyricsFromLrclib(t.artist, t.name, t.album, t.durationMs / 1000);
+        if (!result) result = await fetchLyricsFromLyricsOvh(t.artist, t.name);
+        if (!result) result = await fetchLyricsFromLrcmux(t.artist, t.name, t.album, t.durationMs / 1000);
 
-        if (data.syncedLyrics) {
-            tpParseLyrics(data.syncedLyrics);
-        } else if (data.plainLyrics) {
-            const plainLines = data.plainLyrics.split('\n');
-            lyricsContentEl.innerHTML = plainLines.map(line => `<div class="lyric-line tp-lyric-line">${line.trim()}</div>`).join('');
+        if (result && result.type === 'synced') {
+            tpParseLyrics(result.lyrics, result.source);
+        } else if (result && result.type === 'plain') {
+            const plainLines = result.lyrics.split('\n').filter(l => l.trim() !== '');
+            const sourceCaption = result.source !== 'lrclib.net'
+                ? `<div class="lyric-line tp-lyric-line" style="opacity: 0.7; font-size: 0.65rem;">Paroles trouvées via ${result.source}</div>`
+                : '';
+            lyricsContentEl.innerHTML = sourceCaption + plainLines.map(line => `<div class="lyric-line tp-lyric-line">${line.trim()}</div>`).join('');
             texteparolesLyrics = [];
         } else {
-            lyricsContentEl.innerHTML = "<div class='lyric-line tp-lyric-line'>Paroles indisponibles.</div>";
+            lyricsContentEl.innerHTML = `
+                <div class="lyric-line tp-lyric-line">Paroles indisponibles automatiquement.</div>
+                <div class="lyric-line tp-lyric-line" style="opacity: 0.85; font-size: 0.8rem; margin-top: 10px;">
+                    Essaie une recherche manuelle :
+                    <a href="https://www.google.com/search?q=${encodeURIComponent(t.artist + ' ' + t.name + ' paroles')}" target="_blank" rel="noopener" style="color: var(--spotify-green); text-decoration: underline;">Google</a>
+                    ·
+                    <a href="https://www.musixmatch.com/search?query=${encodeURIComponent(t.artist + ' ' + t.name)}" target="_blank" rel="noopener" style="color: var(--spotify-green); text-decoration: underline;">Musixmatch</a>
+                </div>
+            `;
         }
     } catch (e) {
         console.error(e);
@@ -7117,7 +7242,7 @@ async function tpFetchLyricsForTrack() {
     }
 }
 
-function tpParseLyrics(lrc) {
+function tpParseLyrics(lrc, source) {
     const lines = lrc.split('\n');
     texteparolesLyrics = lines.map(line => {
         const match = line.match(/\[(\d+):(\d+\.\d+)\](.*)/);
@@ -7127,10 +7252,13 @@ function tpParseLyrics(lrc) {
         return null;
     }).filter(l => l && l.text !== "");
 
+    const sourceCaption = (source && source !== 'lrclib.net')
+        ? `<div class="lyric-line tp-lyric-line" style="opacity: 0.7; font-size: 0.65rem;">Paroles trouvées via ${source}</div>`
+        : '';
     const linesHtml = texteparolesLyrics
         .map((l, i) => `<div id="tp-line-${i}" class="lyric-line tp-lyric-line" onclick="tpSeekToLyricLine(${i})">${l.text}</div>`)
         .join('');
-    document.getElementById('tp-lyrics-content').innerHTML = linesHtml;
+    document.getElementById('tp-lyrics-content').innerHTML = sourceCaption + linesHtml;
 }
 
 // Clic sur une ligne de paroles = resynchronisation manuelle de l'horloge locale sur ce moment précis.
@@ -9171,9 +9299,6 @@ function initBouleLedState() {
     ensureBouleLedElement().style.display = bouleLedEnabled ? 'block' : 'none';
 }
 
-
-
-
 // ==========================================
 // 5 EFFETS FEUX D'ARTIFICE — réguliers, intenses, rapides, 5 types différents
 // ==========================================
@@ -10384,8 +10509,16 @@ function toggleRideauClick() {
 
     const wrapper = ensureRideauWrapper();
     wrapper.style.display = 'block';
+
+    // BUG CORRIGÉ : sans ce reflow forcé, la toute première ouverture/fermeture juste après la
+    // création du rideau pouvait sauter directement à la position finale sans jouer l'animation —
+    // le navigateur n'avait pas eu l'occasion de "peindre" l'état de départ avant le changement de
+    // classe. Lire offsetHeight force ce rendu intermédiaire, donc la transition joue à chaque fois.
+    const panels = wrapper.querySelectorAll('.rideau-panel');
+    panels.forEach(p => p.offsetHeight);
+
     rideauBtnClosed = !rideauBtnClosed;
-    wrapper.querySelectorAll('.rideau-panel').forEach(p => p.classList.toggle('closed', rideauBtnClosed));
+    panels.forEach(p => p.classList.toggle('closed', rideauBtnClosed));
 }
 
 function toggleRideauBtnSetting(checked) {
@@ -11655,6 +11788,7 @@ const FIREWORK_RECIPES = {
     crepitementIntense:  { label: "Crépitement intense",         pattern: 'radial',  count: 55, size: [1.5, 2.5], distance: [15, 45], duration: 550,  colors: ['#fff45c', '#ffffff'], minDelay: 300, maxDelay: 500 },
     crepitementMultiple: { label: "Crépitement multiple",         pattern: 'crackleMulti', count: 40, size: [1.5, 2.5], distance: [15, 40], duration: 900, colors: ['#fff45c', '#ffffff', '#ffcf40'], minDelay: 900, maxDelay: 1400 },
     crepitementDouble:   { label: "Crépitement double",           pattern: 'crackleDouble', count: 44, size: [1.5, 2.5], distance: [20, 50], duration: 1100, colors: ['#ffffff', '#a0e8ff'], minDelay: 1000, maxDelay: 1500 },
+    crepitementDoreMultiple: { label: "Crépitement doré multiple", pattern: 'crackleMulti', count: 60, size: [1.5, 3], distance: [20, 55], duration: 1000, colors: ['#ffd700', '#fff3b0', '#ffffff'], minDelay: 1000, maxDelay: 1500 },
     crepitementArcEnCiel: { label: "Crépitement arc-en-ciel",     pattern: 'radial', count: 50, size: [1.5, 2.5], distance: [15, 45], duration: 550, colors: ['#ff5252', '#ffd452', '#52ff8a', '#52c8ff', '#c452ff'], minDelay: 350, maxDelay: 550 },
     crepitementGlace:     { label: "Crépitement glacé",           pattern: 'radial', count: 50, size: [1.5, 2.5], distance: [15, 45], duration: 550, colors: ['#e0faff', '#ffffff', '#66d9ff'], minDelay: 350, maxDelay: 550 },
     crepitementRubis:     { label: "Crépitement rubis",           pattern: 'radial', count: 50, size: [1.5, 2.5], distance: [15, 45], duration: 550, colors: ['#ff1744', '#ff8a9b', '#ffffff'], minDelay: 350, maxDelay: 550 },
@@ -11667,6 +11801,8 @@ const FIREWORK_RECIPES = {
     etoile:              { label: "Étoile",                      pattern: 'radial',  count: 25, size: [5, 7], distance: [90, 140],  duration: 1100, colors: ['#ffd452'], shape: 'star', minDelay: 800, maxDelay: 1300 },
     crossette:           { label: "Crossette",                   pattern: 'radial',  count: 10, size: [4, 6], distance: [95, 95],   duration: 1300, colors: ['#ff5252', '#52c8ff'], crossette: true, minDelay: 900, maxDelay: 1400 },
     crossetteDoree:        { label: "Crossette dorée",             pattern: 'radial',  count: 12, size: [5, 7],  distance: [110, 110], duration: 1400, colors: ['#ffd452', '#d4af37'], crossette: true, minDelay: 1000, maxDelay: 1500 },
+    mineDoreeMaritime:     { label: "Mine dorée maritime",         pattern: 'radial',  count: 70, size: [3, 6],  distance: [220, 320], duration: 1600, colors: ['#ffd700', '#fff3b0', '#ffffff'], minDelay: 2200, maxDelay: 2800 },
+    pivoineSaphirPailletee: { label: "Pivoine saphir pailletée",    pattern: 'scintillant', count: 42, size: [4, 6], distance: [140, 200], duration: 1600, colors: ['#1565c0', '#ffd700', '#ffffff'], minDelay: 1800, maxDelay: 2400 },
     compact:             { label: "Compact",                     pattern: 'radial',  count: 14, size: [4, 5], distance: [50, 70],   duration: 700,  colors: ['#c452ff', '#52ff8a'], minDelay: 500, maxDelay: 800 },
     bombeArtifice:       { label: "Bombe d'artifice",            pattern: 'radial',  count: 46, size: [5, 8], distance: [140, 200], duration: 1500, colors: ['#ff5252', '#ffffff'], minDelay: 1000, maxDelay: 1500 },
     mortier:             { label: "Mortier",                     pattern: 'radial',  count: 36, size: [5, 7], distance: [130, 190], duration: 1300, colors: ['#ff5252', '#52c8ff', '#ffd452'], minDelay: 900, maxDelay: 1400 },
@@ -11723,6 +11859,7 @@ const FIREWORK_RECIPES = {
     serpentin:           { label: "Serpentin",                     pattern: 'serpentin', count: 20, size: [3, 4], distance: [80, 130], duration: 1800, colors: ['#52ff8a', '#c452ff', '#ffd452'], minDelay: 800, maxDelay: 1300 },
     cascadeNiagara:      { label: "Cascade",                       pattern: 'cascade', count: 28, size: [2, 4], distance: [260, 380], duration: 2000, colors: ['#ffd452', '#ffffff', '#ff8a52'], minDelay: 500, maxDelay: 850 },
     pluieDoreeScintillante: { label: "Pluie dorée scintillante",  pattern: 'goldRain', count: 30, size: [2, 4], distance: [90, 140], fallDistance: [200, 260], duration: 2400, colors: ['#ffd700', '#ffe97a', '#fff6c8'], minDelay: 1400, maxDelay: 2000 },
+    sauleDorScintillant:  { label: "Saule d'or scintillant",      pattern: 'leaves', count: 24, size: [3, 5], distance: [420, 620], duration: 3000, colors: ['#ffd700', '#fff3b0', '#ffffff'], minDelay: 2000, maxDelay: 2600 },
 
     // --- ☄️ COMÈTES / TRAITS FILANTS ---
     cometeArgentee:        { label: "Comète argentée",            pattern: 'comet', count: 10, size: [3, 6], distance: [280, 380], duration: 1600, colors: ['#e8e8e8', '#ffffff', '#c0d8ff'], minDelay: 1100, maxDelay: 1700 },
@@ -11733,7 +11870,8 @@ const FIREWORK_RECIPES = {
     bouquetBlancDore:    { label: "Bouquet blanc et doré",         pattern: 'ensembleBlancDore', size: [4, 4], duration: 1500, colors: ['#ffffff', '#fff1c2', '#ffd452', '#d4af37'], minDelay: 2400, maxDelay: 3200 },
     bouquetNocturne:       { label: "Bouquet nocturne",            pattern: 'multi',   count: 20, size: [4, 6],  distance: [90, 150],  duration: 1400, colors: ['#1a1a4e', '#4b3f8f', '#c9c9ff', '#ffffff'], minDelay: 1700, maxDelay: 2300 },
     bouquetFinalXXL:      { label: "Bouquet final XXL",           pattern: 'grandFinale', count: 70, size: [4, 7], distance: [140, 260], duration: 1800, colors: ['#ffd700', '#ff1744', '#00e5ff', '#ffffff', '#c452ff'], minDelay: 2600, maxDelay: 3400 },
-    ultraGeant:          { label: "Ultra géant",                   pattern: 'ultraGiant', count: 60, size: [10, 14], distance: [180, 260], duration: 1900, colors: ['#ff5252', '#ffd452', '#52ff8a', '#52c8ff', '#c452ff', '#ff8a52', '#ffffff'], minDelay: 2200, maxDelay: 3000 }
+    ultraGeant:          { label: "Ultra géant",                   pattern: 'ultraGiant', count: 60, size: [10, 14], distance: [180, 260], duration: 1900, colors: ['#ff5252', '#ffd452', '#52ff8a', '#52c8ff', '#c452ff', '#ff8a52', '#ffffff'], minDelay: 2200, maxDelay: 3000 },
+    rafalePivoinesDorees: { label: "Rafale de pivoines dorées",    pattern: 'rafale',  count: 30, size: [5, 8],  distance: [130, 200], duration: 1200, colors: ['#ffd700', '#fff3b0', '#ffffff'], minDelay: 2000, maxDelay: 2600 }
 };
 
 let fireworkTypeEnabled = {};
@@ -12485,7 +12623,7 @@ function ensureFireworksManagerOverlay() {
 
                 <div style="height: 18px;"></div>
 
-                <p class="fwm-section-title">70 effets</p>
+                <p class="fwm-section-title">75 effets</p>
                 <div id="fwm-list"></div>
 
                 <div style="height: 18px;"></div>
@@ -12803,7 +12941,7 @@ function initCustomFireworks() {
 
 // ==========================================
 // SPECTACLE — 2 boutons (1 min / 1 min 30), lancent un enchaînement automatique de tirs parmi
-// les 70 effets, qui s'intensifie et se termine par un bouquet final. Un point rouge/vert indique
+// les 75 effets, qui s'intensifie et se termine par un bouquet final. Un point rouge/vert indique
 // si un spectacle est en cours ; recliquer l'arrête et réinitialise (le suivant repart de 0).
 // ==========================================
 // SPECTACLE — 2 boutons (1 min / 1 min 30), déroulé en plusieurs phases (ouverture → montée →
@@ -13442,9 +13580,9 @@ function renderCustomFireworksList() {
         container.appendChild(chip);
     });
 }
+
         
 </script>
-  
+ 
 </body>
 </html>
-
