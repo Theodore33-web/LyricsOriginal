@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v2.26";
+        const APP_VERSION = "v2.27";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -122,7 +122,9 @@
         body.typo-etoile-active #tp-lyrics-content,
         body.typo-etoile-active #mini-player-title,
         body.typo-etoile-active #mini-player-artist,
-        body.typo-etoile-active #mini-player-times {
+        body.typo-etoile-active #mini-player-times,
+        body.typo-etoile-active #explorer-rechercher-title,
+        body.typo-etoile-active #lecture-en-cours-title {
             font-family: 'Orbitron', 'Segoe UI', sans-serif !important;
             letter-spacing: 0.06em;
             text-shadow:
@@ -463,7 +465,7 @@
                 <button id="login-btn">Se connecter avec Spotify</button>
                 <button id="credits-btn" onclick="toggleCreditsModal()">Crédit</button>
             </div>
-            <video src="telephone-chargement.mp4" autoplay loop muted playsinline style="width: 160px; border-radius: 12px; background: #fff;"></video>
+            <img src="chargement2.gif" alt="Chargement Spotify" style="width: 160px; border-radius: 12px; background: #fff;">
         </div>
     </div>
 
@@ -475,7 +477,7 @@
         <div class="sidebar">   
             
             <div class="card">
-                <p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 0 0 10px 0; text-align: center;">EXPLORER & RECHERCHER</p>
+                <p id="explorer-rechercher-title" style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 0 0 10px 0; text-align: center;">EXPLORER & RECHERCHER</p>
                 
                 <div class="search-box" style="display: flex; flex-direction: column; gap: 8px; max-width: 400px; width: 100%;">
                     
@@ -930,7 +932,7 @@
                 
                 <div id="search-results"></div>
             </div> <div class="card">
-                <p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 0;">LECTURE EN COURS</p>
+                <p id="lecture-en-cours-title" style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 0;">LECTURE EN COURS</p>
                 <img id="track-art" src="" alt="" style="display:none;" crossorigin="anonymous">
                 <h3 id="track-title">Aucune lecture</h3>
                 <p id="track-artist"></p>
@@ -1943,10 +1945,28 @@ async function fetchLyricsFromLyricsOvh(artist, title) {
     }
 }
 
+// Dernier recours : lrcmux.dev agrège plusieurs fournisseurs de paroles en un seul appel.
+// Son API est compatible avec le format lrclib (mêmes paramètres et même forme de réponse),
+// donc on réutilise exactement la même logique de lecture des résultats.
+async function fetchLyricsFromLrcmux(artist, title, album, duration) {
+    try {
+        const url = `https://lrcmux.dev/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}&album_name=${encodeURIComponent(album)}&duration=${Math.round(duration)}`;
+        const response = await fetch(url);
+        if (!response.ok) return null;
+        const data = await response.json();
+        if (data.syncedLyrics) return { type: 'synced', lyrics: data.syncedLyrics, source: 'lrcmux.dev' };
+        if (data.plainLyrics) return { type: 'plain', lyrics: data.plainLyrics, source: 'lrcmux.dev' };
+        return null;
+    } catch (e) {
+        return null;
+    }
+}
+
 async function fetchLyrics(artist, title, album, duration) {
     try {
         let result = await fetchLyricsFromLrclib(artist, title, album, duration);
         if (!result) result = await fetchLyricsFromLyricsOvh(artist, title);
+        if (!result) result = await fetchLyricsFromLrcmux(artist, title, album, duration);
 
         if (result && result.type === 'synced') {
             parseLyrics(result.lyrics, result.source);
@@ -1987,7 +2007,7 @@ async function fetchLyrics(artist, title, album, duration) {
 // positionné en absolu à droite, SANS décentrer le titre — comme si l'emoji n'était pas là.
 // "source" affiche discrètement d'où viennent les paroles (lrclib.net, Lyrics.ovh...) quand connue.
 function parolesHeaderHtml(source) {
-    const sourceCaption = source
+    const sourceCaption = (source && source !== 'lrclib.net')
         ? `<p style="font-size: 0.6rem; color: var(--text-grey); text-align: center; margin: 0 0 4px 0;">Paroles trouvées via ${source}</p>`
         : '';
     return `<div style="position: relative; margin: 5px 0 10px 0;">
@@ -7194,12 +7214,15 @@ async function tpFetchLyricsForTrack() {
     try {
         let result = await fetchLyricsFromLrclib(t.artist, t.name, t.album, t.durationMs / 1000);
         if (!result) result = await fetchLyricsFromLyricsOvh(t.artist, t.name);
+        if (!result) result = await fetchLyricsFromLrcmux(t.artist, t.name, t.album, t.durationMs / 1000);
 
         if (result && result.type === 'synced') {
             tpParseLyrics(result.lyrics, result.source);
         } else if (result && result.type === 'plain') {
             const plainLines = result.lyrics.split('\n').filter(l => l.trim() !== '');
-            const sourceCaption = `<div class="lyric-line tp-lyric-line" style="opacity: 0.7; font-size: 0.65rem;">Paroles trouvées via ${result.source}</div>`;
+            const sourceCaption = result.source !== 'lrclib.net'
+                ? `<div class="lyric-line tp-lyric-line" style="opacity: 0.7; font-size: 0.65rem;">Paroles trouvées via ${result.source}</div>`
+                : '';
             lyricsContentEl.innerHTML = sourceCaption + plainLines.map(line => `<div class="lyric-line tp-lyric-line">${line.trim()}</div>`).join('');
             texteparolesLyrics = [];
         } else {
@@ -7229,7 +7252,7 @@ function tpParseLyrics(lrc, source) {
         return null;
     }).filter(l => l && l.text !== "");
 
-    const sourceCaption = source
+    const sourceCaption = (source && source !== 'lrclib.net')
         ? `<div class="lyric-line tp-lyric-line" style="opacity: 0.7; font-size: 0.65rem;">Paroles trouvées via ${source}</div>`
         : '';
     const linesHtml = texteparolesLyrics
