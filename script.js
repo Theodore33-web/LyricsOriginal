@@ -1,5 +1,4 @@
 
-
 // ==========================================
 // 5 EFFETS FEUX D'ARTIFICE — réguliers, intenses, rapides, 5 types différents
 // ==========================================
