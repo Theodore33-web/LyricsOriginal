@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v2.29";
+        const APP_VERSION = "v2.30";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -177,18 +177,45 @@
             position: absolute; background-repeat: no-repeat; transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.5s ease;
         }
 
-        /* Rideau (scoped à la pochette) : 2 pans qui s'écartent pour révéler l'image */
+        /* Rideau (scoped STRICTEMENT à la pochette, dimensions calculées en JS) : 2 pans qui
+           s'écartent pour révéler l'image. Plus de rebond élastique (transition simple, un seul
+           passage, jamais de "boucle" visuelle). */
         .pochette-rideau-panel {
-            position: absolute; top: 0; width: 51%; height: 100%; z-index: 2;
+            position: absolute; z-index: 2;
             background:
                 repeating-linear-gradient(90deg, rgba(0,0,0,0.18) 0px, transparent 6px, transparent 12px, rgba(0,0,0,0.18) 18px),
                 linear-gradient(90deg, #4a0505, #8b0000 55%, #4a0505);
-            transition: transform 0.8s cubic-bezier(0.65, -0.15, 0.35, 1.15);
+            transition: transform 0.75s cubic-bezier(0.22, 1, 0.36, 1);
         }
-        .pochette-rideau-panel.left { left: 0; border-radius: inherit 0 0 inherit; transform: translateX(0%); }
-        .pochette-rideau-panel.right { right: 0; border-radius: 0 inherit inherit 0; transform: translateX(0%); }
         .pochette-rideau-panel.open.left { transform: translateX(-100%); }
         .pochette-rideau-panel.open.right { transform: translateX(100%); }
+
+        /* Vinyle qui tourne : état PERSISTANT (tourne en continu tant que ce style est choisi,
+           pas juste à l'apparition) */
+        @keyframes pochette-vinyle-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        #track-art.pochette-anim-vinyle-active {
+            border-radius: 50% !important;
+            animation: pochette-vinyle-spin 6s linear infinite;
+            box-shadow: 0 0 0 6px #0a0a0a, 0 0 0 7px rgba(255,255,255,0.12), 0 8px 20px rgba(0,0,0,0.55);
+        }
+
+        /* Cassette qui s'insère */
+        @keyframes pochette-anim-cassette {
+            0% { transform: translateX(120%) scale(0.9); opacity: 0; }
+            70% { transform: translateX(-4%) scale(1.02); opacity: 1; }
+            85% { transform: translateX(1%) scale(0.99); }
+            100% { transform: translateX(0) scale(1); }
+        }
+        #track-art.pochette-anim-cassette { animation: pochette-anim-cassette 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+        /* Polaroid qui s'éjecte */
+        @keyframes pochette-anim-polaroid {
+            0% { transform: translateY(40%) rotate(-6deg); opacity: 0; filter: brightness(1.3); }
+            60% { transform: translateY(-4%) rotate(3deg); opacity: 1; filter: brightness(1.05); }
+            80% { transform: translateY(2%) rotate(-1deg); }
+            100% { transform: translateY(0) rotate(0deg); filter: brightness(1); }
+        }
+        #track-art.pochette-anim-polaroid { animation: pochette-anim-polaroid 0.9s ease-out both; }
 
         /* ---- Style du titre ---- */
         @keyframes titre-anim-neon-flicker {
@@ -213,6 +240,46 @@
         }
         @keyframes titre-anim-underline-draw { to { width: 100%; } }
 
+        /* Glitch */
+        @keyframes titre-anim-glitch {
+            0% { opacity: 0; transform: translate(0,0); text-shadow: none; }
+            10% { opacity: 1; transform: translate(-2px,1px); text-shadow: 2px 0 red, -2px 0 cyan; }
+            20% { transform: translate(2px,-1px); text-shadow: -2px 0 red, 2px 0 cyan; }
+            30% { transform: translate(-1px,0); text-shadow: 1px 0 red, -1px 0 cyan; }
+            40%, 100% { transform: translate(0,0); text-shadow: none; }
+        }
+        #track-title.titre-anim-glitch { animation: titre-anim-glitch 0.5s steps(2) both; }
+
+        /* Cascade de lettres (chaque lettre tombe et se pose, décalée) */
+        .titre-letter-cascade { display: inline-block; opacity: 0; transform: translateY(-30px); animation: titre-letter-cascade-fall 0.5s ease forwards; }
+        @keyframes titre-letter-cascade-fall { to { opacity: 1; transform: translateY(0); } }
+
+        /* Vague de lettres */
+        .titre-letter-wave { display: inline-block; animation: titre-letter-wave-bounce 0.6s ease; }
+        @keyframes titre-letter-wave-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+
+        /* Tremblement d'arrivée */
+        @keyframes titre-anim-shakein {
+            0% { transform: translateX(0); opacity: 0; }
+            10% { transform: translateX(-6px); opacity: 1; }
+            20% { transform: translateX(5px); }
+            30% { transform: translateX(-4px); }
+            40% { transform: translateX(3px); }
+            50% { transform: translateX(-2px); }
+            60% { transform: translateX(1px); }
+            100% { transform: translateX(0); }
+        }
+        #track-title.titre-anim-shakein { animation: titre-anim-shakein 0.6s ease both; }
+
+        /* Dégradé animé */
+        @keyframes titre-anim-gradientshift { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
+        #track-title.titre-anim-gradientshift {
+            background-image: linear-gradient(90deg, var(--spotify-green), #52c8ff, #c452ff, var(--spotify-green));
+            background-size: 300% 100%;
+            -webkit-background-clip: text; background-clip: text; color: transparent;
+            animation: titre-anim-gradientshift 4s linear infinite;
+        }
+
         /* ---- Effet "signature" (artiste) ---- */
         #track-artist.artiste-anim-signature {
             display: inline-block; opacity: 0;
@@ -223,16 +290,85 @@
             100% { opacity: 1; letter-spacing: normal; filter: blur(0); }
         }
 
-        /* ---- Effets sur les lignes de paroles ---- */
-        .lyric-line.lyrics-anim-active-zoom.active { transform: scale(1.08); transition: transform 0.35s ease; transform-origin: center; }
-        .lyric-line.lyrics-anim-blur-past { filter: blur(2.5px); opacity: 0.55; transition: filter 0.4s ease, opacity 0.4s ease; }
-        .lyric-line.lyrics-anim-karaoke.active-line {
-            background-image: linear-gradient(90deg, var(--spotify-green) 0%, var(--spotify-green) 50%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0.5) 100%);
-            background-size: 200% 100%; background-position: 100% 0;
-            -webkit-background-clip: text; background-clip: text; color: transparent;
-            animation: lyrics-karaoke-fill linear forwards;
+        @keyframes artiste-anim-fadein { from { opacity: 0; } to { opacity: 1; } }
+        #track-artist.artiste-anim-fadein { animation: artiste-anim-fadein 0.5s ease both; }
+
+        @keyframes artiste-anim-slideleft { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
+        #track-artist.artiste-anim-slideleft { animation: artiste-anim-slideleft 0.5s ease both; }
+
+        #track-artist.artiste-anim-typewriter { overflow: hidden; white-space: nowrap; border-right: 2px solid var(--spotify-green); display: inline-block; }
+
+        @keyframes artiste-anim-glitch {
+            0% { opacity: 0; transform: translate(0,0); text-shadow: none; }
+            10% { opacity: 1; transform: translate(-2px,1px); text-shadow: 2px 0 red, -2px 0 cyan; }
+            20% { transform: translate(2px,-1px); text-shadow: -2px 0 red, 2px 0 cyan; }
+            40%, 100% { transform: translate(0,0); text-shadow: none; }
         }
-        @keyframes lyrics-karaoke-fill { from { background-position: 100% 0; } to { background-position: 0% 0; } }
+        #track-artist.artiste-anim-glitch { animation: artiste-anim-glitch 0.5s steps(2) both; }
+
+        .artiste-letter-wave { display: inline-block; animation: artiste-letter-wave-bounce 0.5s ease; }
+        @keyframes artiste-letter-wave-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+
+        @keyframes artiste-anim-blurin { from { filter: blur(8px); opacity: 0.4; } to { filter: blur(0); opacity: 1; } }
+        #track-artist.artiste-anim-blurin { animation: artiste-anim-blurin 0.5s ease both; }
+
+        @keyframes artiste-anim-scalepop { 0% { opacity: 0; transform: scale(0.6); } 70% { opacity: 1; transform: scale(1.08); } 100% { transform: scale(1); } }
+        #track-artist.artiste-anim-scalepop { display: inline-block; animation: artiste-anim-scalepop 0.4s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+        @keyframes artiste-anim-gradient { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
+        #track-artist.artiste-anim-gradient {
+            background-image: linear-gradient(90deg, var(--spotify-green), #52c8ff, #c452ff, var(--spotify-green));
+            background-size: 300% 100%;
+            -webkit-background-clip: text; background-clip: text; color: transparent;
+            animation: artiste-anim-gradient 4s linear infinite;
+        }
+
+        /* ---- Effets sur les lignes de paroles (ligne active) — reconstruit depuis zéro.
+           "paroles-anim-line" exempte la ligne de l'écrasement par l'easter egg (voir
+           applyLyricsColorEasterEgg) pour garantir que ces effets restent toujours visibles. ---- */
+        .lyric-line.lyrics-anim-blur-past { filter: blur(2.5px); opacity: 0.55; transition: filter 0.4s ease, opacity 0.4s ease; }
+        .lyric-line.paroles-anim-line { transition: transform 0.35s ease, letter-spacing 0.35s ease; }
+
+        @keyframes paroles-anim-karaoke-fill { from { background-position: 100% 0; } to { background-position: 0% 0; } }
+        .lyric-line.paroles-style-karaoke.active {
+            background-image: linear-gradient(90deg, var(--spotify-green) 0%, var(--spotify-green) 50%, rgba(255,255,255,0.55) 50%, rgba(255,255,255,0.55) 100%);
+            background-size: 200% 100%; background-position: 100% 0;
+            -webkit-background-clip: text; background-clip: text; color: transparent !important;
+            text-shadow: none !important;
+            animation: paroles-anim-karaoke-fill linear forwards;
+        }
+
+        @keyframes paroles-anim-underline-draw { from { width: 0; } to { width: 100%; } }
+        .lyric-line.paroles-style-underline.active { position: relative; display: inline-block; padding-bottom: 4px; }
+        .lyric-line.paroles-style-underline.active::after {
+            content: ''; position: absolute; left: 0; bottom: 0; height: 2px;
+            background: var(--spotify-green); animation: paroles-anim-underline-draw 0.6s ease forwards;
+        }
+
+        @keyframes paroles-anim-wave-underline { 0% { background-position: 0 100%; } 100% { background-position: -24px 100%; } }
+        .lyric-line.paroles-style-waveunderline.active {
+            background-image: repeating-linear-gradient(90deg, var(--spotify-green) 0 6px, transparent 6px 12px);
+            background-repeat: repeat-x; background-size: 12px 3px; background-position: 0 100%;
+            padding-bottom: 6px; animation: paroles-anim-wave-underline 0.9s linear infinite;
+        }
+
+        @keyframes paroles-anim-glowpulse {
+            0%, 100% { text-shadow: 0 0 8px rgba(29,185,84,0.8), 0 0 16px rgba(29,185,84,0.4); }
+            50% { text-shadow: 0 0 18px rgba(29,185,84,1), 0 0 32px rgba(29,185,84,0.65); }
+        }
+        .lyric-line.paroles-style-glowpulse.active { animation: paroles-anim-glowpulse 1.4s ease-in-out infinite; }
+
+        @keyframes paroles-anim-colorflash {
+            0% { color: #ffffff; }
+            30% { color: var(--spotify-green); text-shadow: 0 0 14px rgba(29,185,84,0.9); }
+            100% { color: #ffffff; }
+        }
+        .lyric-line.paroles-style-colorflash.active { animation: paroles-anim-colorflash 0.7s ease; }
+
+        .lyric-line.paroles-style-highlight.active {
+            background: rgba(29, 185, 84, 0.2); border-radius: 8px; padding: 2px 10px;
+            margin-left: -10px; margin-right: -10px; transition: background 0.3s ease;
+        }
 
         /* ---- Pochette inclinée 3D (lecture en cours) ---- */
         #track-art.pochette-incline-3d-active {
@@ -244,9 +380,10 @@
         /* ---- Bibliothèque en étagère visuelle ---- */
         #etagere-overlay {
             display: none; position: fixed; inset: 0; z-index: 9000; background: rgba(10, 10, 10, 0.94);
-            overflow-y: auto; padding: 60px 20px 20px 20px; box-sizing: border-box;
+            overflow-y: auto; padding: 20px; box-sizing: border-box;
         }
-        #etagere-close-btn { position: fixed; top: 14px; right: 18px; background: none; border: none; color: #fff; font-size: 1.6rem; cursor: pointer; z-index: 9001; }
+        #etagere-topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+        #etagere-close-btn { background: none; border: none; color: #fff; font-size: 1.6rem; cursor: pointer; line-height: 1; }
         .etagere-shelf { display: flex; gap: 14px; overflow-x: auto; padding: 20px 10px 34px 10px; margin-bottom: 6px; border-bottom: 6px solid #4a3221; position: relative; }
         .etagere-shelf::after { content: ''; position: absolute; bottom: -6px; left: 0; right: 0; height: 10px; background: linear-gradient(to bottom, #6b4a2e, #3a2413); border-radius: 0 0 4px 4px; }
         .etagere-record { flex-shrink: 0; width: 90px; height: 90px; border-radius: 6px; overflow: hidden; box-shadow: 0 6px 10px rgba(0,0,0,0.5); transform: perspective(400px) rotateY(-8deg); transition: transform 0.3s ease; cursor: pointer; }
@@ -1072,6 +1209,10 @@
         <option value="puzzle">Puzzle</option>
         <option value="spotifyload">Façon Spotify</option>
         <option value="rideau">Rideau</option>
+        <option value="vinyle">Vinyle qui tourne</option>
+        <option value="cassette">Cassette qui s'insère</option>
+        <option value="polaroid">Polaroid qui s'éjecte</option>
+        <option value="miroirbrise">Miroir brisé qui se reforme</option>
     </select>
 </div>
 
@@ -1083,15 +1224,28 @@
         <option value="underline">Soulignement animé</option>
         <option value="neon">Néon qui s'allume</option>
         <option value="breathing">Respiration douce</option>
+        <option value="glitch">Glitch</option>
+        <option value="cascade">Cascade de lettres</option>
+        <option value="wave">Vague de lettres</option>
+        <option value="shakein">Tremblement d'arrivée</option>
+        <option value="gradientshift">Dégradé animé</option>
     </select>
 </div>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Effet "signature" (nom d'artiste)</span>
-    <label class="switch">
-        <input type="checkbox" id="artiste-signature-toggle" onchange="toggleArtisteSignatureSetting(this.checked)">
-        <span class="slider"></span>
-    </label>
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Style d'apparition (nom d'artiste)</span>
+    <select id="artiste-anim-select" onchange="setArtisteAnimStyle(this.value)" style="background: #1a1a1a; color: #fff; border: 1px solid #444; border-radius: 6px; padding: 4px 6px; font-size: 0.75rem; max-width: 150px;">
+        <option value="none">Aucun</option>
+        <option value="signature">Effet signature</option>
+        <option value="fadein">Fondu simple</option>
+        <option value="slideleft">Glissement (gauche)</option>
+        <option value="typewriter">Machine à écrire</option>
+        <option value="glitch">Glitch</option>
+        <option value="wave">Vague de lettres</option>
+        <option value="blurin">Flou vers net</option>
+        <option value="scalepop">Apparition en pop</option>
+        <option value="gradient">Dégradé animé</option>
+    </select>
 </div>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
@@ -1100,6 +1254,14 @@
         <option value="none">Aucun</option>
         <option value="zoom">Zoom doux</option>
         <option value="karaoke">Karaoké dégradé</option>
+        <option value="underline">Soulignement</option>
+        <option value="waveunderline">Soulignement ondulé</option>
+        <option value="glowpulse">Lueur pulsée</option>
+        <option value="slideright">Glissement latéral</option>
+        <option value="colorflash">Flash de couleur</option>
+        <option value="letterspacing">Espacement des lettres</option>
+        <option value="boldpop">Emphase (gras + pop)</option>
+        <option value="highlight">Surlignage en pastille</option>
     </select>
 </div>
 
@@ -1480,8 +1642,9 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
             if (choice === 'green') {
                 const styleTag = document.createElement('style');
                 styleTag.id = 'lyrics-easter-egg-style';
-                // La ligne active (.lyric-line.active) est plus spécifique et garde donc sa propre couleur de surbrillance
-                styleTag.textContent = `.lyric-line { color: #1DB954 !important; }`;
+                // La ligne active (.lyric-line.active) garde sa propre couleur/effet — on exclut
+                // aussi les lignes utilisant un style d'animation de paroles pour ne pas les écraser.
+                styleTag.textContent = `.lyric-line:not(.active):not(.paroles-anim-line) { color: #1DB954 !important; }`;
                 document.head.appendChild(styleTag);
             }
         }
@@ -1693,7 +1856,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 initTypoEtoileState();
                 initPochetteAnimState();
                 initTitreAnimState();
-                initArtisteSignatureState();
+                initArtisteAnimState();
                 initLyricsEffectsState();
                 initEtagereState();
                 initPochetteIncline3DState();
@@ -2561,6 +2724,54 @@ async function seekToLyricLine(lineIndex) {
     }
 }
 
+const PAROLES_STYLE_CLASSES = ['paroles-style-karaoke', 'paroles-style-underline', 'paroles-style-waveunderline', 'paroles-style-glowpulse', 'paroles-style-colorflash', 'paroles-style-highlight'];
+
+// Applique le style de paroles choisi à une ligne, en repartant toujours d'un état propre —
+// application directe en JS (classe + styles inline) pour une fiabilité garantie, plutôt que de
+// dépendre d'une cascade CSS fragile.
+function applyParolesLineStyle(el, style, durationSec) {
+    el.classList.add('paroles-anim-line');
+    PAROLES_STYLE_CLASSES.forEach(c => el.classList.remove(c));
+    el.style.transform = '';
+    el.style.letterSpacing = '';
+    el.style.fontWeight = '';
+    el.style.animationDuration = '';
+
+    if (style === 'zoom') {
+        el.style.transform = 'scale(1.12)';
+    } else if (style === 'karaoke') {
+        el.style.animationDuration = `${durationSec}s`;
+        el.classList.add('paroles-style-karaoke');
+    } else if (style === 'underline') {
+        el.classList.add('paroles-style-underline');
+    } else if (style === 'waveunderline') {
+        el.classList.add('paroles-style-waveunderline');
+    } else if (style === 'glowpulse') {
+        el.classList.add('paroles-style-glowpulse');
+    } else if (style === 'slideright') {
+        el.style.transform = 'translateX(14px)';
+    } else if (style === 'colorflash') {
+        el.classList.add('paroles-style-colorflash');
+    } else if (style === 'letterspacing') {
+        el.style.letterSpacing = '0.12em';
+    } else if (style === 'boldpop') {
+        el.style.transform = 'scale(1.06)';
+        el.style.fontWeight = '900';
+    } else if (style === 'highlight') {
+        el.classList.add('paroles-style-highlight');
+    }
+}
+
+// Retire proprement tout style de paroles d'une ligne qui n'est plus active
+function clearParolesLineStyle(el) {
+    el.classList.remove('paroles-anim-line');
+    PAROLES_STYLE_CLASSES.forEach(c => el.classList.remove(c));
+    el.style.transform = '';
+    el.style.letterSpacing = '';
+    el.style.fontWeight = '';
+    el.style.animationDuration = '';
+}
+
 function highlightLyrics(currentTime) {
     currentLyrics.forEach((line, i) => {
         const el = document.getElementById(`line-${i}`);
@@ -2570,17 +2781,13 @@ function highlightLyrics(currentTime) {
             if (!el.classList.contains('active')) {
                 document.querySelectorAll('#lyrics-content .lyric-line').forEach(l => {
                     l.classList.remove('active');
+                    clearParolesLineStyle(l);
                 });
                 el.classList.add('active');
 
-                // Ligne active : style choisi (zoom doux OU karaoké dégradé, un seul à la fois)
-                el.classList.toggle('lyrics-anim-active-zoom', parolesAnimStyle === 'zoom');
-                if (parolesAnimStyle === 'karaoke') {
+                if (parolesAnimStyle !== 'none') {
                     const lineDurationSec = next ? Math.max(0.5, next.time - line.time) : 3;
-                    el.style.animationDuration = `${lineDurationSec}s`;
-                    el.classList.add('lyrics-anim-karaoke');
-                } else {
-                    el.classList.remove('lyrics-anim-karaoke');
+                    applyParolesLineStyle(el, parolesAnimStyle, lineDurationSec);
                 }
 
                 // Lignes déjà passées : flou progressif (optionnel)
@@ -6480,7 +6687,12 @@ function injectQuizStyles() {
             top: 14px;
             left: 50%;
             transform: translateX(-50%);
+            transition: top 0.2s ease;
         }
+        /* BUG CORRIGÉ : ce topbar est en position absolue, donc le padding-top de .mp-offset
+           (mini-lecteur flottant actif) n'avait aucun effet dessus et la croix restait cachée
+           sous la barre. On la décale explicitement dans ce cas précis. */
+        #quiz-overlay.mp-offset #quiz-topbar { top: 64px; }
         #quiz-score {
             color: var(--spotify-green, #1DB954);
             font-weight: bold;
@@ -6933,6 +7145,15 @@ function renderPlaylistTracksSection() {
 
     const itemsToDisplay = currentPlaylistTracks.slice(0, displayedTracksCount);
 
+    if (etagereEnabled) {
+        renderHorizontalCoverRow(
+            scrollBox, itemsToDisplay.filter(obj => (obj.item || obj.track)),
+            (obj) => { const t = obj.item || obj.track; return (t.album && t.album.images && t.album.images[0]) ? t.album.images[0].url : null; },
+            (obj) => (obj.item || obj.track).name,
+            (obj) => { const t = obj.item || obj.track; return t.artists && t.artists.length > 0 ? t.artists.map(a => a.name).join(', ') : 'Artiste inconnu'; },
+            (obj) => { const t = obj.item || obj.track; const index = allUris.indexOf(t.uri); playTrackList(allUris, index >= 0 ? index : 0); }
+        );
+    } else {
     itemsToDisplay.forEach((obj, index) => {
         const track = obj.item || obj.track;
         if (!track) return;
@@ -6955,6 +7176,7 @@ function renderPlaylistTracksSection() {
         item.appendChild(buildQueueButton(track.uri));
         scrollBox.appendChild(item);
     });
+    }
 
     if (currentPlaylistTracks.length > displayedTracksCount) {
         const moreBtn = createMoreButton(() => {
@@ -7082,9 +7304,19 @@ function renderQueueSection(data) {
         return;
     }
 
+    if (etagereEnabled) {
+        renderHorizontalCoverRow(
+            resultsContainer, data.queue,
+            (track) => (track.album && track.album.images && track.album.images[0]) ? track.album.images[0].url : null,
+            (track) => track.name,
+            (track) => track.artists && track.artists.length > 0 ? track.artists.map(a => a.name).join(', ') : (track.show ? track.show.name : 'Artiste inconnu'),
+            () => {}
+        );
+    } else {
     data.queue.forEach(track => {
         resultsContainer.appendChild(buildQueueItem(track));
     });
+    }
 }
 
 function buildQueueItem(track) {
@@ -9118,23 +9350,33 @@ let pochetteAnimStyle = localStorage.getItem('pochetteAnimStyle') || 'none';
 function setPochetteAnimStyle(style) {
     pochetteAnimStyle = style;
     localStorage.setItem('pochetteAnimStyle', style);
+    // Le vinyle est un état PERSISTANT (tourne en continu), pas une simple animation d'apparition :
+    // on l'active/désactive immédiatement, sans attendre le prochain changement de titre.
+    const art = document.getElementById('track-art');
+    if (art) art.classList.toggle('pochette-anim-vinyle-active', style === 'vinyle');
 }
 
 function initPochetteAnimState() {
     const select = document.getElementById('pochette-anim-select');
     if (select) select.value = pochetteAnimStyle;
+    const art = document.getElementById('track-art');
+    if (art) art.classList.toggle('pochette-anim-vinyle-active', pochetteAnimStyle === 'vinyle');
 }
 
-const POCHETTE_ANIM_CLASSES = ['pochette-anim-fadescale', 'pochette-anim-blurfocus', 'pochette-anim-crossfade', 'pochette-anim-photodev', 'pochette-anim-shatter', 'pochette-anim-wipe', 'pochette-anim-inkdry'];
+const POCHETTE_ANIM_CLASSES = ['pochette-anim-fadescale', 'pochette-anim-blurfocus', 'pochette-anim-crossfade', 'pochette-anim-photodev', 'pochette-anim-shatter', 'pochette-anim-wipe', 'pochette-anim-inkdry', 'pochette-anim-cassette', 'pochette-anim-polaroid'];
 
 // Appelée à chaque nouvelle pochette chargée (voir hook dans updateNowPlaying / art.onload)
 function applyPochetteAnimStyle() {
     const art = document.getElementById('track-art');
-    if (!art || pochetteAnimStyle === 'none') return;
+    if (!art) return;
+
+    art.classList.toggle('pochette-anim-vinyle-active', pochetteAnimStyle === 'vinyle');
+    if (pochetteAnimStyle === 'none' || pochetteAnimStyle === 'vinyle') return;
 
     if (pochetteAnimStyle === 'puzzle') { applyPochettePuzzleEffect(art); return; }
     if (pochetteAnimStyle === 'spotifyload') { applyPochetteSpotifyShimmer(art); return; }
     if (pochetteAnimStyle === 'rideau') { applyPochetteRideauEffect(art); return; }
+    if (pochetteAnimStyle === 'miroirbrise') { applyPochetteMiroirBriseEffect(art); return; }
 
     const cls = 'pochette-anim-' + pochetteAnimStyle;
     if (!POCHETTE_ANIM_CLASSES.includes(cls)) return;
@@ -9163,9 +9405,21 @@ function applyPochettePuzzleEffect(art) {
     if (getComputedStyle(host).position === 'static') host.style.position = 'relative';
     document.querySelectorAll('.pochette-puzzle-piece').forEach(p => p.remove());
 
-    const rect = art.getBoundingClientRect();
+    // BUG CORRIGÉ (x2) :
+    // 1. getBoundingClientRect() donne une position relative à la FENÊTRE, pas au parent — les
+    //    pièces étaient donc mal positionnées dès que la pochette n'était pas collée au bord de
+    //    l'écran. On utilise maintenant offsetLeft/offsetTop (relatifs au parent positionné).
+    // 2. L'image réelle n'était jamais masquée pendant l'assemblage : elle restait visible en
+    //    dessous du premier au dernier instant, rendant l'effet quasiment invisible.
+    const w = art.offsetWidth, h = art.offsetHeight;
+    if (w === 0 || h === 0) return;
+    const top = art.offsetTop, left = art.offsetLeft;
     const cols = 4, rows = 4;
-    const pieceW = rect.width / cols, pieceH = rect.height / rows;
+    const pieceW = w / cols, pieceH = h / rows;
+    const radius = getComputedStyle(art).borderRadius;
+
+    art.style.transition = 'none';
+    art.style.opacity = '0';
 
     for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
@@ -9173,12 +9427,12 @@ function applyPochettePuzzleEffect(art) {
             piece.className = 'pochette-puzzle-piece';
             piece.style.width = `${pieceW}px`;
             piece.style.height = `${pieceH}px`;
-            piece.style.left = `${c * pieceW}px`;
-            piece.style.top = `${r * pieceH}px`;
+            piece.style.top = `${top + r * pieceH}px`;
+            piece.style.left = `${left + c * pieceW}px`;
             piece.style.backgroundImage = `url(${art.src})`;
-            piece.style.backgroundSize = `${rect.width}px ${rect.height}px`;
+            piece.style.backgroundSize = `${w}px ${h}px`;
             piece.style.backgroundPosition = `-${c * pieceW}px -${r * pieceH}px`;
-            piece.style.borderRadius = getComputedStyle(art).borderRadius;
+            piece.style.borderRadius = radius;
             const scatterX = (Math.random() - 0.5) * 220;
             const scatterY = (Math.random() - 0.5) * 220;
             piece.style.transform = `translate(${scatterX}px, ${scatterY}px) rotate(${(Math.random() - 0.5) * 90}deg)`;
@@ -9190,9 +9444,16 @@ function applyPochettePuzzleEffect(art) {
                     piece.style.opacity = '1';
                 }, 20);
             });
-            setTimeout(() => piece.remove(), 900);
         }
     }
+
+    setTimeout(() => {
+        art.style.opacity = '1';
+        art.style.transition = '';
+    }, 820);
+    setTimeout(() => {
+        document.querySelectorAll('.pochette-puzzle-piece').forEach(p => p.remove());
+    }, 900);
 }
 
 // Rideau (scoped à la pochette) : 2 pans se referment brièvement puis s'écartent pour révéler l'image
@@ -9202,22 +9463,95 @@ function applyPochetteRideauEffect(art) {
     if (getComputedStyle(host).position === 'static') host.style.position = 'relative';
     document.querySelectorAll('.pochette-rideau-panel').forEach(p => p.remove());
 
-    const left = document.createElement('div');
-    left.className = 'pochette-rideau-panel left';
-    const right = document.createElement('div');
-    right.className = 'pochette-rideau-panel right';
-    host.appendChild(left);
-    host.appendChild(right);
+    // BUG CORRIGÉ : les pans étaient dimensionnés en % du parent (toute la carte "lecture en
+    // cours"), pas de l'image. On calcule maintenant leurs dimensions exactes à partir de la
+    // pochette elle-même (offsetWidth/offsetTop/offsetLeft), donc le rideau ne couvre plus QUE
+    // l'image.
+    const w = art.offsetWidth, h = art.offsetHeight;
+    if (w === 0 || h === 0) return;
+    const top = art.offsetTop, left = art.offsetLeft;
+    const panelW = w / 2;
+    const radius = getComputedStyle(art).borderRadius;
+
+    const leftPanel = document.createElement('div');
+    leftPanel.className = 'pochette-rideau-panel left';
+    leftPanel.style.top = `${top}px`;
+    leftPanel.style.left = `${left}px`;
+    leftPanel.style.width = `${panelW}px`;
+    leftPanel.style.height = `${h}px`;
+    leftPanel.style.borderRadius = `${radius} 0 0 ${radius}`;
+
+    const rightPanel = document.createElement('div');
+    rightPanel.className = 'pochette-rideau-panel right';
+    rightPanel.style.top = `${top}px`;
+    rightPanel.style.left = `${left + panelW}px`;
+    rightPanel.style.width = `${panelW}px`;
+    rightPanel.style.height = `${h}px`;
+    rightPanel.style.borderRadius = `0 ${radius} ${radius} 0`;
+
+    host.appendChild(leftPanel);
+    host.appendChild(rightPanel);
 
     // Force un reflow avant l'ouverture, pour que la transition joue à coup sûr (même bug/fix
-    // que le rideau plein écran)
-    void left.offsetHeight;
+    // que le rideau plein écran) — et un seul passage, jamais de répétition/rebond.
+    void leftPanel.offsetHeight;
     setTimeout(() => {
-        left.classList.add('open');
-        right.classList.add('open');
+        leftPanel.classList.add('open');
+        rightPanel.classList.add('open');
     }, 260);
 
-    setTimeout(() => { left.remove(); right.remove(); }, 1200);
+    setTimeout(() => { leftPanel.remove(); rightPanel.remove(); }, 1150);
+}
+
+// Miroir brisé qui se reforme : des éclats convergent depuis l'extérieur avec un flash lumineux
+// (façon verre brisé qui capte la lumière), distinct du puzzle (grille plus fine, pas de flash)
+function applyPochetteMiroirBriseEffect(art) {
+    const host = art.parentElement;
+    if (!host || !art.src) return;
+    if (getComputedStyle(host).position === 'static') host.style.position = 'relative';
+    document.querySelectorAll('.pochette-miroir-piece').forEach(p => p.remove());
+
+    const w = art.offsetWidth, h = art.offsetHeight;
+    if (w === 0 || h === 0) return;
+    const top = art.offsetTop, left = art.offsetLeft;
+    const cols = 3, rows = 3;
+    const pieceW = w / cols, pieceH = h / rows;
+    const radius = getComputedStyle(art).borderRadius;
+
+    art.style.transition = 'none';
+    art.style.opacity = '0';
+
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+            const piece = document.createElement('div');
+            piece.className = 'pochette-puzzle-piece pochette-miroir-piece';
+            piece.style.width = `${pieceW}px`;
+            piece.style.height = `${pieceH}px`;
+            piece.style.top = `${top + r * pieceH}px`;
+            piece.style.left = `${left + c * pieceW}px`;
+            piece.style.backgroundImage = `url(${art.src})`;
+            piece.style.backgroundSize = `${w}px ${h}px`;
+            piece.style.backgroundPosition = `-${c * pieceW}px -${r * pieceH}px`;
+            piece.style.borderRadius = radius;
+            piece.style.filter = 'brightness(2) saturate(0.3)';
+            piece.style.transition = 'transform 0.65s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.5s ease, filter 0.65s ease';
+            const angle = Math.random() * Math.PI * 2;
+            const dist = 140 + Math.random() * 140;
+            piece.style.transform = `translate(${Math.cos(angle) * dist}px, ${Math.sin(angle) * dist}px) rotate(${(Math.random() - 0.5) * 180}deg) scale(0.7)`;
+            piece.style.opacity = '0';
+            host.appendChild(piece);
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    piece.style.transform = 'translate(0, 0) rotate(0deg) scale(1)';
+                    piece.style.opacity = '1';
+                    piece.style.filter = 'brightness(1) saturate(1)';
+                }, 20);
+            });
+        }
+    }
+
+    setTimeout(() => { art.style.opacity = '1'; art.style.transition = ''; }, 700);
+    setTimeout(() => { document.querySelectorAll('.pochette-miroir-piece').forEach(p => p.remove()); }, 780);
 }
 
 // --- Style du titre (menu déroulant) ---
@@ -9235,12 +9569,21 @@ function initTitreAnimState() {
 
 let titreTypewriterTimer = null;
 
+// Découpe un texte en <span> individuels par lettre, avec un délai croissant — utilisé pour les
+// effets "cascade" et "vague" qui animent chaque lettre séparément.
+function wrapLettersInSpans(text, className, delayStepMs) {
+    return text.split('').map((ch, i) => {
+        const display = ch === ' ' ? '&nbsp;' : ch;
+        return `<span class="${className}" style="animation-delay: ${i * delayStepMs}ms">${display}</span>`;
+    }).join('');
+}
+
 // Appelée à chaque changement de titre pour appliquer le style choisi
 function applyTitreAnimStyle(fullTitleText) {
     const titleEl = document.getElementById('track-title');
     if (!titleEl) return;
     clearInterval(titreTypewriterTimer);
-    titleEl.classList.remove('titre-anim-neon', 'titre-anim-breathing', 'titre-anim-typewriter');
+    titleEl.classList.remove('titre-anim-neon', 'titre-anim-breathing', 'titre-anim-typewriter', 'titre-anim-glitch', 'titre-anim-shakein', 'titre-anim-gradientshift');
 
     if (titreAnimStyle === 'typewriter') {
         titleEl.classList.add('titre-anim-typewriter');
@@ -9257,29 +9600,79 @@ function applyTitreAnimStyle(fullTitleText) {
         titleEl.classList.add('titre-anim-neon');
     } else if (titreAnimStyle === 'breathing') {
         titleEl.classList.add('titre-anim-breathing');
+    } else if (titreAnimStyle === 'glitch') {
+        titleEl.innerText = fullTitleText;
+        void titleEl.offsetWidth;
+        titleEl.classList.add('titre-anim-glitch');
+    } else if (titreAnimStyle === 'cascade') {
+        titleEl.innerHTML = wrapLettersInSpans(fullTitleText, 'titre-letter-cascade', 30);
+    } else if (titreAnimStyle === 'wave') {
+        titleEl.innerHTML = wrapLettersInSpans(fullTitleText, 'titre-letter-wave', 40);
+    } else if (titreAnimStyle === 'shakein') {
+        titleEl.innerText = fullTitleText;
+        void titleEl.offsetWidth;
+        titleEl.classList.add('titre-anim-shakein');
+    } else if (titreAnimStyle === 'gradientshift') {
+        titleEl.innerText = fullTitleText;
+        titleEl.classList.add('titre-anim-gradientshift');
     }
 }
 
-// --- Effet "signature" (nom d'artiste) ---
-let artisteSignatureEnabled = localStorage.getItem('artisteSignatureEnabled') === 'true';
+// --- Style d'apparition (nom d'artiste) : menu déroulant, un seul style à la fois ---
+let artisteAnimStyle = localStorage.getItem('artisteAnimStyle') || 'none';
+let artisteTypewriterTimer = null;
 
-function toggleArtisteSignatureSetting(checked) {
-    artisteSignatureEnabled = checked;
-    localStorage.setItem('artisteSignatureEnabled', checked ? 'true' : 'false');
+function setArtisteAnimStyle(style) {
+    artisteAnimStyle = style;
+    localStorage.setItem('artisteAnimStyle', style);
 }
 
-function initArtisteSignatureState() {
-    const toggle = document.getElementById('artiste-signature-toggle');
-    if (toggle) toggle.checked = artisteSignatureEnabled;
+function initArtisteAnimState() {
+    const select = document.getElementById('artiste-anim-select');
+    if (select) select.value = artisteAnimStyle;
 }
 
+// Appelée à chaque changement de titre pour appliquer le style choisi à l'artiste
 function applyArtisteSignatureStyle() {
     const artistEl = document.getElementById('track-artist');
     if (!artistEl) return;
-    artistEl.classList.remove('artiste-anim-signature');
-    if (artisteSignatureEnabled) {
+    clearInterval(artisteTypewriterTimer);
+    artistEl.classList.remove('artiste-anim-signature', 'artiste-anim-fadein', 'artiste-anim-slideleft', 'artiste-anim-typewriter', 'artiste-anim-glitch', 'artiste-anim-blurin', 'artiste-anim-scalepop', 'artiste-anim-gradient');
+    const fullText = artistEl.innerText;
+
+    if (artisteAnimStyle === 'none') return;
+
+    if (artisteAnimStyle === 'signature') {
         void artistEl.offsetWidth;
         artistEl.classList.add('artiste-anim-signature');
+    } else if (artisteAnimStyle === 'fadein') {
+        void artistEl.offsetWidth;
+        artistEl.classList.add('artiste-anim-fadein');
+    } else if (artisteAnimStyle === 'slideleft') {
+        void artistEl.offsetWidth;
+        artistEl.classList.add('artiste-anim-slideleft');
+    } else if (artisteAnimStyle === 'typewriter') {
+        artistEl.classList.add('artiste-anim-typewriter');
+        artistEl.innerText = '';
+        let i = 0;
+        artisteTypewriterTimer = setInterval(() => {
+            artistEl.innerText = fullText.slice(0, i + 1);
+            i++;
+            if (i >= fullText.length) clearInterval(artisteTypewriterTimer);
+        }, 40);
+    } else if (artisteAnimStyle === 'glitch') {
+        void artistEl.offsetWidth;
+        artistEl.classList.add('artiste-anim-glitch');
+    } else if (artisteAnimStyle === 'wave') {
+        artistEl.innerHTML = wrapLettersInSpans(fullText, 'artiste-letter-wave', 35);
+    } else if (artisteAnimStyle === 'blurin') {
+        void artistEl.offsetWidth;
+        artistEl.classList.add('artiste-anim-blurin');
+    } else if (artisteAnimStyle === 'scalepop') {
+        void artistEl.offsetWidth;
+        artistEl.classList.add('artiste-anim-scalepop');
+    } else if (artisteAnimStyle === 'gradient') {
+        artistEl.classList.add('artiste-anim-gradient');
     }
 }
 
@@ -9359,8 +9752,10 @@ function ensureEtagereOverlay() {
         overlay = document.createElement('div');
         overlay.id = 'etagere-overlay';
         overlay.innerHTML = `
-            <button id="etagere-close-btn" onclick="closeEtagere()">✕</button>
-            <p style="color: var(--spotify-green); font-weight: bold; text-align: center; margin-bottom: 20px;">📚 Bibliothèque en étagère</p>
+            <div id="etagere-topbar">
+                <p style="color: var(--spotify-green); font-weight: bold; margin: 0;">📚 Bibliothèque en étagère</p>
+                <button id="etagere-close-btn" onclick="closeEtagere()">✕</button>
+            </div>
             <div id="etagere-shelves-container"></div>
         `;
         document.body.appendChild(overlay);
@@ -9501,10 +9896,14 @@ function ensureStreakBadge() {
 }
 
 // Calcule le nombre de jours consécutifs (jusqu'à aujourd'hui inclus) où il y a eu au moins une
-// écoute, à partir de l'historique déjà stocké localement (listeningHistory).
-function updateStreakBadge() {
+// écoute, à partir de l'historique local (listeningHistory). BUG CORRIGÉ : cet historique n'était
+// alimenté que si l'utilisateur ouvrait le panneau Statistiques — du coup la flamme restait
+// bloquée. On rafraîchit désormais l'historique nous-mêmes avant de calculer la séquence.
+async function updateStreakBadge() {
     if (!streakEnabled) return;
     try {
+        if (currentToken) await fetchListeningStats();
+
         const history = JSON.parse(localStorage.getItem('listeningHistory') || '[]');
         const daysWithListening = new Set(
             history
