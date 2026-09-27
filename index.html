@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v2.30";
+        const APP_VERSION = "v2.31";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -198,6 +198,38 @@
             animation: pochette-vinyle-spin 6s linear infinite;
             box-shadow: 0 0 0 6px #0a0a0a, 0 0 0 7px rgba(255,255,255,0.12), 0 8px 20px rgba(0,0,0,0.55);
         }
+        /* Correction : sur pause, le vinyle arrête de tourner (au lieu de continuer indéfiniment) */
+        #track-art.pochette-anim-vinyle-active.pochette-anim-vinyle-paused {
+            animation-play-state: paused;
+        }
+
+        /* Bras du tourne-disque, posé sur la pochette (style "vinyle qui tourne") : pivote de
+           l'extérieur du disque vers le centre selon la progression réelle du morceau. */
+        #bras-tourne-disque {
+            position: absolute;
+            width: 6px;
+            background: linear-gradient(180deg, #e6e6e6, #8a8a8a);
+            border-radius: 4px;
+            transform-origin: top center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.45);
+            z-index: 6;
+            pointer-events: none;
+            display: none;
+            transition: transform 0.5s ease;
+        }
+        #bras-tourne-disque.visible { display: block; }
+        #bras-tourne-disque::before {
+            content: ''; position: absolute; top: -7px; left: -6px;
+            width: 18px; height: 18px; border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%, #f2f2f2, #7a7a7a 70%, #2e2e2e);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+        #bras-tourne-disque::after {
+            content: ''; position: absolute; bottom: -6px; left: -8px;
+            width: 22px; height: 12px; border-radius: 3px;
+            background: #1c1c1c;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
 
         /* Cassette qui s'insère */
         @keyframes pochette-anim-cassette {
@@ -323,6 +355,23 @@
             animation: artiste-anim-gradient 4s linear infinite;
         }
 
+        /* ---- 3 nouveaux styles d'apparition (nom d'artiste) ---- */
+        /* Dégradé animé, même principe que celui du titre, mais avec des couleurs différentes
+           (palette "coucher de soleil" : orange / rose / jaune) */
+        @keyframes artiste-anim-gradientsunset { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
+        #track-artist.artiste-anim-gradientsunset {
+            background-image: linear-gradient(90deg, #ff9d42, #ff5e8f, #ffd452, #ff9d42);
+            background-size: 300% 100%;
+            -webkit-background-clip: text; background-clip: text; color: transparent;
+            animation: artiste-anim-gradientsunset 4s linear infinite;
+        }
+
+        @keyframes artiste-anim-rotatein { 0% { opacity: 0; transform: perspective(400px) rotateX(60deg); } 100% { opacity: 1; transform: perspective(400px) rotateX(0deg); } }
+        #track-artist.artiste-anim-rotatein { display: inline-block; transform-origin: top center; animation: artiste-anim-rotatein 0.55s ease both; }
+
+        @keyframes artiste-anim-elastic { 0% { opacity: 0; transform: scale(0.3); } 50% { opacity: 1; transform: scale(1.15); } 70% { transform: scale(0.92); } 85% { transform: scale(1.05); } 100% { transform: scale(1); } }
+        #track-artist.artiste-anim-elastic { display: inline-block; animation: artiste-anim-elastic 0.7s cubic-bezier(0.68, -0.55, 0.27, 1.55) both; }
+
         /* ---- Effets sur les lignes de paroles (ligne active) — reconstruit depuis zéro.
            "paroles-anim-line" exempte la ligne de l'écrasement par l'easter egg (voir
            applyLyricsColorEasterEgg) pour garantir que ces effets restent toujours visibles. ---- */
@@ -368,6 +417,26 @@
         .lyric-line.paroles-style-highlight.active {
             background: rgba(29, 185, 84, 0.2); border-radius: 8px; padding: 2px 10px;
             margin-left: -10px; margin-right: -10px; transition: background 0.3s ease;
+        }
+
+        /* ---- 3 nouveaux styles de paroles (ligne active) ---- */
+        @keyframes paroles-anim-shimmer-sweep { from { background-position: 150% 0; } to { background-position: -50% 0; } }
+        .lyric-line.paroles-style-shimmer.active {
+            background-image: linear-gradient(100deg, #ffffff 30%, rgba(255,255,255,0.35) 45%, #ffffff 50%, rgba(255,255,255,0.35) 55%, #ffffff 70%);
+            background-size: 250% 100%; background-position: 150% 0;
+            -webkit-background-clip: text; background-clip: text; color: transparent !important;
+            text-shadow: none !important;
+            animation: paroles-anim-shimmer-sweep 1.8s linear infinite;
+        }
+
+        @keyframes paroles-anim-bounce { 0%, 100% { transform: translateY(0); } 30% { transform: translateY(-9px); } 55% { transform: translateY(2px); } 75% { transform: translateY(-3px); } }
+        .lyric-line.paroles-style-bounce.active { display: inline-block; animation: paroles-anim-bounce 0.6s cubic-bezier(0.36, 0, 0.66, 1) both; }
+
+        @keyframes paroles-anim-neonbox-in { 0% { opacity: 0; box-shadow: 0 0 0 rgba(29,185,84,0); } 100% { opacity: 1; box-shadow: 0 0 12px 2px rgba(29,185,84,0.55), inset 0 0 8px rgba(29,185,84,0.35); } }
+        .lyric-line.paroles-style-neonbox.active {
+            display: inline-block; border: 1px solid rgba(29,185,84,0.8); border-radius: 8px;
+            padding: 2px 12px; margin-left: -12px; margin-right: -12px;
+            animation: paroles-anim-neonbox-in 0.45s ease forwards;
         }
 
         /* ---- Pochette inclinée 3D (lecture en cours) ---- */
@@ -1217,6 +1286,14 @@
 </div>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Bras du tourne-disque sur le vinyle (lecture en cours)</span>
+    <label class="switch">
+        <input type="checkbox" id="bras-tourne-disque-toggle" onchange="toggleBrasTourneDisqueSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
     <span style="font-size: 0.85rem; color: var(--text-grey);">Style du titre</span>
     <select id="titre-anim-select" onchange="setTitreAnimStyle(this.value)" style="background: #1a1a1a; color: #fff; border: 1px solid #444; border-radius: 6px; padding: 4px 6px; font-size: 0.75rem; max-width: 150px;">
         <option value="none">Aucun</option>
@@ -1245,6 +1322,9 @@
         <option value="blurin">Flou vers net</option>
         <option value="scalepop">Apparition en pop</option>
         <option value="gradient">Dégradé animé</option>
+        <option value="gradientsunset">Dégradé animé (coucher de soleil)</option>
+        <option value="rotatein">Rotation d'entrée</option>
+        <option value="elastic">Rebond élastique</option>
     </select>
 </div>
 
@@ -1262,6 +1342,9 @@
         <option value="letterspacing">Espacement des lettres</option>
         <option value="boldpop">Emphase (gras + pop)</option>
         <option value="highlight">Surlignage en pastille</option>
+        <option value="shimmer">Lueur qui balaie le texte</option>
+        <option value="bounce">Petit rebond</option>
+        <option value="neonbox">Encadré néon</option>
     </select>
 </div>
 
@@ -1370,7 +1453,10 @@
                 
                 <div id="search-results"></div>
             </div> <div class="card">
-                <p id="lecture-en-cours-title" style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 0;">LECTURE EN COURS</p>
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <p id="lecture-en-cours-title" style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 0;">LECTURE EN COURS</p>
+                    <button id="pip-btn" onclick="togglePipPanel()" title="Picture-in-picture" style="background: none; border: none; color: #fff; font-size: 1.15rem; cursor: pointer; padding: 2px 6px; line-height: 1;">🖼️</button>
+                </div>
                 <img id="track-art" src="" alt="" style="display:none;" crossorigin="anonymous">
                 <h3 id="track-title">Aucune lecture</h3>
                 <p id="track-artist"></p>
@@ -1857,6 +1943,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 initPochetteAnimState();
                 initTitreAnimState();
                 initArtisteAnimState();
+                initBrasTourneDisqueState();
                 initLyricsEffectsState();
                 initEtagereState();
                 initPochetteIncline3DState();
@@ -2724,7 +2811,7 @@ async function seekToLyricLine(lineIndex) {
     }
 }
 
-const PAROLES_STYLE_CLASSES = ['paroles-style-karaoke', 'paroles-style-underline', 'paroles-style-waveunderline', 'paroles-style-glowpulse', 'paroles-style-colorflash', 'paroles-style-highlight'];
+const PAROLES_STYLE_CLASSES = ['paroles-style-karaoke', 'paroles-style-underline', 'paroles-style-waveunderline', 'paroles-style-glowpulse', 'paroles-style-colorflash', 'paroles-style-highlight', 'paroles-style-shimmer', 'paroles-style-bounce', 'paroles-style-neonbox'];
 
 // Applique le style de paroles choisi à une ligne, en repartant toujours d'un état propre —
 // application directe en JS (classe + styles inline) pour une fiabilité garantie, plutôt que de
@@ -2759,6 +2846,12 @@ function applyParolesLineStyle(el, style, durationSec) {
         el.style.fontWeight = '900';
     } else if (style === 'highlight') {
         el.classList.add('paroles-style-highlight');
+    } else if (style === 'shimmer') {
+        el.classList.add('paroles-style-shimmer');
+    } else if (style === 'bounce') {
+        el.classList.add('paroles-style-bounce');
+    } else if (style === 'neonbox') {
+        el.classList.add('paroles-style-neonbox');
     }
 }
 
@@ -2801,6 +2894,8 @@ function highlightLyrics(currentTime) {
                 if (autoScrollLyricsEnabled) {
                     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
+
+                updatePipPanelContent();
             }
         }
     });
@@ -2894,8 +2989,10 @@ function highlightLyrics(currentTime) {
                             updateThemeModeColors();
                             applyPochetteAnimStyle();
                             updateMiroirLiquideImage();
+                            updatePipPanelContent(true);
                         };
                     }
+                    updatePipPanelContent();
 
                     if (data.item.id !== lastTrackId) {
                         lastTrackId = data.item.id;
@@ -2935,6 +3032,9 @@ function highlightLyrics(currentTime) {
         // La vraie valeur est resynchronisée par updateNowPlaying() toutes les 3s.
         function tickLocalProgress() {
             checkDjPauseState(); // doit tourner même en pause, donc placé AVANT le return anticipé
+            syncVinylSpinState(); // idem : le vinyle doit s'arrêter dès la pause, même sans nouveau titre
+            updateBrasTourneDisquePosition();
+            updatePipPanelContent();
 
             if (!isCurrentlyPlaying || trackDurationMs === 0) return;
 
@@ -9354,6 +9454,8 @@ function setPochetteAnimStyle(style) {
     // on l'active/désactive immédiatement, sans attendre le prochain changement de titre.
     const art = document.getElementById('track-art');
     if (art) art.classList.toggle('pochette-anim-vinyle-active', style === 'vinyle');
+    syncVinylSpinState();
+    updateBrasTourneDisqueVisibility();
 }
 
 function initPochetteAnimState() {
@@ -9361,6 +9463,237 @@ function initPochetteAnimState() {
     if (select) select.value = pochetteAnimStyle;
     const art = document.getElementById('track-art');
     if (art) art.classList.toggle('pochette-anim-vinyle-active', pochetteAnimStyle === 'vinyle');
+    syncVinylSpinState();
+    updateBrasTourneDisqueVisibility();
+}
+
+// --- Bras du tourne-disque sur le vinyle (lecture en cours) ---
+let brasTourneDisqueEnabled = localStorage.getItem('brasTourneDisqueEnabled') === 'true';
+
+function ensureBrasTourneDisqueElement() {
+    let bras = document.getElementById('bras-tourne-disque');
+    if (!bras) {
+        const art = document.getElementById('track-art');
+        if (!art || !art.parentElement) return null;
+        const host = art.parentElement;
+        if (getComputedStyle(host).position === 'static') host.style.position = 'relative';
+        bras = document.createElement('div');
+        bras.id = 'bras-tourne-disque';
+        host.appendChild(bras);
+    }
+    return bras;
+}
+
+function toggleBrasTourneDisqueSetting(checked) {
+    brasTourneDisqueEnabled = checked;
+    localStorage.setItem('brasTourneDisqueEnabled', checked ? 'true' : 'false');
+    updateBrasTourneDisqueVisibility();
+}
+
+function initBrasTourneDisqueState() {
+    const toggle = document.getElementById('bras-tourne-disque-toggle');
+    if (toggle) toggle.checked = brasTourneDisqueEnabled;
+    updateBrasTourneDisqueVisibility();
+}
+
+// Le bras n'a de sens que sur le style de pochette "vinyle qui tourne" : masqué sinon, même si
+// le réglage est activé.
+function updateBrasTourneDisqueVisibility() {
+    const shouldShow = brasTourneDisqueEnabled && pochetteAnimStyle === 'vinyle';
+    if (!shouldShow) {
+        const bras = document.getElementById('bras-tourne-disque');
+        if (bras) bras.classList.remove('visible');
+        return;
+    }
+    const bras = ensureBrasTourneDisqueElement();
+    if (!bras) return;
+    bras.classList.add('visible');
+    updateBrasTourneDisquePosition();
+}
+
+// Repositionne le bras au-dessus de la pochette et fait pivoter la tête de lecture selon la
+// progression réelle du morceau (de l'extérieur du disque, au début, vers le centre, à la fin).
+function updateBrasTourneDisquePosition() {
+    const bras = document.getElementById('bras-tourne-disque');
+    if (!bras || !bras.classList.contains('visible')) return;
+    const art = document.getElementById('track-art');
+    if (!art) return;
+
+    const armHeight = Math.round(art.offsetHeight * 0.58) || 87;
+    bras.style.top = `${art.offsetTop - 14}px`;
+    bras.style.left = `${art.offsetLeft + art.offsetWidth - 16}px`;
+    bras.style.height = `${armHeight}px`;
+
+    const progressRatio = trackDurationMs > 0 ? Math.min(1, currentProgressMs / trackDurationMs) : 0;
+    const angle = -22 + (progressRatio * 34); // -22° (bord extérieur) → +12° (vers le centre)
+    bras.style.transform = `rotate(${angle}deg)`;
+}
+
+// ==========================================
+// 🆕 PANNEAU FLOTTANT "PICTURE-IN-PICTURE" (façon Twitch)
+// Vue 1 (par défaut) : pochette à gauche + ligne de parole active/suivante, fond teinté par la
+// couleur dominante de la pochette. Un clic sur la pochette bascule vers la vue 2 : titre, artiste,
+// minuteur et bouton pause/reprendre (plus de paroles).
+// ==========================================
+let pipPanelOpen = false;
+let pipShowingInfo = false;
+let pipLastCoverSrc = '';
+
+function injectPipStyles() {
+    if (document.getElementById('pip-panel-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'pip-panel-inline-style';
+    styleTag.textContent = `
+        #pip-panel {
+            display: none;
+            position: fixed;
+            bottom: 20px; right: 20px;
+            width: 300px;
+            z-index: 9500;
+            border-radius: 16px;
+            padding: 12px;
+            box-sizing: border-box;
+            background: linear-gradient(135deg, rgba(var(--pip-bg-color, 29, 185, 84), 0.55), rgba(10, 10, 10, 0.92));
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+            border: 1px solid rgba(255,255,255,0.12);
+        }
+        #pip-panel.visible { display: flex; align-items: flex-start; gap: 10px; }
+        #pip-close-btn {
+            position: absolute; top: 6px; right: 8px;
+            background: rgba(0,0,0,0.35); border: none; color: #fff;
+            width: 20px; height: 20px; border-radius: 50%;
+            font-size: 0.7rem; cursor: pointer; line-height: 1;
+        }
+        #pip-cover {
+            width: 64px; height: 64px; border-radius: 8px; object-fit: cover;
+            cursor: pointer; flex-shrink: 0; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            transition: transform 0.2s ease;
+        }
+        #pip-cover:hover { transform: scale(1.05); }
+        #pip-content { flex: 1; min-width: 0; padding-top: 4px; }
+        #pip-lyric-current { color: #fff; font-weight: bold; font-size: 0.92rem; line-height: 1.3; }
+        #pip-lyric-next { color: rgba(255,255,255,0.65); font-size: 0.8rem; margin-top: 4px; }
+        #pip-view-info { display: flex; flex-direction: column; gap: 4px; }
+        #pip-info-title { color: #fff; font-weight: bold; font-size: 0.92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        #pip-info-artist { color: rgba(255,255,255,0.7); font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        #pip-info-timer { color: rgba(255,255,255,0.6); font-size: 0.75rem; margin-top: 2px; }
+        #pip-info-playpause {
+            align-self: flex-start; margin-top: 6px; background: rgba(255,255,255,0.18);
+            border: none; color: #fff; font-size: 1.1rem; border-radius: 50%;
+            width: 34px; height: 34px; cursor: pointer;
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+
+function ensurePipPanel() {
+    let panel = document.getElementById('pip-panel');
+    if (panel) return panel;
+    injectPipStyles();
+    panel = document.createElement('div');
+    panel.id = 'pip-panel';
+    panel.innerHTML = `
+        <button id="pip-close-btn" onclick="closePipPanel()" title="Fermer">✕</button>
+        <img id="pip-cover" onclick="togglePipView()" title="Cliquer pour changer de vue" crossorigin="anonymous">
+        <div id="pip-content">
+            <div id="pip-view-lyrics">
+                <div id="pip-lyric-current">♪</div>
+                <div id="pip-lyric-next"></div>
+            </div>
+            <div id="pip-view-info" style="display:none;">
+                <div id="pip-info-title">—</div>
+                <div id="pip-info-artist"></div>
+                <div id="pip-info-timer">0:00 / 0:00</div>
+                <button id="pip-info-playpause" onclick="togglePlay()">▶️</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(panel);
+    return panel;
+}
+
+function togglePipPanel() {
+    const panel = ensurePipPanel();
+    pipPanelOpen = !pipPanelOpen;
+    panel.classList.toggle('visible', pipPanelOpen);
+    if (pipPanelOpen) updatePipPanelContent(true);
+}
+
+function closePipPanel() {
+    pipPanelOpen = false;
+    const panel = document.getElementById('pip-panel');
+    if (panel) panel.classList.remove('visible');
+}
+
+// Clic sur la pochette du panneau : bascule entre la vue "paroles" (par défaut) et la vue "infos"
+function togglePipView() {
+    pipShowingInfo = !pipShowingInfo;
+    const viewLyrics = document.getElementById('pip-view-lyrics');
+    const viewInfo = document.getElementById('pip-view-info');
+    if (viewLyrics) viewLyrics.style.display = pipShowingInfo ? 'none' : 'block';
+    if (viewInfo) viewInfo.style.display = pipShowingInfo ? 'flex' : 'none';
+}
+
+// Récupère la ligne de parole active et la suivante depuis le DOM des paroles principal
+function getPipLyricLines() {
+    const activeEl = document.querySelector('#lyrics-content .lyric-line.active');
+    if (!activeEl) return { current: '', next: '' };
+    const current = (activeEl.innerText || activeEl.textContent || '').trim();
+    let nextEl = activeEl.nextElementSibling;
+    while (nextEl && !nextEl.classList.contains('lyric-line')) nextEl = nextEl.nextElementSibling;
+    const next = nextEl ? (nextEl.innerText || nextEl.textContent || '').trim() : '';
+    return { current, next };
+}
+
+// Rafraîchit le contenu du panneau (pochette, couleur dominante, paroles, infos). Ne fait rien
+// tant que le panneau n'est pas ouvert (appelée en continu depuis tickLocalProgress).
+function updatePipPanelContent(forceColor) {
+    const panel = document.getElementById('pip-panel');
+    if (!panel || !pipPanelOpen) return;
+
+    const art = document.getElementById('track-art');
+    const cover = document.getElementById('pip-cover');
+    if (art && cover && art.src && cover.src !== art.src) {
+        cover.src = art.src;
+    }
+    if (art && art.src && (forceColor || art.src !== pipLastCoverSrc)) {
+        pipLastCoverSrc = art.src;
+        getDominantColorFromImageSrc(art.src, (rgb) => {
+            if (rgb) panel.style.setProperty('--pip-bg-color', rgb);
+        });
+    }
+
+    const { current, next } = getPipLyricLines();
+    const curEl = document.getElementById('pip-lyric-current');
+    const nextEl = document.getElementById('pip-lyric-next');
+    if (curEl) curEl.innerText = current || '♪';
+    if (nextEl) nextEl.innerText = next || '';
+
+    const mainTitle = document.getElementById('track-title');
+    const mainArtist = document.getElementById('track-artist');
+    const titleEl = document.getElementById('pip-info-title');
+    const artistEl = document.getElementById('pip-info-artist');
+    const timerEl = document.getElementById('pip-info-timer');
+    const ppBtn = document.getElementById('pip-info-playpause');
+    if (titleEl && mainTitle) titleEl.innerText = mainTitle.innerText;
+    if (artistEl && mainArtist) artistEl.innerText = mainArtist.innerText;
+    if (timerEl) {
+        const cur = document.getElementById('time-current');
+        const max = document.getElementById('time-max');
+        timerEl.innerText = `${cur ? cur.innerText : '0:00'} / ${max ? max.innerText : '0:00'}`;
+    }
+    if (ppBtn) ppBtn.innerText = isCurrentlyPlaying ? '⏸' : '▶️';
+}
+
+// Correction : quand la lecture est en pause, le vinyle qui tourne (style d'apparition de la
+// pochette) doit s'arrêter de tourner — et repartir dès que la lecture reprend.
+function syncVinylSpinState() {
+    const art = document.getElementById('track-art');
+    if (!art) return;
+    const shouldPause = pochetteAnimStyle === 'vinyle' && !isCurrentlyPlaying;
+    art.classList.toggle('pochette-anim-vinyle-paused', shouldPause);
 }
 
 const POCHETTE_ANIM_CLASSES = ['pochette-anim-fadescale', 'pochette-anim-blurfocus', 'pochette-anim-crossfade', 'pochette-anim-photodev', 'pochette-anim-shatter', 'pochette-anim-wipe', 'pochette-anim-inkdry', 'pochette-anim-cassette', 'pochette-anim-polaroid'];
@@ -9637,7 +9970,7 @@ function applyArtisteSignatureStyle() {
     const artistEl = document.getElementById('track-artist');
     if (!artistEl) return;
     clearInterval(artisteTypewriterTimer);
-    artistEl.classList.remove('artiste-anim-signature', 'artiste-anim-fadein', 'artiste-anim-slideleft', 'artiste-anim-typewriter', 'artiste-anim-glitch', 'artiste-anim-blurin', 'artiste-anim-scalepop', 'artiste-anim-gradient');
+    artistEl.classList.remove('artiste-anim-signature', 'artiste-anim-fadein', 'artiste-anim-slideleft', 'artiste-anim-typewriter', 'artiste-anim-glitch', 'artiste-anim-blurin', 'artiste-anim-scalepop', 'artiste-anim-gradient', 'artiste-anim-gradientsunset', 'artiste-anim-rotatein', 'artiste-anim-elastic');
     const fullText = artistEl.innerText;
 
     if (artisteAnimStyle === 'none') return;
@@ -9673,6 +10006,14 @@ function applyArtisteSignatureStyle() {
         artistEl.classList.add('artiste-anim-scalepop');
     } else if (artisteAnimStyle === 'gradient') {
         artistEl.classList.add('artiste-anim-gradient');
+    } else if (artisteAnimStyle === 'gradientsunset') {
+        artistEl.classList.add('artiste-anim-gradientsunset');
+    } else if (artisteAnimStyle === 'rotatein') {
+        void artistEl.offsetWidth;
+        artistEl.classList.add('artiste-anim-rotatein');
+    } else if (artisteAnimStyle === 'elastic') {
+        void artistEl.offsetWidth;
+        artistEl.classList.add('artiste-anim-elastic');
     }
 }
 
