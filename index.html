@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v2.36";
+        const APP_VERSION = "v2.37";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -610,6 +610,28 @@
             text-shadow: none !important;
             animation: paroles-anim-karaoke-fill linear forwards;
         }
+
+        /* ---- Effet de chaleur : halo lumineux de la couleur dominante de la pochette (--heat-color),
+           compatible avec tous les styles de paroles (filter au lieu de text-shadow) ---- */
+        @keyframes paroles-heat-flicker {
+            0%, 100% { filter: drop-shadow(0 0 5px rgba(var(--heat-color, 255, 140, 60), 0.8)) drop-shadow(0 0 14px rgba(var(--heat-color, 255, 140, 60), 0.5)); }
+            35%      { filter: drop-shadow(0 0 9px rgba(var(--heat-color, 255, 140, 60), 0.95)) drop-shadow(0 0 26px rgba(var(--heat-color, 255, 140, 60), 0.65)); }
+            60%      { filter: drop-shadow(0 0 6px rgba(var(--heat-color, 255, 140, 60), 0.85)) drop-shadow(0 0 18px rgba(var(--heat-color, 255, 140, 60), 0.55)); }
+        }
+        body.paroles-heat-on { --kw-sung: rgb(var(--heat-color-light, 255, 220, 180)); }
+        body.paroles-heat-on .lyric-line.active {
+            filter: drop-shadow(0 0 6px rgba(var(--heat-color, 255, 140, 60), 0.85)) drop-shadow(0 0 18px rgba(var(--heat-color, 255, 140, 60), 0.55));
+        }
+        body.paroles-heat-on .lyric-line.active:not([class*="paroles-style-"]) {
+            color: rgb(var(--heat-color-light, 255, 220, 180));
+            animation: paroles-heat-flicker 2.4s ease-in-out infinite;
+        }
+        body.paroles-heat-on #pip-lyric-current { text-shadow: 0 0 10px rgba(var(--heat-color, 255, 140, 60), 0.85); }
+
+        /* ---- Karaoké mot par mot : chaque mot s'allume au moment où il est chanté ---- */
+        @keyframes kw-light { from { color: rgba(255,255,255,0.45); } to { color: var(--kw-sung, var(--spotify-green)); } }
+        .lyric-line.kw-line .kw { display: inline-block; color: rgba(255,255,255,0.45); animation: kw-light 0.3s ease forwards; }
+        #lyrics-content.kw-paused .kw { animation-play-state: paused; }
 
         @keyframes paroles-anim-underline-draw { from { width: 0; } to { width: 100%; } }
         .lyric-line.paroles-style-underline.active { position: relative; display: inline-block; padding-bottom: 4px; }
@@ -1591,6 +1613,22 @@
 </div>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Effet de chaleur sur la ligne active (couleur de la pochette)</span>
+    <label class="switch">
+        <input type="checkbox" id="paroles-heat-toggle" onchange="toggleParolesHeatSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Karaoké mot par mot</span>
+    <label class="switch">
+        <input type="checkbox" id="word-karaoke-toggle" onchange="toggleWordKaraokeSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
     <span style="font-size: 0.85rem; color: var(--text-grey);">Flou progressif des lignes passées</span>
     <label class="switch">
         <input type="checkbox" id="lyrics-blur-past-toggle" onchange="toggleLyricsBlurPastSetting(this.checked)">
@@ -2185,6 +2223,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 initTitreAnimState();
                 initArtisteAnimState();
                 initBrasTourneDisqueState();
+                initParolesEffectsState();
                 initPipFeatureState();
                 initLyricsEffectsState();
                 initEtagereState();
@@ -3097,8 +3136,105 @@ function applyParolesLineStyle(el, style, durationSec) {
     }
 }
 
+
+// ==========================================
+// 🔥 Effet de chaleur (ligne active) + 🎤 Karaoké mot par mot — deux réglages indépendants,
+// désactivés par défaut, combinables avec n'importe quel style de paroles.
+// ==========================================
+let parolesHeatEnabled = localStorage.getItem('parolesHeatEnabled') === 'true';
+let wordKaraokeEnabled = localStorage.getItem('wordKaraokeEnabled') === 'true';
+
+function toggleParolesHeatSetting(checked) {
+    parolesHeatEnabled = checked;
+    localStorage.setItem('parolesHeatEnabled', checked ? 'true' : 'false');
+    document.body.classList.toggle('paroles-heat-on', checked);
+    if (checked) updateHeatColor();
+}
+
+// Couleur du halo = couleur dominante de la pochette, éclaircie pour le texte et rehaussée si la
+// pochette est très sombre (sinon le halo serait invisible).
+function updateHeatColor() {
+    if (!parolesHeatEnabled) return;
+    const art = document.getElementById('track-art');
+    if (!art || !art.src) return;
+    getDominantColorFromImageSrc(art.src, (rgb) => {
+        if (!rgb) return;
+        let [r, g, b] = rgb.split(',').map(n => parseInt(n, 10));
+        const maxC = Math.max(r, g, b, 1);
+        const boost = maxC < 150 ? 150 / maxC : 1;
+        r = Math.min(255, Math.round(r * boost)); g = Math.min(255, Math.round(g * boost)); b = Math.min(255, Math.round(b * boost));
+        const light = c => Math.round(c + (255 - c) * 0.55);
+        const root = document.documentElement.style;
+        root.setProperty('--heat-color', `${r}, ${g}, ${b}`);
+        root.setProperty('--heat-color-light', `${light(r)}, ${light(g)}, ${light(b)}`);
+    });
+}
+
+function toggleWordKaraokeSetting(checked) {
+    wordKaraokeEnabled = checked;
+    localStorage.setItem('wordKaraokeEnabled', checked ? 'true' : 'false');
+    const activeEl = document.querySelector('#lyrics-content .lyric-line.active');
+    if (!activeEl) return;
+    if (!checked) { restoreWordKaraoke(activeEl); return; }
+    const idx = parseInt((activeEl.id || '').replace('line-', ''), 10);
+    const line = currentLyrics[idx];
+    if (line) {
+        const next = currentLyrics[idx + 1];
+        applyWordKaraoke(activeEl, line.time, next ? next.time : null, currentProgressMs / 1000);
+    }
+}
+
+function initParolesEffectsState() {
+    const heatToggle = document.getElementById('paroles-heat-toggle');
+    if (heatToggle) heatToggle.checked = parolesHeatEnabled;
+    document.body.classList.toggle('paroles-heat-on', parolesHeatEnabled);
+    updateHeatColor();
+    const kwToggle = document.getElementById('word-karaoke-toggle');
+    if (kwToggle) kwToggle.checked = wordKaraokeEnabled;
+}
+
+function escapeKaraokeHtml(t) {
+    return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// Découpe la ligne active en mots ; chaque mot a un délai d'animation proportionnel à sa position
+// dans la ligne (le délai est réduit du temps déjà écoulé, pour rester synchro même si la ligne est
+// détectée avec un peu de retard ou après un saut dans le morceau).
+function applyWordKaraoke(el, startTime, endTime, currentTime) {
+    if (!el) return;
+    if (el.dataset.kwOrig === undefined) el.dataset.kwOrig = el.innerHTML;
+    const tokens = el.textContent.split(/(\s+)/);
+    const totalChars = tokens.filter(t => t.trim() !== '').reduce((a, w) => a + w.length, 0) || 1;
+    const lineDuration = Math.max(0.8, (endTime !== null && endTime !== undefined ? endTime : startTime + 4) - startTime);
+    const usable = Math.min(lineDuration * 0.9, totalChars * 0.1 + 0.6);
+    const elapsed = Math.max(0, currentTime - startTime);
+    let acc = 0;
+    el.innerHTML = tokens.map(t => {
+        if (t.trim() === '') return t;
+        const delay = (acc / totalChars) * usable - elapsed;
+        acc += t.length;
+        return `<span class="kw" style="animation-delay:${delay.toFixed(2)}s">${escapeKaraokeHtml(t)}</span>`;
+    }).join('');
+    el.classList.add('kw-line');
+    syncWordKaraokeState();
+}
+
+function restoreWordKaraoke(el) {
+    if (!el || el.dataset.kwOrig === undefined) return;
+    el.innerHTML = el.dataset.kwOrig;
+    delete el.dataset.kwOrig;
+    el.classList.remove('kw-line');
+}
+
+// En pause, les mots arrêtent de s'allumer (comme le vinyle) et repartent à la reprise.
+function syncWordKaraokeState() {
+    const box = document.getElementById('lyrics-content');
+    if (box) box.classList.toggle('kw-paused', !isCurrentlyPlaying);
+}
+
 // Retire proprement tout style de paroles d'une ligne qui n'est plus active
 function clearParolesLineStyle(el) {
+    restoreWordKaraoke(el);
     el.classList.remove('paroles-anim-line');
     PAROLES_STYLE_CLASSES.forEach(c => el.classList.remove(c));
     el.style.transform = '';
@@ -3122,8 +3258,13 @@ function highlightLyrics(currentTime) {
 
                 if (parolesAnimStyle !== 'none') {
                     const lineDurationSec = next ? Math.max(0.5, next.time - line.time) : 3;
-                    applyParolesLineStyle(el, parolesAnimStyle, lineDurationSec);
+                    // Avec le karaoké mot par mot, le balayage "Karaoké dégradé" ferait double emploi
+                    if (!(wordKaraokeEnabled && parolesAnimStyle === 'karaoke')) {
+                        applyParolesLineStyle(el, parolesAnimStyle, lineDurationSec);
+                    }
                 }
+
+                if (wordKaraokeEnabled) applyWordKaraoke(el, line.time, next ? next.time : null, currentTime);
 
                 // Lignes déjà passées : flou progressif (optionnel)
                 if (lyricsBlurPastEnabled) {
@@ -3232,6 +3373,7 @@ function highlightLyrics(currentTime) {
                             applyPochetteAnimStyle();
                             updateMiroirLiquideImage();
                             updateBrasTourneDisqueVisibility();
+                            updateHeatColor();
                             updatePipPanelContent(true);
                         };
                     }
@@ -3275,6 +3417,7 @@ function highlightLyrics(currentTime) {
         // La vraie valeur est resynchronisée par updateNowPlaying() toutes les 3s.
         function tickLocalProgress() {
             checkDjPauseState(); // doit tourner même en pause, donc placé AVANT le return anticipé
+            syncWordKaraokeState();
             syncVinylSpinState(); // idem : le vinyle doit s'arrêter dès la pause, même sans nouveau titre
             updateBrasTourneDisquePosition();
             updatePipPanelContent();
