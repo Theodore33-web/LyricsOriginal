@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v2.31";
+        const APP_VERSION = "v2.33";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -16,7 +16,7 @@
     <script src="https://apis.google.com/js/api.js" async defer></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700&family=Playfair+Display:ital@1&family=Caveat:wght@600&family=Audiowide&family=Bangers&family=Montserrat:wght@300;900&family=Righteous&family=Anton&display=swap" rel="stylesheet">
     <style>
    :root {
             --spotify-green: #1DB954;
@@ -124,6 +124,8 @@
         body.typo-etoile-active #mini-player-artist,
         body.typo-etoile-active #mini-player-times,
         body.typo-etoile-active #explorer-rechercher-title,
+        body.typo-etoile-active #pip-lyric-current,
+        body.typo-etoile-active #pip-info-title,
         body.typo-etoile-active #lecture-en-cours-title {
             font-family: 'Orbitron', 'Segoe UI', sans-serif !important;
             letter-spacing: 0.06em;
@@ -131,6 +133,184 @@
                 0 0 4px rgba(255, 255, 255, 0.55),
                 0 0 10px rgba(180, 220, 255, 0.35),
                 0 0 18px rgba(120, 180, 255, 0.2);
+        }
+
+        /* ---- Typographies supplémentaires (menu déroulant Typographie) ---- */
+        body.typo-typewriter-active #track-title,
+        body.typo-typewriter-active #track-artist,
+        body.typo-typewriter-active #time-current,
+        body.typo-typewriter-active #time-max,
+        body.typo-typewriter-active #lyrics-content,
+        body.typo-typewriter-active #lyrics-content .lyric-line,
+        body.typo-typewriter-active #tp-track-title,
+        body.typo-typewriter-active #tp-track-artist,
+        body.typo-typewriter-active #tp-timer-display,
+        body.typo-typewriter-active #tp-lyrics-content,
+        body.typo-typewriter-active #mini-player-title,
+        body.typo-typewriter-active #mini-player-artist,
+        body.typo-typewriter-active #mini-player-times,
+        body.typo-typewriter-active #explorer-rechercher-title,
+        body.typo-typewriter-active #lecture-en-cours-title,
+        body.typo-typewriter-active #pip-lyric-current,
+        body.typo-typewriter-active #pip-lyric-next,
+        body.typo-typewriter-active #pip-info-title,
+        body.typo-typewriter-active #pip-info-artist,
+        body.typo-typewriter-active #pip-info-timer {
+            font-family: 'Courier New', Courier, monospace !important; letter-spacing: 0.02em;
+        }
+        body.typo-elegante-active #track-title,
+        body.typo-elegante-active #track-artist,
+        body.typo-elegante-active #time-current,
+        body.typo-elegante-active #time-max,
+        body.typo-elegante-active #lyrics-content,
+        body.typo-elegante-active #lyrics-content .lyric-line,
+        body.typo-elegante-active #tp-track-title,
+        body.typo-elegante-active #tp-track-artist,
+        body.typo-elegante-active #tp-timer-display,
+        body.typo-elegante-active #tp-lyrics-content,
+        body.typo-elegante-active #mini-player-title,
+        body.typo-elegante-active #mini-player-artist,
+        body.typo-elegante-active #mini-player-times,
+        body.typo-elegante-active #explorer-rechercher-title,
+        body.typo-elegante-active #lecture-en-cours-title,
+        body.typo-elegante-active #pip-lyric-current,
+        body.typo-elegante-active #pip-lyric-next,
+        body.typo-elegante-active #pip-info-title,
+        body.typo-elegante-active #pip-info-artist,
+        body.typo-elegante-active #pip-info-timer {
+            font-family: 'Playfair Display', Georgia, serif !important; font-style: italic; letter-spacing: 0.02em;
+        }
+        body.typo-manuscrite-active #track-title,
+        body.typo-manuscrite-active #track-artist,
+        body.typo-manuscrite-active #time-current,
+        body.typo-manuscrite-active #time-max,
+        body.typo-manuscrite-active #lyrics-content,
+        body.typo-manuscrite-active #lyrics-content .lyric-line,
+        body.typo-manuscrite-active #tp-track-title,
+        body.typo-manuscrite-active #tp-track-artist,
+        body.typo-manuscrite-active #tp-timer-display,
+        body.typo-manuscrite-active #tp-lyrics-content,
+        body.typo-manuscrite-active #mini-player-title,
+        body.typo-manuscrite-active #mini-player-artist,
+        body.typo-manuscrite-active #mini-player-times,
+        body.typo-manuscrite-active #explorer-rechercher-title,
+        body.typo-manuscrite-active #lecture-en-cours-title,
+        body.typo-manuscrite-active #pip-lyric-current,
+        body.typo-manuscrite-active #pip-lyric-next,
+        body.typo-manuscrite-active #pip-info-title,
+        body.typo-manuscrite-active #pip-info-artist,
+        body.typo-manuscrite-active #pip-info-timer {
+            font-family: 'Caveat', cursive !important; letter-spacing: 0.03em;
+        }
+        body.typo-futuriste-active #track-title,
+        body.typo-futuriste-active #track-artist,
+        body.typo-futuriste-active #time-current,
+        body.typo-futuriste-active #time-max,
+        body.typo-futuriste-active #lyrics-content,
+        body.typo-futuriste-active #lyrics-content .lyric-line,
+        body.typo-futuriste-active #tp-track-title,
+        body.typo-futuriste-active #tp-track-artist,
+        body.typo-futuriste-active #tp-timer-display,
+        body.typo-futuriste-active #tp-lyrics-content,
+        body.typo-futuriste-active #mini-player-title,
+        body.typo-futuriste-active #mini-player-artist,
+        body.typo-futuriste-active #mini-player-times,
+        body.typo-futuriste-active #explorer-rechercher-title,
+        body.typo-futuriste-active #lecture-en-cours-title,
+        body.typo-futuriste-active #pip-lyric-current,
+        body.typo-futuriste-active #pip-lyric-next,
+        body.typo-futuriste-active #pip-info-title,
+        body.typo-futuriste-active #pip-info-artist,
+        body.typo-futuriste-active #pip-info-timer {
+            font-family: 'Audiowide', 'Segoe UI', sans-serif !important; letter-spacing: 0.05em; text-shadow: 0 0 6px rgba(82,200,255,0.7), 0 0 14px rgba(82,200,255,0.4);
+        }
+        body.typo-graffiti-active #track-title,
+        body.typo-graffiti-active #track-artist,
+        body.typo-graffiti-active #time-current,
+        body.typo-graffiti-active #time-max,
+        body.typo-graffiti-active #lyrics-content,
+        body.typo-graffiti-active #lyrics-content .lyric-line,
+        body.typo-graffiti-active #tp-track-title,
+        body.typo-graffiti-active #tp-track-artist,
+        body.typo-graffiti-active #tp-timer-display,
+        body.typo-graffiti-active #tp-lyrics-content,
+        body.typo-graffiti-active #mini-player-title,
+        body.typo-graffiti-active #mini-player-artist,
+        body.typo-graffiti-active #mini-player-times,
+        body.typo-graffiti-active #explorer-rechercher-title,
+        body.typo-graffiti-active #lecture-en-cours-title,
+        body.typo-graffiti-active #pip-lyric-current,
+        body.typo-graffiti-active #pip-lyric-next,
+        body.typo-graffiti-active #pip-info-title,
+        body.typo-graffiti-active #pip-info-artist,
+        body.typo-graffiti-active #pip-info-timer {
+            font-family: 'Bangers', cursive !important; letter-spacing: 0.04em; text-shadow: 2px 2px 0 rgba(0,0,0,0.45);
+        }
+        body.typo-minimaliste-active #track-title,
+        body.typo-minimaliste-active #track-artist,
+        body.typo-minimaliste-active #time-current,
+        body.typo-minimaliste-active #time-max,
+        body.typo-minimaliste-active #lyrics-content,
+        body.typo-minimaliste-active #lyrics-content .lyric-line,
+        body.typo-minimaliste-active #tp-track-title,
+        body.typo-minimaliste-active #tp-track-artist,
+        body.typo-minimaliste-active #tp-timer-display,
+        body.typo-minimaliste-active #tp-lyrics-content,
+        body.typo-minimaliste-active #mini-player-title,
+        body.typo-minimaliste-active #mini-player-artist,
+        body.typo-minimaliste-active #mini-player-times,
+        body.typo-minimaliste-active #explorer-rechercher-title,
+        body.typo-minimaliste-active #lecture-en-cours-title,
+        body.typo-minimaliste-active #pip-lyric-current,
+        body.typo-minimaliste-active #pip-lyric-next,
+        body.typo-minimaliste-active #pip-info-title,
+        body.typo-minimaliste-active #pip-info-artist,
+        body.typo-minimaliste-active #pip-info-timer {
+            font-family: 'Montserrat', 'Segoe UI', sans-serif !important; font-weight: 300; letter-spacing: 0.16em; text-transform: uppercase;
+        }
+        body.typo-discoretro-active #track-title,
+        body.typo-discoretro-active #track-artist,
+        body.typo-discoretro-active #time-current,
+        body.typo-discoretro-active #time-max,
+        body.typo-discoretro-active #lyrics-content,
+        body.typo-discoretro-active #lyrics-content .lyric-line,
+        body.typo-discoretro-active #tp-track-title,
+        body.typo-discoretro-active #tp-track-artist,
+        body.typo-discoretro-active #tp-timer-display,
+        body.typo-discoretro-active #tp-lyrics-content,
+        body.typo-discoretro-active #mini-player-title,
+        body.typo-discoretro-active #mini-player-artist,
+        body.typo-discoretro-active #mini-player-times,
+        body.typo-discoretro-active #explorer-rechercher-title,
+        body.typo-discoretro-active #lecture-en-cours-title,
+        body.typo-discoretro-active #pip-lyric-current,
+        body.typo-discoretro-active #pip-lyric-next,
+        body.typo-discoretro-active #pip-info-title,
+        body.typo-discoretro-active #pip-info-artist,
+        body.typo-discoretro-active #pip-info-timer {
+            font-family: 'Righteous', 'Segoe UI', sans-serif !important; letter-spacing: 0.03em; text-shadow: 0 0 8px rgba(255,180,80,0.55);
+        }
+        body.typo-olympia-active #track-title,
+        body.typo-olympia-active #track-artist,
+        body.typo-olympia-active #time-current,
+        body.typo-olympia-active #time-max,
+        body.typo-olympia-active #lyrics-content,
+        body.typo-olympia-active #lyrics-content .lyric-line,
+        body.typo-olympia-active #tp-track-title,
+        body.typo-olympia-active #tp-track-artist,
+        body.typo-olympia-active #tp-timer-display,
+        body.typo-olympia-active #tp-lyrics-content,
+        body.typo-olympia-active #mini-player-title,
+        body.typo-olympia-active #mini-player-artist,
+        body.typo-olympia-active #mini-player-times,
+        body.typo-olympia-active #explorer-rechercher-title,
+        body.typo-olympia-active #lecture-en-cours-title,
+        body.typo-olympia-active #pip-lyric-current,
+        body.typo-olympia-active #pip-lyric-next,
+        body.typo-olympia-active #pip-info-title,
+        body.typo-olympia-active #pip-info-artist,
+        body.typo-olympia-active #pip-info-timer {
+            font-family: 'Anton', 'Arial Black', sans-serif !important; font-weight: 400; letter-spacing: 0.12em; text-transform: uppercase;
         }
 
         /* ==========================================
@@ -959,11 +1139,27 @@
 </div>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Typographie étoile</span>
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Panneau Picture-in-picture 🖼️</span>
     <label class="switch">
-        <input type="checkbox" id="typo-etoile-toggle" onchange="toggleTypoEtoileSetting(this.checked)">
+        <input type="checkbox" id="pip-feature-toggle" onchange="togglePipFeatureSetting(this.checked)">
         <span class="slider"></span>
     </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Typographie</span>
+    <select id="typographie-select" onchange="setTypographieStyle(this.value)" style="background: #1a1a1a; color: #fff; border: 1px solid #444; border-radius: 6px; padding: 4px 6px; font-size: 0.75rem; max-width: 150px;">
+        <option value="none">Original</option>
+        <option value="etoile">Étoile</option>
+        <option value="typewriter">Machine à écrire</option>
+        <option value="elegante">Élégante</option>
+        <option value="manuscrite">Manuscrite</option>
+        <option value="futuriste">Futuriste</option>
+        <option value="graffiti">Graffiti</option>
+        <option value="minimaliste">Minimaliste</option>
+        <option value="discoretro">Rétro disco</option>
+        <option value="olympia">Olympia</option>
+    </select>
 </div>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
@@ -1455,7 +1651,7 @@
             </div> <div class="card">
                 <div style="display: flex; align-items: center; justify-content: space-between;">
                     <p id="lecture-en-cours-title" style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 0;">LECTURE EN COURS</p>
-                    <button id="pip-btn" onclick="togglePipPanel()" title="Picture-in-picture" style="background: none; border: none; color: #fff; font-size: 1.15rem; cursor: pointer; padding: 2px 6px; line-height: 1;">🖼️</button>
+                    <button id="pip-btn" onclick="togglePipPanel()" title="Picture-in-picture" style="display: none; background: none; border: none; color: #fff; font-size: 1.15rem; cursor: pointer; padding: 2px 6px; line-height: 1;">🖼️</button>
                 </div>
                 <img id="track-art" src="" alt="" style="display:none;" crossorigin="anonymous">
                 <h3 id="track-title">Aucune lecture</h3>
@@ -1939,11 +2135,12 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 initFondParoleState();
                 initFondParoleAdaptatifState();
                 initMiniPlayerState();
-                initTypoEtoileState();
+                initTypographieState();
                 initPochetteAnimState();
                 initTitreAnimState();
                 initArtisteAnimState();
                 initBrasTourneDisqueState();
+                initPipFeatureState();
                 initLyricsEffectsState();
                 initEtagereState();
                 initPochetteIncline3DState();
@@ -2989,6 +3186,7 @@ function highlightLyrics(currentTime) {
                             updateThemeModeColors();
                             applyPochetteAnimStyle();
                             updateMiroirLiquideImage();
+                            updateBrasTourneDisqueVisibility();
                             updatePipPanelContent(true);
                         };
                     }
@@ -3503,7 +3701,7 @@ let spectrum6Enabled = localStorage.getItem('spectrum6Enabled') === 'true';
 let fondParoleEnabled = localStorage.getItem('fondParoleEnabled') === 'true'; // désactivé par défaut
 let fondParoleAdaptatifEnabled = localStorage.getItem('fondParoleAdaptatifEnabled') === 'true'; // désactivé par défaut
 let miniPlayerEnabled = localStorage.getItem('miniPlayerEnabled') === 'true'; // désactivé par défaut
-let typoEtoileEnabled = localStorage.getItem('typoEtoileEnabled') === 'true'; // désactivé par défaut
+let typographieStyle = localStorage.getItem('typographieStyle') || (localStorage.getItem('typoEtoileEnabled') === 'true' ? 'etoile' : 'none'); // Original par défaut
 let feuxDoubleEnabled = localStorage.getItem('feuxDoubleEnabled') === 'true';
 
 // --- 5 NOUVEAUX EFFETS (style DJ / musique) ---
@@ -3635,8 +3833,6 @@ function toggleSettings() {
         if (fondParoleAdaptatifToggle) fondParoleAdaptatifToggle.checked = fondParoleAdaptatifEnabled;
         const miniPlayerToggle = document.getElementById('mini-player-toggle');
         if (miniPlayerToggle) miniPlayerToggle.checked = miniPlayerEnabled;
-        const typoEtoileToggle = document.getElementById('typo-etoile-toggle');
-        if (typoEtoileToggle) typoEtoileToggle.checked = typoEtoileEnabled;
 
         const vinyleToggle = document.getElementById('vinyle-toggle');
         if (vinyleToggle) vinyleToggle.checked = vinyleEnabled;
@@ -9428,16 +9624,27 @@ function initFondParoleState() {
     if (target) target.classList.toggle('fond-parole-active', fondParoleEnabled);
 }
 
-// --- TYPOGRAPHIE ÉTOILE : applique une police et une lueur scintillante façon constellation
-// au titre, à l'artiste, à la durée et aux paroles. Désactivé par défaut (typographie d'origine).
-function toggleTypoEtoileSetting(checked) {
-    typoEtoileEnabled = checked;
-    localStorage.setItem('typoEtoileEnabled', checked ? 'true' : 'false');
-    document.body.classList.toggle('typo-etoile-active', checked);
+// --- TYPOGRAPHIE : menu déroulant (Original, Étoile + 8 autres styles). Un seul style à la fois,
+// appliqué via une classe sur <body>. Original par défaut.
+const TYPOGRAPHIE_STYLES = ['etoile', 'typewriter', 'elegante', 'manuscrite', 'futuriste', 'graffiti', 'minimaliste', 'discoretro', 'olympia'];
+
+function applyTypographieStyle() {
+    TYPOGRAPHIE_STYLES.forEach(k => document.body.classList.remove('typo-' + k + '-active'));
+    if (typographieStyle !== 'none' && TYPOGRAPHIE_STYLES.includes(typographieStyle)) {
+        document.body.classList.add('typo-' + typographieStyle + '-active');
+    }
 }
 
-function initTypoEtoileState() {
-    document.body.classList.toggle('typo-etoile-active', typoEtoileEnabled);
+function setTypographieStyle(style) {
+    typographieStyle = style;
+    localStorage.setItem('typographieStyle', style);
+    applyTypographieStyle();
+}
+
+function initTypographieState() {
+    const select = document.getElementById('typographie-select');
+    if (select) select.value = typographieStyle;
+    applyTypographieStyle();
 }
 
 // ==========================================
@@ -9496,10 +9703,16 @@ function initBrasTourneDisqueState() {
     updateBrasTourneDisqueVisibility();
 }
 
-// Le bras n'a de sens que sur le style de pochette "vinyle qui tourne" : masqué sinon, même si
-// le réglage est activé.
+// Le bras n'a de sens que sur le style de pochette "vinyle qui tourne" ET si la pochette est
+// réellement affichée avec de vraies dimensions — sinon (juste avant/pendant le chargement d'un
+// nouveau titre), il se retrouvait positionné et animé "dans le vide", sans disque sous lui.
+function isTrackArtReady(art) {
+    return !!(art && art.src && art.style.display !== 'none' && art.offsetWidth > 0 && art.offsetHeight > 0);
+}
+
 function updateBrasTourneDisqueVisibility() {
-    const shouldShow = brasTourneDisqueEnabled && pochetteAnimStyle === 'vinyle';
+    const art = document.getElementById('track-art');
+    const shouldShow = brasTourneDisqueEnabled && pochetteAnimStyle === 'vinyle' && isTrackArtReady(art);
     if (!shouldShow) {
         const bras = document.getElementById('bras-tourne-disque');
         if (bras) bras.classList.remove('visible');
@@ -9515,9 +9728,16 @@ function updateBrasTourneDisqueVisibility() {
 // progression réelle du morceau (de l'extérieur du disque, au début, vers le centre, à la fin).
 function updateBrasTourneDisquePosition() {
     const bras = document.getElementById('bras-tourne-disque');
-    if (!bras || !bras.classList.contains('visible')) return;
+    if (!bras) return;
     const art = document.getElementById('track-art');
-    if (!art) return;
+
+    // Pochette pas encore affichée/chargée (début de titre) : on masque le bras plutôt que de le
+    // laisser tourner sur des coordonnées invalides.
+    if (!isTrackArtReady(art)) { bras.classList.remove('visible'); return; }
+    if (!bras.classList.contains('visible')) {
+        if (!(brasTourneDisqueEnabled && pochetteAnimStyle === 'vinyle')) return;
+        bras.classList.add('visible');
+    }
 
     const armHeight = Math.round(art.offsetHeight * 0.58) || 87;
     bras.style.top = `${art.offsetTop - 14}px`;
@@ -9534,10 +9754,30 @@ function updateBrasTourneDisquePosition() {
 // Vue 1 (par défaut) : pochette à gauche + ligne de parole active/suivante, fond teinté par la
 // couleur dominante de la pochette. Un clic sur la pochette bascule vers la vue 2 : titre, artiste,
 // minuteur et bouton pause/reprendre (plus de paroles).
+// Fonctionnalité désactivée par défaut : le bouton 🖼️ n'apparaît que si le réglage est activé.
 // ==========================================
+let pipFeatureEnabled = localStorage.getItem('pipFeatureEnabled') === 'true';
 let pipPanelOpen = false;
 let pipShowingInfo = false;
 let pipLastCoverSrc = '';
+
+function togglePipFeatureSetting(checked) {
+    pipFeatureEnabled = checked;
+    localStorage.setItem('pipFeatureEnabled', checked ? 'true' : 'false');
+    updatePipButtonVisibility();
+    if (!checked) closePipPanel();
+}
+
+function initPipFeatureState() {
+    const toggle = document.getElementById('pip-feature-toggle');
+    if (toggle) toggle.checked = pipFeatureEnabled;
+    updatePipButtonVisibility();
+}
+
+function updatePipButtonVisibility() {
+    const btn = document.getElementById('pip-btn');
+    if (btn) btn.style.display = pipFeatureEnabled ? 'inline-block' : 'none';
+}
 
 function injectPipStyles() {
     if (document.getElementById('pip-panel-inline-style')) return;
@@ -9548,7 +9788,7 @@ function injectPipStyles() {
             display: none;
             position: fixed;
             bottom: 20px; right: 20px;
-            width: 300px;
+            width: min(440px, calc(100vw - 24px));
             z-index: 9500;
             border-radius: 16px;
             padding: 12px;
@@ -9573,14 +9813,15 @@ function injectPipStyles() {
         }
         #pip-cover:hover { transform: scale(1.05); }
         #pip-content { flex: 1; min-width: 0; padding-top: 4px; }
-        #pip-lyric-current { color: #fff; font-weight: bold; font-size: 0.92rem; line-height: 1.3; }
+        #pip-lyric-current { padding-right: 24px; color: #fff; font-weight: bold; font-size: 0.92rem; line-height: 1.3; }
         #pip-lyric-next { color: rgba(255,255,255,0.65); font-size: 0.8rem; margin-top: 4px; }
         #pip-view-info { display: flex; flex-direction: column; gap: 4px; }
-        #pip-info-title { color: #fff; font-weight: bold; font-size: 0.92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        #pip-info-title { padding-right: 24px; color: #fff; font-weight: bold; font-size: 0.92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         #pip-info-artist { color: rgba(255,255,255,0.7); font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        #pip-info-timer { color: rgba(255,255,255,0.6); font-size: 0.75rem; margin-top: 2px; }
+        #pip-info-bottom-row { display: flex; align-items: center; justify-content: space-between; width: 100%; margin-top: 4px; }
+        #pip-info-timer { color: rgba(255,255,255,0.6); font-size: 0.75rem; }
         #pip-info-playpause {
-            align-self: flex-start; margin-top: 6px; background: rgba(255,255,255,0.18);
+            flex-shrink: 0; margin-left: auto; background: rgba(255,255,255,0.18);
             border: none; color: #fff; font-size: 1.1rem; border-radius: 50%;
             width: 34px; height: 34px; cursor: pointer;
         }
@@ -9605,8 +9846,10 @@ function ensurePipPanel() {
             <div id="pip-view-info" style="display:none;">
                 <div id="pip-info-title">—</div>
                 <div id="pip-info-artist"></div>
-                <div id="pip-info-timer">0:00 / 0:00</div>
-                <button id="pip-info-playpause" onclick="togglePlay()">▶️</button>
+                <div id="pip-info-bottom-row">
+                    <div id="pip-info-timer">0:00 / 0:00</div>
+                    <button id="pip-info-playpause" onclick="togglePlay()">▶️</button>
+                </div>
             </div>
         </div>
     `;
