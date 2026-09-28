@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v2.2";
+        const APP_VERSION = "v2.35";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9790,7 +9790,7 @@ function updateBrasTourneDisquePosition() {
     bras.style.height = `${armHeight}px`;
 
     const progressRatio = trackDurationMs > 0 ? Math.min(1, currentProgressMs / trackDurationMs) : 0;
-    const angle = -2 + (progressRatio * 34); // -2° (bord extérieur, sur le disque) → +32° (vers le centre)
+    const angle = -10 + (progressRatio * 34); // -10° (bord extérieur) → +24° (vers le centre)
     bras.style.transform = `rotate(${angle}deg)`;
 }
 
@@ -9816,6 +9816,81 @@ function initPipFeatureState() {
     const toggle = document.getElementById('pip-feature-toggle');
     if (toggle) toggle.checked = pipFeatureEnabled;
     applyPipFeatureState();
+}
+
+function injectPipStyles() {
+    if (document.getElementById('pip-panel-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'pip-panel-inline-style';
+    styleTag.textContent = `
+        #pip-panel {
+            display: none;
+            position: fixed;
+            bottom: 20px; left: 50%; transform: translateX(-50%);
+            width: min(440px, calc(100vw - 24px));
+            overflow: hidden;
+            z-index: 9500;
+            border-radius: 16px;
+            padding: 12px 12px 15px 12px;
+            box-sizing: border-box;
+            background: linear-gradient(135deg, rgba(var(--pip-bg-color, 29, 185, 84), 0.55), rgba(10, 10, 10, 0.92));
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+            border: 1px solid rgba(255,255,255,0.12);
+        }
+        #pip-panel.visible { display: flex; align-items: flex-start; gap: 10px; }
+        #pip-progress-track { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: rgba(255,255,255,0.15); }
+        #pip-progress-fill { height: 100%; width: 0%; background: var(--spotify-green, #1DB954); }
+        #pip-cover {
+            width: 64px; height: 64px; border-radius: 8px; object-fit: cover;
+            cursor: pointer; flex-shrink: 0; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            transition: transform 0.2s ease;
+        }
+        #pip-cover:hover { transform: scale(1.05); }
+        #pip-content { flex: 1; min-width: 0; padding-top: 4px; }
+        #pip-lyric-current { color: #fff; font-weight: bold; font-size: 0.92rem; line-height: 1.3; }
+        #pip-lyric-next { color: rgba(255,255,255,0.65); font-size: 0.8rem; margin-top: 4px; }
+        #pip-view-info { display: flex; flex-direction: column; gap: 4px; }
+        #pip-info-title { color: #fff; font-weight: bold; font-size: 0.92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        #pip-info-artist { color: rgba(255,255,255,0.7); font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        #pip-info-bottom-row { display: flex; align-items: center; justify-content: space-between; width: 100%; margin-top: 4px; }
+        #pip-info-timer { color: rgba(255,255,255,0.6); font-size: 0.75rem; }
+        #pip-info-playpause {
+            flex-shrink: 0; margin-left: auto; background: rgba(255,255,255,0.18);
+            border: none; color: #fff; font-size: 1.1rem; border-radius: 50%;
+            width: 34px; height: 34px; cursor: pointer;
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+
+function ensurePipPanel() {
+    let panel = document.getElementById('pip-panel');
+    if (panel) return panel;
+    injectPipStyles();
+    panel = document.createElement('div');
+    panel.id = 'pip-panel';
+    panel.innerHTML = `
+        <img id="pip-cover" onclick="togglePipView()" title="Cliquer pour changer de vue" crossorigin="anonymous">
+        <div id="pip-content">
+            <div id="pip-view-lyrics">
+                <div id="pip-lyric-current">♪</div>
+                <div id="pip-lyric-next"></div>
+            </div>
+            <div id="pip-view-info" style="display:none;">
+                <div id="pip-info-title">—</div>
+                <div id="pip-info-artist"></div>
+                <div id="pip-info-bottom-row">
+                    <div id="pip-info-timer">0:00 / 0:00</div>
+                    <button id="pip-info-playpause" onclick="togglePlay()">▶️</button>
+                </div>
+            </div>
+        </div>
+        <div id="pip-progress-track"><div id="pip-progress-fill"></div></div>
+    `;
+    document.body.appendChild(panel);
+    return panel;
 }
 
 // Slide activé : l'interface apparaît directement. Désactivé : rien à l'écran.
