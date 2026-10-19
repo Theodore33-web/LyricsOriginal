@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v2.37";
+        const APP_VERSION = "v2.38";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -800,6 +800,7 @@
         }
         .controls button:hover { color: var(--spotify-green); }
         
+        #track-title.titre-anim-pochettecolor, #track-artist.artiste-anim-pochettecolor { color: rgb(var(--pochette-text-color, 29, 185, 84)) !important; transition: color 0.6s ease; }
         #track-title { font-size: 1.2rem; margin: 10px 0 2px 0; }
         #track-artist { color: var(--text-grey); font-size: 0.9rem; margin-top: 0; }
 
@@ -828,6 +829,111 @@
             transition: width 0.2s linear;
         }
         .progress-bar-bg:hover .progress-bar-fill { background: #1ed760; }
+
+        /* ---- Styles de la barre de progression (menu déroulant "Style de la barre de progression").
+           Les dégradés sont étirés sur TOUTE la largeur de la barre (--bar-w, posée par JS) : la couleur
+           avance donc avec la lecture au lieu d'être écrasée dans la partie remplie. ---- */
+        body[class*="progress-style-"] .progress-bar-bg:hover #progress-fill { background-color: transparent; }
+        body[class*="progress-style-"] #progress-fill { position: relative; background-size: var(--bar-w, 100%) 100%; background-repeat: no-repeat; }
+        @keyframes pf-vinyl-spin { to { transform: rotate(360deg); } }
+        @keyframes pf-stripes { from { background-position: 0 0, 0 0; } to { background-position: 17px 0, 0 0; } }
+        @keyframes pf-shimmer { from { background-position: 150% 0, 0 0; } to { background-position: -50% 0, 0 0; } }
+        @keyframes pf-flame { 0%, 100% { box-shadow: 0 0 6px 1px rgba(255,90,0,0.7), 0 -2px 10px rgba(255,170,0,0.5); } 50% { box-shadow: 0 0 10px 3px rgba(255,120,0,0.9), 0 -4px 14px rgba(255,210,0,0.7); } }
+        @keyframes pf-pulse { 0%, 100% { filter: brightness(1); box-shadow: 0 0 4px rgba(29,185,84,0.5); } 50% { filter: brightness(1.45); box-shadow: 0 0 14px 3px rgba(29,185,84,0.9); } }
+        @keyframes pf-eq { from { transform: scaleY(0.5); } to { transform: scaleY(1); } }
+        body.playback-paused[class*="progress-style-"] #progress-fill,
+        body.playback-paused[class*="progress-style-"] #progress-fill::after { animation-play-state: paused; }
+
+        /* 1) Vinyle : sillons + petit disque qui tourne en tête de barre */
+        body.progress-style-vinyle .progress-bar-bg { height: 8px; border-radius: 4px; background: repeating-linear-gradient(90deg, #0d0d0d 0 2px, #1b1b1b 2px 4px); }
+        body.progress-style-vinyle #progress-fill {
+            border-radius: 4px;
+            background-image: repeating-linear-gradient(90deg, rgba(0,0,0,0.38) 0 1px, transparent 1px 4px), linear-gradient(90deg, #5a3a1a, #e0b45c);
+            background-size: auto, var(--bar-w, 100%) 100%;
+        }
+        body.progress-style-vinyle #progress-fill::after {
+            content: ''; position: absolute; right: -9px; top: 50%; width: 18px; height: 18px; margin-top: -9px; border-radius: 50%;
+            background: conic-gradient(rgba(255,255,255,0.28) 0 25deg, transparent 25deg 180deg, rgba(255,255,255,0.18) 180deg 205deg, transparent 205deg),
+                        radial-gradient(circle, #c0392b 0 2px, #0d0d0d 2px 3.5px, #262626 3.5px 4.5px, #0d0d0d 4.5px 6.5px, #262626 6.5px 7.5px, #0d0d0d 7.5px 100%);
+            box-shadow: 0 1px 4px rgba(0,0,0,0.7);
+            animation: pf-vinyl-spin 2s linear infinite;
+        }
+
+        /* 2) Rétro 8 bits : segments pixelisés façon écran ambre */
+        body.progress-style-retro .progress-bar-bg { height: 10px; border-radius: 0; background: #1b1206; border: 2px solid #5a3b10; box-sizing: content-box; }
+        body.progress-style-retro #progress-fill {
+            border-radius: 0; height: 100%;
+            background-image: linear-gradient(90deg, #ffd000, #ff7a00, #ff3b00);
+            -webkit-mask-image: repeating-linear-gradient(90deg, #000 0 6px, transparent 6px 8px); mask-image: repeating-linear-gradient(90deg, #000 0 6px, transparent 6px 8px);
+            filter: drop-shadow(0 0 3px rgba(255,150,0,0.7));
+        }
+        body.progress-style-retro .progress-container span { font-family: 'Courier New', monospace; color: #ffb000; text-shadow: 0 0 4px rgba(255,176,0,0.6); }
+
+        /* 3) Néon */
+        body.progress-style-neon .progress-bar-bg { height: 4px; background: rgba(255,255,255,0.08); }
+        body.progress-style-neon #progress-fill {
+            background-image: linear-gradient(90deg, #00e5ff, #7c4dff, #ff2bd6);
+            box-shadow: 0 0 6px #00e5ff, 0 0 14px rgba(255,43,214,0.8);
+        }
+
+        /* 4) Arc-en-ciel */
+        body.progress-style-arcenciel #progress-fill { background-image: linear-gradient(90deg, #ff3b3b, #ff9d00, #ffe600, #2ee66b, #26c6ff, #7c4dff, #ff4de3); }
+
+        /* 5) Rayures animées (barbier) */
+        body.progress-style-rayures .progress-bar-bg { height: 8px; border-radius: 4px; }
+        body.progress-style-rayures #progress-fill {
+            border-radius: 4px;
+            background-image: repeating-linear-gradient(45deg, rgba(255,255,255,0.28) 0 6px, transparent 6px 12px), linear-gradient(90deg, #1DB954, #8de65c);
+            background-size: auto, var(--bar-w, 100%) 100%;
+            animation: pf-stripes 0.8s linear infinite;
+        }
+
+        /* 6) Perles */
+        body.progress-style-perles .progress-bar-bg { height: 10px; background: radial-gradient(circle at 5px 50%, rgba(255,255,255,0.14) 0 3px, transparent 3.5px) 0 0 / 10px 100%; }
+        body.progress-style-perles #progress-fill {
+            background-image: linear-gradient(90deg, #ff8fb1, #ffd36b, #8fe3ff);
+            -webkit-mask: radial-gradient(circle at 5px 50%, #000 0 3px, transparent 3.5px) 0 0 / 10px 100%; mask: radial-gradient(circle at 5px 50%, #000 0 3px, transparent 3.5px) 0 0 / 10px 100%;
+        }
+
+        /* 7) Égaliseur */
+        body.progress-style-egaliseur .progress-bar-bg { height: 14px; background: transparent; }
+        body.progress-style-egaliseur #progress-fill {
+            border-radius: 0; transform-origin: bottom center;
+            background-image: linear-gradient(90deg, #1DB954, #e2ff4d);
+            -webkit-mask-image: repeating-linear-gradient(90deg, #000 0 3px, transparent 3px 5px); mask-image: repeating-linear-gradient(90deg, #000 0 3px, transparent 3px 5px);
+            animation: pf-eq 0.7s ease-in-out infinite alternate;
+        }
+
+        /* 8) Flamme */
+        body.progress-style-flamme .progress-bar-bg { height: 6px; }
+        body.progress-style-flamme #progress-fill { background-image: linear-gradient(90deg, #7a0000, #ff3b00, #ffb000, #fff2a0); animation: pf-flame 0.9s ease-in-out infinite; }
+
+        /* 9) Glace */
+        body.progress-style-glace .progress-bar-bg { height: 6px; }
+        body.progress-style-glace #progress-fill {
+            background-image: linear-gradient(100deg, transparent 40%, rgba(255,255,255,0.75) 50%, transparent 60%), linear-gradient(90deg, #bfefff, #4fc3f7, #0288d1);
+            background-size: 250% 100%, var(--bar-w, 100%) 100%;
+            animation: pf-shimmer 2.2s linear infinite;
+        }
+
+        /* 10) Or */
+        body.progress-style-or .progress-bar-bg { height: 7px; }
+        body.progress-style-or #progress-fill {
+            background-image: linear-gradient(180deg, rgba(255,255,255,0.55), transparent 55%), linear-gradient(90deg, #7a5a12, #ffd86b, #b8892a, #fff0b3, #b8892a);
+            background-size: 100% 100%, var(--bar-w, 100%) 100%;
+            box-shadow: 0 0 6px rgba(255,200,80,0.45);
+        }
+
+        /* 11) Comète : traîne qui s'éclaircit + tête lumineuse */
+        body.progress-style-comete #progress-fill { background-image: linear-gradient(90deg, rgba(29,185,84,0), rgba(29,185,84,0.85) 70%, #ffffff); background-size: 100% 100%; }
+        body.progress-style-comete #progress-fill::after {
+            content: ''; position: absolute; right: -5px; top: 50%; width: 10px; height: 10px; margin-top: -5px; border-radius: 50%;
+            background: #fff; box-shadow: 0 0 8px 3px rgba(29,185,84,0.9), 0 0 18px 6px rgba(29,185,84,0.5);
+        }
+
+        /* 12) Pulsation */
+        body.progress-style-pulsation .progress-bar-bg { height: 6px; }
+        body.progress-style-pulsation #progress-fill { background-image: linear-gradient(90deg, #0f7a37, #1DB954, #7dffa8); animation: pf-pulse 1.2s ease-in-out infinite; }
 
         .search-box {
             display: flex;
@@ -1570,6 +1676,7 @@
         <option value="wave">Vague de lettres</option>
         <option value="shakein">Tremblement d'arrivée</option>
         <option value="gradientshift">Dégradé animé</option>
+            <option value="pochettecolor">Couleur de la pochette</option>
     </select>
 </div>
 
@@ -1589,6 +1696,7 @@
         <option value="gradientsunset">Dégradé animé (coucher de soleil)</option>
         <option value="rotatein">Rotation d'entrée</option>
         <option value="elastic">Rebond élastique</option>
+            <option value="pochettecolor">Couleur de la pochette</option>
     </select>
 </div>
 
@@ -1626,6 +1734,25 @@
         <input type="checkbox" id="word-karaoke-toggle" onchange="toggleWordKaraokeSetting(this.checked)">
         <span class="slider"></span>
     </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Style de la barre de progression</span>
+    <select id="progress-style-select" onchange="setProgressStyle(this.value)" style="background: #1a1a1a; color: #fff; border: 1px solid #444; border-radius: 6px; padding: 4px 6px; font-size: 0.75rem; max-width: 150px;">
+        <option value="none">Par défaut</option>
+        <option value="vinyle">Vinyle (sillons + disque)</option>
+        <option value="retro">Rétro 8 bits</option>
+        <option value="neon">Néon</option>
+        <option value="arcenciel">Arc-en-ciel</option>
+        <option value="rayures">Rayures animées</option>
+        <option value="perles">Perles</option>
+        <option value="egaliseur">Égaliseur</option>
+        <option value="flamme">Flamme</option>
+        <option value="glace">Glace</option>
+        <option value="or">Or</option>
+        <option value="comete">Comète</option>
+        <option value="pulsation">Pulsation</option>
+    </select>
 </div>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
@@ -2224,6 +2351,8 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 initArtisteAnimState();
                 initBrasTourneDisqueState();
                 initParolesEffectsState();
+                initProgressStyleState();
+                updatePochetteTextColor();
                 initPipFeatureState();
                 initLyricsEffectsState();
                 initEtagereState();
@@ -2922,20 +3051,20 @@ function buildA4LyricsSheet(trackName, trackArtist, trackImage, durationStr, lyr
         <title>${escapeHtml(trackName)} — Paroles</title>
         <style>
             @page { size: A4; margin: 8mm; }
-            html, body { height: 100%; }
+            html, body { min-height: 100%; }
             * { -webkit-print-color-adjust: exact; print-color-adjust: exact; color-adjust: exact; }
             body {
                 font-family: 'Helvetica Neue', Arial, sans-serif; color: #1a1a1a; margin: 0;
                 background-image: linear-gradient(160deg, rgba(${rgb}, 0.16) 0%, rgba(${rgb}, 0.05) 45%, #ffffff 100%);
-                background-repeat: repeat-y;
-                background-size: 100% 297mm;
+                background-repeat: no-repeat;
+                background-size: 100% 100%;
                 transition: background-image 0.3s ease;
             }
             body.a4-no-gradient { background-image: none; background-color: #ffffff; }
             #a4-page {
                 background-image: linear-gradient(165deg, #ffffff 0%, rgba(${rgb}, 0.16) 60%, rgba(${rgb}, 0.26) 100%);
-                background-repeat: repeat-y;
-                background-size: 100% 297mm;
+                background-repeat: no-repeat;
+                background-size: 100% 100%;
                 border-radius: 1em;
                 box-shadow: 0 0.3em 1.2em rgba(0, 0, 0, 0.08);
                 padding: 1em 1em;
@@ -2971,11 +3100,11 @@ function buildA4LyricsSheet(trackName, trackArtist, trackImage, durationStr, lyr
                 padding: 9px 18px; font-weight: bold; cursor: pointer; border-radius: 20px;
                 border: 1px solid rgb(${rgb}); background: rgb(${rgb}); color: #000;
             }
-            #a4-size-control {
+            #a4-size-control, #a4-header-control {
                 display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #333;
                 font-family: 'Helvetica Neue', Arial, sans-serif;
             }
-            #a4-size-control input[type="range"] { accent-color: rgb(${rgb}); }
+            #a4-size-control input[type="range"], #a4-header-control input[type="range"] { accent-color: rgb(${rgb}); }
             #a4-gradient-control {
                 display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: #333;
                 font-family: 'Helvetica Neue', Arial, sans-serif;
@@ -2990,8 +3119,12 @@ function buildA4LyricsSheet(trackName, trackArtist, trackImage, durationStr, lyr
                     <input type="checkbox" id="a4-gradient-toggle" checked>
                     🎨 Dégradé coloré
                 </label>
+                <div id="a4-header-control">
+                    <span>🖼️ Encadré : <strong id="a4-header-label">15</strong>/30</span>
+                    <input type="range" id="a4-header-slider" min="0" max="30" value="15" step="1">
+                </div>
                 <div id="a4-size-control">
-                    <span>🔎 Taille : <strong id="a4-size-label">0</strong>/30</span>
+                    <span>🔎 Paroles : <strong id="a4-size-label">0</strong>/30 (0 = 1 page)</span>
                     <input type="range" id="a4-size-slider" min="0" max="30" value="0" step="1">
                 </div>
                 <button onclick="window.print()">🖨️ Imprimer / Enregistrer en PDF</button>
@@ -3017,7 +3150,8 @@ function buildA4LyricsSheet(trackName, trackArtist, trackImage, durationStr, lyr
                 var a4MaxHeightPx = 297 * 3.7795275591 - 2 * (8 * 3.7795275591) - 2 * (1 * 16); // A4 - marges page - padding carte
                 var a4BaseFontSizePx = 10;
 
-                (function computeBaseFitSize() {
+                function computeBaseFitSize() {
+                    a4BaseFontSizePx = 10;
                     a4El.style.transition = 'none'; // pas d'animation pendant le calcul initial
                     a4El.style.fontSize = a4BaseFontSizePx + 'px';
                     var guard = 0;
@@ -3035,7 +3169,8 @@ function buildA4LyricsSheet(trackName, trackArtist, trackImage, durationStr, lyr
                         guard++;
                     }
                     requestAnimationFrame(() => { a4El.style.transition = 'font-size 0.15s ease'; });
-                })();
+                }
+                computeBaseFitSize();
 
                 // Réglage 0 à 30 : 0 = tient sur une page (ci-dessus). Chaque cran au-delà agrandit
                 // doucement le texte (+8% par cran), pouvant alors s'étaler sur plusieurs pages —
@@ -3047,6 +3182,19 @@ function buildA4LyricsSheet(trackName, trackArtist, trackImage, durationStr, lyr
                     a4SizeLabel.innerText = level;
                     var scale = 1 + level * 0.08;
                     a4El.style.fontSize = (a4BaseFontSizePx * scale) + 'px';
+                });
+
+                // Taille de l'encadré (pochette + titre/artiste/durée) : 0 à 30, 15 par défaut (taille
+                // normale) — en dessous il rétrécit, au-dessus il s'agrandit. Si les paroles sont au
+                // niveau 0 (1 page), on recalcule l'ajustement pour que tout tienne toujours.
+                var a4HeaderSlider = document.getElementById('a4-header-slider');
+                var a4HeaderLabel = document.getElementById('a4-header-label');
+                var a4HeaderEl = document.querySelector('.a4-header');
+                a4HeaderSlider.addEventListener('input', function () {
+                    var lvl = parseInt(a4HeaderSlider.value, 10);
+                    a4HeaderLabel.innerText = lvl;
+                    a4HeaderEl.style.fontSize = (0.5 + 0.5 * lvl / 15) + 'em';
+                    if (parseInt(a4Slider.value, 10) === 0) computeBaseFitSize();
                 });
 
                 // Dégradé coloré activé par défaut — décoché = fond blanc uni
@@ -3374,6 +3522,7 @@ function highlightLyrics(currentTime) {
                             updateMiroirLiquideImage();
                             updateBrasTourneDisqueVisibility();
                             updateHeatColor();
+                            updatePochetteTextColor();
                             updatePipPanelContent(true);
                         };
                     }
@@ -10120,11 +10269,46 @@ function updatePipPanelContent(forceColor) {
 
 // Correction : quand la lecture est en pause, le vinyle qui tourne (style d'apparition de la
 // pochette) doit s'arrêter de tourner — et repartir dès que la lecture reprend.
+
+// --- Style de la barre de progression (menu déroulant : Par défaut + 12 styles) ---
+let progressStyle = localStorage.getItem('progressStyle') || 'none';
+const PROGRESS_STYLES = ['vinyle', 'retro', 'neon', 'arcenciel', 'rayures', 'perles', 'egaliseur', 'flamme', 'glace', 'or', 'comete', 'pulsation'];
+
+function applyProgressStyle() {
+    PROGRESS_STYLES.forEach(k => document.body.classList.remove('progress-style-' + k));
+    if (PROGRESS_STYLES.includes(progressStyle)) document.body.classList.add('progress-style-' + progressStyle);
+    updateProgressBarWidthVar();
+}
+
+function setProgressStyle(style) {
+    progressStyle = style;
+    localStorage.setItem('progressStyle', style);
+    applyProgressStyle();
+}
+
+// Pose la largeur totale de la barre dans --bar-w pour que les dégradés s'étirent sur toute la barre
+function updateProgressBarWidthVar() {
+    const fill = document.getElementById('progress-fill');
+    if (fill && fill.parentElement) fill.style.setProperty('--bar-w', fill.parentElement.clientWidth + 'px');
+}
+
+function initProgressStyleState() {
+    const select = document.getElementById('progress-style-select');
+    if (select) select.value = progressStyle;
+    applyProgressStyle();
+    const fill = document.getElementById('progress-fill');
+    if (fill && window.ResizeObserver) {
+        const ro = new ResizeObserver(updateProgressBarWidthVar);
+        ro.observe(fill.parentElement);
+    }
+}
+
 function syncVinylSpinState() {
     const art = document.getElementById('track-art');
     if (!art) return;
     const shouldPause = pochetteAnimStyle === 'vinyle' && !isCurrentlyPlaying;
     art.classList.toggle('pochette-anim-vinyle-paused', shouldPause);
+    document.body.classList.toggle('playback-paused', !isCurrentlyPlaying);
 }
 
 const POCHETTE_ANIM_CLASSES = ['pochette-anim-fadescale', 'pochette-anim-blurfocus', 'pochette-anim-crossfade', 'pochette-anim-photodev', 'pochette-anim-shatter', 'pochette-anim-wipe', 'pochette-anim-inkdry', 'pochette-anim-cassette', 'pochette-anim-polaroid'];
@@ -10324,6 +10508,13 @@ let titreAnimStyle = localStorage.getItem('titreAnimStyle') || 'none';
 function setTitreAnimStyle(style) {
     titreAnimStyle = style;
     localStorage.setItem('titreAnimStyle', style);
+    const titleEl = document.getElementById('track-title');
+    if (style === 'pochettecolor' && titleEl) {
+        titleEl.classList.add('titre-anim-pochettecolor');
+        updatePochetteTextColor();
+    } else if (titleEl) {
+        titleEl.classList.remove('titre-anim-pochettecolor');
+    }
 }
 
 function initTitreAnimState() {
@@ -10347,7 +10538,7 @@ function applyTitreAnimStyle(fullTitleText) {
     const titleEl = document.getElementById('track-title');
     if (!titleEl) return;
     clearInterval(titreTypewriterTimer);
-    titleEl.classList.remove('titre-anim-neon', 'titre-anim-breathing', 'titre-anim-typewriter', 'titre-anim-glitch', 'titre-anim-shakein', 'titre-anim-gradientshift');
+    titleEl.classList.remove('titre-anim-neon', 'titre-anim-breathing', 'titre-anim-typewriter', 'titre-anim-glitch', 'titre-anim-shakein', 'titre-anim-gradientshift', 'titre-anim-pochettecolor');
 
     if (titreAnimStyle === 'typewriter') {
         titleEl.classList.add('titre-anim-typewriter');
@@ -10379,6 +10570,10 @@ function applyTitreAnimStyle(fullTitleText) {
     } else if (titreAnimStyle === 'gradientshift') {
         titleEl.innerText = fullTitleText;
         titleEl.classList.add('titre-anim-gradientshift');
+    } else if (titreAnimStyle === 'pochettecolor') {
+        titleEl.innerText = fullTitleText;
+        titleEl.classList.add('titre-anim-pochettecolor');
+        updatePochetteTextColor();
     }
 }
 
@@ -10389,6 +10584,30 @@ let artisteTypewriterTimer = null;
 function setArtisteAnimStyle(style) {
     artisteAnimStyle = style;
     localStorage.setItem('artisteAnimStyle', style);
+    const artistEl = document.getElementById('track-artist');
+    if (style === 'pochettecolor' && artistEl) {
+        artistEl.classList.add('artiste-anim-pochettecolor');
+        updatePochetteTextColor();
+    } else if (artistEl) {
+        artistEl.classList.remove('artiste-anim-pochettecolor');
+    }
+}
+
+// Couleur de texte = couleur dominante de la pochette (rehaussée si la pochette est sombre pour
+// rester lisible sur le fond sombre de l'appli). Utilisée par le choix "Couleur de la pochette"
+// du titre et de l'artiste.
+function updatePochetteTextColor() {
+    if (titreAnimStyle !== 'pochettecolor' && artisteAnimStyle !== 'pochettecolor') return;
+    const art = document.getElementById('track-art');
+    if (!art || !art.src) return;
+    getDominantColorFromImageSrc(art.src, (rgb) => {
+        if (!rgb) return;
+        let [r, g, b] = rgb.split(',').map(n => parseInt(n, 10));
+        const maxC = Math.max(r, g, b, 1);
+        const boost = maxC < 170 ? 170 / maxC : 1;
+        r = Math.min(255, Math.round(r * boost)); g = Math.min(255, Math.round(g * boost)); b = Math.min(255, Math.round(b * boost));
+        document.documentElement.style.setProperty('--pochette-text-color', `${r}, ${g}, ${b}`);
+    });
 }
 
 function initArtisteAnimState() {
@@ -10401,7 +10620,7 @@ function applyArtisteSignatureStyle() {
     const artistEl = document.getElementById('track-artist');
     if (!artistEl) return;
     clearInterval(artisteTypewriterTimer);
-    artistEl.classList.remove('artiste-anim-signature', 'artiste-anim-fadein', 'artiste-anim-slideleft', 'artiste-anim-typewriter', 'artiste-anim-glitch', 'artiste-anim-blurin', 'artiste-anim-scalepop', 'artiste-anim-gradient', 'artiste-anim-gradientsunset', 'artiste-anim-rotatein', 'artiste-anim-elastic');
+    artistEl.classList.remove('artiste-anim-signature', 'artiste-anim-fadein', 'artiste-anim-slideleft', 'artiste-anim-typewriter', 'artiste-anim-glitch', 'artiste-anim-blurin', 'artiste-anim-scalepop', 'artiste-anim-gradient', 'artiste-anim-gradientsunset', 'artiste-anim-rotatein', 'artiste-anim-elastic', 'artiste-anim-pochettecolor');
     const fullText = artistEl.innerText;
 
     if (artisteAnimStyle === 'none') return;
@@ -10445,6 +10664,9 @@ function applyArtisteSignatureStyle() {
     } else if (artisteAnimStyle === 'elastic') {
         void artistEl.offsetWidth;
         artistEl.classList.add('artiste-anim-elastic');
+    } else if (artisteAnimStyle === 'pochettecolor') {
+        artistEl.classList.add('artiste-anim-pochettecolor');
+        updatePochetteTextColor();
     }
 }
 
