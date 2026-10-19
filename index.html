@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v2.38";
+        const APP_VERSION = "v2.40";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -931,6 +931,14 @@
             background: #fff; box-shadow: 0 0 8px 3px rgba(29,185,84,0.9), 0 0 18px 6px rgba(29,185,84,0.5);
         }
 
+        /* 13) Couleurs de la pochette : dégradé de la 1re couleur principale vers la 2e (--pf-c1 / --pf-c2) */
+        body.progress-style-pochette .progress-bar-bg { height: 6px; }
+        body.progress-style-pochette #progress-fill {
+            background-image: linear-gradient(90deg, rgb(var(--pf-c1, 29, 185, 84)), rgb(var(--pf-c2, 125, 255, 168)));
+            box-shadow: 0 0 8px rgba(var(--pf-c2, 125, 255, 168), 0.55);
+            transition: width 0.2s linear, box-shadow 0.6s ease;
+        }
+
         /* 12) Pulsation */
         body.progress-style-pulsation .progress-bar-bg { height: 6px; }
         body.progress-style-pulsation #progress-fill { background-image: linear-gradient(90deg, #0f7a37, #1DB954, #7dffa8); animation: pf-pulse 1.2s ease-in-out infinite; }
@@ -1752,6 +1760,7 @@
         <option value="or">Or</option>
         <option value="comete">Comète</option>
         <option value="pulsation">Pulsation</option>
+        <option value="pochette">Couleurs de la pochette</option>
     </select>
 </div>
 
@@ -3523,6 +3532,7 @@ function highlightLyrics(currentTime) {
                             updateBrasTourneDisqueVisibility();
                             updateHeatColor();
                             updatePochetteTextColor();
+                            updateProgressPochetteColors();
                             updatePipPanelContent(true);
                         };
                     }
@@ -10272,7 +10282,7 @@ function updatePipPanelContent(forceColor) {
 
 // --- Style de la barre de progression (menu déroulant : Par défaut + 12 styles) ---
 let progressStyle = localStorage.getItem('progressStyle') || 'none';
-const PROGRESS_STYLES = ['vinyle', 'retro', 'neon', 'arcenciel', 'rayures', 'perles', 'egaliseur', 'flamme', 'glace', 'or', 'comete', 'pulsation'];
+const PROGRESS_STYLES = ['vinyle', 'retro', 'neon', 'arcenciel', 'rayures', 'perles', 'egaliseur', 'flamme', 'glace', 'or', 'comete', 'pulsation', 'pochette'];
 
 function applyProgressStyle() {
     PROGRESS_STYLES.forEach(k => document.body.classList.remove('progress-style-' + k));
@@ -10280,10 +10290,67 @@ function applyProgressStyle() {
     updateProgressBarWidthVar();
 }
 
+
+// Extrait les DEUX couleurs principales de la pochette : on regroupe les pixels par teinte
+// (64 familles de couleurs), on prend la famille la plus présente puis la plus présente parmi celles
+// assez différentes de la première. Les couleurs ternes sont désavantagées pour éviter le gris.
+function getTwoDominantColorsFromImageSrc(src, callback) {
+    const tempImg = new Image();
+    tempImg.crossOrigin = "Anonymous";
+    tempImg.onload = function () {
+        try {
+            const canvas = document.createElement('canvas');
+            canvas.width = 32; canvas.height = 32;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(tempImg, 0, 0, 32, 32);
+            const data = ctx.getImageData(0, 0, 32, 32).data;
+            const buckets = {};
+            for (let i = 0; i < data.length; i += 4) {
+                const r = data[i], g = data[i + 1], b = data[i + 2];
+                const key = (r >> 6) * 16 + (g >> 6) * 4 + (b >> 6);
+                const sat = Math.max(r, g, b) - Math.min(r, g, b);
+                const weight = 1 + sat / 64;
+                const bk = buckets[key] || (buckets[key] = { w: 0, r: 0, g: 0, b: 0, n: 0 });
+                bk.w += weight; bk.r += r; bk.g += g; bk.b += b; bk.n++;
+            }
+            const list = Object.values(buckets).map(bk => ({ w: bk.w, c: [Math.round(bk.r / bk.n), Math.round(bk.g / bk.n), Math.round(bk.b / bk.n)] })).sort((a, b) => b.w - a.w);
+            const c1 = list[0].c;
+            const dist = (a, b) => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]);
+            const second = list.find(e => dist(e.c, c1) > 90);
+            const lighten = (c) => c.map(v => Math.min(255, Math.round(v + (255 - v) * 0.45)));
+            callback(c1, second ? second.c : lighten(c1));
+        } catch (e) {
+            console.error("Impossible d'extraire les couleurs de la pochette :", e);
+            callback(null, null);
+        }
+    };
+    tempImg.onerror = () => callback(null, null);
+    tempImg.src = src;
+}
+
+// Pose --pf-c1 / --pf-c2 (rehaussées si la pochette est sombre) pour le style de barre "Couleurs de la pochette"
+function updateProgressPochetteColors() {
+    if (progressStyle !== 'pochette') return;
+    const art = document.getElementById('track-art');
+    if (!art || !art.src) return;
+    getTwoDominantColorsFromImageSrc(art.src, (c1, c2) => {
+        if (!c1 || !c2) return;
+        const brighten = (c) => {
+            const m = Math.max(c[0], c[1], c[2], 1);
+            const k = m < 150 ? 150 / m : 1;
+            return c.map(v => Math.min(255, Math.round(v * k)));
+        };
+        const root = document.documentElement.style;
+        root.setProperty('--pf-c1', brighten(c1).join(', '));
+        root.setProperty('--pf-c2', brighten(c2).join(', '));
+    });
+}
+
 function setProgressStyle(style) {
     progressStyle = style;
     localStorage.setItem('progressStyle', style);
     applyProgressStyle();
+    updateProgressPochetteColors();
 }
 
 // Pose la largeur totale de la barre dans --bar-w pour que les dégradés s'étirent sur toute la barre
@@ -10296,6 +10363,7 @@ function initProgressStyleState() {
     const select = document.getElementById('progress-style-select');
     if (select) select.value = progressStyle;
     applyProgressStyle();
+    updateProgressPochetteColors();
     const fill = document.getElementById('progress-fill');
     if (fill && window.ResizeObserver) {
         const ro = new ResizeObserver(updateProgressBarWidthVar);
