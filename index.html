@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v2.41";
+        const APP_VERSION = "v2.42";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10149,7 +10149,7 @@ function injectPipStyles() {
             bottom: 20px; left: 50%; transform: translateX(-50%);
             width: min(440px, calc(100vw - 24px));
             overflow: hidden;
-            z-index: 9500;
+            z-index: 8950;
             border-radius: 16px;
             padding: 10px 12px 8px 12px;
             box-sizing: border-box;
@@ -10255,7 +10255,7 @@ function getPipLyricLines() {
 
 // Rafraîchit le contenu du panneau (pochette, couleur dominante, paroles, infos). Ne fait rien
 // tant que le panneau n'est pas ouvert (appelée en continu depuis tickLocalProgress).
-function updatePipPanelContent(forceColor) {
+function updatePipPanelContentUnsafe(forceColor) {
     const panel = document.getElementById('pip-panel');
     if (!panel || !pipPanelOpen) return;
 
@@ -10310,6 +10310,7 @@ let clipFeatureEnabled = localStorage.getItem('clipFeatureEnabled') === 'true';
 const CLIP_DEFAULT_API_KEY = 'AIzaSyDVjvbkx9Ekech-ZKrRBKiYhyWGhnEc7Jw';
 let clipApiKey = localStorage.getItem('clipApiKey') || CLIP_DEFAULT_API_KEY;
 let clipCurrentTrack = null;      // { id, name, artist, isEpisode } du titre Spotify en cours
+let clipPlaybackEnabled = localStorage.getItem('clipPlaybackEnabled') !== 'false'; // préférence mémorisée (activé par défaut)
 let clipVideoId = null;
 let clipOffsetSec = 0;            // décalage clip ↔ audio (certains clips ont une intro)
 let clipPlayer = null;
@@ -10362,19 +10363,22 @@ function injectClipStyles() {
     styleTag.textContent = `
         #clip-panel {
             display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-            width: min(560px, calc(100vw - 24px)); z-index: 9490; overflow: hidden; box-sizing: border-box;
-            border-radius: 16px; padding: 10px 12px 12px 12px;
+            width: min(560px, calc(100vw - 24px)); z-index: 8940; overflow: hidden; box-sizing: border-box;
+            border-radius: 16px; padding: 10px 12px 14px 12px;
             background: linear-gradient(135deg, rgba(var(--pip-bg-color, 29, 185, 84), 0.4), rgba(10, 10, 10, 0.94));
             backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
             box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.12);
         }
         body.pip-panel-open #clip-panel { bottom: 112px; }
         #clip-panel.visible { display: block; }
-        #clip-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
-        #clip-title-label { color: #fff; font-size: 0.8rem; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-        #clip-controls { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
-        #clip-controls button { background: rgba(255,255,255,0.15); border: none; color: #fff; font-size: 0.72rem; border-radius: 6px; padding: 3px 7px; cursor: pointer; }
-        #clip-offset-label { color: rgba(255,255,255,0.7); font-size: 0.72rem; min-width: 30px; text-align: center; }
+        #clip-header { display: none; position: absolute; top: 0; left: 0; right: 0; z-index: 3; padding: 8px 10px 22px 10px; background: linear-gradient(rgba(0,0,0,0.82), rgba(0,0,0,0)); }
+        #clip-panel.controls-open #clip-header { display: block; }
+        #clip-title-label { display: block; color: #fff; font-size: 0.8rem; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        #clip-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 6px; }
+        #clip-controls button { background: rgba(255,255,255,0.2); border: none; color: #fff; font-size: 0.72rem; border-radius: 6px; padding: 3px 8px; cursor: pointer; }
+        #clip-power-btn.off { background: rgba(255,80,80,0.55); }
+        #clip-offset-label { color: rgba(255,255,255,0.8); font-size: 0.72rem; min-width: 30px; text-align: center; }
+        #clip-panel { cursor: pointer; }
         #clip-video-wrap { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 10px; overflow: hidden; }
         #clip-video-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; pointer-events: none; }
         #clip-message { display: none; position: absolute; inset: 0; align-items: center; justify-content: center; text-align: center; padding: 16px; color: rgba(255,255,255,0.8); font-size: 0.85rem; background: #0c0c0c; z-index: 2; }
@@ -10392,21 +10396,26 @@ function ensureClipPanel() {
     panel = document.createElement('div');
     panel.id = 'clip-panel';
     panel.innerHTML = `
-        <div id="clip-header">
-            <span id="clip-title-label">🎬 Clip</span>
-            <div id="clip-controls">
-                <button onclick="clipAdjustOffset(-1)" title="Le clip est en avance : le retarder d'1 s">−1s</button>
-                <span id="clip-offset-label">0s</span>
-                <button onclick="clipAdjustOffset(1)" title="Le clip est en retard : l'avancer d'1 s">+1s</button>
-                <button onclick="clipChangeLink()" title="Choisir un autre clip (coller un lien YouTube)">🔗</button>
-            </div>
-        </div>
         <div id="clip-video-wrap">
             <div id="clip-player"></div>
             <div id="clip-message" class="visible"></div>
+            <div id="clip-header">
+                <span id="clip-title-label">🎬 Clip</span>
+                <div id="clip-controls">
+                    <button id="clip-power-btn" onclick="clipTogglePlayback()" title="Activer / désactiver le clip (préférence enregistrée)">⏻ Clip activé</button>
+                    <button onclick="clipAdjustOffset(-1)" title="Le clip est en avance : le retarder d'1 s">−1s</button>
+                    <span id="clip-offset-label">0s</span>
+                    <button onclick="clipAdjustOffset(1)" title="Le clip est en retard : l'avancer d'1 s">+1s</button>
+                    <button onclick="clipChangeLink()" title="Choisir un autre clip (coller un lien YouTube)">🔗 Lien</button>
+                </div>
+            </div>
         </div>
         <div id="clip-progress-track"><div id="clip-progress-fill"></div></div>
     `;
+    panel.addEventListener('click', (e) => {
+        if (e.target.closest('#clip-controls')) return;
+        panel.classList.toggle('controls-open');
+    });
     document.body.appendChild(panel);
     return panel;
 }
@@ -10424,14 +10433,27 @@ function clipDecodeEntities(t) {
     return ta.value;
 }
 
+function clipTogglePlayback() {
+    clipPlaybackEnabled = !clipPlaybackEnabled;
+    localStorage.setItem('clipPlaybackEnabled', clipPlaybackEnabled ? 'true' : 'false');
+    if (clipPlaybackEnabled) clipLoadForTrack();
+    else clipStop('Clip désactivé. Touche l\'encadré puis « Activer ».');
+    updateClipLabels();
+}
+
 function updateClipLabels(title) {
+    const power = document.getElementById('clip-power-btn');
+    if (power) {
+        power.innerText = clipPlaybackEnabled ? '⏻ Clip activé' : '⏻ Clip désactivé';
+        power.classList.toggle('off', !clipPlaybackEnabled);
+    }
     const label = document.getElementById('clip-title-label');
     if (label && title !== undefined) label.innerText = '🎬 ' + title;
     const off = document.getElementById('clip-offset-label');
     if (off) off.innerText = (clipOffsetSec > 0 ? '+' : '') + clipOffsetSec + 's';
 }
 
-function updateClipPanelContent() {
+function updateClipPanelContentUnsafe() {
     if (!clipFeatureEnabled) return;
     const mainFill = document.getElementById('progress-fill');
     const clipFill = document.getElementById('clip-progress-fill');
@@ -10456,7 +10478,7 @@ async function clipSearchVideo(name, artist) {
     return item ? { id: item.id.videoId, title: clipDecodeEntities(item.snippet.title) } : null;
 }
 
-function clipOnTrackChange(id, name, artist, isEpisode) {
+function clipOnTrackChangeUnsafe(id, name, artist, isEpisode) {
     clipCurrentTrack = { id: id, name: name, artist: artist, isEpisode: !!isEpisode };
     clipVideoId = null;
     if (clipFeatureEnabled) clipLoadForTrack();
@@ -10467,6 +10489,7 @@ async function clipLoadForTrack() {
     if (!track) return;
     const token = ++clipLoadToken;
     ensureClipPanel();
+    if (!clipPlaybackEnabled) { clipStop('Clip désactivé. Touche l\'encadré puis « Activer ».'); return; }
     if (track.isEpisode) { clipStop('Pas de clip pour un podcast.'); return; }
 
     const cache = clipReadStore('clipCache');
@@ -10576,7 +10599,7 @@ function clipCreateOrLoadPlayer(videoId) {
 }
 
 // Appelée chaque seconde : le clip suit play/pause de Spotify et se recale s'il dérive de plus de 1,5 s.
-function syncClipPlayback() {
+function syncClipPlaybackUnsafe() {
     if (!clipFeatureEnabled || !clipPlayerReady || !clipVideoId || !clipPlayer || typeof clipPlayer.getPlayerState !== 'function') return;
     const state = clipPlayer.getPlayerState(); // 1 lecture, 2 pause, 3 mise en mémoire tampon
     const target = clipStartSeconds();
@@ -10592,6 +10615,13 @@ function syncClipPlayback() {
     }
     if (clipPlayer.isMuted && !clipPlayer.isMuted()) clipPlayer.mute();
 }
+
+// Garde-fous : les panneaux Clip / PiP sont accessoires. Si l'un d'eux plante, on logue l'erreur
+// mais on ne laisse jamais l'exception remonter dans updateNowPlaying / highlightLyrics / le tick.
+function syncClipPlayback() { try { syncClipPlaybackUnsafe(); } catch (e) { console.warn('Clip (sync) :', e); } }
+function updateClipPanelContent() { try { updateClipPanelContentUnsafe(); } catch (e) { console.warn('Clip (affichage) :', e); } }
+function clipOnTrackChange(a, b, c, d) { try { clipOnTrackChangeUnsafe(a, b, c, d); } catch (e) { console.warn('Clip (changement de titre) :', e); } }
+function updatePipPanelContent(f) { try { updatePipPanelContentUnsafe(f); } catch (e) { console.warn('PiP :', e); } }
 
 // --- Style de la barre de progression (menu déroulant : Par défaut + 12 styles) ---
 let progressStyle = localStorage.getItem('progressStyle') || 'none';
