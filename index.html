@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v2.46";
+        const APP_VERSION = "v2.47";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1777,6 +1777,15 @@
 </div>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Paroles via sous-titres YouTube 📝</span>
+    <label class="switch">
+        <input type="checkbox" id="subs-feature-toggle" onchange="toggleSubsFeatureSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+<span style="font-size: 0.7rem; color: var(--text-grey);">Nécessite l'Intégration Clip. Un bouton lance l'appel (quota limité à 10), le résultat est mémorisé pour ne jamais le refaire.</span>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
     <span style="font-size: 0.85rem; color: var(--text-grey);">Flou progressif des lignes passées</span>
     <label class="switch">
         <input type="checkbox" id="lyrics-blur-past-toggle" onchange="toggleLyricsBlurPastSetting(this.checked)">
@@ -2374,6 +2383,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 initParolesEffectsState();
                 initProgressStyleState();
                 initClipFeatureState();
+                initSubsFeatureState();
                 updatePochetteTextColor();
                 initPipFeatureState();
                 initLyricsEffectsState();
@@ -3598,6 +3608,7 @@ function highlightLyrics(currentTime) {
             updatePipPanelContent();
             syncClipPlayback();
             updateClipPanelContent();
+            updateSubsPanelContent();
 
             if (!isCurrentlyPlaying || trackDurationMs === 0) return;
 
@@ -10383,7 +10394,7 @@ function injectClipStyles() {
         body.pip-panel-open #clip-panel { bottom: 112px; }
         #clip-panel.visible { display: block; }
         #clip-panel.user-hidden { display: none !important; }
-        #clip-reveal-btn { display: none; position: fixed; bottom: 58px; right: 14px; z-index: 9600; width: 38px; height: 38px; padding: 0; border-radius: 50%; border: 1px solid rgba(255,255,255,0.25); background: rgba(10,10,10,0.85); color: #fff; font-size: 1.05rem; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+        #clip-reveal-btn { display: none; position: fixed; bottom: 45px; right: 15px; z-index: 9600; width: 38px; height: 38px; padding: 0; border-radius: 50%; border: 1px solid rgba(255,255,255,0.25); background: rgba(10,10,10,0.85); color: #fff; font-size: 1.05rem; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
         #clip-reveal-btn.visible { display: block; }
         #clip-header { display: none; pointer-events: none; position: absolute; top: 0; left: 0; right: 0; z-index: 5; padding: 8px 10px 22px 10px; background: linear-gradient(rgba(0,0,0,0.82), rgba(0,0,0,0)); }
         #clip-panel.controls-open #clip-header { display: block; }
@@ -10703,6 +10714,238 @@ function syncClipPlaybackUnsafe() {
     }
     if (clipPlayer.isMuted && !clipPlayer.isMuted()) clipPlayer.mute();
 }
+
+
+// ==========================================
+// 📝 PAROLES VIA SOUS-TITRES YOUTUBE : un encadré (comme les paroles et le clip) qui affiche la ligne
+// en cours, la suivante, puis les lignes déjà chantées au fil de l'écoute. Les sous-titres sont
+// récupérés via l'API youtube-transcript.io à partir de l'identifiant du clip. Le quota est limité
+// (10 appels) : l'appel n'est lancé QUE par le bouton « Générer les paroles via sous-titre YouTube »,
+// et chaque résultat est mémorisé (jamais deux appels pour la même vidéo).
+// ==========================================
+const SUBS_API_KEY = 'yta_5d361192f0b7bea2fef1bad94d7a17a6ff2dda2ab08585b8';
+const SUBS_API_URL = 'https://www.youtube-transcript.io/api/transcripts';
+const SUBS_QUOTA_LIMIT = 10;
+let subsFeatureEnabled = localStorage.getItem('subsFeatureEnabled') === 'true';
+let subsLines = [];
+let subsLoadedFor = null;
+let subsBusy = false;
+let subsRenderedCount = 0;
+let subsLastIdx = -2;
+let subsNote = '';
+
+function subsCallCount() { return parseInt(localStorage.getItem('subsCallCount') || '0', 10) || 0; }
+
+function toggleSubsFeatureSetting(checked) {
+    subsFeatureEnabled = checked;
+    localStorage.setItem('subsFeatureEnabled', checked ? 'true' : 'false');
+    applySubsFeatureState();
+}
+
+function initSubsFeatureState() {
+    const toggle = document.getElementById('subs-feature-toggle');
+    if (toggle) toggle.checked = subsFeatureEnabled;
+    applySubsFeatureState();
+}
+
+function applySubsFeatureState() {
+    if (subsFeatureEnabled) {
+        const panel = ensureSubsPanel();
+        panel.classList.add('visible');
+        subsLoadedFor = null;
+        updateSubsPanelContent();
+    } else {
+        const panel = document.getElementById('subs-panel');
+        if (panel) panel.classList.remove('visible');
+    }
+}
+
+function injectSubsStyles() {
+    if (document.getElementById('subs-panel-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'subs-panel-inline-style';
+    styleTag.textContent = `
+        #subs-panel {
+            display: none; position: fixed; bottom: 20px; left: 12px; width: min(380px, calc(100vw - 24px));
+            z-index: 8930; box-sizing: border-box; border-radius: 16px; padding: 10px 12px 12px 12px;
+            background: linear-gradient(135deg, rgba(var(--pip-bg-color, 29, 185, 84), 0.35), rgba(10, 10, 10, 0.94));
+            backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.12);
+        }
+        #subs-panel.visible { display: block; }
+        #subs-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; color: #fff; font-size: 0.78rem; font-weight: bold; }
+        #subs-quota { color: rgba(255,255,255,0.6); font-size: 0.7rem; font-weight: normal; white-space: nowrap; }
+        #subs-message { color: rgba(255,255,255,0.75); font-size: 0.82rem; text-align: center; padding: 10px 6px; display: none; }
+        #subs-generate-btn { display: none; width: 100%; background: var(--spotify-green, #1DB954); color: #000; border: none; border-radius: 10px; padding: 10px 12px; font-weight: bold; font-size: 0.82rem; cursor: pointer; }
+        #subs-generate-btn:disabled { opacity: 0.5; cursor: default; }
+        #subs-lines { display: none; position: relative; height: 170px; overflow: hidden; scroll-behavior: smooth; text-align: center;
+            -webkit-mask-image: linear-gradient(transparent, #000 18%, #000 82%, transparent); mask-image: linear-gradient(transparent, #000 18%, #000 82%, transparent); }
+        .subs-line { padding: 5px 4px; font-size: 0.9rem; line-height: 1.3; color: rgba(255,255,255,0.4); transition: color 0.3s ease, transform 0.3s ease; }
+        .subs-line.current { color: #fff; font-weight: bold; font-size: 1rem; transform: scale(1.04); }
+        .subs-line.next { color: rgba(255,255,255,0.7); }
+    `;
+    document.head.appendChild(styleTag);
+}
+
+function ensureSubsPanel() {
+    let panel = document.getElementById('subs-panel');
+    if (panel) return panel;
+    injectSubsStyles();
+    panel = document.createElement('div');
+    panel.id = 'subs-panel';
+    panel.innerHTML = `
+        <div id="subs-header"><span>📝 Paroles · sous-titres YouTube</span><span id="subs-quota"></span></div>
+        <div id="subs-message"></div>
+        <button id="subs-generate-btn" onclick="subsGenerate()">Générer les paroles via sous-titre YouTube</button>
+        <div id="subs-lines"></div>
+    `;
+    document.body.appendChild(panel);
+    return panel;
+}
+
+// mode : 'message' (texte seul), 'button' (bouton + éventuelle note) ou 'lines' (paroles)
+function subsShowState(mode, text) {
+    const msg = document.getElementById('subs-message');
+    const btn = document.getElementById('subs-generate-btn');
+    const lines = document.getElementById('subs-lines');
+    if (!msg || !btn || !lines) return;
+    msg.style.display = (mode === 'message' || (mode === 'button' && text)) ? 'block' : 'none';
+    msg.innerText = text || '';
+    btn.style.display = mode === 'button' ? 'block' : 'none';
+    btn.disabled = false;
+    lines.style.display = mode === 'lines' ? 'block' : 'none';
+}
+
+function subsClearLines() {
+    const box = document.getElementById('subs-lines');
+    if (box) box.innerHTML = '';
+    subsRenderedCount = 0;
+    subsLastIdx = -2;
+}
+
+function subsParseTranscript(json) {
+    const item = Array.isArray(json) ? json[0] : json;
+    if (!item) return { lines: [], lang: '' };
+    let segs = null;
+    let lang = '';
+    if (Array.isArray(item.tracks) && item.tracks.length) {
+        const langOf = (t) => String(t.language || t.languageCode || '');
+        const pick = item.tracks.find(t => /^(fr|fran)/i.test(langOf(t))) || item.tracks.find(t => /^(en|engl)/i.test(langOf(t))) || item.tracks[0];
+        segs = pick.transcript || pick.segments || null;
+        lang = langOf(pick);
+    } else if (Array.isArray(item.segments)) {
+        segs = item.segments;
+    } else if (Array.isArray(item.transcript)) {
+        segs = item.transcript;
+    }
+    const lines = [];
+    (segs || []).forEach(seg => {
+        const t = parseFloat(seg.start !== undefined ? seg.start : (seg.offset !== undefined ? seg.offset : 0));
+        const text = clipDecodeEntities(String(seg.text || '')).replace(/\s+/g, ' ').trim();
+        if (!isFinite(t) || !text || /^\[[^\]]*\]$/.test(text)) return; // ignore les mentions [Musique] seules
+        if (lines.length && lines[lines.length - 1].text === text) return;
+        lines.push({ t: t, text: text });
+    });
+    lines.sort((a, b) => a.t - b.t);
+    return { lines: lines, lang: lang };
+}
+
+async function subsFetchTranscript(videoId) {
+    const doFetch = (scheme) => fetch(SUBS_API_URL, {
+        method: 'POST',
+        headers: { 'Authorization': scheme + ' ' + SUBS_API_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: [videoId] })
+    });
+    let response;
+    try {
+        response = await doFetch('Basic');
+        if (response.status === 401 || response.status === 403) response = await doFetch('Bearer');
+    } catch (e) {
+        throw new Error('appel bloqué par le navigateur (réseau ou CORS) — le quota n\'a probablement pas été consommé');
+    }
+    if (response.status === 429) throw new Error('trop de requêtes, réessaie dans quelques secondes');
+    if (response.status === 401 || response.status === 403) throw new Error('clé refusée (' + response.status + ')');
+    if (!response.ok) throw new Error('erreur du service (' + response.status + ')');
+    localStorage.setItem('subsCallCount', String(subsCallCount() + 1)); // appel réussi : on le compte
+    return subsParseTranscript(await response.json());
+}
+
+// Déclenché UNIQUEMENT par le bouton : un seul appel par vidéo, puis tout vient de la mémoire.
+async function subsGenerate() {
+    if (subsBusy || !clipVideoId) return;
+    const videoId = clipVideoId;
+    if (subsCallCount() >= SUBS_QUOTA_LIMIT && !window.confirm('Le quota de ' + SUBS_QUOTA_LIMIT + ' appels semble atteint. Essayer quand même ?')) return;
+    subsBusy = true;
+    subsNote = '';
+    subsShowState('message', 'Récupération des sous-titres…');
+    try {
+        const result = await subsFetchTranscript(videoId);
+        const cache = clipReadStore('subsCache');
+        cache[videoId] = result; // même un résultat vide est mémorisé : on ne gaspille pas un 2e appel
+        const keys = Object.keys(cache);
+        if (keys.length > 40) delete cache[keys[0]];
+        clipWriteStore('subsCache', cache);
+        subsLoadedFor = null; // force la relecture depuis la mémoire
+    } catch (e) {
+        subsNote = 'Échec : ' + e.message;
+    }
+    subsBusy = false;
+    updateSubsPanelContent();
+}
+
+function updateSubsPanelContentUnsafe() {
+    if (!subsFeatureEnabled) return;
+    ensureSubsPanel();
+    const quota = document.getElementById('subs-quota');
+    if (quota) quota.innerText = subsCallCount() + '/' + SUBS_QUOTA_LIMIT + ' appels';
+    if (subsBusy) return;
+
+    if (!clipVideoId) {
+        subsLoadedFor = null;
+        subsLines = [];
+        subsClearLines();
+        subsShowState('message', clipFeatureEnabled ? 'En attente du clip de ce titre…' : 'Active « Intégration Clip » : les sous-titres viennent du clip YouTube.');
+        return;
+    }
+    if (subsLoadedFor !== clipVideoId) {
+        subsLoadedFor = clipVideoId;
+        subsClearLines();
+        const cached = clipReadStore('subsCache')[clipVideoId];
+        subsLines = cached ? cached.lines : [];
+        if (!cached) { subsShowState('button', subsNote); return; }
+        if (!subsLines.length) { subsShowState('message', 'Aucun sous-titre trouvé pour ce clip.'); return; }
+    }
+    if (!subsLines.length) return;
+
+    subsShowState('lines');
+    const t = currentProgressMs / 1000 + clipOffsetSec; // temps dans la vidéo = temps Spotify + décalage du clip
+    let idx = -1;
+    for (let i = 0; i < subsLines.length; i++) { if (subsLines[i].t <= t) idx = i; else break; }
+    const reveal = Math.min(subsLines.length - 1, idx + 1); // visibles : jusqu'à la ligne suivante
+    const box = document.getElementById('subs-lines');
+    if (!box) return;
+    if (box.children.length > reveal + 1) {
+        while (box.children.length > reveal + 1) box.removeChild(box.lastChild);
+        subsRenderedCount = box.children.length;
+    }
+    while (subsRenderedCount <= reveal) {
+        const div = document.createElement('div');
+        div.className = 'subs-line';
+        div.textContent = subsLines[subsRenderedCount].text;
+        box.appendChild(div);
+        subsRenderedCount++;
+    }
+    for (let i = 0; i < box.children.length; i++) {
+        box.children[i].className = 'subs-line' + (i === idx ? ' current' : (i === idx + 1 ? ' next' : ''));
+    }
+    if (idx !== subsLastIdx) {
+        subsLastIdx = idx;
+        const cur = box.children[Math.max(idx, 0)];
+        if (cur) box.scrollTop = cur.offsetTop - box.clientHeight / 2 + cur.clientHeight / 2;
+    }
+}
+
+function updateSubsPanelContent() { try { updateSubsPanelContentUnsafe(); } catch (e) { console.warn('Paroles sous-titres :', e); } }
 
 // Quand tu passes sur l'appli Spotify (la page passe en arrière-plan), le clip se met en pause et ne
 // consomme plus rien ; il reprend au retour.
