@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v2.40";
+        const APP_VERSION = "v2.41";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1765,6 +1765,18 @@
 </div>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Intégration Clip 🎬</span>
+    <label class="switch">
+        <input type="checkbox" id="clip-feature-toggle" onchange="toggleClipFeatureSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px; width: 100%;">
+    <input type="password" id="clip-api-key-input" placeholder="Clé API YouTube Data v3 (déjà intégrée, modifiable)" onchange="setClipApiKey(this.value)" style="background: #1a1a1a; color: #fff; border: 1px solid #444; border-radius: 6px; padding: 6px 8px; font-size: 0.75rem; width: 100%; box-sizing: border-box;">
+    <span style="font-size: 0.7rem; color: var(--text-grey);">Le clip YouTube est joué sans son et synchronisé sur Spotify. Tu peux aussi coller un lien avec le bouton 🔗 du panneau.</span>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
     <span style="font-size: 0.85rem; color: var(--text-grey);">Flou progressif des lignes passées</span>
     <label class="switch">
         <input type="checkbox" id="lyrics-blur-past-toggle" onchange="toggleLyricsBlurPastSetting(this.checked)">
@@ -2361,6 +2373,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 initBrasTourneDisqueState();
                 initParolesEffectsState();
                 initProgressStyleState();
+                initClipFeatureState();
                 updatePochetteTextColor();
                 initPipFeatureState();
                 initLyricsEffectsState();
@@ -3537,9 +3550,12 @@ function highlightLyrics(currentTime) {
                         };
                     }
                     updatePipPanelContent();
+                    syncClipPlayback();
+                    updateClipPanelContent();
 
                     if (data.item.id !== lastTrackId) {
                         lastTrackId = data.item.id;
+                        clipOnTrackChange(data.item.id, data.item.name, (!isEpisode && data.item.artists && data.item.artists[0]) ? data.item.artists[0].name : '', isEpisode);
                         applyTitreAnimStyle(document.getElementById('track-title').innerText);
                         applyArtisteSignatureStyle();
                         updateStreakBadge();
@@ -3580,6 +3596,8 @@ function highlightLyrics(currentTime) {
             syncVinylSpinState(); // idem : le vinyle doit s'arrêter dès la pause, même sans nouveau titre
             updateBrasTourneDisquePosition();
             updatePipPanelContent();
+            syncClipPlayback();
+            updateClipPanelContent();
 
             if (!isCurrentlyPlaying || trackDurationMs === 0) return;
 
@@ -10198,6 +10216,7 @@ function ensurePipPanel() {
 
 // Slide activé : l'interface apparaît directement. Désactivé : rien à l'écran.
 function applyPipFeatureState() {
+    document.body.classList.toggle('pip-panel-open', pipFeatureEnabled);
     if (pipFeatureEnabled) {
         const panel = ensurePipPanel();
         pipPanelOpen = true;
@@ -10279,6 +10298,300 @@ function updatePipPanelContent(forceColor) {
 
 // Correction : quand la lecture est en pause, le vinyle qui tourne (style d'apparition de la
 // pochette) doit s'arrêter de tourner — et repartir dès que la lecture reprend.
+
+// ==========================================
+// 🎬 INTÉGRATION CLIP : le clip YouTube du titre Spotify en cours, joué SANS SON dans un panneau
+// flottant (comme le PiP, mais plus haut), synchronisé sur la progression Spotify. Désactivé par
+// défaut. Le clip est cherché via l'API YouTube Data v3 (clé à renseigner dans les réglages) ou
+// choisi à la main (bouton 🔗). Le choix et le décalage de chaque clip sont mémorisés.
+// ==========================================
+let clipFeatureEnabled = localStorage.getItem('clipFeatureEnabled') === 'true';
+// Clé API YouTube Data v3 intégrée par défaut (un autre champ dans les réglages peut la remplacer)
+const CLIP_DEFAULT_API_KEY = 'AIzaSyDVjvbkx9Ekech-ZKrRBKiYhyWGhnEc7Jw';
+let clipApiKey = localStorage.getItem('clipApiKey') || CLIP_DEFAULT_API_KEY;
+let clipCurrentTrack = null;      // { id, name, artist, isEpisode } du titre Spotify en cours
+let clipVideoId = null;
+let clipOffsetSec = 0;            // décalage clip ↔ audio (certains clips ont une intro)
+let clipPlayer = null;
+let clipPlayerReady = false;
+let clipLastSeek = 0;
+let clipLoadToken = 0;
+const clipApiCallbacks = [];
+
+function clipReadStore(key) { try { return JSON.parse(localStorage.getItem(key) || '{}') || {}; } catch (e) { return {}; } }
+function clipWriteStore(key, obj) { try { localStorage.setItem(key, JSON.stringify(obj)); } catch (e) {} }
+
+function toggleClipFeatureSetting(checked) {
+    clipFeatureEnabled = checked;
+    localStorage.setItem('clipFeatureEnabled', checked ? 'true' : 'false');
+    applyClipFeatureState();
+}
+
+function setClipApiKey(value) {
+    clipApiKey = (value || '').trim() || CLIP_DEFAULT_API_KEY;
+    localStorage.setItem('clipApiKey', clipApiKey);
+    if (clipFeatureEnabled && !clipVideoId) clipLoadForTrack();
+}
+
+function initClipFeatureState() {
+    const toggle = document.getElementById('clip-feature-toggle');
+    if (toggle) toggle.checked = clipFeatureEnabled;
+    const keyInput = document.getElementById('clip-api-key-input');
+    if (keyInput) keyInput.value = clipApiKey;
+    applyClipFeatureState();
+}
+
+// Slide activé : le panneau apparaît directement. Désactivé : rien à l'écran et le clip est mis en pause.
+function applyClipFeatureState() {
+    if (clipFeatureEnabled) {
+        const panel = ensureClipPanel();
+        panel.classList.add('visible');
+        if (clipCurrentTrack) clipLoadForTrack();
+        else setClipMessage('En attente d\'un titre Spotify…');
+    } else {
+        const panel = document.getElementById('clip-panel');
+        if (panel) panel.classList.remove('visible');
+        if (clipPlayer && clipPlayerReady && typeof clipPlayer.pauseVideo === 'function') clipPlayer.pauseVideo();
+    }
+}
+
+function injectClipStyles() {
+    if (document.getElementById('clip-panel-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'clip-panel-inline-style';
+    styleTag.textContent = `
+        #clip-panel {
+            display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            width: min(560px, calc(100vw - 24px)); z-index: 9490; overflow: hidden; box-sizing: border-box;
+            border-radius: 16px; padding: 10px 12px 12px 12px;
+            background: linear-gradient(135deg, rgba(var(--pip-bg-color, 29, 185, 84), 0.4), rgba(10, 10, 10, 0.94));
+            backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.12);
+        }
+        body.pip-panel-open #clip-panel { bottom: 112px; }
+        #clip-panel.visible { display: block; }
+        #clip-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+        #clip-title-label { color: #fff; font-size: 0.8rem; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+        #clip-controls { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+        #clip-controls button { background: rgba(255,255,255,0.15); border: none; color: #fff; font-size: 0.72rem; border-radius: 6px; padding: 3px 7px; cursor: pointer; }
+        #clip-offset-label { color: rgba(255,255,255,0.7); font-size: 0.72rem; min-width: 30px; text-align: center; }
+        #clip-video-wrap { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 10px; overflow: hidden; }
+        #clip-video-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; pointer-events: none; }
+        #clip-message { display: none; position: absolute; inset: 0; align-items: center; justify-content: center; text-align: center; padding: 16px; color: rgba(255,255,255,0.8); font-size: 0.85rem; background: #0c0c0c; z-index: 2; }
+        #clip-message.visible { display: flex; }
+        #clip-progress-track { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: rgba(255,255,255,0.15); }
+        #clip-progress-fill { height: 100%; width: 0%; background: var(--spotify-green, #1DB954); }
+    `;
+    document.head.appendChild(styleTag);
+}
+
+function ensureClipPanel() {
+    let panel = document.getElementById('clip-panel');
+    if (panel) return panel;
+    injectClipStyles();
+    panel = document.createElement('div');
+    panel.id = 'clip-panel';
+    panel.innerHTML = `
+        <div id="clip-header">
+            <span id="clip-title-label">🎬 Clip</span>
+            <div id="clip-controls">
+                <button onclick="clipAdjustOffset(-1)" title="Le clip est en avance : le retarder d'1 s">−1s</button>
+                <span id="clip-offset-label">0s</span>
+                <button onclick="clipAdjustOffset(1)" title="Le clip est en retard : l'avancer d'1 s">+1s</button>
+                <button onclick="clipChangeLink()" title="Choisir un autre clip (coller un lien YouTube)">🔗</button>
+            </div>
+        </div>
+        <div id="clip-video-wrap">
+            <div id="clip-player"></div>
+            <div id="clip-message" class="visible"></div>
+        </div>
+        <div id="clip-progress-track"><div id="clip-progress-fill"></div></div>
+    `;
+    document.body.appendChild(panel);
+    return panel;
+}
+
+function setClipMessage(text) {
+    const box = document.getElementById('clip-message');
+    if (!box) return;
+    box.innerText = text || '';
+    box.classList.toggle('visible', !!text);
+}
+
+function clipDecodeEntities(t) {
+    const ta = document.createElement('textarea');
+    ta.innerHTML = t;
+    return ta.value;
+}
+
+function updateClipLabels(title) {
+    const label = document.getElementById('clip-title-label');
+    if (label && title !== undefined) label.innerText = '🎬 ' + title;
+    const off = document.getElementById('clip-offset-label');
+    if (off) off.innerText = (clipOffsetSec > 0 ? '+' : '') + clipOffsetSec + 's';
+}
+
+function updateClipPanelContent() {
+    if (!clipFeatureEnabled) return;
+    const mainFill = document.getElementById('progress-fill');
+    const clipFill = document.getElementById('clip-progress-fill');
+    if (mainFill && clipFill) clipFill.style.width = mainFill.style.width || '0%';
+}
+
+function clipParseVideoId(input) {
+    const txt = (input || '').trim();
+    if (/^[\w-]{11}$/.test(txt)) return txt;
+    const m = txt.match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([\w-]{11})/);
+    return m ? m[1] : null;
+}
+
+async function clipSearchVideo(name, artist) {
+    if (!clipApiKey) throw new Error('clé API manquante');
+    const q = encodeURIComponent((artist + ' ' + name + ' clip officiel').trim());
+    const url = 'https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoEmbeddable=true&videoCategoryId=10&maxResults=1&q=' + q + '&key=' + encodeURIComponent(clipApiKey);
+    const response = await fetch(url);
+    const json = await response.json();
+    if (!response.ok) throw new Error(json.error && json.error.message ? json.error.message : ('erreur ' + response.status));
+    const item = json.items && json.items[0];
+    return item ? { id: item.id.videoId, title: clipDecodeEntities(item.snippet.title) } : null;
+}
+
+function clipOnTrackChange(id, name, artist, isEpisode) {
+    clipCurrentTrack = { id: id, name: name, artist: artist, isEpisode: !!isEpisode };
+    clipVideoId = null;
+    if (clipFeatureEnabled) clipLoadForTrack();
+}
+
+async function clipLoadForTrack() {
+    const track = clipCurrentTrack;
+    if (!track) return;
+    const token = ++clipLoadToken;
+    ensureClipPanel();
+    if (track.isEpisode) { clipStop('Pas de clip pour un podcast.'); return; }
+
+    const cache = clipReadStore('clipCache');
+    let entry = cache[track.id];
+    if (!entry) {
+        if (!clipApiKey) { clipStop('Ajoute ta clé API YouTube dans les paramètres, ou colle un lien avec le bouton 🔗.'); return; }
+        setClipMessage('Recherche du clip…');
+        try { entry = await clipSearchVideo(track.name, track.artist); }
+        catch (e) {
+            if (token !== clipLoadToken) return;
+            clipStop('Recherche impossible (' + e.message + '). Colle un lien avec le bouton 🔗.');
+            return;
+        }
+        if (token !== clipLoadToken) return;
+        if (!entry) { clipStop('Aucun clip trouvé pour ce titre. Colle un lien avec le bouton 🔗.'); return; }
+        cache[track.id] = entry;
+        clipWriteStore('clipCache', cache);
+    }
+    clipVideoId = entry.id;
+    clipOffsetSec = clipReadStore('clipOffsets')[entry.id] || 0;
+    updateClipLabels(entry.title || 'Clip');
+    setClipMessage('');
+    clipCreateOrLoadPlayer(entry.id);
+}
+
+function clipStop(message) {
+    clipVideoId = null;
+    if (clipPlayer && clipPlayerReady && typeof clipPlayer.pauseVideo === 'function') clipPlayer.pauseVideo();
+    updateClipLabels('Clip');
+    setClipMessage(message || '');
+}
+
+function clipChangeLink() {
+    if (!clipCurrentTrack) return;
+    const input = window.prompt('Lien YouTube du clip pour ce titre (laisser vide pour relancer la recherche automatique) :');
+    if (input === null) return;
+    const cache = clipReadStore('clipCache');
+    if (input.trim() === '') {
+        delete cache[clipCurrentTrack.id];
+    } else {
+        const id = clipParseVideoId(input);
+        if (!id) { window.alert('Lien YouTube non reconnu.'); return; }
+        cache[clipCurrentTrack.id] = { id: id, title: 'Clip choisi manuellement' };
+    }
+    clipWriteStore('clipCache', cache);
+    clipLoadForTrack();
+}
+
+function clipAdjustOffset(delta) {
+    if (!clipVideoId) return;
+    clipOffsetSec += delta;
+    const offsets = clipReadStore('clipOffsets');
+    offsets[clipVideoId] = clipOffsetSec;
+    clipWriteStore('clipOffsets', offsets);
+    updateClipLabels();
+    clipLastSeek = 0;
+    syncClipPlayback();
+}
+
+function clipLoadYouTubeApi(callback) {
+    if (window.YT && window.YT.Player) { callback(); return; }
+    clipApiCallbacks.push(callback);
+    if (document.getElementById('yt-iframe-api')) return;
+    window.onYouTubeIframeAPIReady = function () { clipApiCallbacks.splice(0).forEach(fn => fn()); };
+    const tag = document.createElement('script');
+    tag.id = 'yt-iframe-api';
+    tag.src = 'https://www.youtube.com/iframe_api';
+    tag.onerror = () => setClipMessage('Impossible de charger le lecteur YouTube (connexion ?).');
+    document.head.appendChild(tag);
+}
+
+function clipStartSeconds() {
+    return Math.max(0, currentProgressMs / 1000 + clipOffsetSec);
+}
+
+function clipCreateOrLoadPlayer(videoId) {
+    clipLoadYouTubeApi(() => {
+        if (clipPlayer && clipPlayerReady) {
+            clipPlayer.loadVideoById({ videoId: videoId, startSeconds: clipStartSeconds() });
+            clipPlayer.mute();
+            if (!isCurrentlyPlaying) clipPlayer.pauseVideo();
+            return;
+        }
+        if (clipPlayer) return; // création déjà en cours : onReady chargera le bon clip
+        const vars = { controls: 0, disablekb: 1, fs: 0, modestbranding: 1, rel: 0, playsinline: 1, iv_load_policy: 3, start: Math.floor(clipStartSeconds()) };
+        if (location.protocol === 'http:' || location.protocol === 'https:') vars.origin = location.origin;
+        clipPlayer = new YT.Player('clip-player', {
+            videoId: videoId,
+            playerVars: vars,
+            events: {
+                onReady: (e) => {
+                    clipPlayerReady = true;
+                    e.target.mute(); // le clip n'a jamais de son : l'audio vient de Spotify
+                    if (clipVideoId && clipVideoId !== videoId) e.target.loadVideoById({ videoId: clipVideoId, startSeconds: clipStartSeconds() });
+                    syncClipPlayback();
+                },
+                onError: (e) => {
+                    const code = e.data;
+                    if (code === 101 || code === 150) setClipMessage('Ce clip n\'autorise pas l\'intégration. Choisis-en un autre avec le bouton 🔗.');
+                    else if (code === 153) setClipMessage('YouTube refuse l\'intégration : ouvre la page en http(s) (ex. serveur local) et non en fichier.');
+                    else if (code === 100) setClipMessage('Clip introuvable. Choisis-en un autre avec le bouton 🔗.');
+                    else setClipMessage('Erreur du lecteur YouTube (' + code + ').');
+                }
+            }
+        });
+    });
+}
+
+// Appelée chaque seconde : le clip suit play/pause de Spotify et se recale s'il dérive de plus de 1,5 s.
+function syncClipPlayback() {
+    if (!clipFeatureEnabled || !clipPlayerReady || !clipVideoId || !clipPlayer || typeof clipPlayer.getPlayerState !== 'function') return;
+    const state = clipPlayer.getPlayerState(); // 1 lecture, 2 pause, 3 mise en mémoire tampon
+    const target = clipStartSeconds();
+    if (isCurrentlyPlaying) {
+        if (state !== 1 && state !== 3) clipPlayer.playVideo();
+    } else if (state === 1 || state === 3) {
+        clipPlayer.pauseVideo();
+    }
+    const drift = Math.abs(clipPlayer.getCurrentTime() - target);
+    if (drift > 1.5 && Date.now() - clipLastSeek > 3000) {
+        clipPlayer.seekTo(target, true);
+        clipLastSeek = Date.now();
+    }
+    if (clipPlayer.isMuted && !clipPlayer.isMuted()) clipPlayer.mute();
+}
 
 // --- Style de la barre de progression (menu déroulant : Par défaut + 12 styles) ---
 let progressStyle = localStorage.getItem('progressStyle') || 'none';
