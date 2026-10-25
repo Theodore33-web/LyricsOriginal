@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v2.42";
+        const APP_VERSION = "v2.43";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10310,7 +10310,8 @@ let clipFeatureEnabled = localStorage.getItem('clipFeatureEnabled') === 'true';
 const CLIP_DEFAULT_API_KEY = 'AIzaSyDVjvbkx9Ekech-ZKrRBKiYhyWGhnEc7Jw';
 let clipApiKey = localStorage.getItem('clipApiKey') || CLIP_DEFAULT_API_KEY;
 let clipCurrentTrack = null;      // { id, name, artist, isEpisode } du titre Spotify en cours
-let clipPlaybackEnabled = localStorage.getItem('clipPlaybackEnabled') !== 'false'; // préférence mémorisée (activé par défaut)
+let clipCaptionsEnabled = localStorage.getItem('clipCaptionsEnabled') === 'true'; // sous-titres YouTube : préférence mémorisée, désactivés par défaut
+let clipCaptionsApplied = '';
 let clipVideoId = null;
 let clipOffsetSec = 0;            // décalage clip ↔ audio (certains clips ont une intro)
 let clipPlayer = null;
@@ -10376,7 +10377,7 @@ function injectClipStyles() {
         #clip-title-label { display: block; color: #fff; font-size: 0.8rem; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         #clip-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 6px; }
         #clip-controls button { background: rgba(255,255,255,0.2); border: none; color: #fff; font-size: 0.72rem; border-radius: 6px; padding: 3px 8px; cursor: pointer; }
-        #clip-power-btn.off { background: rgba(255,80,80,0.55); }
+        #clip-cc-btn.on { background: rgba(29,185,84,0.75); }
         #clip-offset-label { color: rgba(255,255,255,0.8); font-size: 0.72rem; min-width: 30px; text-align: center; }
         #clip-panel { cursor: pointer; }
         #clip-video-wrap { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 10px; overflow: hidden; }
@@ -10402,7 +10403,7 @@ function ensureClipPanel() {
             <div id="clip-header">
                 <span id="clip-title-label">🎬 Clip</span>
                 <div id="clip-controls">
-                    <button id="clip-power-btn" onclick="clipTogglePlayback()" title="Activer / désactiver le clip (préférence enregistrée)">⏻ Clip activé</button>
+                    <button id="clip-cc-btn" onclick="clipToggleCaptions()" title="Activer / désactiver les sous-titres YouTube (préférence enregistrée)">CC désactivés</button>
                     <button onclick="clipAdjustOffset(-1)" title="Le clip est en avance : le retarder d'1 s">−1s</button>
                     <span id="clip-offset-label">0s</span>
                     <button onclick="clipAdjustOffset(1)" title="Le clip est en retard : l'avancer d'1 s">+1s</button>
@@ -10433,19 +10434,35 @@ function clipDecodeEntities(t) {
     return ta.value;
 }
 
-function clipTogglePlayback() {
-    clipPlaybackEnabled = !clipPlaybackEnabled;
-    localStorage.setItem('clipPlaybackEnabled', clipPlaybackEnabled ? 'true' : 'false');
-    if (clipPlaybackEnabled) clipLoadForTrack();
-    else clipStop('Clip désactivé. Touche l\'encadré puis « Activer ».');
+// Sous-titres YouTube : bouton "CC" (préférence enregistrée). Utilise le module "captions" du lecteur
+// intégré ; la langue française est choisie si le clip en propose, sinon la piste par défaut.
+function clipApplyCaptions() {
+    if (!clipPlayer || !clipPlayerReady) return;
+    try {
+        if (clipCaptionsEnabled) {
+            clipPlayer.loadModule('captions');
+            const tracks = clipPlayer.getOption('captions', 'tracklist') || [];
+            const fr = tracks.find(t => (t.languageCode || '').toLowerCase().startsWith('fr'));
+            if (fr) clipPlayer.setOption('captions', 'track', { languageCode: fr.languageCode });
+        } else {
+            clipPlayer.unloadModule('captions');
+        }
+    } catch (e) { console.warn('Sous-titres YouTube :', e); }
+}
+
+function clipToggleCaptions() {
+    clipCaptionsEnabled = !clipCaptionsEnabled;
+    localStorage.setItem('clipCaptionsEnabled', clipCaptionsEnabled ? 'true' : 'false');
+    clipCaptionsApplied = clipVideoId + ':' + clipCaptionsEnabled;
+    clipApplyCaptions();
     updateClipLabels();
 }
 
 function updateClipLabels(title) {
-    const power = document.getElementById('clip-power-btn');
-    if (power) {
-        power.innerText = clipPlaybackEnabled ? '⏻ Clip activé' : '⏻ Clip désactivé';
-        power.classList.toggle('off', !clipPlaybackEnabled);
+    const cc = document.getElementById('clip-cc-btn');
+    if (cc) {
+        cc.innerText = clipCaptionsEnabled ? 'CC activés' : 'CC désactivés';
+        cc.classList.toggle('on', clipCaptionsEnabled);
     }
     const label = document.getElementById('clip-title-label');
     if (label && title !== undefined) label.innerText = '🎬 ' + title;
@@ -10489,7 +10506,6 @@ async function clipLoadForTrack() {
     if (!track) return;
     const token = ++clipLoadToken;
     ensureClipPanel();
-    if (!clipPlaybackEnabled) { clipStop('Clip désactivé. Touche l\'encadré puis « Activer ».'); return; }
     if (track.isEpisode) { clipStop('Pas de clip pour un podcast.'); return; }
 
     const cache = clipReadStore('clipCache');
@@ -10574,7 +10590,7 @@ function clipCreateOrLoadPlayer(videoId) {
             return;
         }
         if (clipPlayer) return; // création déjà en cours : onReady chargera le bon clip
-        const vars = { controls: 0, disablekb: 1, fs: 0, modestbranding: 1, rel: 0, playsinline: 1, iv_load_policy: 3, start: Math.floor(clipStartSeconds()) };
+        const vars = { controls: 0, disablekb: 1, fs: 0, modestbranding: 1, rel: 0, playsinline: 1, iv_load_policy: 3, hl: 'fr', cc_lang_pref: 'fr', cc_load_policy: clipCaptionsEnabled ? 1 : 0, start: Math.floor(clipStartSeconds()) };
         if (location.protocol === 'http:' || location.protocol === 'https:') vars.origin = location.origin;
         clipPlayer = new YT.Player('clip-player', {
             videoId: videoId,
@@ -10585,6 +10601,13 @@ function clipCreateOrLoadPlayer(videoId) {
                     e.target.mute(); // le clip n'a jamais de son : l'audio vient de Spotify
                     if (clipVideoId && clipVideoId !== videoId) e.target.loadVideoById({ videoId: clipVideoId, startSeconds: clipStartSeconds() });
                     syncClipPlayback();
+                },
+                onStateChange: (e) => {
+                    // Une fois la lecture démarrée, on applique le choix de sous-titres (une fois par clip)
+                    if (e.data === 1) {
+                        const key = clipVideoId + ':' + clipCaptionsEnabled;
+                        if (key !== clipCaptionsApplied) { clipCaptionsApplied = key; clipApplyCaptions(); }
+                    }
                 },
                 onError: (e) => {
                     const code = e.data;
