@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v2.5";
+        const APP_VERSION = "v2.44";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -800,6 +800,7 @@
         }
         .controls button:hover { color: var(--spotify-green); }
         
+        #track-title.titre-anim-pochettecolor, #track-artist.artiste-anim-pochettecolor { color: rgb(var(--pochette-text-color, 29, 185, 84)) !important; transition: color 0.6s ease; }
         #track-title { font-size: 1.2rem; margin: 10px 0 2px 0; }
         #track-artist { color: var(--text-grey); font-size: 0.9rem; margin-top: 0; }
 
@@ -828,6 +829,119 @@
             transition: width 0.2s linear;
         }
         .progress-bar-bg:hover .progress-bar-fill { background: #1ed760; }
+
+        /* ---- Styles de la barre de progression (menu déroulant "Style de la barre de progression").
+           Les dégradés sont étirés sur TOUTE la largeur de la barre (--bar-w, posée par JS) : la couleur
+           avance donc avec la lecture au lieu d'être écrasée dans la partie remplie. ---- */
+        body[class*="progress-style-"] .progress-bar-bg:hover #progress-fill { background-color: transparent; }
+        body[class*="progress-style-"] #progress-fill { position: relative; background-size: var(--bar-w, 100%) 100%; background-repeat: no-repeat; }
+        @keyframes pf-vinyl-spin { to { transform: rotate(360deg); } }
+        @keyframes pf-stripes { from { background-position: 0 0, 0 0; } to { background-position: 17px 0, 0 0; } }
+        @keyframes pf-shimmer { from { background-position: 150% 0, 0 0; } to { background-position: -50% 0, 0 0; } }
+        @keyframes pf-flame { 0%, 100% { box-shadow: 0 0 6px 1px rgba(255,90,0,0.7), 0 -2px 10px rgba(255,170,0,0.5); } 50% { box-shadow: 0 0 10px 3px rgba(255,120,0,0.9), 0 -4px 14px rgba(255,210,0,0.7); } }
+        @keyframes pf-pulse { 0%, 100% { filter: brightness(1); box-shadow: 0 0 4px rgba(29,185,84,0.5); } 50% { filter: brightness(1.45); box-shadow: 0 0 14px 3px rgba(29,185,84,0.9); } }
+        @keyframes pf-eq { from { transform: scaleY(0.5); } to { transform: scaleY(1); } }
+        body.playback-paused[class*="progress-style-"] #progress-fill,
+        body.playback-paused[class*="progress-style-"] #progress-fill::after { animation-play-state: paused; }
+
+        /* 1) Vinyle : sillons + petit disque qui tourne en tête de barre */
+        body.progress-style-vinyle .progress-bar-bg { height: 8px; border-radius: 4px; background: repeating-linear-gradient(90deg, #0d0d0d 0 2px, #1b1b1b 2px 4px); }
+        body.progress-style-vinyle #progress-fill {
+            border-radius: 4px;
+            background-image: repeating-linear-gradient(90deg, rgba(0,0,0,0.38) 0 1px, transparent 1px 4px), linear-gradient(90deg, #5a3a1a, #e0b45c);
+            background-size: auto, var(--bar-w, 100%) 100%;
+        }
+        body.progress-style-vinyle #progress-fill::after {
+            content: ''; position: absolute; right: -9px; top: 50%; width: 18px; height: 18px; margin-top: -9px; border-radius: 50%;
+            background: conic-gradient(rgba(255,255,255,0.28) 0 25deg, transparent 25deg 180deg, rgba(255,255,255,0.18) 180deg 205deg, transparent 205deg),
+                        radial-gradient(circle, #c0392b 0 2px, #0d0d0d 2px 3.5px, #262626 3.5px 4.5px, #0d0d0d 4.5px 6.5px, #262626 6.5px 7.5px, #0d0d0d 7.5px 100%);
+            box-shadow: 0 1px 4px rgba(0,0,0,0.7);
+            animation: pf-vinyl-spin 2s linear infinite;
+        }
+
+        /* 2) Rétro 8 bits : segments pixelisés façon écran ambre */
+        body.progress-style-retro .progress-bar-bg { height: 10px; border-radius: 0; background: #1b1206; border: 2px solid #5a3b10; box-sizing: content-box; }
+        body.progress-style-retro #progress-fill {
+            border-radius: 0; height: 100%;
+            background-image: linear-gradient(90deg, #ffd000, #ff7a00, #ff3b00);
+            -webkit-mask-image: repeating-linear-gradient(90deg, #000 0 6px, transparent 6px 8px); mask-image: repeating-linear-gradient(90deg, #000 0 6px, transparent 6px 8px);
+            filter: drop-shadow(0 0 3px rgba(255,150,0,0.7));
+        }
+        body.progress-style-retro .progress-container span { font-family: 'Courier New', monospace; color: #ffb000; text-shadow: 0 0 4px rgba(255,176,0,0.6); }
+
+        /* 3) Néon */
+        body.progress-style-neon .progress-bar-bg { height: 4px; background: rgba(255,255,255,0.08); }
+        body.progress-style-neon #progress-fill {
+            background-image: linear-gradient(90deg, #00e5ff, #7c4dff, #ff2bd6);
+            box-shadow: 0 0 6px #00e5ff, 0 0 14px rgba(255,43,214,0.8);
+        }
+
+        /* 4) Arc-en-ciel */
+        body.progress-style-arcenciel #progress-fill { background-image: linear-gradient(90deg, #ff3b3b, #ff9d00, #ffe600, #2ee66b, #26c6ff, #7c4dff, #ff4de3); }
+
+        /* 5) Rayures animées (barbier) */
+        body.progress-style-rayures .progress-bar-bg { height: 8px; border-radius: 4px; }
+        body.progress-style-rayures #progress-fill {
+            border-radius: 4px;
+            background-image: repeating-linear-gradient(45deg, rgba(255,255,255,0.28) 0 6px, transparent 6px 12px), linear-gradient(90deg, #1DB954, #8de65c);
+            background-size: auto, var(--bar-w, 100%) 100%;
+            animation: pf-stripes 0.8s linear infinite;
+        }
+
+        /* 6) Perles */
+        body.progress-style-perles .progress-bar-bg { height: 10px; background: radial-gradient(circle at 5px 50%, rgba(255,255,255,0.14) 0 3px, transparent 3.5px) 0 0 / 10px 100%; }
+        body.progress-style-perles #progress-fill {
+            background-image: linear-gradient(90deg, #ff8fb1, #ffd36b, #8fe3ff);
+            -webkit-mask: radial-gradient(circle at 5px 50%, #000 0 3px, transparent 3.5px) 0 0 / 10px 100%; mask: radial-gradient(circle at 5px 50%, #000 0 3px, transparent 3.5px) 0 0 / 10px 100%;
+        }
+
+        /* 7) Égaliseur */
+        body.progress-style-egaliseur .progress-bar-bg { height: 14px; background: transparent; }
+        body.progress-style-egaliseur #progress-fill {
+            border-radius: 0; transform-origin: bottom center;
+            background-image: linear-gradient(90deg, #1DB954, #e2ff4d);
+            -webkit-mask-image: repeating-linear-gradient(90deg, #000 0 3px, transparent 3px 5px); mask-image: repeating-linear-gradient(90deg, #000 0 3px, transparent 3px 5px);
+            animation: pf-eq 0.7s ease-in-out infinite alternate;
+        }
+
+        /* 8) Flamme */
+        body.progress-style-flamme .progress-bar-bg { height: 6px; }
+        body.progress-style-flamme #progress-fill { background-image: linear-gradient(90deg, #7a0000, #ff3b00, #ffb000, #fff2a0); animation: pf-flame 0.9s ease-in-out infinite; }
+
+        /* 9) Glace */
+        body.progress-style-glace .progress-bar-bg { height: 6px; }
+        body.progress-style-glace #progress-fill {
+            background-image: linear-gradient(100deg, transparent 40%, rgba(255,255,255,0.75) 50%, transparent 60%), linear-gradient(90deg, #bfefff, #4fc3f7, #0288d1);
+            background-size: 250% 100%, var(--bar-w, 100%) 100%;
+            animation: pf-shimmer 2.2s linear infinite;
+        }
+
+        /* 10) Or */
+        body.progress-style-or .progress-bar-bg { height: 7px; }
+        body.progress-style-or #progress-fill {
+            background-image: linear-gradient(180deg, rgba(255,255,255,0.55), transparent 55%), linear-gradient(90deg, #7a5a12, #ffd86b, #b8892a, #fff0b3, #b8892a);
+            background-size: 100% 100%, var(--bar-w, 100%) 100%;
+            box-shadow: 0 0 6px rgba(255,200,80,0.45);
+        }
+
+        /* 11) Comète : traîne qui s'éclaircit + tête lumineuse */
+        body.progress-style-comete #progress-fill { background-image: linear-gradient(90deg, rgba(29,185,84,0), rgba(29,185,84,0.85) 70%, #ffffff); background-size: 100% 100%; }
+        body.progress-style-comete #progress-fill::after {
+            content: ''; position: absolute; right: -5px; top: 50%; width: 10px; height: 10px; margin-top: -5px; border-radius: 50%;
+            background: #fff; box-shadow: 0 0 8px 3px rgba(29,185,84,0.9), 0 0 18px 6px rgba(29,185,84,0.5);
+        }
+
+        /* 13) Couleurs de la pochette : dégradé de la 1re couleur principale vers la 2e (--pf-c1 / --pf-c2) */
+        body.progress-style-pochette .progress-bar-bg { height: 6px; }
+        body.progress-style-pochette #progress-fill {
+            background-image: linear-gradient(90deg, rgb(var(--pf-c1, 29, 185, 84)), rgb(var(--pf-c2, 125, 255, 168)));
+            box-shadow: 0 0 8px rgba(var(--pf-c2, 125, 255, 168), 0.55);
+            transition: width 0.2s linear, box-shadow 0.6s ease;
+        }
+
+        /* 12) Pulsation */
+        body.progress-style-pulsation .progress-bar-bg { height: 6px; }
+        body.progress-style-pulsation #progress-fill { background-image: linear-gradient(90deg, #0f7a37, #1DB954, #7dffa8); animation: pf-pulse 1.2s ease-in-out infinite; }
 
         .search-box {
             display: flex;
@@ -1570,6 +1684,7 @@
         <option value="wave">Vague de lettres</option>
         <option value="shakein">Tremblement d'arrivée</option>
         <option value="gradientshift">Dégradé animé</option>
+            <option value="pochettecolor">Couleur de la pochette</option>
     </select>
 </div>
 
@@ -1589,6 +1704,7 @@
         <option value="gradientsunset">Dégradé animé (coucher de soleil)</option>
         <option value="rotatein">Rotation d'entrée</option>
         <option value="elastic">Rebond élastique</option>
+            <option value="pochettecolor">Couleur de la pochette</option>
     </select>
 </div>
 
@@ -1626,6 +1742,38 @@
         <input type="checkbox" id="word-karaoke-toggle" onchange="toggleWordKaraokeSetting(this.checked)">
         <span class="slider"></span>
     </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Style de la barre de progression</span>
+    <select id="progress-style-select" onchange="setProgressStyle(this.value)" style="background: #1a1a1a; color: #fff; border: 1px solid #444; border-radius: 6px; padding: 4px 6px; font-size: 0.75rem; max-width: 150px;">
+        <option value="none">Par défaut</option>
+        <option value="vinyle">Vinyle (sillons + disque)</option>
+        <option value="retro">Rétro 8 bits</option>
+        <option value="neon">Néon</option>
+        <option value="arcenciel">Arc-en-ciel</option>
+        <option value="rayures">Rayures animées</option>
+        <option value="perles">Perles</option>
+        <option value="egaliseur">Égaliseur</option>
+        <option value="flamme">Flamme</option>
+        <option value="glace">Glace</option>
+        <option value="or">Or</option>
+        <option value="comete">Comète</option>
+        <option value="pulsation">Pulsation</option>
+        <option value="pochette">Couleurs de la pochette</option>
+    </select>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Intégration Clip 🎬</span>
+    <label class="switch">
+        <input type="checkbox" id="clip-feature-toggle" onchange="toggleClipFeatureSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px; width: 100%;">
+    <input type="password" id="clip-api-key-input" placeholder="Clé API YouTube Data v3 (déjà intégrée, modifiable)" onchange="setClipApiKey(this.value)" style="background: #1a1a1a; color: #fff; border: 1px solid #444; border-radius: 6px; padding: 6px 8px; font-size: 0.75rem; width: 100%; box-sizing: border-box;">
+    <span style="font-size: 0.7rem; color: var(--text-grey);">Le clip YouTube est joué sans son et synchronisé sur Spotify. Tu peux aussi coller un lien avec le bouton 🔗 du panneau.</span>
 </div>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
@@ -2224,6 +2372,9 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 initArtisteAnimState();
                 initBrasTourneDisqueState();
                 initParolesEffectsState();
+                initProgressStyleState();
+                initClipFeatureState();
+                updatePochetteTextColor();
                 initPipFeatureState();
                 initLyricsEffectsState();
                 initEtagereState();
@@ -2922,20 +3073,20 @@ function buildA4LyricsSheet(trackName, trackArtist, trackImage, durationStr, lyr
         <title>${escapeHtml(trackName)} — Paroles</title>
         <style>
             @page { size: A4; margin: 8mm; }
-            html, body { height: 100%; }
+            html, body { min-height: 100%; }
             * { -webkit-print-color-adjust: exact; print-color-adjust: exact; color-adjust: exact; }
             body {
                 font-family: 'Helvetica Neue', Arial, sans-serif; color: #1a1a1a; margin: 0;
                 background-image: linear-gradient(160deg, rgba(${rgb}, 0.16) 0%, rgba(${rgb}, 0.05) 45%, #ffffff 100%);
-                background-repeat: repeat-y;
-                background-size: 100% 297mm;
+                background-repeat: no-repeat;
+                background-size: 100% 100%;
                 transition: background-image 0.3s ease;
             }
             body.a4-no-gradient { background-image: none; background-color: #ffffff; }
             #a4-page {
                 background-image: linear-gradient(165deg, #ffffff 0%, rgba(${rgb}, 0.16) 60%, rgba(${rgb}, 0.26) 100%);
-                background-repeat: repeat-y;
-                background-size: 100% 297mm;
+                background-repeat: no-repeat;
+                background-size: 100% 100%;
                 border-radius: 1em;
                 box-shadow: 0 0.3em 1.2em rgba(0, 0, 0, 0.08);
                 padding: 1em 1em;
@@ -2971,11 +3122,11 @@ function buildA4LyricsSheet(trackName, trackArtist, trackImage, durationStr, lyr
                 padding: 9px 18px; font-weight: bold; cursor: pointer; border-radius: 20px;
                 border: 1px solid rgb(${rgb}); background: rgb(${rgb}); color: #000;
             }
-            #a4-size-control {
+            #a4-size-control, #a4-header-control {
                 display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #333;
                 font-family: 'Helvetica Neue', Arial, sans-serif;
             }
-            #a4-size-control input[type="range"] { accent-color: rgb(${rgb}); }
+            #a4-size-control input[type="range"], #a4-header-control input[type="range"] { accent-color: rgb(${rgb}); }
             #a4-gradient-control {
                 display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: #333;
                 font-family: 'Helvetica Neue', Arial, sans-serif;
@@ -2990,8 +3141,12 @@ function buildA4LyricsSheet(trackName, trackArtist, trackImage, durationStr, lyr
                     <input type="checkbox" id="a4-gradient-toggle" checked>
                     🎨 Dégradé coloré
                 </label>
+                <div id="a4-header-control">
+                    <span>🖼️ Encadré : <strong id="a4-header-label">15</strong>/30</span>
+                    <input type="range" id="a4-header-slider" min="0" max="30" value="15" step="1">
+                </div>
                 <div id="a4-size-control">
-                    <span>🔎 Taille : <strong id="a4-size-label">0</strong>/30</span>
+                    <span>🔎 Paroles : <strong id="a4-size-label">0</strong>/30 (0 = 1 page)</span>
                     <input type="range" id="a4-size-slider" min="0" max="30" value="0" step="1">
                 </div>
                 <button onclick="window.print()">🖨️ Imprimer / Enregistrer en PDF</button>
@@ -3017,7 +3172,8 @@ function buildA4LyricsSheet(trackName, trackArtist, trackImage, durationStr, lyr
                 var a4MaxHeightPx = 297 * 3.7795275591 - 2 * (8 * 3.7795275591) - 2 * (1 * 16); // A4 - marges page - padding carte
                 var a4BaseFontSizePx = 10;
 
-                (function computeBaseFitSize() {
+                function computeBaseFitSize() {
+                    a4BaseFontSizePx = 10;
                     a4El.style.transition = 'none'; // pas d'animation pendant le calcul initial
                     a4El.style.fontSize = a4BaseFontSizePx + 'px';
                     var guard = 0;
@@ -3035,7 +3191,8 @@ function buildA4LyricsSheet(trackName, trackArtist, trackImage, durationStr, lyr
                         guard++;
                     }
                     requestAnimationFrame(() => { a4El.style.transition = 'font-size 0.15s ease'; });
-                })();
+                }
+                computeBaseFitSize();
 
                 // Réglage 0 à 30 : 0 = tient sur une page (ci-dessus). Chaque cran au-delà agrandit
                 // doucement le texte (+8% par cran), pouvant alors s'étaler sur plusieurs pages —
@@ -3047,6 +3204,19 @@ function buildA4LyricsSheet(trackName, trackArtist, trackImage, durationStr, lyr
                     a4SizeLabel.innerText = level;
                     var scale = 1 + level * 0.08;
                     a4El.style.fontSize = (a4BaseFontSizePx * scale) + 'px';
+                });
+
+                // Taille de l'encadré (pochette + titre/artiste/durée) : 0 à 30, 15 par défaut (taille
+                // normale) — en dessous il rétrécit, au-dessus il s'agrandit. Si les paroles sont au
+                // niveau 0 (1 page), on recalcule l'ajustement pour que tout tienne toujours.
+                var a4HeaderSlider = document.getElementById('a4-header-slider');
+                var a4HeaderLabel = document.getElementById('a4-header-label');
+                var a4HeaderEl = document.querySelector('.a4-header');
+                a4HeaderSlider.addEventListener('input', function () {
+                    var lvl = parseInt(a4HeaderSlider.value, 10);
+                    a4HeaderLabel.innerText = lvl;
+                    a4HeaderEl.style.fontSize = (0.5 + 0.5 * lvl / 15) + 'em';
+                    if (parseInt(a4Slider.value, 10) === 0) computeBaseFitSize();
                 });
 
                 // Dégradé coloré activé par défaut — décoché = fond blanc uni
@@ -3374,13 +3544,18 @@ function highlightLyrics(currentTime) {
                             updateMiroirLiquideImage();
                             updateBrasTourneDisqueVisibility();
                             updateHeatColor();
+                            updatePochetteTextColor();
+                            updateProgressPochetteColors();
                             updatePipPanelContent(true);
                         };
                     }
                     updatePipPanelContent();
+                    syncClipPlayback();
+                    updateClipPanelContent();
 
                     if (data.item.id !== lastTrackId) {
                         lastTrackId = data.item.id;
+                        clipOnTrackChange(data.item.id, data.item.name, (!isEpisode && data.item.artists && data.item.artists[0]) ? data.item.artists[0].name : '', isEpisode);
                         applyTitreAnimStyle(document.getElementById('track-title').innerText);
                         applyArtisteSignatureStyle();
                         updateStreakBadge();
@@ -3421,6 +3596,8 @@ function highlightLyrics(currentTime) {
             syncVinylSpinState(); // idem : le vinyle doit s'arrêter dès la pause, même sans nouveau titre
             updateBrasTourneDisquePosition();
             updatePipPanelContent();
+            syncClipPlayback();
+            updateClipPanelContent();
 
             if (!isCurrentlyPlaying || trackDurationMs === 0) return;
 
@@ -9972,7 +10149,7 @@ function injectPipStyles() {
             bottom: 20px; left: 50%; transform: translateX(-50%);
             width: min(440px, calc(100vw - 24px));
             overflow: hidden;
-            z-index: 9500;
+            z-index: 8950;
             border-radius: 16px;
             padding: 10px 12px 8px 12px;
             box-sizing: border-box;
@@ -10039,6 +10216,7 @@ function ensurePipPanel() {
 
 // Slide activé : l'interface apparaît directement. Désactivé : rien à l'écran.
 function applyPipFeatureState() {
+    document.body.classList.toggle('pip-panel-open', pipFeatureEnabled);
     if (pipFeatureEnabled) {
         const panel = ensurePipPanel();
         pipPanelOpen = true;
@@ -10077,7 +10255,7 @@ function getPipLyricLines() {
 
 // Rafraîchit le contenu du panneau (pochette, couleur dominante, paroles, infos). Ne fait rien
 // tant que le panneau n'est pas ouvert (appelée en continu depuis tickLocalProgress).
-function updatePipPanelContent(forceColor) {
+function updatePipPanelContentUnsafe(forceColor) {
     const panel = document.getElementById('pip-panel');
     if (!panel || !pipPanelOpen) return;
 
@@ -10120,11 +10298,493 @@ function updatePipPanelContent(forceColor) {
 
 // Correction : quand la lecture est en pause, le vinyle qui tourne (style d'apparition de la
 // pochette) doit s'arrêter de tourner — et repartir dès que la lecture reprend.
+
+// ==========================================
+// 🎬 INTÉGRATION CLIP : le clip YouTube du titre Spotify en cours, joué SANS SON dans un panneau
+// flottant (comme le PiP, mais plus haut), synchronisé sur la progression Spotify. Désactivé par
+// défaut. Le clip est cherché via l'API YouTube Data v3 (clé à renseigner dans les réglages) ou
+// choisi à la main (bouton 🔗). Le choix et le décalage de chaque clip sont mémorisés.
+// ==========================================
+let clipFeatureEnabled = localStorage.getItem('clipFeatureEnabled') === 'true';
+// Clé API YouTube Data v3 intégrée par défaut (un autre champ dans les réglages peut la remplacer)
+const CLIP_DEFAULT_API_KEY = 'AIzaSyDVjvbkx9Ekech-ZKrRBKiYhyWGhnEc7Jw';
+let clipApiKey = localStorage.getItem('clipApiKey') || CLIP_DEFAULT_API_KEY;
+let clipCurrentTrack = null;      // { id, name, artist, isEpisode } du titre Spotify en cours
+let clipCaptionsEnabled = localStorage.getItem('clipCaptionsEnabled') === 'true'; // sous-titres YouTube : préférence mémorisée, désactivés par défaut
+let clipCaptionsApplied = '';
+let clipVideoId = null;
+let clipOffsetSec = 0;            // décalage clip ↔ audio (certains clips ont une intro)
+let clipPlayer = null;
+let clipPlayerReady = false;
+let clipLastSeek = 0;
+let clipLoadToken = 0;
+let clipLoadTimer = null;
+let clipUserPaused = false;       // pause demandée par un clic sur la vidéo : la synchro ne relance pas
+let clipProgrammaticUntil = 0;    // pour distinguer nos propres pause/lecture d'un clic de l'utilisateur
+function clipMarkProgrammatic() { clipProgrammaticUntil = Date.now() + 1500; }
+let clipLoadPending = false;
+const clipApiCallbacks = [];
+
+function clipReadStore(key) { try { return JSON.parse(localStorage.getItem(key) || '{}') || {}; } catch (e) { return {}; } }
+function clipWriteStore(key, obj) { try { localStorage.setItem(key, JSON.stringify(obj)); } catch (e) {} }
+
+function toggleClipFeatureSetting(checked) {
+    clipFeatureEnabled = checked;
+    localStorage.setItem('clipFeatureEnabled', checked ? 'true' : 'false');
+    applyClipFeatureState();
+}
+
+function setClipApiKey(value) {
+    clipApiKey = (value || '').trim() || CLIP_DEFAULT_API_KEY;
+    localStorage.setItem('clipApiKey', clipApiKey);
+    if (clipFeatureEnabled && !clipVideoId) clipLoadForTrack();
+}
+
+function initClipFeatureState() {
+    const toggle = document.getElementById('clip-feature-toggle');
+    if (toggle) toggle.checked = clipFeatureEnabled;
+    const keyInput = document.getElementById('clip-api-key-input');
+    if (keyInput) keyInput.value = clipApiKey;
+    applyClipFeatureState();
+}
+
+// Slide activé : le panneau apparaît directement. Désactivé : rien à l'écran et le clip est mis en pause.
+function applyClipFeatureState() {
+    if (clipFeatureEnabled) {
+        const panel = ensureClipPanel();
+        panel.classList.add('visible');
+        if (clipCurrentTrack) clipLoadForTrack();
+        else setClipMessage('En attente d\'un titre Spotify…');
+    } else {
+        const panel = document.getElementById('clip-panel');
+        if (panel) panel.classList.remove('visible');
+        if (clipPlayer && clipPlayerReady && typeof clipPlayer.pauseVideo === 'function') clipPlayer.pauseVideo();
+    }
+}
+
+function injectClipStyles() {
+    if (document.getElementById('clip-panel-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'clip-panel-inline-style';
+    styleTag.textContent = `
+        #clip-panel {
+            display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            width: min(560px, calc(100vw - 24px)); z-index: 8940; overflow: hidden; box-sizing: border-box;
+            border-radius: 16px; padding: 10px 12px 14px 12px;
+            background: linear-gradient(135deg, rgba(var(--pip-bg-color, 29, 185, 84), 0.4), rgba(10, 10, 10, 0.94));
+            backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.12);
+        }
+        body.pip-panel-open #clip-panel { bottom: 112px; }
+        #clip-panel.visible { display: block; }
+        #clip-header { display: none; pointer-events: none; position: absolute; top: 0; left: 0; right: 0; z-index: 5; padding: 8px 10px 22px 10px; background: linear-gradient(rgba(0,0,0,0.82), rgba(0,0,0,0)); }
+        #clip-panel.controls-open #clip-header { display: block; }
+        #clip-title-label { display: block; color: #fff; font-size: 0.8rem; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        #clip-controls { pointer-events: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 6px; }
+        #clip-controls button { background: rgba(255,255,255,0.2); border: none; color: #fff; font-size: 0.72rem; border-radius: 6px; padding: 3px 8px; cursor: pointer; }
+        #clip-cc-btn.on { background: rgba(29,185,84,0.75); }
+        #clip-offset-label { color: rgba(255,255,255,0.8); font-size: 0.72rem; min-width: 30px; text-align: center; }
+        /* Bande cliquable tout en haut de l'encadré : ouvre / referme les contrôles */
+        #clip-top-toggle { position: absolute; top: 0; left: 0; right: 0; height: 34px; z-index: 4; cursor: pointer; display: flex; align-items: flex-start; justify-content: center; }
+        #clip-top-toggle::after { content: '⌄'; margin-top: -2px; padding: 0 14px; font-size: 1.1rem; line-height: 1; color: rgba(255,255,255,0.75); background: rgba(0,0,0,0.35); border-radius: 0 0 10px 10px; }
+        #clip-panel.controls-open #clip-top-toggle::after { content: '⌃'; }
+        #clip-video-wrap { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 10px; overflow: hidden; }
+        #clip-video-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; pointer-events: auto; }
+        #clip-message { display: none; position: absolute; inset: 0; align-items: center; justify-content: center; text-align: center; padding: 16px; color: rgba(255,255,255,0.8); font-size: 0.85rem; background: #0c0c0c; z-index: 2; }
+        #clip-message.visible { display: flex; }
+        #clip-progress-track { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: rgba(255,255,255,0.15); }
+        #clip-progress-fill { height: 100%; width: 0%; background: var(--spotify-green, #1DB954); }
+    `;
+    document.head.appendChild(styleTag);
+}
+
+function ensureClipPanel() {
+    let panel = document.getElementById('clip-panel');
+    if (panel) return panel;
+    injectClipStyles();
+    panel = document.createElement('div');
+    panel.id = 'clip-panel';
+    panel.innerHTML = `
+        <div id="clip-video-wrap">
+            <div id="clip-player"></div>
+            <div id="clip-message" class="visible"></div>
+            <div id="clip-top-toggle" onclick="clipToggleControls()" title="Ouvrir / fermer les contrôles du clip"></div>
+            <div id="clip-header">
+                <span id="clip-title-label">🎬 Clip</span>
+                <div id="clip-controls">
+                    <button id="clip-cc-btn" onclick="clipToggleCaptions()" title="Activer / désactiver les sous-titres YouTube (préférence enregistrée)">CC désactivés</button>
+                    <button onclick="clipAdjustOffset(-1)" title="Le clip est en avance : le retarder d'1 s">−1s</button>
+                    <span id="clip-offset-label">0s</span>
+                    <button onclick="clipAdjustOffset(1)" title="Le clip est en retard : l'avancer d'1 s">+1s</button>
+                    <button onclick="clipChangeLink()" title="Choisir un autre clip (coller un lien YouTube)">🔗 Lien</button>
+                </div>
+            </div>
+        </div>
+        <div id="clip-progress-track"><div id="clip-progress-fill"></div></div>
+    `;
+    document.body.appendChild(panel);
+    return panel;
+}
+
+// Clic sur le haut de l'encadré : ouvre (titre, sous-titres, ±1 s, lien) ; nouveau clic : referme.
+function clipToggleControls() {
+    const panel = document.getElementById('clip-panel');
+    if (panel) panel.classList.toggle('controls-open');
+}
+
+function setClipMessage(text) {
+    const box = document.getElementById('clip-message');
+    if (!box) return;
+    box.innerText = text || '';
+    box.classList.toggle('visible', !!text);
+}
+
+function clipDecodeEntities(t) {
+    const ta = document.createElement('textarea');
+    ta.innerHTML = t;
+    return ta.value;
+}
+
+// Sous-titres YouTube : bouton "CC" (préférence enregistrée). Utilise le module "captions" du lecteur
+// intégré ; la langue française est choisie si le clip en propose, sinon la piste par défaut.
+function clipApplyCaptions() {
+    if (!clipPlayer || !clipPlayerReady) return;
+    try {
+        if (clipCaptionsEnabled) {
+            clipPlayer.loadModule('captions');
+            const tracks = clipPlayer.getOption('captions', 'tracklist') || [];
+            const fr = tracks.find(t => (t.languageCode || '').toLowerCase().startsWith('fr'));
+            if (fr) clipPlayer.setOption('captions', 'track', { languageCode: fr.languageCode });
+        } else {
+            clipPlayer.unloadModule('captions');
+        }
+    } catch (e) { console.warn('Sous-titres YouTube :', e); }
+}
+
+function clipToggleCaptions() {
+    clipCaptionsEnabled = !clipCaptionsEnabled;
+    localStorage.setItem('clipCaptionsEnabled', clipCaptionsEnabled ? 'true' : 'false');
+    clipCaptionsApplied = clipVideoId + ':' + clipCaptionsEnabled;
+    clipApplyCaptions();
+    updateClipLabels();
+}
+
+function updateClipLabels(title) {
+    const cc = document.getElementById('clip-cc-btn');
+    if (cc) {
+        cc.innerText = clipCaptionsEnabled ? 'CC activés' : 'CC désactivés';
+        cc.classList.toggle('on', clipCaptionsEnabled);
+    }
+    const label = document.getElementById('clip-title-label');
+    if (label && title !== undefined) label.innerText = '🎬 ' + title;
+    const off = document.getElementById('clip-offset-label');
+    if (off) off.innerText = (clipOffsetSec > 0 ? '+' : '') + clipOffsetSec + 's';
+}
+
+function updateClipPanelContentUnsafe() {
+    if (!clipFeatureEnabled) return;
+    const mainFill = document.getElementById('progress-fill');
+    const clipFill = document.getElementById('clip-progress-fill');
+    if (mainFill && clipFill) clipFill.style.width = mainFill.style.width || '0%';
+}
+
+function clipParseVideoId(input) {
+    const txt = (input || '').trim();
+    if (/^[\w-]{11}$/.test(txt)) return txt;
+    const m = txt.match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([\w-]{11})/);
+    return m ? m[1] : null;
+}
+
+async function clipSearchVideo(name, artist) {
+    if (!clipApiKey) throw new Error('clé API manquante');
+    const q = encodeURIComponent((artist + ' ' + name + ' clip officiel').trim());
+    const url = 'https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoEmbeddable=true&videoCategoryId=10&maxResults=1&q=' + q + '&key=' + encodeURIComponent(clipApiKey);
+    const response = await fetch(url);
+    const json = await response.json();
+    if (!response.ok) throw new Error(json.error && json.error.message ? json.error.message : ('erreur ' + response.status));
+    const item = json.items && json.items[0];
+    return item ? { id: item.id.videoId, title: clipDecodeEntities(item.snippet.title) } : null;
+}
+
+function clipOnTrackChangeUnsafe(id, name, artist, isEpisode) {
+    clipCurrentTrack = { id: id, name: name, artist: artist, isEpisode: !!isEpisode };
+    clipVideoId = null;
+    clipUserPaused = false;
+    clearTimeout(clipLoadTimer);
+    if (clipFeatureEnabled) {
+        // On laisse 3 s à Spotify / au téléphone pour se stabiliser avant de charger le lecteur YouTube
+        // (très gourmand) : plus de pic de charge au moment même où le titre démarre.
+        setClipMessage('Chargement du clip…');
+        clipLoadTimer = setTimeout(clipLoadForTrack, 3000);
+    }
+}
+
+async function clipLoadForTrack() {
+    const track = clipCurrentTrack;
+    if (!track) return;
+    if (document.hidden) { clipLoadPending = true; return; } // appli en arrière-plan : on attend le retour
+    const token = ++clipLoadToken;
+    ensureClipPanel();
+    if (track.isEpisode) { clipStop('Pas de clip pour un podcast.'); return; }
+
+    const cache = clipReadStore('clipCache');
+    let entry = cache[track.id];
+    if (!entry) {
+        if (!clipApiKey) { clipStop('Ajoute ta clé API YouTube dans les paramètres, ou colle un lien avec le bouton 🔗.'); return; }
+        setClipMessage('Recherche du clip…');
+        try { entry = await clipSearchVideo(track.name, track.artist); }
+        catch (e) {
+            if (token !== clipLoadToken) return;
+            clipStop('Recherche impossible (' + e.message + '). Colle un lien avec le bouton 🔗.');
+            return;
+        }
+        if (token !== clipLoadToken) return;
+        if (!entry) { clipStop('Aucun clip trouvé pour ce titre. Colle un lien avec le bouton 🔗.'); return; }
+        cache[track.id] = entry;
+        clipWriteStore('clipCache', cache);
+    }
+    clipVideoId = entry.id;
+    clipOffsetSec = clipReadStore('clipOffsets')[entry.id] || 0;
+    updateClipLabels(entry.title || 'Clip');
+    setClipMessage('');
+    clipCreateOrLoadPlayer(entry.id);
+}
+
+function clipStop(message) {
+    clipVideoId = null;
+    if (clipPlayer && clipPlayerReady && typeof clipPlayer.pauseVideo === 'function') clipPlayer.pauseVideo();
+    updateClipLabels('Clip');
+    setClipMessage(message || '');
+}
+
+function clipChangeLink() {
+    if (!clipCurrentTrack) return;
+    const input = window.prompt('Lien YouTube du clip pour ce titre (laisser vide pour relancer la recherche automatique) :');
+    if (input === null) return;
+    const cache = clipReadStore('clipCache');
+    if (input.trim() === '') {
+        delete cache[clipCurrentTrack.id];
+    } else {
+        const id = clipParseVideoId(input);
+        if (!id) { window.alert('Lien YouTube non reconnu.'); return; }
+        cache[clipCurrentTrack.id] = { id: id, title: 'Clip choisi manuellement' };
+    }
+    clipWriteStore('clipCache', cache);
+    clipLoadForTrack();
+}
+
+function clipAdjustOffset(delta) {
+    if (!clipVideoId) return;
+    clipOffsetSec += delta;
+    const offsets = clipReadStore('clipOffsets');
+    offsets[clipVideoId] = clipOffsetSec;
+    clipWriteStore('clipOffsets', offsets);
+    updateClipLabels();
+    clipLastSeek = 0;
+    syncClipPlayback();
+}
+
+function clipLoadYouTubeApi(callback) {
+    if (window.YT && window.YT.Player) { callback(); return; }
+    clipApiCallbacks.push(callback);
+    if (document.getElementById('yt-iframe-api')) return;
+    window.onYouTubeIframeAPIReady = function () { clipApiCallbacks.splice(0).forEach(fn => fn()); };
+    const tag = document.createElement('script');
+    tag.id = 'yt-iframe-api';
+    tag.src = 'https://www.youtube.com/iframe_api';
+    tag.onerror = () => setClipMessage('Impossible de charger le lecteur YouTube (connexion ?).');
+    document.head.appendChild(tag);
+}
+
+function clipStartSeconds() {
+    return Math.max(0, currentProgressMs / 1000 + clipOffsetSec);
+}
+
+function clipCreateOrLoadPlayer(videoId) {
+    clipLoadYouTubeApi(() => {
+        if (clipPlayer && clipPlayerReady) {
+            clipMarkProgrammatic();
+            clipPlayer.loadVideoById({ videoId: videoId, startSeconds: clipStartSeconds() });
+            clipPlayer.mute();
+            if (!isCurrentlyPlaying) clipPlayer.pauseVideo();
+            return;
+        }
+        if (clipPlayer) return; // création déjà en cours : onReady chargera le bon clip
+        const vars = { controls: 0, disablekb: 1, fs: 0, modestbranding: 1, rel: 0, playsinline: 1, iv_load_policy: 3, hl: 'fr', cc_lang_pref: 'fr', cc_load_policy: clipCaptionsEnabled ? 1 : 0, start: Math.floor(clipStartSeconds()) };
+        if (location.protocol === 'http:' || location.protocol === 'https:') vars.origin = location.origin;
+        clipPlayer = new YT.Player('clip-player', {
+            host: 'https://www.youtube-nocookie.com',
+            videoId: videoId,
+            playerVars: vars,
+            events: {
+                onReady: (e) => {
+                    clipPlayerReady = true;
+                    e.target.mute(); // le clip n'a jamais de son : l'audio vient de Spotify
+                    if (clipVideoId && clipVideoId !== videoId) e.target.loadVideoById({ videoId: clipVideoId, startSeconds: clipStartSeconds() });
+                    syncClipPlayback();
+                },
+                onStateChange: (e) => {
+                    // Pause / lecture venant d'un clic sur la vidéo (et non de la synchro) : on la respecte
+                    if (Date.now() >= clipProgrammaticUntil) {
+                        if (e.data === 2) clipUserPaused = true;
+                        else if (e.data === 1) clipUserPaused = false;
+                    }
+                    // Une fois la lecture démarrée, on applique le choix de sous-titres (une fois par clip)
+                    if (e.data === 1) {
+                        const key = clipVideoId + ':' + clipCaptionsEnabled;
+                        if (key !== clipCaptionsApplied) { clipCaptionsApplied = key; clipApplyCaptions(); }
+                    }
+                },
+                onError: (e) => {
+                    const code = e.data;
+                    if (code === 101 || code === 150) setClipMessage('Ce clip n\'autorise pas l\'intégration. Choisis-en un autre avec le bouton 🔗.');
+                    else if (code === 153) setClipMessage('YouTube refuse l\'intégration : ouvre la page en http(s) (ex. serveur local) et non en fichier.');
+                    else if (code === 100) setClipMessage('Clip introuvable. Choisis-en un autre avec le bouton 🔗.');
+                    else setClipMessage('Erreur du lecteur YouTube (' + code + ').');
+                }
+            }
+        });
+    });
+}
+
+// Appelée chaque seconde : le clip suit play/pause de Spotify et se recale s'il dérive de plus de 1,5 s.
+function syncClipPlaybackUnsafe() {
+    if (!clipFeatureEnabled || !clipPlayerReady || !clipVideoId || !clipPlayer || typeof clipPlayer.getPlayerState !== 'function') return;
+    const state = clipPlayer.getPlayerState(); // 1 lecture, 2 pause, 3 mise en mémoire tampon
+    if (document.hidden) { if (state === 1 || state === 3) { clipMarkProgrammatic(); clipPlayer.pauseVideo(); } return; }
+    const target = clipStartSeconds();
+    if (isCurrentlyPlaying) {
+        if (!clipUserPaused && state !== 1 && state !== 3) { clipMarkProgrammatic(); clipPlayer.playVideo(); }
+    } else if (state === 1 || state === 3) {
+        clipMarkProgrammatic();
+        clipPlayer.pauseVideo();
+    }
+    const drift = Math.abs(clipPlayer.getCurrentTime() - target);
+    if (!clipUserPaused && drift > 1.5 && Date.now() - clipLastSeek > 3000) {
+        clipMarkProgrammatic();
+        clipPlayer.seekTo(target, true);
+        clipLastSeek = Date.now();
+    }
+    if (clipPlayer.isMuted && !clipPlayer.isMuted()) clipPlayer.mute();
+}
+
+// Quand tu passes sur l'appli Spotify (la page passe en arrière-plan), le clip se met en pause et ne
+// consomme plus rien ; il reprend au retour.
+document.addEventListener('visibilitychange', () => {
+    try {
+        if (document.hidden) {
+            if (clipPlayer && clipPlayerReady && typeof clipPlayer.pauseVideo === 'function') { clipMarkProgrammatic(); clipPlayer.pauseVideo(); }
+        } else {
+            if (clipLoadPending) { clipLoadPending = false; clipLoadForTrack(); }
+            else syncClipPlayback();
+        }
+    } catch (e) { console.warn('Clip (visibilité) :', e); }
+});
+
+// Garde-fous : les panneaux Clip / PiP sont accessoires. Si l'un d'eux plante, on logue l'erreur
+// mais on ne laisse jamais l'exception remonter dans updateNowPlaying / highlightLyrics / le tick.
+function syncClipPlayback() { try { syncClipPlaybackUnsafe(); } catch (e) { console.warn('Clip (sync) :', e); } }
+function updateClipPanelContent() { try { updateClipPanelContentUnsafe(); } catch (e) { console.warn('Clip (affichage) :', e); } }
+function clipOnTrackChange(a, b, c, d) { try { clipOnTrackChangeUnsafe(a, b, c, d); } catch (e) { console.warn('Clip (changement de titre) :', e); } }
+function updatePipPanelContent(f) { try { updatePipPanelContentUnsafe(f); } catch (e) { console.warn('PiP :', e); } }
+
+// --- Style de la barre de progression (menu déroulant : Par défaut + 12 styles) ---
+let progressStyle = localStorage.getItem('progressStyle') || 'none';
+const PROGRESS_STYLES = ['vinyle', 'retro', 'neon', 'arcenciel', 'rayures', 'perles', 'egaliseur', 'flamme', 'glace', 'or', 'comete', 'pulsation', 'pochette'];
+
+function applyProgressStyle() {
+    PROGRESS_STYLES.forEach(k => document.body.classList.remove('progress-style-' + k));
+    if (PROGRESS_STYLES.includes(progressStyle)) document.body.classList.add('progress-style-' + progressStyle);
+    updateProgressBarWidthVar();
+}
+
+
+// Extrait les DEUX couleurs principales de la pochette : on regroupe les pixels par teinte
+// (64 familles de couleurs), on prend la famille la plus présente puis la plus présente parmi celles
+// assez différentes de la première. Les couleurs ternes sont désavantagées pour éviter le gris.
+function getTwoDominantColorsFromImageSrc(src, callback) {
+    const tempImg = new Image();
+    tempImg.crossOrigin = "Anonymous";
+    tempImg.onload = function () {
+        try {
+            const canvas = document.createElement('canvas');
+            canvas.width = 32; canvas.height = 32;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(tempImg, 0, 0, 32, 32);
+            const data = ctx.getImageData(0, 0, 32, 32).data;
+            const buckets = {};
+            for (let i = 0; i < data.length; i += 4) {
+                const r = data[i], g = data[i + 1], b = data[i + 2];
+                const key = (r >> 6) * 16 + (g >> 6) * 4 + (b >> 6);
+                const sat = Math.max(r, g, b) - Math.min(r, g, b);
+                const weight = 1 + sat / 64;
+                const bk = buckets[key] || (buckets[key] = { w: 0, r: 0, g: 0, b: 0, n: 0 });
+                bk.w += weight; bk.r += r; bk.g += g; bk.b += b; bk.n++;
+            }
+            const list = Object.values(buckets).map(bk => ({ w: bk.w, c: [Math.round(bk.r / bk.n), Math.round(bk.g / bk.n), Math.round(bk.b / bk.n)] })).sort((a, b) => b.w - a.w);
+            const c1 = list[0].c;
+            const dist = (a, b) => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]);
+            const second = list.find(e => dist(e.c, c1) > 90);
+            const lighten = (c) => c.map(v => Math.min(255, Math.round(v + (255 - v) * 0.45)));
+            callback(c1, second ? second.c : lighten(c1));
+        } catch (e) {
+            console.error("Impossible d'extraire les couleurs de la pochette :", e);
+            callback(null, null);
+        }
+    };
+    tempImg.onerror = () => callback(null, null);
+    tempImg.src = src;
+}
+
+// Pose --pf-c1 / --pf-c2 (rehaussées si la pochette est sombre) pour le style de barre "Couleurs de la pochette"
+function updateProgressPochetteColors() {
+    if (progressStyle !== 'pochette') return;
+    const art = document.getElementById('track-art');
+    if (!art || !art.src) return;
+    getTwoDominantColorsFromImageSrc(art.src, (c1, c2) => {
+        if (!c1 || !c2) return;
+        const brighten = (c) => {
+            const m = Math.max(c[0], c[1], c[2], 1);
+            const k = m < 150 ? 150 / m : 1;
+            return c.map(v => Math.min(255, Math.round(v * k)));
+        };
+        const root = document.documentElement.style;
+        root.setProperty('--pf-c1', brighten(c1).join(', '));
+        root.setProperty('--pf-c2', brighten(c2).join(', '));
+    });
+}
+
+function setProgressStyle(style) {
+    progressStyle = style;
+    localStorage.setItem('progressStyle', style);
+    applyProgressStyle();
+    updateProgressPochetteColors();
+}
+
+// Pose la largeur totale de la barre dans --bar-w pour que les dégradés s'étirent sur toute la barre
+function updateProgressBarWidthVar() {
+    const fill = document.getElementById('progress-fill');
+    if (fill && fill.parentElement) fill.style.setProperty('--bar-w', fill.parentElement.clientWidth + 'px');
+}
+
+function initProgressStyleState() {
+    const select = document.getElementById('progress-style-select');
+    if (select) select.value = progressStyle;
+    applyProgressStyle();
+    updateProgressPochetteColors();
+    const fill = document.getElementById('progress-fill');
+    if (fill && window.ResizeObserver) {
+        const ro = new ResizeObserver(updateProgressBarWidthVar);
+        ro.observe(fill.parentElement);
+    }
+}
+
 function syncVinylSpinState() {
     const art = document.getElementById('track-art');
     if (!art) return;
     const shouldPause = pochetteAnimStyle === 'vinyle' && !isCurrentlyPlaying;
     art.classList.toggle('pochette-anim-vinyle-paused', shouldPause);
+    document.body.classList.toggle('playback-paused', !isCurrentlyPlaying);
 }
 
 const POCHETTE_ANIM_CLASSES = ['pochette-anim-fadescale', 'pochette-anim-blurfocus', 'pochette-anim-crossfade', 'pochette-anim-photodev', 'pochette-anim-shatter', 'pochette-anim-wipe', 'pochette-anim-inkdry', 'pochette-anim-cassette', 'pochette-anim-polaroid'];
@@ -10324,6 +10984,13 @@ let titreAnimStyle = localStorage.getItem('titreAnimStyle') || 'none';
 function setTitreAnimStyle(style) {
     titreAnimStyle = style;
     localStorage.setItem('titreAnimStyle', style);
+    const titleEl = document.getElementById('track-title');
+    if (style === 'pochettecolor' && titleEl) {
+        titleEl.classList.add('titre-anim-pochettecolor');
+        updatePochetteTextColor();
+    } else if (titleEl) {
+        titleEl.classList.remove('titre-anim-pochettecolor');
+    }
 }
 
 function initTitreAnimState() {
@@ -10347,7 +11014,7 @@ function applyTitreAnimStyle(fullTitleText) {
     const titleEl = document.getElementById('track-title');
     if (!titleEl) return;
     clearInterval(titreTypewriterTimer);
-    titleEl.classList.remove('titre-anim-neon', 'titre-anim-breathing', 'titre-anim-typewriter', 'titre-anim-glitch', 'titre-anim-shakein', 'titre-anim-gradientshift');
+    titleEl.classList.remove('titre-anim-neon', 'titre-anim-breathing', 'titre-anim-typewriter', 'titre-anim-glitch', 'titre-anim-shakein', 'titre-anim-gradientshift', 'titre-anim-pochettecolor');
 
     if (titreAnimStyle === 'typewriter') {
         titleEl.classList.add('titre-anim-typewriter');
@@ -10379,6 +11046,10 @@ function applyTitreAnimStyle(fullTitleText) {
     } else if (titreAnimStyle === 'gradientshift') {
         titleEl.innerText = fullTitleText;
         titleEl.classList.add('titre-anim-gradientshift');
+    } else if (titreAnimStyle === 'pochettecolor') {
+        titleEl.innerText = fullTitleText;
+        titleEl.classList.add('titre-anim-pochettecolor');
+        updatePochetteTextColor();
     }
 }
 
@@ -10389,6 +11060,30 @@ let artisteTypewriterTimer = null;
 function setArtisteAnimStyle(style) {
     artisteAnimStyle = style;
     localStorage.setItem('artisteAnimStyle', style);
+    const artistEl = document.getElementById('track-artist');
+    if (style === 'pochettecolor' && artistEl) {
+        artistEl.classList.add('artiste-anim-pochettecolor');
+        updatePochetteTextColor();
+    } else if (artistEl) {
+        artistEl.classList.remove('artiste-anim-pochettecolor');
+    }
+}
+
+// Couleur de texte = couleur dominante de la pochette (rehaussée si la pochette est sombre pour
+// rester lisible sur le fond sombre de l'appli). Utilisée par le choix "Couleur de la pochette"
+// du titre et de l'artiste.
+function updatePochetteTextColor() {
+    if (titreAnimStyle !== 'pochettecolor' && artisteAnimStyle !== 'pochettecolor') return;
+    const art = document.getElementById('track-art');
+    if (!art || !art.src) return;
+    getDominantColorFromImageSrc(art.src, (rgb) => {
+        if (!rgb) return;
+        let [r, g, b] = rgb.split(',').map(n => parseInt(n, 10));
+        const maxC = Math.max(r, g, b, 1);
+        const boost = maxC < 170 ? 170 / maxC : 1;
+        r = Math.min(255, Math.round(r * boost)); g = Math.min(255, Math.round(g * boost)); b = Math.min(255, Math.round(b * boost));
+        document.documentElement.style.setProperty('--pochette-text-color', `${r}, ${g}, ${b}`);
+    });
 }
 
 function initArtisteAnimState() {
@@ -10401,7 +11096,7 @@ function applyArtisteSignatureStyle() {
     const artistEl = document.getElementById('track-artist');
     if (!artistEl) return;
     clearInterval(artisteTypewriterTimer);
-    artistEl.classList.remove('artiste-anim-signature', 'artiste-anim-fadein', 'artiste-anim-slideleft', 'artiste-anim-typewriter', 'artiste-anim-glitch', 'artiste-anim-blurin', 'artiste-anim-scalepop', 'artiste-anim-gradient', 'artiste-anim-gradientsunset', 'artiste-anim-rotatein', 'artiste-anim-elastic');
+    artistEl.classList.remove('artiste-anim-signature', 'artiste-anim-fadein', 'artiste-anim-slideleft', 'artiste-anim-typewriter', 'artiste-anim-glitch', 'artiste-anim-blurin', 'artiste-anim-scalepop', 'artiste-anim-gradient', 'artiste-anim-gradientsunset', 'artiste-anim-rotatein', 'artiste-anim-elastic', 'artiste-anim-pochettecolor');
     const fullText = artistEl.innerText;
 
     if (artisteAnimStyle === 'none') return;
@@ -10445,6 +11140,9 @@ function applyArtisteSignatureStyle() {
     } else if (artisteAnimStyle === 'elastic') {
         void artistEl.offsetWidth;
         artistEl.classList.add('artiste-anim-elastic');
+    } else if (artisteAnimStyle === 'pochettecolor') {
+        artistEl.classList.add('artiste-anim-pochettecolor');
+        updatePochetteTextColor();
     }
 }
 
