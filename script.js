@@ -546,7 +546,8 @@ const SPECTRUM_OVERLAY_REGISTRY = {
     spectrum3: { toggleId: 'spectrum3-toggle', canvasId: 'spectrum3-canvas', storageKey: 'spectrum3Enabled', setVar: v => { spectrum3Enabled = v; } },
     spectrum4: { toggleId: 'spectrum4-toggle', canvasId: 'spectrum4-canvas', storageKey: 'spectrum4Enabled', setVar: v => { spectrum4Enabled = v; } },
     spectrum5: { toggleId: 'spectrum5-toggle', canvasId: 'spectrum5-canvas', storageKey: 'spectrum5Enabled', setVar: v => { spectrum5Enabled = v; } },
-    spectrum6: { toggleId: 'spectrum6-toggle', canvasId: 'spectrum6-canvas', storageKey: 'spectrum6Enabled', setVar: v => { spectrum6Enabled = v; } }
+    spectrum6: { toggleId: 'spectrum6-toggle', canvasId: 'spectrum6-canvas', storageKey: 'spectrum6Enabled', setVar: v => { spectrum6Enabled = v; } },
+    spectrum7: { toggleId: 'spectrum7-toggle', canvasId: 'spectrum7-canvas', storageKey: 'spectrum7Enabled', setVar: v => { spectrum7Enabled = v; } }
 };
 
 function enforceExclusiveSpectrumOverlay(activeKey) {
@@ -565,6 +566,7 @@ function enforceExclusiveSpectrumOverlay(activeKey) {
     if (activeKey !== 'spectrum4' && spectrum4AnimId) { cancelAnimationFrame(spectrum4AnimId); spectrum4AnimId = null; }
     if (activeKey !== 'spectrum5' && spectrum5AnimId) { cancelAnimationFrame(spectrum5AnimId); spectrum5AnimId = null; }
     if (activeKey !== 'spectrum6' && spectrum6AnimId) { cancelAnimationFrame(spectrum6AnimId); spectrum6AnimId = null; }
+    if (activeKey !== 'spectrum7' && spectrum7AnimId) { cancelAnimationFrame(spectrum7AnimId); spectrum7AnimId = null; }
 }
 
 function toggleSpectrum3Setting(checked) {
@@ -954,6 +956,124 @@ function initSpectrum6State() {
     const canvas = ensureSpectrum6Canvas();
     canvas.style.display = spectrum6Enabled ? 'block' : 'none';
     if (spectrum6Enabled) initSpectrum6();
+}
+
+// ==========================================
+// SPECTRE AUDIO ANIMÉ 7.0 — « Égaliseur LED » : des colonnes de petites diodes empilées qui
+// s'allument du bas vers le haut (vert → jaune → rouge) avec un repère de crête qui retombe lentement,
+// comme l'égaliseur d'une chaîne hi-fi.
+// ==========================================
+function injectSpectrum7Styles() {
+    if (document.getElementById('spectrum7-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'spectrum7-inline-style';
+    styleTag.textContent = `
+        #spectrum7-canvas {
+            display: none;
+            position: fixed;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            height: 60px;
+            z-index: 500;
+            pointer-events: none;
+            background: transparent;
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectSpectrum7Styles();
+
+function ensureSpectrum7Canvas() {
+    let canvas = document.getElementById('spectrum7-canvas');
+    if (!canvas) {
+        canvas = document.createElement('canvas');
+        canvas.id = 'spectrum7-canvas';
+        document.body.appendChild(canvas);
+    }
+    return canvas;
+}
+
+let spectrum7Cols = [];
+let spectrum7AnimId = null;
+
+function initSpectrum7() {
+    const canvas = ensureSpectrum7Canvas();
+    const ctx = canvas.getContext('2d');
+    const colCount = 32;
+    const ledCount = 12;
+
+    spectrum7Cols = Array.from({ length: colCount }, () => ({
+        phase: Math.random() * Math.PI * 2,
+        speed: 0.03 + Math.random() * 0.05,
+        current: 0.05,
+        peak: 0.05
+    }));
+
+    function resizeCanvas() {
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = Math.max(1, rect.width) * window.devicePixelRatio;
+        canvas.height = Math.max(1, rect.height) * window.devicePixelRatio;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    function draw() {
+        spectrum7AnimId = requestAnimationFrame(draw);
+
+        const w = canvas.width;
+        const h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+
+        if (!spectrum7Enabled) {
+            spectrum7Cols.forEach(c => { c.current = 0.05; c.peak = 0.05; });
+            return;
+        }
+
+        const active = spectrum7Enabled && isCurrentlyPlaying;
+        const colW = w / spectrum7Cols.length;
+        const ledH = h / ledCount;
+
+        spectrum7Cols.forEach((c, i) => {
+            c.phase += c.speed;
+            const target = active ? (0.15 + 0.85 * Math.abs(Math.sin(c.phase) * Math.cos(c.phase * 0.43 + i))) : 0.05;
+            c.current += (target - c.current) * 0.2;
+            c.peak = Math.max(c.current, c.peak - 0.012);
+
+            const lit = Math.round(c.current * ledCount);
+            const peakLed = Math.min(ledCount - 1, Math.round(c.peak * ledCount));
+            const x = i * colW + colW * 0.12;
+            const cw = colW * 0.76;
+            for (let k = 0; k < ledCount; k++) {
+                const y = h - (k + 1) * ledH + ledH * 0.14;
+                const hue = 130 - (k / (ledCount - 1)) * 130; // vert (bas) -> rouge (haut)
+                const on = k < lit || (k === peakLed && c.peak > 0.12);
+                ctx.fillStyle = on ? `hsl(${hue}, 90%, 55%)` : 'rgba(255,255,255,0.06)';
+                ctx.fillRect(x, y, cw, ledH * 0.72);
+            }
+        });
+    }
+    draw();
+}
+
+function toggleSpectrum7Setting(checked) {
+    spectrum7Enabled = checked;
+    localStorage.setItem('spectrum7Enabled', checked ? 'true' : 'false');
+    const canvas = ensureSpectrum7Canvas();
+    canvas.style.display = checked ? 'block' : 'none';
+    if (checked) {
+        enforceExclusiveSpectrumOverlay('spectrum7');
+        if (!spectrum7AnimId) initSpectrum7();
+    } else if (spectrum7AnimId) {
+        cancelAnimationFrame(spectrum7AnimId);
+        spectrum7AnimId = null;
+    }
+}
+
+function initSpectrum7State() {
+    const canvas = ensureSpectrum7Canvas();
+    canvas.style.display = spectrum7Enabled ? 'block' : 'none';
+    if (spectrum7Enabled) initSpectrum7();
 }
 
 function toggleSpectrum2Setting(checked) {
