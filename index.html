@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v2.49";
+        const APP_VERSION = "v2.50";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10134,6 +10134,9 @@ function updateBrasTourneDisquePosition() {
 // ==========================================
 let pipFeatureEnabled = localStorage.getItem('pipFeatureEnabled') === 'true';
 let pipPanelOpen = false;
+let pipHidden = false;   // PiP caché par l'utilisateur (🙈), mémorisé
+try { pipHidden = localStorage.getItem('pipHidden') === 'true'; } catch (e) {}
+function pipSaveHidden() { try { localStorage.setItem('pipHidden', pipHidden ? 'true' : 'false'); } catch (e) {} }
 let pipShowingInfo = false;
 let pipLastCoverSrc = '';
 
@@ -10187,6 +10190,12 @@ function injectPipStyles() {
         #pip-info-artist { line-height: 1.3; padding-right: 36px; color: rgba(255,255,255,0.7); font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         #pip-info-bottom-row { display: flex; align-items: center; justify-content: space-between; width: 100%; margin: 0; }
         #pip-info-timer { line-height: 1.3; color: rgba(255,255,255,0.6); font-size: 0.75rem; }
+        #pip-panel.user-hidden { display: none !important; }
+        #pip-info-title { padding-right: 30px; }
+        #pip-hide-btn { display: none; position: absolute; top: 5px; right: 8px; width: 22px; height: 22px; padding: 0; border: none; border-radius: 50%; background: rgba(255,255,255,0.18); font-size: 0.8rem; line-height: 22px; cursor: pointer; z-index: 2; }
+        #pip-panel.info-view #pip-hide-btn { display: block; }
+        .floating-reveal-btn { display: none; position: fixed; right: 15px; z-index: 9600; width: 38px; height: 38px; padding: 0; border-radius: 50%; border: 1px solid rgba(255,255,255,0.25); background: rgba(10,10,10,0.85); color: #fff; font-size: 1.05rem; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+        .floating-reveal-btn.visible { display: block; }
         #pip-info-playpause {
             flex-shrink: 0; margin: -7px 0 -7px auto; position: relative; top: -9px;
             background: rgba(255,255,255,0.18);
@@ -10219,9 +10228,18 @@ function ensurePipPanel() {
                 </div>
             </div>
         </div>
+        <button id="pip-hide-btn" onclick="pipHidePanel()" title="Cacher cette interface (un mini bouton à droite permet de la réafficher)">🙈</button>
         <div id="pip-progress-track"><div id="pip-progress-fill"></div></div>
     `;
     document.body.appendChild(panel);
+    const reveal = document.createElement('button');
+    reveal.id = 'pip-reveal-btn';
+    reveal.className = 'floating-reveal-btn';
+    reveal.style.bottom = '95px';
+    reveal.title = 'Réafficher l\'interface paroles';
+    reveal.innerText = '🎵';
+    reveal.onclick = pipShowPanel;
+    document.body.appendChild(reveal);
     return panel;
 }
 
@@ -10232,7 +10250,10 @@ function applyPipFeatureState() {
         const panel = ensurePipPanel();
         pipPanelOpen = true;
         panel.classList.add('visible');
+        panel.classList.toggle('user-hidden', pipHidden);
+        panel.classList.toggle('info-view', pipShowingInfo);
         updatePipPanelContent(true);
+        updateFloatingLayout();
     } else {
         closePipPanel();
     }
@@ -10242,11 +10263,32 @@ function closePipPanel() {
     pipPanelOpen = false;
     const panel = document.getElementById('pip-panel');
     if (panel) panel.classList.remove('visible');
+    updateFloatingLayout();
+}
+
+function pipHidePanel() {
+    pipHidden = true;
+    pipSaveHidden();
+    const panel = document.getElementById('pip-panel');
+    if (panel) panel.classList.add('user-hidden');
+    updateFloatingLayout();
+}
+
+function pipShowPanel() {
+    pipHidden = false;
+    pipSaveHidden();
+    const panel = document.getElementById('pip-panel');
+    if (panel) panel.classList.remove('user-hidden');
+    pipLastCoverSrc = null;
+    updatePipPanelContent(true);
+    updateFloatingLayout();
 }
 
 // Clic sur la pochette du panneau : bascule entre la vue "paroles" (par défaut) et la vue "infos"
 function togglePipView() {
     pipShowingInfo = !pipShowingInfo;
+    const pp = document.getElementById('pip-panel');
+    if (pp) pp.classList.toggle('info-view', pipShowingInfo);
     const viewLyrics = document.getElementById('pip-view-lyrics');
     const viewInfo = document.getElementById('pip-view-info');
     if (viewLyrics) viewLyrics.style.display = pipShowingInfo ? 'none' : 'block';
@@ -10268,7 +10310,7 @@ function getPipLyricLines() {
 // tant que le panneau n'est pas ouvert (appelée en continu depuis tickLocalProgress).
 function updatePipPanelContentUnsafe(forceColor) {
     const panel = document.getElementById('pip-panel');
-    if (!panel || !pipPanelOpen) return;
+    if (!panel || !pipPanelOpen || pipHidden) return;
 
     const art = document.getElementById('track-art');
     const cover = document.getElementById('pip-cover');
@@ -10558,13 +10600,10 @@ function updateFloatingLayout() {
     const subs = document.getElementById('subs-panel');
     if (subs) {
         subs.style.bottom = Math.round(bottom) + 'px';
-        const lines = document.getElementById('subs-lines');
-        if (lines && lines.offsetHeight > 0) {
-            const others = subs.offsetHeight - lines.offsetHeight;
-            const room = window.innerHeight - bottom - 10 - others;
-            lines.style.height = Math.max(60, Math.min(170, Math.round(room))) + 'px';
-        }
     }
+    const setReveal = (id, on) => { const el = document.getElementById(id); if (el) el.classList.toggle('visible', !!on); };
+    setReveal('pip-reveal-btn', pipFeatureEnabled && pipHidden);
+    setReveal('subs-reveal-btn', subsFeatureEnabled && subsHidden);
 }
 window.addEventListener('resize', () => { try { updateFloatingLayout(); } catch (e) {} });
 
@@ -10779,6 +10818,10 @@ function syncClipPlaybackUnsafe() {
 const SUBS_API_KEY = 'yta_5d361192f0b7bea2fef1bad94d7a17a6ff2dda2ab08585b8';
 const SUBS_API_BASE = 'https://youtube-transcript.ai/transcript/'; // + {VIDEO_ID}.txt
 const SUBS_QUOTA_LIMIT = 10;
+let subsHidden = false;  // encadré sous-titres caché par l'utilisateur (🙈), mémorisé
+try { subsHidden = localStorage.getItem('subsHidden') === 'true'; } catch (e) {}
+function subsSaveHidden() { try { localStorage.setItem('subsHidden', subsHidden ? 'true' : 'false'); } catch (e) {} }
+const SUBS_ADVANCE_SEC = 0.5;   // les sous-titres arrivaient en retard : on les avance de 500 ms
 let subsFeatureEnabled = localStorage.getItem('subsFeatureEnabled') === 'true';
 let subsLines = [];
 let subsLoadedFor = null;
@@ -10823,6 +10866,7 @@ function applySubsFeatureState() {
     if (subsFeatureEnabled) {
         const panel = ensureSubsPanel();
         panel.classList.add('visible');
+        panel.classList.toggle('user-hidden', subsHidden);
         subsLoadedFor = null;
         updateSubsPanelContent();
     } else {
@@ -10844,17 +10888,21 @@ function injectSubsStyles() {
             box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.12);
         }
         #subs-panel.visible { display: block; }
+        #subs-panel.user-hidden { display: none !important; }
+        #subs-panel.has-lines { cursor: pointer; }
+        #subs-panel.has-lines:not(.controls-open) #subs-header { display: none; }
+        #subs-hide-btn { background: rgba(255,255,255,0.18); border: none; color: #fff; border-radius: 6px; font-size: 0.75rem; padding: 1px 7px; cursor: pointer; margin-left: 4px; }
         #subs-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; color: #fff; font-size: 0.78rem; font-weight: bold; }
         #subs-redo-btn { display: none; background: rgba(255,255,255,0.18); border: none; color: #fff; border-radius: 6px; font-size: 0.75rem; padding: 1px 7px; cursor: pointer; margin-left: 4px; }
         #subs-quota { color: rgba(255,255,255,0.6); font-size: 0.7rem; font-weight: normal; white-space: nowrap; }
         #subs-message { color: rgba(255,255,255,0.75); font-size: 0.82rem; text-align: center; padding: 10px 6px; display: none; }
         #subs-generate-btn { display: none; width: 100%; background: var(--spotify-green, #1DB954); color: #000; border: none; border-radius: 10px; padding: 10px 12px; font-weight: bold; font-size: 0.82rem; cursor: pointer; }
         #subs-generate-btn:disabled { opacity: 0.5; cursor: default; }
-        #subs-lines { display: none; position: relative; height: 170px; overflow: hidden; scroll-behavior: smooth; text-align: center;
-            -webkit-mask-image: linear-gradient(transparent, #000 18%, #000 82%, transparent); mask-image: linear-gradient(transparent, #000 18%, #000 82%, transparent); }
+        #subs-lines { display: none; min-height: 96px; text-align: center; }
         .subs-line { padding: 5px 4px; font-size: 0.9rem; line-height: 1.3; color: rgba(255,255,255,0.4); transition: color 0.3s ease, transform 0.3s ease; }
         .subs-line.current { color: #fff; font-weight: bold; font-size: 1rem; transform: scale(1.04); }
         .subs-line.next { color: rgba(255,255,255,0.7); }
+        .subs-line.next2 { color: rgba(255,255,255,0.45); }
     `;
     document.head.appendChild(styleTag);
 }
@@ -10866,14 +10914,45 @@ function ensureSubsPanel() {
     panel = document.createElement('div');
     panel.id = 'subs-panel';
     panel.innerHTML = `
-        <div id="subs-header"><span>📝 Paroles · sous-titres YouTube</span><span><span id="subs-quota"></span> <button id="subs-redo-btn" onclick="subsRedo()" title="Refaire l'appel pour cette vidéo (consomme 1 appel du quota)">⟳</button></span></div>
+        <div id="subs-header"><span>📝 Paroles · sous-titres YouTube</span><span><span id="subs-quota"></span> <button id="subs-redo-btn" onclick="subsRedo()" title="Refaire l'appel pour cette vidéo (consomme 1 appel du quota)">⟳</button><button id="subs-hide-btn" onclick="subsHidePanel()" title="Cacher cet encadré (un mini bouton à droite permet de le réafficher)">🙈</button></span></div>
         <div id="subs-message"></div>
         <button id="subs-generate-btn" onclick="subsGenerate()">Générer les paroles via sous-titre YouTube</button>
         <div id="subs-lines"></div>
     `;
+    panel.addEventListener('click', (ev) => {
+        if (ev.target.closest && ev.target.closest('button')) return;
+        if (panel.classList.contains('has-lines')) panel.classList.toggle('controls-open');
+    });
     document.body.appendChild(panel);
+    const reveal = document.createElement('button');
+    reveal.id = 'subs-reveal-btn';
+    reveal.className = 'floating-reveal-btn';
+    reveal.style.bottom = '145px';
+    reveal.title = 'Réafficher les paroles sous-titres';
+    reveal.innerText = '📝';
+    reveal.onclick = subsShowPanel;
+    document.body.appendChild(reveal);
     return panel;
 }
+
+function subsHidePanel() {
+    subsHidden = true;
+    subsSaveHidden();
+    const panel = document.getElementById('subs-panel');
+    if (panel) { panel.classList.add('user-hidden'); panel.classList.remove('controls-open'); }
+    updateFloatingLayout();
+}
+
+function subsShowPanel() {
+    subsHidden = false;
+    subsSaveHidden();
+    const panel = document.getElementById('subs-panel');
+    if (panel) panel.classList.remove('user-hidden');
+    subsLastIdx = -2;
+    updateFloatingLayout();
+    updateSubsPanelContent();
+}
+
 
 // mode : 'message' (texte seul), 'button' (bouton + éventuelle note) ou 'lines' (paroles)
 function subsShowState(mode, text) {
@@ -10886,6 +10965,8 @@ function subsShowState(mode, text) {
     btn.style.display = mode === 'button' ? 'block' : 'none';
     btn.disabled = false;
     lines.style.display = mode === 'lines' ? 'block' : 'none';
+    const sp = document.getElementById('subs-panel');
+    if (sp) { sp.classList.toggle('has-lines', mode === 'lines'); if (mode !== 'lines') sp.classList.remove('controls-open'); }
 }
 
 function subsClearLines() {
@@ -10989,6 +11070,7 @@ function updateSubsPanelContentUnsafe() {
     if (!subsFeatureEnabled) return;
     ensureSubsPanel();
     updateSubsPanelPosition();
+    if (subsHidden) return; // caché : aucun travail inutile
     const quota = document.getElementById('subs-quota');
     if (quota) quota.innerText = subsQuotaLabel();
     if (subsBusy) return;
@@ -11013,30 +11095,22 @@ function updateSubsPanelContentUnsafe() {
     if (!subsLines.length) return;
 
     subsShowState('lines');
-    const t = currentProgressMs / 1000 + clipOffsetSec; // temps dans la vidéo = temps Spotify + décalage du clip
+    const t = currentProgressMs / 1000 + clipOffsetSec + SUBS_ADVANCE_SEC; // temps vidéo = temps Spotify + décalage du clip + avance de 500 ms
     let idx = -1;
     for (let i = 0; i < subsLines.length; i++) { if (subsLines[i].t <= t) idx = i; else break; }
-    const reveal = Math.min(subsLines.length - 1, idx + 1); // visibles : jusqu'à la ligne suivante
+    if (idx === subsLastIdx) return; // rien à redessiner tant que la ligne ne change pas
+    subsLastIdx = idx;
     const box = document.getElementById('subs-lines');
     if (!box) return;
-    if (box.children.length > reveal + 1) {
-        while (box.children.length > reveal + 1) box.removeChild(box.lastChild);
-        subsRenderedCount = box.children.length;
-    }
-    while (subsRenderedCount <= reveal) {
+    box.innerHTML = '';
+    // 3 lignes : celle en cours et les 2 suivantes (avant la 1re ligne : les 3 premières à venir)
+    const first = Math.max(idx, 0);
+    for (let k = 0; k < 3 && first + k < subsLines.length; k++) {
         const div = document.createElement('div');
-        div.className = 'subs-line';
-        div.textContent = subsLines[subsRenderedCount].text;
+        const i = first + k;
+        div.className = 'subs-line' + (i === idx ? ' current' : (i === idx + 1 ? ' next' : ' next2'));
+        div.textContent = subsLines[i].text;
         box.appendChild(div);
-        subsRenderedCount++;
-    }
-    for (let i = 0; i < box.children.length; i++) {
-        box.children[i].className = 'subs-line' + (i === idx ? ' current' : (i === idx + 1 ? ' next' : ''));
-    }
-    if (idx !== subsLastIdx) {
-        subsLastIdx = idx;
-        const cur = box.children[Math.max(idx, 0)];
-        if (cur) box.scrollTop = cur.offsetTop - box.clientHeight / 2 + cur.clientHeight / 2;
     }
 }
 
