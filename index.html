@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v2.47";
+        const APP_VERSION = "v2.48";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1783,7 +1783,7 @@
         <span class="slider"></span>
     </label>
 </div>
-<span style="font-size: 0.7rem; color: var(--text-grey);">Nécessite l'Intégration Clip. Un bouton lance l'appel (quota limité à 10), le résultat est mémorisé pour ne jamais le refaire.</span>
+<span style="font-size: 0.7rem; color: var(--text-grey);">Nécessite l'Intégration Clip. Un bouton lance l'appel (quota : 10 par jour), le résultat est mémorisé pour ne jamais le refaire.</span>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
     <span style="font-size: 0.85rem; color: var(--text-grey);">Flou progressif des lignes passées</span>
@@ -10330,7 +10330,9 @@ let clipPlayerReady = false;
 let clipLastSeek = 0;
 let clipLoadToken = 0;
 let clipLoadTimer = null;
-let clipHidden = false;           // clip caché par l'utilisateur (mini bouton de réaffichage)
+let clipHidden = false;           // clip caché par l'utilisateur (mini bouton de réaffichage), mémorisé
+try { clipHidden = localStorage.getItem('clipHidden') === 'true'; } catch (e) {}
+function clipSaveHidden() { try { localStorage.setItem('clipHidden', clipHidden ? 'true' : 'false'); } catch (e) {} }
 let clipUserPaused = false;       // pause demandée par un clic sur la vidéo : la synchro ne relance pas
 let clipProgrammaticUntil = 0;    // pour distinguer nos propres pause/lecture d'un clic de l'utilisateur
 function clipMarkProgrammatic() { clipProgrammaticUntil = Date.now() + 1500; }
@@ -10364,12 +10366,13 @@ function initClipFeatureState() {
 function applyClipFeatureState() {
     if (clipFeatureEnabled) {
         const panel = ensureClipPanel();
-        if (clipHidden) clipShowPanel();
         panel.classList.add('visible');
+        panel.classList.toggle('user-hidden', clipHidden);
+        const rv = document.getElementById('clip-reveal-btn');
+        if (rv) rv.classList.toggle('visible', clipHidden);
         if (clipCurrentTrack) clipLoadForTrack();
         else setClipMessage('En attente d\'un titre Spotify…');
     } else {
-        clipHidden = false;
         const reveal = document.getElementById('clip-reveal-btn');
         if (reveal) reveal.classList.remove('visible');
         const panel = document.getElementById('clip-panel');
@@ -10391,7 +10394,6 @@ function injectClipStyles() {
             backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
             box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.12);
         }
-        body.pip-panel-open #clip-panel { bottom: 112px; }
         #clip-panel.visible { display: block; }
         #clip-panel.user-hidden { display: none !important; }
         #clip-reveal-btn { display: none; position: fixed; bottom: 45px; right: 15px; z-index: 9600; width: 38px; height: 38px; padding: 0; border-radius: 50%; border: 1px solid rgba(255,255,255,0.25); background: rgba(10,10,10,0.85); color: #fff; font-size: 1.05rem; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
@@ -10402,6 +10404,7 @@ function injectClipStyles() {
         #clip-controls { pointer-events: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 6px; }
         #clip-controls button { background: rgba(255,255,255,0.2); border: none; color: #fff; font-size: 0.72rem; border-radius: 6px; padding: 3px 8px; cursor: pointer; }
         #clip-cc-btn.on { background: rgba(29,185,84,0.75); }
+        #clip-time-label { color: #fff; font-size: 0.72rem; font-variant-numeric: tabular-nums; padding: 0 4px; white-space: nowrap; }
         #clip-offset-label { color: rgba(255,255,255,0.8); font-size: 0.72rem; min-width: 30px; text-align: center; }
         /* Bande cliquable tout en haut de l'encadré : ouvre / referme les contrôles */
         #clip-top-toggle { position: absolute; top: 0; left: 0; right: 0; height: 34px; z-index: 4; cursor: pointer; }
@@ -10431,6 +10434,7 @@ function ensureClipPanel() {
                 <div id="clip-controls">
                     <button id="clip-cc-btn" onclick="clipToggleCaptions()" title="Activer / désactiver les sous-titres YouTube (préférence enregistrée)">CC désactivés</button>
                     <button onclick="clipAdjustOffset(-1)" title="Le clip est en avance : le retarder d'1 s">−1s</button>
+                    <span id="clip-time-label" title="Temps actuel / durée de la vidéo">0:00 / 0:00</span>
                     <span id="clip-offset-label">0s</span>
                     <button onclick="clipAdjustOffset(1)" title="Le clip est en retard : l'avancer d'1 s">+1s</button>
                     <button onclick="clipChangeLink()" title="Choisir un autre clip (coller un lien YouTube)">🔗 Lien</button>
@@ -10454,21 +10458,26 @@ function ensureClipPanel() {
 // bouton en bas à droite permet de le réafficher.
 function clipHidePanel() {
     clipHidden = true;
+    clipSaveHidden();
     const panel = document.getElementById('clip-panel');
     if (panel) { panel.classList.add('user-hidden'); panel.classList.remove('controls-open'); }
     const reveal = document.getElementById('clip-reveal-btn');
     if (reveal) reveal.classList.add('visible');
+    updateFloatingLayout();
     if (clipPlayer && clipPlayerReady && typeof clipPlayer.pauseVideo === 'function') { clipMarkProgrammatic(); clipPlayer.pauseVideo(); }
 }
 
 function clipShowPanel() {
     clipHidden = false;
+    clipSaveHidden();
     const panel = document.getElementById('clip-panel');
     if (panel) panel.classList.remove('user-hidden');
     const reveal = document.getElementById('clip-reveal-btn');
     if (reveal) reveal.classList.remove('visible');
     clipLastSeek = 0;
+    if (clipVideoId) clipCreateOrLoadPlayer(clipVideoId); // le lecteur n'est créé qu'une fois le clip affiché
     syncClipPlayback();
+    updateFloatingLayout();
 }
 
 // Clic sur le haut de l'encadré : ouvre (titre, sous-titres, ±1 s, lien) ; nouveau clic : referme.
@@ -10526,10 +10535,54 @@ function updateClipLabels(title) {
     if (off) off.innerText = (clipOffsetSec > 0 ? '+' : '') + clipOffsetSec + 's';
 }
 
+function clipFmtTime(sec) {
+    sec = Math.max(0, Math.floor(+sec || 0));
+    const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), r = sec % 60;
+    return h > 0 ? h + ':' + String(m).padStart(2, '0') + ':' + String(r).padStart(2, '0') : m + ':' + String(r).padStart(2, '0');
+}
+
+// Empilement unique, depuis le bas : PiP -> clip -> paroles sous-titres. Chaque encadré visible se place
+// au-dessus du précédent ; caché ou désactivé, il ne prend plus de place. Si la pile dépasse l'écran,
+// la zone des lignes de sous-titres rétrécit (60 à 170 px).
+function updateFloatingLayout() {
+    const vis = id => {
+        const el = document.getElementById(id);
+        return el && !el.classList.contains('user-hidden') && el.offsetHeight > 0 ? el : null;
+    };
+    let bottom = 20;
+    const pip = vis('pip-panel');
+    if (pip) bottom += pip.offsetHeight + 10;
+    const clip = vis('clip-panel');
+    if (clip) { clip.style.bottom = Math.round(bottom) + 'px'; bottom += clip.offsetHeight + 10; }
+    else { const c = document.getElementById('clip-panel'); if (c) c.style.bottom = ''; }
+    const subs = document.getElementById('subs-panel');
+    if (subs) {
+        subs.style.bottom = Math.round(bottom) + 'px';
+        const lines = document.getElementById('subs-lines');
+        if (lines && lines.offsetHeight > 0) {
+            const others = subs.offsetHeight - lines.offsetHeight;
+            const room = window.innerHeight - bottom - 10 - others;
+            lines.style.height = Math.max(60, Math.min(170, Math.round(room))) + 'px';
+        }
+    }
+}
+window.addEventListener('resize', () => { try { updateFloatingLayout(); } catch (e) {} });
+
 function updateClipPanelContentUnsafe() {
     const reveal = document.getElementById('clip-reveal-btn');
     if (reveal) reveal.classList.toggle('visible', clipFeatureEnabled && clipHidden);
-    if (!clipFeatureEnabled) return;
+    if (!clipFeatureEnabled) { updateFloatingLayout(); return; }
+    const tl = document.getElementById('clip-time-label');
+    if (tl) {
+        let cur = 0, dur = 0;
+        try {
+            if (clipPlayer && clipPlayerReady && typeof clipPlayer.getCurrentTime === 'function') {
+                cur = clipPlayer.getCurrentTime() || 0; dur = clipPlayer.getDuration() || 0;
+            }
+        } catch (e) {}
+        tl.innerText = clipFmtTime(cur) + ' / ' + clipFmtTime(dur);
+    }
+    updateFloatingLayout();
     const mainFill = document.getElementById('progress-fill');
     const clipFill = document.getElementById('clip-progress-fill');
     if (mainFill && clipFill) clipFill.style.width = mainFill.style.width || '0%';
@@ -10594,7 +10647,7 @@ async function clipLoadForTrack() {
     clipOffsetSec = clipReadStore('clipOffsets')[entry.id] || 0;
     updateClipLabels(entry.title || 'Clip');
     setClipMessage('');
-    clipCreateOrLoadPlayer(entry.id);
+    if (!clipHidden) clipCreateOrLoadPlayer(entry.id); // clip caché : pas de lecteur tant qu'il n'est pas réaffiché
 }
 
 function clipStop(message) {
@@ -10719,12 +10772,12 @@ function syncClipPlaybackUnsafe() {
 // ==========================================
 // 📝 PAROLES VIA SOUS-TITRES YOUTUBE : un encadré (comme les paroles et le clip) qui affiche la ligne
 // en cours, la suivante, puis les lignes déjà chantées au fil de l'écoute. Les sous-titres sont
-// récupérés via l'API youtube-transcript.io à partir de l'identifiant du clip. Le quota est limité
+// récupérés via l'API youtube-transcript.ai à partir de l'identifiant du clip. Le quota est limité
 // (10 appels) : l'appel n'est lancé QUE par le bouton « Générer les paroles via sous-titre YouTube »,
 // et chaque résultat est mémorisé (jamais deux appels pour la même vidéo).
 // ==========================================
 const SUBS_API_KEY = 'yta_5d361192f0b7bea2fef1bad94d7a17a6ff2dda2ab08585b8';
-const SUBS_API_URL = 'https://www.youtube-transcript.io/api/transcripts';
+const SUBS_API_BASE = 'https://youtube-transcript.ai/transcript/'; // + {VIDEO_ID}.txt
 const SUBS_QUOTA_LIMIT = 10;
 let subsFeatureEnabled = localStorage.getItem('subsFeatureEnabled') === 'true';
 let subsLines = [];
@@ -10734,7 +10787,25 @@ let subsRenderedCount = 0;
 let subsLastIdx = -2;
 let subsNote = '';
 
-function subsCallCount() { return parseInt(localStorage.getItem('subsCallCount') || '0', 10) || 0; }
+// Quota : 10 requêtes par jour, remises à zéro à 00:00 UTC (1 h ou 2 h du matin à Paris)
+function subsUtcDay() { return new Date().toISOString().slice(0, 10); }
+function subsReadQuota() {
+    const q = clipReadStore('subsQuota');
+    return q.day === subsUtcDay() ? q : { day: subsUtcDay(), used: 0, remaining: null };
+}
+function subsCallCount() { return subsReadQuota().used || 0; }
+function subsRegisterCall(remainingHeader) {
+    const q = subsReadQuota();
+    q.used = (q.used || 0) + 1;
+    const r = parseInt(remainingHeader, 10);
+    q.remaining = isFinite(r) ? r : null;
+    clipWriteStore('subsQuota', q);
+}
+function subsQuotaLabel() {
+    const q = subsReadQuota();
+    if (q.remaining !== null && q.remaining !== undefined) return q.remaining + ' appel(s) restant(s)';
+    return (q.used || 0) + '/' + SUBS_QUOTA_LIMIT + ' appels aujourd\'hui';
+}
 
 function toggleSubsFeatureSetting(checked) {
     subsFeatureEnabled = checked;
@@ -10766,7 +10837,7 @@ function injectSubsStyles() {
     styleTag.id = 'subs-panel-inline-style';
     styleTag.textContent = `
         #subs-panel {
-            display: none; position: fixed; bottom: 20px; left: 12px; width: min(380px, calc(100vw - 24px));
+            display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); transition: bottom 0.2s ease; width: min(560px, calc(100vw - 24px));
             z-index: 8930; box-sizing: border-box; border-radius: 16px; padding: 10px 12px 12px 12px;
             background: linear-gradient(135deg, rgba(var(--pip-bg-color, 29, 185, 84), 0.35), rgba(10, 10, 10, 0.94));
             backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
@@ -10823,68 +10894,68 @@ function subsClearLines() {
     subsLastIdx = -2;
 }
 
-function subsParseTranscript(json) {
-    const item = Array.isArray(json) ? json[0] : json;
-    if (!item) return { lines: [], lang: '' };
-    let segs = null;
-    let lang = '';
-    if (Array.isArray(item.tracks) && item.tracks.length) {
-        const langOf = (t) => String(t.language || t.languageCode || '');
-        const pick = item.tracks.find(t => /^(fr|fran)/i.test(langOf(t))) || item.tracks.find(t => /^(en|engl)/i.test(langOf(t))) || item.tracks[0];
-        segs = pick.transcript || pick.segments || null;
-        lang = langOf(pick);
-    } else if (Array.isArray(item.segments)) {
-        segs = item.segments;
-    } else if (Array.isArray(item.transcript)) {
-        segs = item.transcript;
-    }
-    const lines = [];
-    (segs || []).forEach(seg => {
-        const t = parseFloat(seg.start !== undefined ? seg.start : (seg.offset !== undefined ? seg.offset : 0));
-        const text = clipDecodeEntities(String(seg.text || '')).replace(/\s+/g, ' ').trim();
-        if (!isFinite(t) || !text || /^\[[^\]]*\]$/.test(text)) return; // ignore les mentions [Musique] seules
-        if (lines.length && lines[lines.length - 1].text === text) return;
-        lines.push({ t: t, text: text });
+// Format renvoyé par youtube-transcript.ai (/transcript/{ID}.txt) : un en-tête Markdown, puis des
+// paragraphes « [m:ss] texte ». Chaque paragraphe est découpé en phrases dont l'heure est répartie
+// jusqu'au paragraphe suivant, pour obtenir des lignes plus fines.
+function subsParseTranscript(markdown) {
+    const text = String(markdown || '');
+    const langMatch = text.match(/Language:\s*([^\s·]+)/);
+    const paras = [];
+    text.split(/\r?\n/).forEach(raw => {
+        const m = raw.match(/^\s*\[(\d+):(\d{2})(?::(\d{2}))?\]\s*(.*)$/);
+        if (!m) return;
+        const t = m[3] !== undefined ? (+m[1]) * 3600 + (+m[2]) * 60 + (+m[3]) : (+m[1]) * 60 + (+m[2]);
+        const body = clipDecodeEntities(m[4]).replace(/\[[^\]]*\]/g, ' ').replace(/\s+/g, ' ').trim(); // retire [Musique] etc.
+        if (body) paras.push({ t: t, text: body });
     });
-    lines.sort((a, b) => a.t - b.t);
-    return { lines: lines, lang: lang };
+    paras.sort((a, b) => a.t - b.t);
+    const lines = [];
+    paras.forEach((para, i) => {
+        const end = i + 1 < paras.length ? paras[i + 1].t : para.t + 12;
+        const parts = (para.text.match(/[^.!?…]+[.!?…]*["»”)]*\s*/g) || [para.text]).map(x => x.trim()).filter(Boolean);
+        const total = parts.reduce((acc, x) => acc + x.length, 0) || 1;
+        let acc = 0;
+        parts.forEach(sentence => {
+            if (!lines.length || lines[lines.length - 1].text !== sentence) lines.push({ t: para.t + (end - para.t) * (acc / total), text: sentence });
+            acc += sentence.length;
+        });
+    });
+    return { lines: lines, lang: langMatch ? langMatch[1] : '' };
 }
 
 async function subsFetchTranscript(videoId) {
-    const doFetch = (scheme) => fetch(SUBS_API_URL, {
-        method: 'POST',
-        headers: { 'Authorization': scheme + ' ' + SUBS_API_KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: [videoId] })
-    });
     let response;
     try {
-        response = await doFetch('Basic');
-        if (response.status === 401 || response.status === 403) response = await doFetch('Bearer');
+        response = await fetch(SUBS_API_BASE + encodeURIComponent(videoId) + '.txt', { headers: { 'Authorization': 'Bearer ' + SUBS_API_KEY } });
     } catch (e) {
-        throw new Error('appel bloqué par le navigateur (réseau ou CORS) — le quota n\'a probablement pas été consommé');
+        throw new Error('appel impossible (réseau coupé ?) — le quota n\'a probablement pas été consommé');
     }
-    if (response.status === 429) throw new Error('trop de requêtes, réessaie dans quelques secondes');
-    if (response.status === 401 || response.status === 403) throw new Error('clé refusée (' + response.status + ')');
+    if (response.status === 429) throw new Error('quota du jour épuisé (remise à zéro à 00:00 UTC, soit 1 h ou 2 h du matin à Paris)');
+    if (response.status === 401) throw new Error('clé inconnue ou manquante (401)');
+    if (response.status === 404) throw new Error('vidéo introuvable ou sans sous-titres (404)');
     if (!response.ok) throw new Error('erreur du service (' + response.status + ')');
-    localStorage.setItem('subsCallCount', String(subsCallCount() + 1)); // appel réussi : on le compte
-    return subsParseTranscript(await response.json());
+    subsRegisterCall(response.headers.get('X-RateLimit-Remaining'));
+    const result = subsParseTranscript(await response.text());
+    if (!result.lines.length) throw new Error('réponse reçue mais aucune ligne horodatée trouvée');
+    return result;
 }
 
 // Déclenché UNIQUEMENT par le bouton : un seul appel par vidéo, puis tout vient de la mémoire.
 async function subsGenerate() {
     if (subsBusy || !clipVideoId) return;
     const videoId = clipVideoId;
-    if (subsCallCount() >= SUBS_QUOTA_LIMIT && !window.confirm('Le quota de ' + SUBS_QUOTA_LIMIT + ' appels semble atteint. Essayer quand même ?')) return;
+    const quota = subsReadQuota();
+    if ((quota.remaining === 0 || (quota.used || 0) >= SUBS_QUOTA_LIMIT) && !window.confirm('Le quota du jour (' + SUBS_QUOTA_LIMIT + ' appels) semble atteint. Essayer quand même ?')) return;
     subsBusy = true;
     subsNote = '';
     subsShowState('message', 'Récupération des sous-titres…');
     try {
         const result = await subsFetchTranscript(videoId);
-        const cache = clipReadStore('subsCache');
-        cache[videoId] = result; // même un résultat vide est mémorisé : on ne gaspille pas un 2e appel
+        const cache = clipReadStore('subsCache2');
+        cache[videoId] = result; // mémorisé pour toujours : plus jamais d'appel pour cette vidéo
         const keys = Object.keys(cache);
         if (keys.length > 40) delete cache[keys[0]];
-        clipWriteStore('subsCache', cache);
+        clipWriteStore('subsCache2', cache);
         subsLoadedFor = null; // force la relecture depuis la mémoire
     } catch (e) {
         subsNote = 'Échec : ' + e.message;
@@ -10893,11 +10964,14 @@ async function subsGenerate() {
     updateSubsPanelContent();
 }
 
+function updateSubsPanelPosition() { updateFloatingLayout(); }
+
 function updateSubsPanelContentUnsafe() {
     if (!subsFeatureEnabled) return;
     ensureSubsPanel();
+    updateSubsPanelPosition();
     const quota = document.getElementById('subs-quota');
-    if (quota) quota.innerText = subsCallCount() + '/' + SUBS_QUOTA_LIMIT + ' appels';
+    if (quota) quota.innerText = subsQuotaLabel();
     if (subsBusy) return;
 
     if (!clipVideoId) {
@@ -10910,7 +10984,7 @@ function updateSubsPanelContentUnsafe() {
     if (subsLoadedFor !== clipVideoId) {
         subsLoadedFor = clipVideoId;
         subsClearLines();
-        const cached = clipReadStore('subsCache')[clipVideoId];
+        const cached = clipReadStore('subsCache2')[clipVideoId];
         subsLines = cached ? cached.lines : [];
         if (!cached) { subsShowState('button', subsNote); return; }
         if (!subsLines.length) { subsShowState('message', 'Aucun sous-titre trouvé pour ce clip.'); return; }
