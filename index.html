@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v2.57";
+        const APP_VERSION = "v2.58";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -5214,7 +5214,80 @@ function ensureCreditsModal() {
             <li><strong>Interface Paroles dédiée 📃</strong> — pochette, titre, artiste et durée en en-tête, paroles en dessous.</li>
             <li><strong>Téléchargement paroles (A4) 📥</strong> — génère une feuille imprimable/PDF au fond adapté à la pochette du titre.</li>
             <li><strong>Fond parole vert</strong> et <strong>Fond parole adaptatif</strong> — deux styles de fond pour l'encadré des paroles, l'un fixe, l'autre calé sur la couleur dominante de la pochette (réactualisée à chaque titre).</li>
-            <li><strong>Typographie étoile ⭐</strong> — police et lueur scintillante façon constellation appliquées au titre, à l'artiste, à la durée et aux paroles (désactivé par défaut).</li>
+            <li><strong>Typographie</strong> — voir la section « Typographies » plus bas (12 choix, dont l'étoile ⭐ scintillante).</li>
+        </ul>
+
+        <h3>🔤 Typographies</h3>
+        <ul>
+            <li><strong>Menu déroulant</strong> dans les Paramètres : Original (par défaut), Étoile, Machine à écrire, Élégante, Manuscrite, Futuriste, Graffiti, Minimaliste, Rétro disco, Affiche, Olympia (proche du logo) et Music-hall.</li>
+            <li><strong>Partout dans l'app</strong> — la police choisie s'applique au titre, à l'artiste, à la durée, aux paroles, au mini-lecteur, à l'interface Paroles (PiP), à l'encadré des sous-titres YouTube, à « Lecture en cours » et à « Explorer & rechercher ».</li>
+            <li><strong>Étoile ⭐</strong> ajoute en plus une lueur scintillante façon constellation. Le choix est mémorisé.</li>
+        </ul>
+
+        <h3>✨ Animations : paroles, titre, artiste, pochette</h3>
+        <ul>
+            <li><strong>Animation des paroles</strong> (ligne active) — 13 styles : zoom doux, karaoké dégradé, soulignement, soulignement ondulé, lueur pulsée, glissement latéral, flash de couleur, espacement des lettres, emphase (gras + pop), surlignage en pastille, lueur qui balaie le texte, petit rebond, encadré néon.</li>
+            <li><strong>Animation du titre</strong> — 10 styles : machine à écrire, soulignement animé, néon qui s'allume, respiration douce, glitch, cascade de lettres, vague de lettres, tremblement d'arrivée, dégradé animé et « couleur de la pochette ».</li>
+            <li><strong>Animation de l'artiste</strong> — 13 styles : effet signature, fondu, glissement, machine à écrire, glitch, vague de lettres, flou vers net, apparition en pop, deux dégradés animés (dont coucher de soleil), rotation d'entrée, rebond élastique et « couleur de la pochette ».</li>
+            <li><strong>Animation de la pochette</strong> à chaque nouveau titre — 14 styles : fade + scale-up, flou vers net, fondu simple, balayage découverte, encre qui sèche, développement photo, shatter (éclats), puzzle, façon Spotify, rideau, vinyle qui tourne, cassette qui s'insère, polaroid qui s'éjecte, miroir brisé qui se reforme.</li>
+            <li>Chaque animation se règle et se mémorise séparément ; « Aucun » la désactive.</li>
+        </ul>
+
+        <h3>📊 Barre de progression</h3>
+        <ul>
+            <li><strong>Changement de style visuel</strong> — menu avec le style par défaut et 13 variantes : vinyle (sillons + disque), rétro 8 bits, néon, arc-en-ciel, rayures animées, perles, égaliseur, flamme, glace, or, comète, pulsation et « couleurs de la pochette ».</li>
+            <li>La barre reste cliquable pour se déplacer dans le titre, et le style est mémorisé.</li>
+        </ul>
+
+        <h3>🪞 Effet miroir sur la pochette</h3>
+        <ul>
+            <li><strong>Miroir liquide</strong> — le reflet de la pochette s'affiche en dessous, retourné, avec une légère ondulation animée qui suit chaque nouveau titre.</li>
+            <li><strong>Pochette inclinée 3D</strong> — la pochette de « Lecture en cours » prend un effet de perspective.</li>
+            <li>Les deux se règlent indépendamment dans les Paramètres.</li>
+        </ul>
+
+        <h3>💿 Tourne-disque</h3>
+        <ul>
+            <li><strong>Vinyle qui tourne</strong> — la pochette devient un disque qui tourne pendant la lecture et s'arrête à la pause.</li>
+            <li><strong>Bras du tourne-disque</strong> — un bras se pose sur le vinyle pendant la lecture (réglage séparé, il n'apparaît que lorsqu'une pochette est bien affichée).</li>
+            <li><strong>Thème « vinyle rétro »</strong> et barre de progression « Vinyle » (sillons) pour compléter l'ambiance.</li>
+            <li>Pour les fichiers locaux Spotify sans pochette, l'image <em>imagemusic.jpg</em> est affichée à la place.</li>
+        </ul>
+
+        <h3>📚 Bibliothèque</h3>
+        <ul>
+            <li><strong>Bibliothèque en étagère visuelle</strong> — option qui présente tes titres likés et tes playlists comme des pochettes rangées sur une étagère, au lieu d'une simple liste.</li>
+            <li>Elle s'ouvre avec le bouton 📂 : on y retrouve les titres likés, avec lecture directe d'un titre d'un clic.</li>
+        </ul>
+
+        <h3>🎬 Intégration Clip</h3>
+        <ul>
+            <li><strong>Clip YouTube synchronisé</strong> — la vidéo du titre en cours s'affiche en bas de l'écran, sans son (l'audio vient de Spotify) et suit la lecture, la pause et les changements de titre.</li>
+            <li><strong>Recherche automatique</strong> via l'API YouTube (clé à renseigner dans les Paramètres) ; le clip trouvé est mémorisé pour ne plus être cherché. Tu peux coller un autre lien avec <strong>🔗 Lien</strong>.</li>
+            <li><strong>Resynchronisation manuelle</strong> — boutons −1s, −500ms, +500ms, +1s ; le décalage est mémorisé pour chaque vidéo.</li>
+            <li><strong>Temps actuel / durée</strong> de la vidéo affichés dans les contrôles.</li>
+            <li><strong>Sous-titres CC</strong> activables / désactivables (préférence mémorisée).</li>
+            <li><strong>Contrôles discrets</strong> — un clic sur le haut du cadre ouvre ou referme titre et boutons ; un clic sur la vidéo la met en pause ou passe une pub.</li>
+            <li><strong>🙈 Cacher</strong> — le clip disparaît et un mini bouton 🎬 à droite permet de le réafficher ; l'état est mémorisé. Caché, il ne tourne plus et ne consomme rien.</li>
+            <li>Il se met aussi en pause quand l'onglet est en arrière-plan.</li>
+        </ul>
+
+        <h3>📃 Intégration Paroles (interface flottante)</h3>
+        <ul>
+            <li><strong>Mini-panneau centré en bas</strong> — pochette, ligne de parole en cours et ligne suivante, sur un fond à la couleur dominante de la pochette, avec une fine ligne verte de progression.</li>
+            <li><strong>Clic sur la pochette</strong> — passe à la vue infos : titre, artiste, temps écoulé / durée et bouton pause / lecture.</li>
+            <li><strong>🙈</strong> au-dessus du bouton pause cache l'interface ; un mini bouton 🎵 à droite la réaffiche (état mémorisé).</li>
+            <li>Elle s'active avec un interrupteur dans les Paramètres (désactivée par défaut).</li>
+        </ul>
+
+        <h3>📝 Intégration Sous-titres YouTube</h3>
+        <ul>
+            <li><strong>Paroles issues des sous-titres du clip</strong> — utile quand aucune parole synchronisée n'existe pour un titre.</li>
+            <li><strong>Un seul appel par vidéo</strong> — déclenché uniquement par le bouton « Générer les paroles via sous-titre YouTube » ; le texte brut est mémorisé pour toujours et ré-analysable sans nouvel appel. Quota gratuit de 10 appels par jour (remise à zéro à 00:00 UTC), compteur affiché.</li>
+            <li><strong>3 lignes</strong> — la ligne en cours et les 2 suivantes, avec la typographie choisie.</li>
+            <li><strong>Synchronisation fine</strong> — avance de 500 ms par défaut, réglable avec −500ms / +500ms (mémorisé par vidéo).</li>
+            <li><strong>Un clic sur l'encadré</strong> affiche ou masque son en-tête (quota, réglages, ⟳ pour refaire l'appel, 🙈 pour cacher) ; l'encadré caché se réaffiche avec le mini bouton 📝, état mémorisé.</li>
+            <li><strong>Pas de chevauchement</strong> — PiP, clip et sous-titres s'empilent automatiquement selon ce qui est affiché, et la page défile assez bas pour lire la fin des paroles.</li>
         </ul>
 
         <h3>🎨 Interface & ambiance</h3>
