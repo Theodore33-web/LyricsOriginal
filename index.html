@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v2.50";
+        const APP_VERSION = "v2.51";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -125,6 +125,7 @@
         body.typo-etoile-active #mini-player-times,
         body.typo-etoile-active #explorer-rechercher-title,
         body.typo-etoile-active #pip-lyric-current,
+        body.typo-etoile-active .subs-line,
         body.typo-etoile-active #pip-info-title,
         body.typo-etoile-active #lecture-en-cours-title {
             font-family: 'Orbitron', 'Segoe UI', sans-serif !important;
@@ -152,6 +153,7 @@
         body.typo-olympialogo-active #explorer-rechercher-title,
         body.typo-olympialogo-active #lecture-en-cours-title,
         body.typo-olympialogo-active #pip-lyric-current,
+        body.typo-olympialogo-active .subs-line,
         body.typo-olympialogo-active #pip-lyric-next,
         body.typo-olympialogo-active #pip-info-title,
         body.typo-olympialogo-active #pip-info-artist,
@@ -174,6 +176,7 @@
         body.typo-musichall-active #explorer-rechercher-title,
         body.typo-musichall-active #lecture-en-cours-title,
         body.typo-musichall-active #pip-lyric-current,
+        body.typo-musichall-active .subs-line,
         body.typo-musichall-active #pip-lyric-next,
         body.typo-musichall-active #pip-info-title,
         body.typo-musichall-active #pip-info-artist,
@@ -196,6 +199,7 @@
         body.typo-typewriter-active #explorer-rechercher-title,
         body.typo-typewriter-active #lecture-en-cours-title,
         body.typo-typewriter-active #pip-lyric-current,
+        body.typo-typewriter-active .subs-line,
         body.typo-typewriter-active #pip-lyric-next,
         body.typo-typewriter-active #pip-info-title,
         body.typo-typewriter-active #pip-info-artist,
@@ -218,6 +222,7 @@
         body.typo-elegante-active #explorer-rechercher-title,
         body.typo-elegante-active #lecture-en-cours-title,
         body.typo-elegante-active #pip-lyric-current,
+        body.typo-elegante-active .subs-line,
         body.typo-elegante-active #pip-lyric-next,
         body.typo-elegante-active #pip-info-title,
         body.typo-elegante-active #pip-info-artist,
@@ -240,6 +245,7 @@
         body.typo-manuscrite-active #explorer-rechercher-title,
         body.typo-manuscrite-active #lecture-en-cours-title,
         body.typo-manuscrite-active #pip-lyric-current,
+        body.typo-manuscrite-active .subs-line,
         body.typo-manuscrite-active #pip-lyric-next,
         body.typo-manuscrite-active #pip-info-title,
         body.typo-manuscrite-active #pip-info-artist,
@@ -262,6 +268,7 @@
         body.typo-futuriste-active #explorer-rechercher-title,
         body.typo-futuriste-active #lecture-en-cours-title,
         body.typo-futuriste-active #pip-lyric-current,
+        body.typo-futuriste-active .subs-line,
         body.typo-futuriste-active #pip-lyric-next,
         body.typo-futuriste-active #pip-info-title,
         body.typo-futuriste-active #pip-info-artist,
@@ -284,6 +291,7 @@
         body.typo-graffiti-active #explorer-rechercher-title,
         body.typo-graffiti-active #lecture-en-cours-title,
         body.typo-graffiti-active #pip-lyric-current,
+        body.typo-graffiti-active .subs-line,
         body.typo-graffiti-active #pip-lyric-next,
         body.typo-graffiti-active #pip-info-title,
         body.typo-graffiti-active #pip-info-artist,
@@ -306,6 +314,7 @@
         body.typo-minimaliste-active #explorer-rechercher-title,
         body.typo-minimaliste-active #lecture-en-cours-title,
         body.typo-minimaliste-active #pip-lyric-current,
+        body.typo-minimaliste-active .subs-line,
         body.typo-minimaliste-active #pip-lyric-next,
         body.typo-minimaliste-active #pip-info-title,
         body.typo-minimaliste-active #pip-info-artist,
@@ -328,6 +337,7 @@
         body.typo-discoretro-active #explorer-rechercher-title,
         body.typo-discoretro-active #lecture-en-cours-title,
         body.typo-discoretro-active #pip-lyric-current,
+        body.typo-discoretro-active .subs-line,
         body.typo-discoretro-active #pip-lyric-next,
         body.typo-discoretro-active #pip-info-title,
         body.typo-discoretro-active #pip-info-artist,
@@ -350,6 +360,7 @@
         body.typo-affiche-active #explorer-rechercher-title,
         body.typo-affiche-active #lecture-en-cours-title,
         body.typo-affiche-active #pip-lyric-current,
+        body.typo-affiche-active .subs-line,
         body.typo-affiche-active #pip-lyric-next,
         body.typo-affiche-active #pip-info-title,
         body.typo-affiche-active #pip-info-artist,
@@ -10476,9 +10487,9 @@ function ensureClipPanel() {
                 <div id="clip-controls">
                     <button id="clip-cc-btn" onclick="clipToggleCaptions()" title="Activer / désactiver les sous-titres YouTube (préférence enregistrée)">CC désactivés</button>
                     <button onclick="clipAdjustOffset(-1)" title="Le clip est en avance : le retarder d'1 s">−1s</button>
-                    <span id="clip-time-label" title="Temps actuel / durée de la vidéo">0:00 / 0:00</span>
                     <span id="clip-offset-label">0s</span>
                     <button onclick="clipAdjustOffset(1)" title="Le clip est en retard : l'avancer d'1 s">+1s</button>
+                    <span id="clip-time-label" title="Temps actuel / durée de la vidéo">0:00 / 0:00</span>
                     <button onclick="clipChangeLink()" title="Choisir un autre clip (coller un lien YouTube)">🔗 Lien</button>
                     <button onclick="clipHidePanel()" title="Cacher le clip (un mini bouton en bas à droite permet de le réafficher)">🙈 Cacher</button>
                 </div>
@@ -10821,7 +10832,26 @@ const SUBS_QUOTA_LIMIT = 10;
 let subsHidden = false;  // encadré sous-titres caché par l'utilisateur (🙈), mémorisé
 try { subsHidden = localStorage.getItem('subsHidden') === 'true'; } catch (e) {}
 function subsSaveHidden() { try { localStorage.setItem('subsHidden', subsHidden ? 'true' : 'false'); } catch (e) {} }
-const SUBS_ADVANCE_SEC = 0.5;   // les sous-titres arrivaient en retard : on les avance de 500 ms
+const SUBS_ADVANCE_SEC = 0.5;   // valeur de départ : les sous-titres arrivaient en retard, on les avance de 500 ms
+let subsOffsetCur = SUBS_ADVANCE_SEC; // décalage manuel en secondes pour la vidéo courante (mémorisé par vidéo)
+function subsOffsetLoad(videoId) {
+    const v = clipReadStore('subsOffsets')[videoId];
+    subsOffsetCur = typeof v === 'number' ? v : SUBS_ADVANCE_SEC;
+    const lab = document.getElementById('subs-offset-label');
+    if (lab) lab.innerText = (subsOffsetCur > 0 ? '+' : '') + Math.round(subsOffsetCur * 1000) + ' ms';
+}
+function subsAdjustOffset(deltaSec) {
+    if (!clipVideoId) return;
+    subsOffsetCur = Math.round((subsOffsetCur + deltaSec) * 1000) / 1000;
+    const store = clipReadStore('subsOffsets');
+    store[clipVideoId] = subsOffsetCur;
+    const keys = Object.keys(store);
+    if (keys.length > 60) delete store[keys[0]];
+    clipWriteStore('subsOffsets', store);
+    subsOffsetLoad(clipVideoId);
+    subsLastIdx = -2; // force le redessin immédiat
+    updateSubsPanelContent();
+}
 let subsFeatureEnabled = localStorage.getItem('subsFeatureEnabled') === 'true';
 let subsLines = [];
 let subsLoadedFor = null;
@@ -10891,6 +10921,9 @@ function injectSubsStyles() {
         #subs-panel.user-hidden { display: none !important; }
         #subs-panel.has-lines { cursor: pointer; }
         #subs-panel.has-lines:not(.controls-open) #subs-header { display: none; }
+        #subs-header { flex-wrap: wrap; }
+        .subs-off-btn { background: rgba(255,255,255,0.18); border: none; color: #fff; border-radius: 6px; font-size: 0.72rem; padding: 2px 7px; cursor: pointer; }
+        #subs-offset-label { color: rgba(255,255,255,0.85); font-size: 0.72rem; font-weight: normal; min-width: 54px; display: inline-block; text-align: center; font-variant-numeric: tabular-nums; }
         #subs-hide-btn { background: rgba(255,255,255,0.18); border: none; color: #fff; border-radius: 6px; font-size: 0.75rem; padding: 1px 7px; cursor: pointer; margin-left: 4px; }
         #subs-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; color: #fff; font-size: 0.78rem; font-weight: bold; }
         #subs-redo-btn { display: none; background: rgba(255,255,255,0.18); border: none; color: #fff; border-radius: 6px; font-size: 0.75rem; padding: 1px 7px; cursor: pointer; margin-left: 4px; }
@@ -10914,7 +10947,7 @@ function ensureSubsPanel() {
     panel = document.createElement('div');
     panel.id = 'subs-panel';
     panel.innerHTML = `
-        <div id="subs-header"><span>📝 Paroles · sous-titres YouTube</span><span><span id="subs-quota"></span> <button id="subs-redo-btn" onclick="subsRedo()" title="Refaire l'appel pour cette vidéo (consomme 1 appel du quota)">⟳</button><button id="subs-hide-btn" onclick="subsHidePanel()" title="Cacher cet encadré (un mini bouton à droite permet de le réafficher)">🙈</button></span></div>
+        <div id="subs-header"><span>📝 Paroles · sous-titres YouTube</span><span><span id="subs-quota"></span> <button id="subs-off-minus" class="subs-off-btn" onclick="subsAdjustOffset(-0.5)" title="Sous-titres en avance : les retarder de 500 ms">−500ms</button><span id="subs-offset-label">+500 ms</span><button id="subs-off-plus" class="subs-off-btn" onclick="subsAdjustOffset(0.5)" title="Sous-titres en retard : les avancer de 500 ms">+500ms</button><button id="subs-redo-btn" onclick="subsRedo()" title="Refaire l'appel pour cette vidéo (consomme 1 appel du quota)">⟳</button><button id="subs-hide-btn" onclick="subsHidePanel()" title="Cacher cet encadré (un mini bouton à droite permet de le réafficher)">🙈</button></span></div>
         <div id="subs-message"></div>
         <button id="subs-generate-btn" onclick="subsGenerate()">Générer les paroles via sous-titre YouTube</button>
         <div id="subs-lines"></div>
@@ -11085,6 +11118,7 @@ function updateSubsPanelContentUnsafe() {
     }
     if (subsLoadedFor !== clipVideoId) {
         subsLoadedFor = clipVideoId;
+        subsOffsetLoad(clipVideoId);
         subsClearLines();
         const cached = clipReadStore('subsCache2')[clipVideoId];
         subsLines = cached ? (cached.raw ? subsParseTranscript(cached.raw).lines : (cached.lines || [])) : [];
@@ -11095,7 +11129,7 @@ function updateSubsPanelContentUnsafe() {
     if (!subsLines.length) return;
 
     subsShowState('lines');
-    const t = currentProgressMs / 1000 + clipOffsetSec + SUBS_ADVANCE_SEC; // temps vidéo = temps Spotify + décalage du clip + avance de 500 ms
+    const t = currentProgressMs / 1000 + clipOffsetSec + subsOffsetCur; // temps vidéo = temps Spotify + décalage du clip + décalage des sous-titres (500 ms par défaut)
     let idx = -1;
     for (let i = 0; i < subsLines.length; i++) { if (subsLines[i].t <= t) idx = i; else break; }
     if (idx === subsLastIdx) return; // rien à redessiner tant que la ligne ne change pas
