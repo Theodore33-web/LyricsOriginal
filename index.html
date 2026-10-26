@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v2.54";
+        const APP_VERSION = "v2.57";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1230,7 +1230,7 @@
 
                     <div style="display: flex; flex-wrap: wrap; gap: 6px; width: 100%;">
                         <button id="voice-command-btn" onclick="toggleVoiceCommand()" title="Commande vocale">🗣️</button>
-                        <button id="mic-btn" onclick="toggleMicrophoneListen()" title="Identifier via AudD">🎙️</button>
+                        <button id="mic-btn" onclick="toggleMicrophoneListen()" title="Identifier le titre (ACRCloud)">🎙️</button>
                         <button id="lib-toggle-btn" onclick="getUserLibrary()" title="Ouvrir ma bibliothèque (Likés)">📂</button>
                         <button id="record-drive-btn" onclick="startDriveRecording()" title="Enregistrer un audio pour Google Drive">📹</button>
                         <button id="recent-toggle-btn" onclick="getRecentlyPlayed()" title="Écoutes récentes">📄</button>
@@ -1258,51 +1258,17 @@
     <p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 2px 0 2px 0;">🎚️ INTERFACE &amp; LECTURE</p>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Spectre audio animé</span>
-    <label class="switch">
-        <input type="checkbox" id="spectrum-toggle" onchange="toggleSpectrumSetting(this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Spectre audio animé 2.0</span>
-    <label class="switch">
-        <input type="checkbox" id="spectrum2-toggle" onchange="toggleSpectrum2Setting(this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Spectre audio animé 3.0 (particules dansantes)</span>
-    <label class="switch">
-        <input type="checkbox" id="spectrum3-toggle" onchange="toggleSpectrum3Setting(this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Spectre audio animé 4.0 (vague)</span>
-    <label class="switch">
-        <input type="checkbox" id="spectrum4-toggle" onchange="toggleSpectrum4Setting(this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Spectre audio animé 5.0 (losanges pulsés)</span>
-    <label class="switch">
-        <input type="checkbox" id="spectrum5-toggle" onchange="toggleSpectrum5Setting(this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Spectre audio animé 6.0 (code-barres pulsé)</span>
-    <label class="switch">
-        <input type="checkbox" id="spectrum6-toggle" onchange="toggleSpectrum6Setting(this.checked)">
-        <span class="slider"></span>
-    </label>
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Spectre audio animé 🎛️</span>
+    <select id="spectrum-style-select" onchange="setSpectrumStyle(this.value)" style="background: #1a1a1a; color: #fff; border: 1px solid #444; border-radius: 6px; padding: 4px 6px; font-size: 0.75rem; max-width: 190px;">
+        <option value="none">Aucun</option>
+        <option value="1">1.0 — Barres</option>
+        <option value="2">2.0 — Barres colorées</option>
+        <option value="3">3.0 — Particules dansantes</option>
+        <option value="4">4.0 — Vague</option>
+        <option value="5">5.0 — Losanges pulsés</option>
+        <option value="6">6.0 — Code-barres pulsé</option>
+        <option value="7">7.0 — Égaliseur LED</option>
+    </select>
 </div>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
@@ -2383,6 +2349,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 initSpectrum4State();
                 initSpectrum5State();
                 initSpectrum6State();
+                initSpectrum7State();
                 initFondParoleState();
                 initFondParoleAdaptatifState();
                 initMiniPlayerState();
@@ -3163,12 +3130,12 @@ function buildA4LyricsSheet(trackName, trackArtist, trackImage, durationStr, lyr
                     🎨 Dégradé coloré
                 </label>
                 <div id="a4-header-control">
-                    <span>🖼️ Encadré : <strong id="a4-header-label">15</strong>/30</span>
-                    <input type="range" id="a4-header-slider" min="0" max="30" value="15" step="1">
+                    <span>🖼️ Encadré : <strong id="a4-header-label">40</strong>/50</span>
+                    <input type="range" id="a4-header-slider" min="0" max="50" value="40" step="1">
                 </div>
                 <div id="a4-size-control">
-                    <span>🔎 Paroles : <strong id="a4-size-label">0</strong>/30 (0 = 1 page)</span>
-                    <input type="range" id="a4-size-slider" min="0" max="30" value="0" step="1">
+                    <span>🔎 Paroles : <strong id="a4-size-label">0</strong>/50 (0 = 1 page)</span>
+                    <input type="range" id="a4-size-slider" min="0" max="50" value="0" step="1">
                 </div>
                 <button onclick="window.print()">🖨️ Imprimer / Enregistrer en PDF</button>
             </div>
@@ -3190,55 +3157,65 @@ function buildA4LyricsSheet(trackName, trackArtist, trackImage, durationStr, lyr
                 // page A4 (297mm - marges) — ça élimine le blanc perdu en haut/bas, quelle que soit la
                 // longueur des paroles (au lieu de partir d'une taille fixe et seulement réduire).
                 var a4El = document.getElementById('a4-content');
+                var a4LyricsEl = document.querySelector('.a4-lyrics');
+                var a4HeaderEl = document.querySelector('.a4-header');
                 var a4MaxHeightPx = 297 * 3.7795275591 - 2 * (8 * 3.7795275591) - 2 * (1 * 16); // A4 - marges page - padding carte
-                var a4BaseFontSizePx = 10;
+                var a4BaseFontSizePx = 10; // taille des PAROLES qui tient sur une page (niveau 0)
 
+                // ENCADRÉ (pochette + titre/artiste/durée) : curseur 0 à 50, 40 par défaut = taille normale.
+                // Il ne règle QUE l'encadré (sa propre taille en px, indépendante des paroles) : de 40 vers 0 il
+                // rétrécit jusqu'à presque rien, de 40 vers 50 il grossit de 25 %.
+                var a4HeaderSlider = document.getElementById('a4-header-slider');
+                var a4HeaderLabel = document.getElementById('a4-header-label');
+                function applyHeaderSize() {
+                    var lvl = parseInt(a4HeaderSlider.value, 10);
+                    a4HeaderLabel.innerText = lvl;
+                    var f = lvl <= 40 ? 0.15 + 0.85 * lvl / 40 : 1 + 0.25 * (lvl - 40) / 10;
+                    a4HeaderEl.style.fontSize = (16 * f) + 'px';
+                }
+
+                // PAROLES : on cherche la plus GRANDE taille de texte qui tient encore, avec l'encadré tel
+                // qu'il est réglé, sur UNE SEULE page A4 (niveau 0).
                 function computeBaseFitSize() {
                     a4BaseFontSizePx = 10;
-                    a4El.style.transition = 'none'; // pas d'animation pendant le calcul initial
-                    a4El.style.fontSize = a4BaseFontSizePx + 'px';
+                    a4LyricsEl.style.transition = 'none';
+                    a4LyricsEl.style.fontSize = a4BaseFontSizePx + 'px';
                     var guard = 0;
-                    // Phase de croissance : on augmente tant que ça tient sur une page
                     while (a4El.scrollHeight < a4MaxHeightPx && a4BaseFontSizePx < 60 && guard < 300) {
                         a4BaseFontSizePx += 0.5;
-                        a4El.style.fontSize = a4BaseFontSizePx + 'px';
+                        a4LyricsEl.style.fontSize = a4BaseFontSizePx + 'px';
                         guard++;
                     }
-                    // Phase de réduction fine : on revient un peu en arrière si on vient de dépasser
                     guard = 0;
                     while (a4El.scrollHeight > a4MaxHeightPx && a4BaseFontSizePx > 6 && guard < 300) {
                         a4BaseFontSizePx -= 0.25;
-                        a4El.style.fontSize = a4BaseFontSizePx + 'px';
+                        a4LyricsEl.style.fontSize = a4BaseFontSizePx + 'px';
                         guard++;
                     }
-                    requestAnimationFrame(() => { a4El.style.transition = 'font-size 0.15s ease'; });
+                    requestAnimationFrame(function () { a4LyricsEl.style.transition = 'font-size 0.15s ease'; });
                 }
-                computeBaseFitSize();
 
-                // Réglage 0 à 30 : 0 = tient sur une page (ci-dessus). Chaque cran au-delà agrandit
-                // doucement le texte (+8% par cran), pouvant alors s'étaler sur plusieurs pages —
-                // qui s'enchaînent naturellement sans espace vide entre elles à l'impression.
+                // Réglage des PAROLES 0 à 50 : 0 = tient sur une page ; ensuite le texte grossit par petits
+                // crans (+4,8 % par cran) jusqu'à la même taille maximale qu'avant (x3,4 au cran 50), mais avec
+                // plus de précision. Ne touche jamais à l'encadré.
                 var a4Slider = document.getElementById('a4-size-slider');
                 var a4SizeLabel = document.getElementById('a4-size-label');
-                a4Slider.addEventListener('input', function () {
+                function applyLyricsSize() {
                     var level = parseInt(a4Slider.value, 10);
                     a4SizeLabel.innerText = level;
-                    var scale = 1 + level * 0.08;
-                    a4El.style.fontSize = (a4BaseFontSizePx * scale) + 'px';
-                });
+                    a4LyricsEl.style.fontSize = (a4BaseFontSizePx * (1 + level * 0.048)) + 'px';
+                }
+                a4Slider.addEventListener('input', applyLyricsSize);
 
-                // Taille de l'encadré (pochette + titre/artiste/durée) : 0 à 30, 15 par défaut (taille
-                // normale) — en dessous il rétrécit, au-dessus il s'agrandit. Si les paroles sont au
-                // niveau 0 (1 page), on recalcule l'ajustement pour que tout tienne toujours.
-                var a4HeaderSlider = document.getElementById('a4-header-slider');
-                var a4HeaderLabel = document.getElementById('a4-header-label');
-                var a4HeaderEl = document.querySelector('.a4-header');
                 a4HeaderSlider.addEventListener('input', function () {
-                    var lvl = parseInt(a4HeaderSlider.value, 10);
-                    a4HeaderLabel.innerText = lvl;
-                    a4HeaderEl.style.fontSize = (0.5 + 0.5 * lvl / 15) + 'em';
+                    applyHeaderSize();
+                    // Paroles au niveau 0 : elles se recalent sur ce qui reste de la page ; sinon leur taille ne bouge pas
                     if (parseInt(a4Slider.value, 10) === 0) computeBaseFitSize();
                 });
+
+                applyHeaderSize();
+                computeBaseFitSize();
+                applyLyricsSize();
 
                 // Dégradé coloré activé par défaut — décoché = fond blanc uni
                 document.getElementById('a4-gradient-toggle').addEventListener('change', function (e) {
@@ -4085,6 +4062,27 @@ let spectrum3Enabled = localStorage.getItem('spectrum3Enabled') === 'true';
 let spectrum4Enabled = localStorage.getItem('spectrum4Enabled') === 'true';
 let spectrum5Enabled = localStorage.getItem('spectrum5Enabled') === 'true';
 let spectrum6Enabled = localStorage.getItem('spectrum6Enabled') === 'true';
+let spectrum7Enabled = localStorage.getItem('spectrum7Enabled') === 'true';
+
+// Un seul spectre à la fois, choisi dans un menu déroulant (comme la typographie)
+function currentSpectrumStyle() {
+    if (spectrum7Enabled) return '7';
+    if (spectrum6Enabled) return '6';
+    if (spectrum5Enabled) return '5';
+    if (spectrum4Enabled) return '4';
+    if (spectrum3Enabled) return '3';
+    if (spectrum2Enabled) return '2';
+    if (spectrumEnabled) return '1';
+    return 'none';
+}
+function setSpectrumStyle(value) {
+    const setters = { '2': toggleSpectrum2Setting, '3': toggleSpectrum3Setting, '4': toggleSpectrum4Setting, '5': toggleSpectrum5Setting, '6': toggleSpectrum6Setting, '7': toggleSpectrum7Setting };
+    const flags = { '2': () => spectrum2Enabled, '3': () => spectrum3Enabled, '4': () => spectrum4Enabled, '5': () => spectrum5Enabled, '6': () => spectrum6Enabled, '7': () => spectrum7Enabled };
+    if (value !== '1' && spectrumEnabled) toggleSpectrumSetting(false);
+    Object.keys(setters).forEach(k => { if (k !== value && flags[k]()) setters[k](false); });
+    if (value === '1') toggleSpectrumSetting(true);
+    else if (setters[value]) setters[value](true);
+}
 let fondParoleEnabled = localStorage.getItem('fondParoleEnabled') === 'true'; // désactivé par défaut
 let fondParoleAdaptatifEnabled = localStorage.getItem('fondParoleAdaptatifEnabled') === 'true'; // désactivé par défaut
 let miniPlayerEnabled = localStorage.getItem('miniPlayerEnabled') === 'true'; // désactivé par défaut
@@ -4127,6 +4125,8 @@ function toggleSettings() {
         settingsZone.style.display = 'flex';
         const toggle = document.getElementById('spectrum-toggle');
         if (toggle) toggle.checked = spectrumEnabled;
+        const spectrumSel = document.getElementById('spectrum-style-select');
+        if (spectrumSel) spectrumSel.value = currentSpectrumStyle();
         const scrollToggle = document.getElementById('autoscroll-lyrics-toggle');
         if (scrollToggle) scrollToggle.checked = autoScrollLyricsEnabled;
         const discoToggle = document.getElementById('discoball-toggle');
@@ -5220,7 +5220,7 @@ function ensureCreditsModal() {
         <h3>🎨 Interface & ambiance</h3>
         <ul>
             <li><strong>Fond dynamique</strong> — les couleurs de fond de l'app s'adaptent à la pochette du titre en cours.</li>
-            <li><strong>6 spectres audio animés</strong> — barres classiques, barres colorées, particules dansantes, vague, losanges pulsés, code-barres pulsé (un seul actif à la fois).</li>
+            <li><strong>7 spectres audio animés</strong> — barres classiques, barres colorées, particules dansantes, vague, losanges pulsés, code-barres pulsé, égaliseur LED (un seul actif à la fois, choisi dans un menu).</li>
             <li><strong>Mini-lecteur flottant</strong> — barre toujours visible en haut de l'écran (pochette, titre, artiste, durée, pause/reprendre), même en consultant un autre panneau.</li>
             <li><strong>Boule à facettes 🪩</strong>, <strong>projecteurs</strong>, <strong>guirlande lumineuse</strong>, <strong>bouton pétard 🎉</strong> interactif.</li>
             <li><strong>Personnalisation</strong> — chaque ambiance se règle et se retient indépendamment dans les Paramètres.</li>
@@ -5256,6 +5256,49 @@ function ensureCreditsModal() {
 
         <h3>📣 Soundboard</h3>
         <p>20 sons (trompette, guitare, tambour, cloche, sax, cymbale, corne, piano, violon, flûte, banjo, xylophone, harpe, orgue, maracas, gong, sifflet, laser, boing, clap...) — tous synthétisés en direct via la Web Audio API, sans aucun fichier audio externe.</p>
+
+        <h3>🔌 API utilisées</h3>
+        <p><strong>Musique & compte</strong></p>
+        <ul>
+            <li><strong>Spotify Web API</strong> (api.spotify.com) — lecture en cours, commandes de lecture, recherche, favoris, playlists, file d'attente, appareils, volume, écoutes récentes, profil.</li>
+            <li><strong>Spotify Accounts</strong> (accounts.spotify.com) — connexion OAuth à ton compte Spotify.</li>
+            <li><strong>Last.fm API</strong> (ws.audioscrobbler.com) — titres populaires en France.</li>
+        </ul>
+        <p><strong>Paroles</strong></p>
+        <ul>
+            <li><strong>LRCLIB</strong> (lrclib.net) — paroles synchronisées, source principale.</li>
+            <li><strong>Lyrics.ovh</strong> (api.lyrics.ovh) — paroles simples en repli.</li>
+            <li><strong>LRCMUX</strong> (lrcmux.dev) — agrégateur de fournisseurs de paroles, dernier recours.</li>
+            <li><strong>YouTube Transcript AI</strong> (youtube-transcript.ai) — paroles à partir des sous-titres YouTube du clip (quota de 10 appels par jour).</li>
+            <li><strong>Google / Musixmatch</strong> — simples liens de recherche quand aucune parole n'est trouvée.</li>
+        </ul>
+        <p><strong>Clip vidéo</strong></p>
+        <ul>
+            <li><strong>YouTube Data API v3</strong> (googleapis.com/youtube) — recherche automatique du clip du titre.</li>
+            <li><strong>YouTube IFrame Player API</strong> (youtube.com/iframe_api, lecteur youtube-nocookie.com) — lecture du clip synchronisée, sous-titres CC.</li>
+        </ul>
+        <p><strong>Google & IA</strong></p>
+        <ul>
+            <li><strong>Google Apps Script</strong> (script.google.com) — relais serveur personnel : téléversement et liste des fichiers audio sur Google Drive, identification de chanson (ACRCloud), Mode DJ.</li>
+            <li><strong>ACRCloud</strong> — reconnaissance de titre à partir d'un extrait enregistré au micro, appelée via le relais Apps Script.</li>
+            <li><strong>Google Drive</strong> — stockage et lecture de tes fichiers audio personnels.</li>
+            <li><strong>Gemini (Google)</strong> — annonces vocales et anecdotes du Mode DJ, via le relais Apps Script.</li>
+            <li><strong>Google Identity Services</strong> et <strong>Google API Client</strong> (accounts.google.com, apis.google.com) — bibliothèques de connexion Google chargées par l'app.</li>
+        </ul>
+        <p><strong>Bibliothèques & ressources</strong></p>
+        <ul>
+            <li><strong>Google Fonts</strong> (fonts.googleapis.com / fonts.gstatic.com) — typographies de l'app.</li>
+            <li><strong>Chart.js 4.4</strong> (cdn.jsdelivr.net) — graphiques des statistiques d'écoute.</li>
+        </ul>
+        <p><strong>API natives du navigateur</strong></p>
+        <ul>
+            <li><strong>Web Speech API</strong> (SpeechRecognition) — commandes vocales.</li>
+            <li><strong>Web Audio API</strong> — soundboard, sons des feux d'artifice, son du Mode DJ.</li>
+            <li><strong>MediaDevices / MediaRecorder</strong> — enregistrement micro (Drive, reconnaissance de chanson).</li>
+            <li><strong>Screen Wake Lock API</strong> — garde l'écran allumé pendant l'écoute.</li>
+            <li><strong>Canvas 2D</strong> — spectres, feux d'artifice, effets visuels, et détection de la couleur principale de la pochette (calcul local sur l'image, aucun service externe).</li>
+            <li><strong>localStorage</strong> — réglages, historique et caches (clips, sous-titres) enregistrés dans ton navigateur.</li>
+        </ul>
 
         <h3>🔒 Confidentialité & stockage local</h3>
         <p>Tes réglages (spectre, défilement des paroles, boule à facettes, bouton pétard, fonds de paroles, typographie...), ton historique d'écoute (utilisé pour les statistiques) et quelques préférences d'affichage sont stockés uniquement dans ton navigateur (localStorage) — rien n'est envoyé ni partagé sur un serveur externe, à l'exception des appels nécessaires à l'API Spotify elle-même pour faire fonctionner l'app.</p>
@@ -8303,7 +8346,7 @@ function ensureTexteParolesOverlay() {
 
         <div id="tp-search-zone" class="tp-panel">
             <div id="tp-search-buttons-row">
-                <button id="tp-mic-btn" onclick="toggleMicrophoneListen()" title="Identifier via AudD">🎙️</button>
+                <button id="tp-mic-btn" onclick="toggleMicrophoneListen()" title="Identifier le titre (ACRCloud)">🎙️</button>
                 <button id="tp-voice-command-btn" onclick="toggleVoiceCommand()" title="Recherche vocale">🗣️</button>
                 <button onclick="tpToggleTextSearchRow()" title="Rechercher par texte">🔍</button>
             </div>
