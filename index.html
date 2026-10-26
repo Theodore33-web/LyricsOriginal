@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v2.52";
+        const APP_VERSION = "v2.53";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -2488,7 +2488,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 const item = document.createElement('div');
                 item.className = 'search-item';
                 item.innerHTML = `
-                    <img src="${track.album.images && track.album.images.length > 2 ? track.album.images[2].url : 'https://via.placeholder.com/30'}" alt="">
+                    <img src="${track.album.images && track.album.images.length > 2 ? track.album.images[2].url : 'imagemusic.jpg'}" alt="">
                     <div>
                         <strong style="display:block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${track.name}</strong>
                         <span style="font-size: 0.8rem; color: var(--text-grey);">${track.artists[0].name}</span>
@@ -2730,7 +2730,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 GlassContainer.innerHTML = "";
                 const item = document.createElement('div');
                 item.className = 'search-item';
-                const coverImg = entry.spotifyImage || 'https://via.placeholder.com/30';
+                const coverImg = entry.spotifyImage || 'imagemusic.jpg';
 
                 item.innerHTML = `
                     <img src="${coverImg}" alt="">
@@ -2788,7 +2788,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                         const item = document.createElement('div');
                         item.className = 'search-item';
                         item.innerHTML = `
-                            <img src="${track.album.images && track.album.images.length > 2 ? track.album.images[2].url : 'https://via.placeholder.com/30'}" alt="">
+                            <img src="${track.album.images && track.album.images.length > 2 ? track.album.images[2].url : 'imagemusic.jpg'}" alt="">
                             <div>
                                 <strong style="display:block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${track.name}</strong>
                                 <span style="font-size: 0.8rem; color: var(--text-grey);">${track.artists[0].name}</span>
@@ -3547,7 +3547,7 @@ function highlightLyrics(currentTime) {
                     const oldSrc = art.src;
                     // La pochette d'un épisode est directement sur .images, celle d'un morceau est sous .album.images
                     const images = isEpisode ? data.item.images : (data.item.album ? data.item.album.images : null);
-                    art.src = images && images.length > 0 ? images[0].url : "";
+                    art.src = images && images.length > 0 ? images[0].url : "imagemusic.jpg"; // fichier local Spotify : pas de pochette -> imagemusic.jpg (même dossier que chargement.gif)
                     art.style.display = "block";
                     document.getElementById('play-pause-btn').innerText = data.is_playing ? "⏸" : "▶️";
 
@@ -3767,7 +3767,7 @@ function highlightLyrics(currentTime) {
                     const item = document.createElement('div');
                     item.className = 'search-item';
                     item.innerHTML = `
-                        <img src="${track.album.images && track.album.images.length > 2 ? track.album.images[2].url : 'https://via.placeholder.com/30'}" alt="">
+                        <img src="${track.album.images && track.album.images.length > 2 ? track.album.images[2].url : 'imagemusic.jpg'}" alt="">
                         <div>
                             <strong style="display:block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${track.name}</strong>
                             <span style="font-size: 0.8rem; color: var(--text-grey);">${track.artists[0].name}</span>
@@ -3992,7 +3992,7 @@ function renderTopTracksSection() {
         item.className = 'search-item';
         item.dataset.lastfmName = entry.lastfmName;
 
-        const imgUrl = entry.spotifyImage || 'https://via.placeholder.com/30';
+        const imgUrl = entry.spotifyImage || 'imagemusic.jpg';
         item.innerHTML = `
             <img src="${imgUrl}" alt="">
             <div>
@@ -7280,7 +7280,7 @@ async function startNewBlindTestRound() {
     blindTestCurrentTrack = track;
     blindTestBlurLevel = 20;
 
-    const imgUrl = track.album && track.album.images && track.album.images.length > 0 ? track.album.images[0].url : '';
+    const imgUrl = track.album && track.album.images && track.album.images.length > 0 ? track.album.images[0].url : 'imagemusic.jpg';
     if (coverEl) {
         coverEl.style.backgroundImage = `url('${imgUrl}')`;
         coverEl.style.filter = `blur(${blindTestBlurLevel}px)`;
@@ -7728,7 +7728,7 @@ function renderPlaylistsSection() {
         item.className = 'search-item';
         item.style.width = '100%';
         item.style.boxSizing = 'border-box';
-        const imgUrl = pl.images && pl.images.length > 0 ? pl.images[0].url : 'https://via.placeholder.com/30';
+        const imgUrl = pl.images && pl.images.length > 0 ? pl.images[0].url : 'imagemusic.jpg';
 
         const totalCount = (pl.tracks && pl.tracks.total !== undefined)
             ? pl.tracks.total
@@ -7845,7 +7845,7 @@ function renderPlaylistTracksSection() {
         item.className = 'search-item';
         item.style.width = '100%';
         item.style.boxSizing = 'border-box';
-        const imgUrl = track.album && track.album.images && track.album.images.length > 2 ? track.album.images[2].url : 'https://via.placeholder.com/30';
+        const imgUrl = track.album && track.album.images && track.album.images.length > 2 ? track.album.images[2].url : 'imagemusic.jpg';
         const artistsNames = track.artists && track.artists.length > 0 ? track.artists.map(a => a.name).join(', ') : 'Artiste inconnu';
 
         item.innerHTML = `
@@ -8008,7 +8008,7 @@ function buildQueueItem(track) {
 
     const imgUrl = track.album && track.album.images && track.album.images.length > 0
         ? track.album.images[track.album.images.length > 2 ? 2 : 0].url
-        : 'https://via.placeholder.com/30';
+        : 'imagemusic.jpg';
 
     const artistsNames = track.artists && track.artists.length > 0
         ? track.artists.map(a => a.name).join(', ')
@@ -8418,7 +8418,7 @@ function tpSelectTrackObject(track) {
         name: track.name,
         artist: track.artists.map(a => a.name).join(', '),
         album: track.album ? track.album.name : '',
-        image: track.album && track.album.images && track.album.images.length > 0 ? track.album.images[0].url : 'https://via.placeholder.com/72',
+        image: track.album && track.album.images && track.album.images.length > 0 ? track.album.images[0].url : 'imagemusic.jpg',
         durationMs: track.duration_ms || 0
     };
     tpShowTrackDetail();
@@ -8448,7 +8448,7 @@ async function tpSelectTrackByUri(uri, fallback = {}) {
         name: track ? track.name : (fallback.name || 'Titre inconnu'),
         artist: track ? track.artists.map(a => a.name).join(', ') : (fallback.artist || 'Artiste inconnu'),
         album: track ? track.album.name : (fallback.album || ''),
-        image: track && track.album.images && track.album.images.length > 0 ? track.album.images[0].url : (fallback.image || 'https://via.placeholder.com/72'),
+        image: track && track.album.images && track.album.images.length > 0 ? track.album.images[0].url : (fallback.image || 'imagemusic.jpg'),
         durationMs: track ? track.duration_ms : (fallback.durationMs || 0)
     };
     tpShowTrackDetail();
