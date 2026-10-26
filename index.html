@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v2.51";
+        const APP_VERSION = "v2.52";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10487,7 +10487,9 @@ function ensureClipPanel() {
                 <div id="clip-controls">
                     <button id="clip-cc-btn" onclick="clipToggleCaptions()" title="Activer / désactiver les sous-titres YouTube (préférence enregistrée)">CC désactivés</button>
                     <button onclick="clipAdjustOffset(-1)" title="Le clip est en avance : le retarder d'1 s">−1s</button>
+                    <button onclick="clipAdjustOffset(-0.5)" title="Le clip est en avance : le retarder de 500 ms">−500ms</button>
                     <span id="clip-offset-label">0s</span>
+                    <button onclick="clipAdjustOffset(0.5)" title="Le clip est en retard : l'avancer de 500 ms">+500ms</button>
                     <button onclick="clipAdjustOffset(1)" title="Le clip est en retard : l'avancer d'1 s">+1s</button>
                     <span id="clip-time-label" title="Temps actuel / durée de la vidéo">0:00 / 0:00</span>
                     <button onclick="clipChangeLink()" title="Choisir un autre clip (coller un lien YouTube)">🔗 Lien</button>
@@ -10613,14 +10615,18 @@ function updateFloatingLayout() {
         subs.style.bottom = Math.round(bottom) + 'px';
     }
     const setReveal = (id, on) => { const el = document.getElementById(id); if (el) el.classList.toggle('visible', !!on); };
-    setReveal('pip-reveal-btn', pipFeatureEnabled && pipHidden);
-    setReveal('subs-reveal-btn', subsFeatureEnabled && subsHidden);
+    // Boutons de réaffichage à droite : seuls ceux utiles sont visibles, empilés depuis le bas (45 px, puis +50 px)
+    let rb = 45;
+    [['clip-reveal-btn', clipFeatureEnabled && clipHidden], ['pip-reveal-btn', pipFeatureEnabled && pipHidden], ['subs-reveal-btn', subsFeatureEnabled && subsHidden]].forEach(([id, on]) => {
+        setReveal(id, on);
+        const el = document.getElementById(id);
+        if (el && on) { el.style.bottom = rb + 'px'; rb += 50; }
+    });
 }
 window.addEventListener('resize', () => { try { updateFloatingLayout(); } catch (e) {} });
 
 function updateClipPanelContentUnsafe() {
     const reveal = document.getElementById('clip-reveal-btn');
-    if (reveal) reveal.classList.toggle('visible', clipFeatureEnabled && clipHidden);
     if (!clipFeatureEnabled) { updateFloatingLayout(); return; }
     const tl = document.getElementById('clip-time-label');
     if (tl) {
@@ -10725,7 +10731,7 @@ function clipChangeLink() {
 
 function clipAdjustOffset(delta) {
     if (!clipVideoId) return;
-    clipOffsetSec += delta;
+    clipOffsetSec = Math.round((clipOffsetSec + delta) * 1000) / 1000;
     const offsets = clipReadStore('clipOffsets');
     offsets[clipVideoId] = clipOffsetSec;
     clipWriteStore('clipOffsets', offsets);
