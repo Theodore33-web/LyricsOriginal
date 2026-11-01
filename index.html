@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v2.59";
+        const APP_VERSION = "v5.0";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -951,44 +951,15 @@
         }
 
 
-        /* 14) Vagues + point : 3 vagues qui défilent à des vitesses différentes, aux 2 couleurs principales de
-           la pochette (--pf-c1 → --pf-c2), et un point lumineux à la tête de lecture. Le reste de la barre
-           montre les mêmes vagues en filigrane. Les vagues sont des masques SVG animés (mask-position). */
-        @keyframes pf-waves { from { -webkit-mask-position: 0 0, 0 0, 0 0; mask-position: 0 0, 0 0, 0 0; } to { -webkit-mask-position: -48px 0, 36px 0, -64px 0; mask-position: -48px 0, 36px 0, -64px 0; } }
-        @keyframes pf-dot-ring { 0% { transform: scale(0.6); opacity: 0.75; } 100% { transform: scale(2.1); opacity: 0; } }
-        body.progress-style-vagues .progress-bar-bg { height: 26px; background: transparent; border-radius: 0; overflow: visible; }
-        body.progress-style-vagues .progress-bar-bg::before,
-        body.progress-style-vagues #progress-fill::before {
-            content: ''; position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none;
-            -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='26' viewBox='0 0 48 26'%3E%3Cpath d='M0 13C12 -2 36 28 48 13' fill='none' stroke='black' stroke-width='2.6'/%3E%3C/svg%3E"),
-                              url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='26' viewBox='0 0 36 26'%3E%3Cpath d='M0 13C9 4 27 22 36 13' fill='none' stroke='black' stroke-width='1.8'/%3E%3C/svg%3E"),
-                              url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='26' viewBox='0 0 64 26'%3E%3Cpath d='M0 13C16 -5 48 31 64 13' fill='none' stroke='black' stroke-width='1.2'/%3E%3C/svg%3E");
-            mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='26' viewBox='0 0 48 26'%3E%3Cpath d='M0 13C12 -2 36 28 48 13' fill='none' stroke='black' stroke-width='2.6'/%3E%3C/svg%3E"),
-                        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='26' viewBox='0 0 36 26'%3E%3Cpath d='M0 13C9 4 27 22 36 13' fill='none' stroke='black' stroke-width='1.8'/%3E%3C/svg%3E"),
-                        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='26' viewBox='0 0 64 26'%3E%3Cpath d='M0 13C16 -5 48 31 64 13' fill='none' stroke='black' stroke-width='1.2'/%3E%3C/svg%3E");
-            -webkit-mask-size: 48px 100%, 36px 100%, 64px 100%; mask-size: 48px 100%, 36px 100%, 64px 100%;
-            -webkit-mask-repeat: repeat-x; mask-repeat: repeat-x;
-            animation: pf-waves 3.2s linear infinite;
-        }
-        body.progress-style-vagues .progress-bar-bg::before { background: rgba(255,255,255,0.16); }
-        body.progress-style-vagues #progress-fill {
-            background: transparent; box-shadow: none; border-radius: 0; height: 100%; transition: width 0.2s linear;
-        }
-        body.progress-style-vagues #progress-fill::before {
-            background-image: linear-gradient(90deg, rgb(var(--pf-c1, 29, 185, 84)), rgb(var(--pf-c2, 125, 255, 168)));
-            background-size: var(--bar-w, 100%) 100%; background-repeat: no-repeat;
-            filter: drop-shadow(0 0 4px rgba(var(--pf-c2, 125, 255, 168), 0.65));
-        }
-        body.progress-style-vagues #progress-fill::after {
-            content: ''; position: absolute; right: -7px; top: 50%; width: 14px; height: 14px; margin-top: -7px; border-radius: 50%;
-            background: radial-gradient(circle at 35% 35%, #ffffff 0 30%, rgb(var(--pf-c2, 125, 255, 168)) 75%);
-            box-shadow: 0 0 8px 2px rgba(var(--pf-c2, 125, 255, 168), 0.9), 0 0 18px 6px rgba(var(--pf-c1, 29, 185, 84), 0.55);
-        }
-        body.progress-style-vagues .progress-bar-bg::after {
-            content: ''; position: absolute; left: var(--pf-pct, 0%); top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; display: none;
-        }
-        body.playback-paused.progress-style-vagues .progress-bar-bg::before,
-        body.playback-paused.progress-style-vagues #progress-fill::before { animation-play-state: paused; }
+        /* 14) Vagues + point (réplique de la barre du lecteur Android) : tout est dessiné sur un canvas
+           (#pf-wave-canvas, voir drawWaveBar) — barre pleine arrondie, vagues translucides qui s'estompent
+           aux deux bouts, pastille blanche à cœur coloré avec halo, reste de la barre en gris. Couleurs :
+           les 2 couleurs principales de la pochette (--pf-c1 / --pf-c2). */
+        #pf-wave-canvas { display: none; position: absolute; pointer-events: none; }
+        body.progress-style-vagues #pf-wave-canvas { display: block; }
+        body.progress-style-vagues .progress-bar-bg { height: 8px; border-radius: 4px; background: transparent; overflow: visible; }
+        body.progress-style-vagues .progress-bar-bg::after { content: ''; position: absolute; left: -6px; right: -6px; top: -16px; bottom: -16px; }
+        body.progress-style-vagues #progress-fill { background: transparent !important; box-shadow: none; opacity: 0; }
 
         /* 12) Pulsation */
         body.progress-style-pulsation .progress-bar-bg { height: 6px; }
@@ -1020,6 +991,14 @@
         }
         body.ui-refined .card { padding: 18px; }
         body.ui-refined .lyrics-section { padding: 36px 34px; }
+        /* Fonds de paroles (vert / adaptatif) : ils gardent leur couleur en mode épuré, mais adoucie
+           (voile sombre + couleur à 60 %) pour rester discrète et lisible. */
+        body.ui-refined .lyrics-section.fond-parole-active {
+            background: linear-gradient(160deg, rgba(255,255,255,0.07), rgba(0,0,0,0.2) 100%), rgba(18, 59, 39, 0.78);
+        }
+        body.ui-refined .lyrics-section.fond-parole-adaptatif-active {
+            background: linear-gradient(160deg, rgba(255,255,255,0.09), rgba(0,0,0,0.26) 100%), rgba(var(--fond-parole-adaptatif-color, 29, 185, 84), 0.6);
+        }
         body.ui-refined .lyric-line { font-weight: 500; line-height: 1.45; opacity: 0.32; letter-spacing: -0.01em; }
         body.ui-refined .lyric-line.active { font-weight: 700; opacity: 1; text-shadow: 0 0 26px rgba(255,255,255,0.28); }
         body.ui-refined #explorer-rechercher-title,
@@ -5358,7 +5337,7 @@ function ensureCreditsModal() {
         <h3>📊 Barre de progression</h3>
         <ul>
             <li><strong>Changement de style visuel</strong> — menu avec le style par défaut et 13 variantes : vinyle (sillons + disque), rétro 8 bits, néon, arc-en-ciel, rayures animées, perles, égaliseur, flamme, glace, or, comète, pulsation et « couleurs de la pochette ».</li>
-            <li><strong>Vagues + point</strong> — 3 vagues qui défilent à des vitesses différentes, colorées avec les 2 couleurs principales de la pochette, avec un point lumineux à la tête de lecture ; le reste de la barre montre les mêmes vagues en filigrane et elles se figent en pause.</li>
+            <li><strong>Vagues + point</strong> — inspiré du lecteur multimédia Android : barre pleine arrondie, 3 bosses translucides qui dérivent lentement et s'estompent aux deux bouts, pastille blanche à cœur coloré avec halo lumineux, reste de la barre en gris. Les couleurs viennent des 2 couleurs principales de la pochette ; les vagues se figent en pause.</li>
             <li>La barre reste cliquable pour se déplacer dans le titre, et le style est mémorisé.</li>
         </ul>
 
@@ -11428,11 +11407,117 @@ function updateClipPanelContent() { try { updateClipPanelContentUnsafe(); } catc
 function clipOnTrackChange(a, b, c, d) { try { clipOnTrackChangeUnsafe(a, b, c, d); } catch (e) { console.warn('Clip (changement de titre) :', e); } }
 function updatePipPanelContent(f) { try { updatePipPanelContentUnsafe(f); } catch (e) { console.warn('PiP :', e); } }
 
+
+// --- Barre « Vagues + point » : rendu canvas fidèle au lecteur multimédia Android ---
+let pfWaveRAF = null, pfWaveCanvas = null, pfWaveT = 0, pfWaveLast = 0, pfWaveFrame = 0;
+let pfWaveC1 = [88, 166, 245], pfWaveC2 = [174, 240, 255];
+const PF_T = 8, PF_R = 12, PF_PAD = 16, PF_H = 88, PF_YC = 46; // épaisseur, rayon de la pastille, marge, hauteur du canvas, axe de la barre
+
+function pfParseRgb(str, fb) {
+    const a = String(str || '').split(',').map(n => parseInt(n, 10));
+    return a.length === 3 && a.every(n => !isNaN(n)) ? a : fb;
+}
+function pfRoundRect(ctx, x, y, w, h, r) {
+    r = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y); ctx.arc(x + w - r, y + r, r, -Math.PI / 2, 0);
+    ctx.lineTo(x + w, y + h - r); ctx.arc(x + w - r, y + h - r, r, 0, Math.PI / 2);
+    ctx.lineTo(x + r, y + h); ctx.arc(x + r, y + h - r, r, Math.PI / 2, Math.PI);
+    ctx.lineTo(x, y + r); ctx.arc(x + r, y + r, r, Math.PI, Math.PI * 1.5); ctx.closePath();
+}
+function pfMix(c, d, k) { return c.map((v, i) => Math.round(v + (d[i] - v) * k)); }
+function pfRgba(c, a) { return 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a + ')'; }
+
+function drawWaveBar() {
+    const bg = document.querySelector('.progress-container .progress-bar-bg');
+    const fill = document.getElementById('progress-fill');
+    if (!bg || !fill || !pfWaveCanvas) return;
+    const W = bg.clientWidth, dpr = window.devicePixelRatio || 1;
+    const cw = Math.round((W + PF_PAD * 2) * dpr), ch = Math.round(PF_H * dpr);
+    if (pfWaveCanvas.width !== cw || pfWaveCanvas.height !== ch) {
+        pfWaveCanvas.width = cw; pfWaveCanvas.height = ch;
+        pfWaveCanvas.style.width = (W + PF_PAD * 2) + 'px'; pfWaveCanvas.style.height = PF_H + 'px';
+        pfWaveCanvas.style.left = (-PF_PAD) + 'px';
+    }
+    pfWaveCanvas.style.top = (bg.clientHeight / 2 - PF_YC) + 'px';
+    const ctx = pfWaveCanvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W + PF_PAD * 2, PF_H);
+
+    if ((pfWaveFrame++ % 20) === 0) { // couleurs de la pochette (posées par updateProgressPochetteColors)
+        const cs = getComputedStyle(document.documentElement);
+        pfWaveC1 = pfParseRgb(cs.getPropertyValue('--pf-c1'), pfWaveC1);
+        pfWaveC2 = pfParseRgb(cs.getPropertyValue('--pf-c2'), pfWaveC2);
+    }
+    const frac = Math.max(0, Math.min(1, (parseFloat(fill.style.width) || 0) / 100));
+    const x0 = PF_PAD, x1 = PF_PAD + W, px = x0 + frac * W, yc = PF_YC, T = PF_T, R = PF_R;
+    const main = pfWaveC1, light = pfMix(pfWaveC2, [255, 255, 255], 0.55);
+
+    // reste de la barre (gris), séparé de la pastille par un petit espace
+    const gs = px + R + 3;
+    if (gs < x1 - 1) { pfRoundRect(ctx, gs, yc - T / 2, x1 - gs, T, T / 2); ctx.fillStyle = 'rgba(205,205,215,0.38)'; ctx.fill(); }
+
+    // partie lue : barre pleine arrondie
+    pfRoundRect(ctx, x0, yc - T / 2, Math.max(px - x0, T), T, T / 2); ctx.fillStyle = pfRgba(main, 1); ctx.fill();
+
+    // vagues translucides : 3 bosses qui dérivent lentement, nulles aux deux bouts
+    const L = px - x0;
+    if (L > 18) {
+        const t = pfWaveT, sc = Math.min(1, L / 150), yTop = yc - T / 2 + 1;
+        const layers = [
+            { c: 0.52 + 0.07 * Math.sin(t * 0.55), hw: 0.46, A: 1.8 * T * (1 + 0.10 * Math.sin(t * 0.9 + 1)), top: pfRgba(main, 0.92), bot: pfRgba(pfMix(main, [255, 255, 255], 0.45), 0.95) },
+            { c: 0.36 + 0.08 * Math.sin(t * 0.7 + 2), hw: 0.31, A: 1.15 * T * (1 + 0.15 * Math.sin(t * 1.1)), top: pfRgba(pfMix(main, [255, 255, 255], 0.25), 0.8), bot: pfRgba(light, 0.9) },
+            { c: 0.64 + 0.07 * Math.sin(t * 0.62 + 4), hw: 0.29, A: 0.95 * T * (1 + 0.15 * Math.sin(t * 1.3 + 2)), top: pfRgba(pfMix(main, [255, 255, 255], 0.35), 0.5), bot: 'rgba(255,255,255,0.7)' }
+        ];
+        layers.forEach(ly => {
+            ctx.beginPath(); ctx.moveTo(x0, yTop);
+            for (let x = x0; x <= px; x += 2) {
+                const f = (x - x0) / L, u = (f - ly.c) / ly.hw;
+                let h = Math.abs(u) < 1 ? 0.5 + 0.5 * Math.cos(Math.PI * u) : 0;
+                const edge = Math.min(1, f / 0.14, (1 - f) / 0.10);
+                h *= ly.A * sc * Math.max(0, edge) * (edge < 1 ? edge : 1);
+                ctx.lineTo(x, yTop - h);
+            }
+            ctx.lineTo(px, yTop); ctx.closePath();
+            const g = ctx.createLinearGradient(0, yTop - ly.A * sc, 0, yTop);
+            g.addColorStop(0, ly.top); g.addColorStop(1, ly.bot);
+            ctx.fillStyle = g; ctx.fill();
+        });
+    }
+
+    // pastille : halo coloré, anneau blanc, cœur de la couleur principale
+    const halo = ctx.createRadialGradient(px, yc, R * 0.6, px, yc, R * 2.7);
+    halo.addColorStop(0, pfRgba(main, 0.6)); halo.addColorStop(1, pfRgba(main, 0));
+    ctx.fillStyle = halo; ctx.beginPath(); ctx.arc(px, yc, R * 2.7, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(px, yc, R, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = pfRgba(main, 1); ctx.beginPath(); ctx.arc(px, yc, R - 3.2, 0, Math.PI * 2); ctx.fill();
+}
+
+function startWaveBar() {
+    const bg = document.querySelector('.progress-container .progress-bar-bg');
+    if (!bg) return;
+    if (!pfWaveCanvas) { pfWaveCanvas = document.createElement('canvas'); pfWaveCanvas.id = 'pf-wave-canvas'; }
+    if (pfWaveCanvas.parentElement !== bg) bg.appendChild(pfWaveCanvas);
+    if (pfWaveRAF) return;
+    pfWaveLast = performance.now();
+    const loop = (now) => {
+        pfWaveRAF = requestAnimationFrame(loop);
+        const dt = Math.min(0.1, (now - pfWaveLast) / 1000); pfWaveLast = now;
+        if (!document.body.classList.contains('playback-paused')) pfWaveT += dt; // les vagues se figent en pause
+        try { drawWaveBar(); } catch (e) { /* un souci de dessin ne doit jamais bloquer la lecture */ }
+    };
+    pfWaveRAF = requestAnimationFrame(loop);
+}
+function stopWaveBar() {
+    if (pfWaveRAF) { cancelAnimationFrame(pfWaveRAF); pfWaveRAF = null; }
+}
+
 // --- Style de la barre de progression (menu déroulant : Par défaut + 12 styles) ---
 let progressStyle = localStorage.getItem('progressStyle') || 'none';
 const PROGRESS_STYLES = ['vinyle', 'retro', 'neon', 'arcenciel', 'rayures', 'perles', 'egaliseur', 'flamme', 'glace', 'or', 'comete', 'pulsation', 'pochette', 'vagues'];
 
 function applyProgressStyle() {
+    if (progressStyle === 'vagues') startWaveBar(); else stopWaveBar();
     PROGRESS_STYLES.forEach(k => document.body.classList.remove('progress-style-' + k));
     if (PROGRESS_STYLES.includes(progressStyle)) document.body.classList.add('progress-style-' + progressStyle);
     updateProgressBarWidthVar();
