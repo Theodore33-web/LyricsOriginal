@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v2.58";
+        const APP_VERSION = "v2.59";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -950,9 +950,101 @@
             transition: width 0.2s linear, box-shadow 0.6s ease;
         }
 
+
+        /* 14) Vagues + point : 3 vagues qui défilent à des vitesses différentes, aux 2 couleurs principales de
+           la pochette (--pf-c1 → --pf-c2), et un point lumineux à la tête de lecture. Le reste de la barre
+           montre les mêmes vagues en filigrane. Les vagues sont des masques SVG animés (mask-position). */
+        @keyframes pf-waves { from { -webkit-mask-position: 0 0, 0 0, 0 0; mask-position: 0 0, 0 0, 0 0; } to { -webkit-mask-position: -48px 0, 36px 0, -64px 0; mask-position: -48px 0, 36px 0, -64px 0; } }
+        @keyframes pf-dot-ring { 0% { transform: scale(0.6); opacity: 0.75; } 100% { transform: scale(2.1); opacity: 0; } }
+        body.progress-style-vagues .progress-bar-bg { height: 26px; background: transparent; border-radius: 0; overflow: visible; }
+        body.progress-style-vagues .progress-bar-bg::before,
+        body.progress-style-vagues #progress-fill::before {
+            content: ''; position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none;
+            -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='26' viewBox='0 0 48 26'%3E%3Cpath d='M0 13C12 -2 36 28 48 13' fill='none' stroke='black' stroke-width='2.6'/%3E%3C/svg%3E"),
+                              url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='26' viewBox='0 0 36 26'%3E%3Cpath d='M0 13C9 4 27 22 36 13' fill='none' stroke='black' stroke-width='1.8'/%3E%3C/svg%3E"),
+                              url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='26' viewBox='0 0 64 26'%3E%3Cpath d='M0 13C16 -5 48 31 64 13' fill='none' stroke='black' stroke-width='1.2'/%3E%3C/svg%3E");
+            mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='26' viewBox='0 0 48 26'%3E%3Cpath d='M0 13C12 -2 36 28 48 13' fill='none' stroke='black' stroke-width='2.6'/%3E%3C/svg%3E"),
+                        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='26' viewBox='0 0 36 26'%3E%3Cpath d='M0 13C9 4 27 22 36 13' fill='none' stroke='black' stroke-width='1.8'/%3E%3C/svg%3E"),
+                        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='26' viewBox='0 0 64 26'%3E%3Cpath d='M0 13C16 -5 48 31 64 13' fill='none' stroke='black' stroke-width='1.2'/%3E%3C/svg%3E");
+            -webkit-mask-size: 48px 100%, 36px 100%, 64px 100%; mask-size: 48px 100%, 36px 100%, 64px 100%;
+            -webkit-mask-repeat: repeat-x; mask-repeat: repeat-x;
+            animation: pf-waves 3.2s linear infinite;
+        }
+        body.progress-style-vagues .progress-bar-bg::before { background: rgba(255,255,255,0.16); }
+        body.progress-style-vagues #progress-fill {
+            background: transparent; box-shadow: none; border-radius: 0; height: 100%; transition: width 0.2s linear;
+        }
+        body.progress-style-vagues #progress-fill::before {
+            background-image: linear-gradient(90deg, rgb(var(--pf-c1, 29, 185, 84)), rgb(var(--pf-c2, 125, 255, 168)));
+            background-size: var(--bar-w, 100%) 100%; background-repeat: no-repeat;
+            filter: drop-shadow(0 0 4px rgba(var(--pf-c2, 125, 255, 168), 0.65));
+        }
+        body.progress-style-vagues #progress-fill::after {
+            content: ''; position: absolute; right: -7px; top: 50%; width: 14px; height: 14px; margin-top: -7px; border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%, #ffffff 0 30%, rgb(var(--pf-c2, 125, 255, 168)) 75%);
+            box-shadow: 0 0 8px 2px rgba(var(--pf-c2, 125, 255, 168), 0.9), 0 0 18px 6px rgba(var(--pf-c1, 29, 185, 84), 0.55);
+        }
+        body.progress-style-vagues .progress-bar-bg::after {
+            content: ''; position: absolute; left: var(--pf-pct, 0%); top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; display: none;
+        }
+        body.playback-paused.progress-style-vagues .progress-bar-bg::before,
+        body.playback-paused.progress-style-vagues #progress-fill::before { animation-play-state: paused; }
+
         /* 12) Pulsation */
         body.progress-style-pulsation .progress-bar-bg { height: 6px; }
         body.progress-style-pulsation #progress-fill { background-image: linear-gradient(90deg, #0f7a37, #1DB954, #7dffa8); animation: pf-pulse 1.2s ease-in-out infinite; }
+
+
+        /* ================= DESIGN ÉPURÉ (réglage « Design épuré », 1er des Paramètres) =================
+           Classe body.ui-refined : cartes en verre plus discret, liserés fins teintés par la couleur de la
+           pochette, titres de section sobres, boutons et champs allégés, panneaux flottants harmonisés. */
+        body.ui-refined {
+            --card-grey: rgba(16, 16, 18, 0.5);
+            --light-grey: rgba(255, 255, 255, 0.045);
+            --text-grey: #a8a8b0;
+            --ui-line: rgba(255, 255, 255, 0.09);
+            --ui-radius: 22px;
+            font-family: -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            letter-spacing: -0.005em;
+        }
+        @supports (color: color-mix(in srgb, red 50%, blue)) {
+            body.ui-refined { --ui-line: color-mix(in srgb, var(--gradient-color-2, #71b280) 26%, rgba(255,255,255,0.07)); }
+        }
+        body.ui-refined .background-aurora { opacity: 0.55; }
+        body.ui-refined .card,
+        body.ui-refined .lyrics-section {
+            border-radius: var(--ui-radius);
+            border: 1px solid var(--ui-line);
+            background: linear-gradient(160deg, rgba(255,255,255,0.06), rgba(255,255,255,0.015) 55%), var(--card-grey);
+            box-shadow: 0 18px 50px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.07);
+        }
+        body.ui-refined .card { padding: 18px; }
+        body.ui-refined .lyrics-section { padding: 36px 34px; }
+        body.ui-refined .lyric-line { font-weight: 500; line-height: 1.45; opacity: 0.32; letter-spacing: -0.01em; }
+        body.ui-refined .lyric-line.active { font-weight: 700; opacity: 1; text-shadow: 0 0 26px rgba(255,255,255,0.28); }
+        body.ui-refined #explorer-rechercher-title,
+        body.ui-refined #lecture-en-cours-title { font-size: 0.68rem !important; letter-spacing: 0.2em; font-weight: 600 !important; color: var(--text-grey) !important; }
+        body.ui-refined #track-art { border-radius: 16px; box-shadow: 0 18px 40px rgba(0,0,0,0.45); }
+        body.ui-refined #track-title { font-size: 1.15rem; font-weight: 650; }
+        body.ui-refined #track-artist { font-size: 0.85rem; letter-spacing: 0.02em; }
+        body.ui-refined .controls button { font-size: 26px; opacity: 0.88; transition: transform 0.18s ease, opacity 0.18s ease; }
+        body.ui-refined .controls button:hover { color: #fff; opacity: 1; transform: scale(1.12); }
+        body.ui-refined:not([class*="progress-style-"]) .progress-bar-bg { height: 3px; border-radius: 3px; background: rgba(255,255,255,0.12); }
+        body.ui-refined:not([class*="progress-style-"]) .progress-bar-fill { border-radius: 3px; background: linear-gradient(90deg, rgba(255,255,255,0.75), #fff); }
+        body.ui-refined .search-box input { background: rgba(255,255,255,0.05); border: 1px solid var(--ui-line); }
+        body.ui-refined .search-box input:focus { border-color: rgba(255,255,255,0.4); background: rgba(255,255,255,0.08); }
+        body.ui-refined .search-box button { background: rgba(255,255,255,0.14); border: 1px solid var(--ui-line); }
+        body.ui-refined select { background: rgba(255,255,255,0.06) !important; border: 1px solid var(--ui-line) !important; border-radius: 10px !important; }
+        body.ui-refined #settings-zone { border-radius: 16px; background: rgba(255,255,255,0.03); border: 1px solid var(--ui-line); }
+        body.ui-refined #pip-panel, body.ui-refined #clip-panel, body.ui-refined #subs-panel {
+            border: 1px solid var(--ui-line); border-radius: 20px;
+            box-shadow: 0 18px 44px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06);
+            backdrop-filter: blur(24px) saturate(1.25); -webkit-backdrop-filter: blur(24px) saturate(1.25);
+        }
+        body.ui-refined .floating-reveal-btn, body.ui-refined #clip-reveal-btn { border: 1px solid var(--ui-line); backdrop-filter: blur(12px); }
+        body.ui-refined #credits-modal-overlay { backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px); }
+        body.ui-refined *::-webkit-scrollbar { width: 6px; height: 6px; }
+        body.ui-refined *::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.16); border-radius: 6px; }
 
         .search-box {
             display: flex;
@@ -1256,6 +1348,15 @@
 <!-- 1. Panneau réglages : à placer près de tes autres zones (profile-card-zone, volume-control-zone, etc.) -->
 <div id="settings-zone" style="display: none; margin-top: 12px; width: 100%; box-sizing: border-box; padding: 10px; flex-direction: column; gap: 10px;">
     <p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 2px 0 2px 0;">🎚️ INTERFACE &amp; LECTURE</p>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: #fff; font-weight: bold;">Design épuré ✨</span>
+    <label class="switch">
+        <input type="checkbox" id="ui-refined-toggle" onchange="toggleUiRefinedSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
     <span style="font-size: 0.85rem; color: var(--text-grey);">Spectre audio animé 🎛️</span>
@@ -1738,6 +1839,7 @@
         <option value="comete">Comète</option>
         <option value="pulsation">Pulsation</option>
         <option value="pochette">Couleurs de la pochette</option>
+        <option value="vagues">Vagues + point (pochette)</option>
     </select>
 </div>
 
@@ -2359,6 +2461,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 initArtisteAnimState();
                 initBrasTourneDisqueState();
                 initParolesEffectsState();
+                initUiRefinedState();
                 initProgressStyleState();
                 initClipFeatureState();
                 initSubsFeatureState();
@@ -4064,6 +4167,17 @@ let spectrum5Enabled = localStorage.getItem('spectrum5Enabled') === 'true';
 let spectrum6Enabled = localStorage.getItem('spectrum6Enabled') === 'true';
 let spectrum7Enabled = localStorage.getItem('spectrum7Enabled') === 'true';
 
+// Design épuré : un seul réglage qui change tout le graphisme (cartes, liserés, couleurs, boutons, panneaux)
+let uiRefinedEnabled = localStorage.getItem('uiRefinedEnabled') === 'true';
+function applyUiRefined() { document.body.classList.toggle('ui-refined', uiRefinedEnabled); }
+function toggleUiRefinedSetting(checked) {
+    uiRefinedEnabled = checked;
+    try { localStorage.setItem('uiRefinedEnabled', checked ? 'true' : 'false'); } catch (e) {}
+    applyUiRefined();
+    updateProgressBarWidthVar();
+}
+function initUiRefinedState() { applyUiRefined(); }
+
 // Un seul spectre à la fois, choisi dans un menu déroulant (comme la typographie)
 function currentSpectrumStyle() {
     if (spectrum7Enabled) return '7';
@@ -4125,6 +4239,8 @@ function toggleSettings() {
         settingsZone.style.display = 'flex';
         const toggle = document.getElementById('spectrum-toggle');
         if (toggle) toggle.checked = spectrumEnabled;
+        const uiRefTgl = document.getElementById('ui-refined-toggle');
+        if (uiRefTgl) uiRefTgl.checked = uiRefinedEnabled;
         const spectrumSel = document.getElementById('spectrum-style-select');
         if (spectrumSel) spectrumSel.value = currentSpectrumStyle();
         const scrollToggle = document.getElementById('autoscroll-lyrics-toggle');
@@ -5233,9 +5349,16 @@ function ensureCreditsModal() {
             <li>Chaque animation se règle et se mémorise séparément ; « Aucun » la désactive.</li>
         </ul>
 
+        <h3>✨ Design épuré</h3>
+        <ul>
+            <li><strong>Premier réglage des Paramètres</strong> — un seul interrupteur qui redessine toute l'interface : cartes en verre plus discret, liserés fins teintés par la couleur de la pochette, titres de section sobres, boutons et champs allégés, panneaux flottants (clip, paroles, sous-titres) harmonisés, barre de progression plus fine, barres de défilement discrètes.</li>
+            <li>Désactivé par défaut ; il se combine avec tous les autres réglages (typographie, spectre, animations) et se mémorise.</li>
+        </ul>
+
         <h3>📊 Barre de progression</h3>
         <ul>
             <li><strong>Changement de style visuel</strong> — menu avec le style par défaut et 13 variantes : vinyle (sillons + disque), rétro 8 bits, néon, arc-en-ciel, rayures animées, perles, égaliseur, flamme, glace, or, comète, pulsation et « couleurs de la pochette ».</li>
+            <li><strong>Vagues + point</strong> — 3 vagues qui défilent à des vitesses différentes, colorées avec les 2 couleurs principales de la pochette, avec un point lumineux à la tête de lecture ; le reste de la barre montre les mêmes vagues en filigrane et elles se figent en pause.</li>
             <li>La barre reste cliquable pour se déplacer dans le titre, et le style est mémorisé.</li>
         </ul>
 
@@ -5374,7 +5497,16 @@ function ensureCreditsModal() {
         </ul>
 
         <h3>🔒 Confidentialité & stockage local</h3>
-        <p>Tes réglages (spectre, défilement des paroles, boule à facettes, bouton pétard, fonds de paroles, typographie...), ton historique d'écoute (utilisé pour les statistiques) et quelques préférences d'affichage sont stockés uniquement dans ton navigateur (localStorage) — rien n'est envoyé ni partagé sur un serveur externe, à l'exception des appels nécessaires à l'API Spotify elle-même pour faire fonctionner l'app.</p>
+        <p>Tout est stocké uniquement dans ton navigateur (localStorage) — rien n'est envoyé ni partagé sur un serveur externe, à part les appels nécessaires aux API listées plus haut. Voici ce que l'app garde en mémoire :</p>
+        <ul>
+            <li><strong>Réglages et style</strong> — spectre choisi, typographie, animations (paroles, titre, artiste, pochette), style de la barre de progression, effets d'ambiance, design épuré, interrupteurs des intégrations.</li>
+            <li><strong>Historique d'écoute</strong> — utilisé pour les statistiques.</li>
+            <li><strong>Clip</strong> — clip trouvé pour chaque titre (plus de nouvelle recherche YouTube), décalage de synchro de chaque vidéo, préférence des sous-titres CC, état caché / affiché (🙈 / 🎬).</li>
+            <li><strong>Sous-titres YouTube</strong> — texte brut reçu pour chaque vidéo (conservé pour toujours, ré-analysable sans nouvel appel), décalage de synchro propre à chaque vidéo (±500 ms), compteur du quota du jour (10 appels), état caché / affiché (🙈 / 📝).</li>
+            <li><strong>Interface Paroles (PiP)</strong> — état caché / affiché (🙈 / 🎵).</li>
+            <li><strong>Clé API YouTube</strong> — celle que tu as saisie dans les Paramètres, si tu as changé la clé par défaut.</li>
+        </ul>
+        <p>Vider les données du site dans ton navigateur efface tout cela ; l'app repart alors de ses réglages d'origine.</p>
 
         <h3>⚠️ Avertissement</h3>
         <p>Ce site est un projet personnel non officiel, développé pour un usage personnel. Il n'est ni affilié à, ni approuvé par Spotify AB. Toutes les marques et contenus musicaux appartiennent à leurs ayants droit respectifs.</p>
@@ -11298,7 +11430,7 @@ function updatePipPanelContent(f) { try { updatePipPanelContentUnsafe(f); } catc
 
 // --- Style de la barre de progression (menu déroulant : Par défaut + 12 styles) ---
 let progressStyle = localStorage.getItem('progressStyle') || 'none';
-const PROGRESS_STYLES = ['vinyle', 'retro', 'neon', 'arcenciel', 'rayures', 'perles', 'egaliseur', 'flamme', 'glace', 'or', 'comete', 'pulsation', 'pochette'];
+const PROGRESS_STYLES = ['vinyle', 'retro', 'neon', 'arcenciel', 'rayures', 'perles', 'egaliseur', 'flamme', 'glace', 'or', 'comete', 'pulsation', 'pochette', 'vagues'];
 
 function applyProgressStyle() {
     PROGRESS_STYLES.forEach(k => document.body.classList.remove('progress-style-' + k));
@@ -11346,7 +11478,7 @@ function getTwoDominantColorsFromImageSrc(src, callback) {
 
 // Pose --pf-c1 / --pf-c2 (rehaussées si la pochette est sombre) pour le style de barre "Couleurs de la pochette"
 function updateProgressPochetteColors() {
-    if (progressStyle !== 'pochette') return;
+    if (progressStyle !== 'pochette' && progressStyle !== 'vagues') return;
     const art = document.getElementById('track-art');
     if (!art || !art.src) return;
     getTwoDominantColorsFromImageSrc(art.src, (c1, c2) => {
