@@ -1,12 +1,12 @@
 
 <!DOCTYPE html>
-<html lang="fr"> 
+<html lang="fr">
 <head>
     <script>
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v2.60";
+        const APP_VERSION = "v2.62";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -999,6 +999,29 @@
         body.ui-refined .lyrics-section.fond-parole-adaptatif-active {
             background: linear-gradient(160deg, rgba(255,255,255,0.09), rgba(0,0,0,0.26) 100%), rgba(var(--fond-parole-adaptatif-color, 29, 185, 84), 0.6);
         }
+        /* Écran d'accueil (avant connexion) */
+        body.ui-refined #login-section {
+            max-width: 720px; width: calc(100% - 32px); box-sizing: border-box; margin: 12vh auto 0; padding: 52px 40px 44px;
+            border: 1px solid var(--ui-line); border-radius: 30px;
+            background: linear-gradient(160deg, rgba(255,255,255,0.07), rgba(255,255,255,0.015) 55%), var(--card-grey);
+            box-shadow: 0 30px 80px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08);
+            backdrop-filter: blur(26px) saturate(1.2); -webkit-backdrop-filter: blur(26px) saturate(1.2);
+        }
+        body.ui-refined #login-section h1 {
+            font-size: 2.6rem !important; font-weight: 700; letter-spacing: -0.035em; margin: 0 0 14px 0 !important;
+            background: linear-gradient(120deg, #ffffff 30%, var(--gradient-color-2, #71b280)); -webkit-background-clip: text; background-clip: text;
+            -webkit-text-fill-color: transparent; color: transparent !important;
+        }
+        body.ui-refined #login-section > p { max-width: 520px; margin: 0 auto 32px !important; line-height: 1.65; font-size: 0.95rem; color: var(--text-grey) !important; }
+        body.ui-refined #login-btn {
+            background: rgba(255,255,255,0.12); color: #fff; border: 1px solid var(--ui-line); padding: 13px 30px; font-size: 0.95rem; font-weight: 600;
+            letter-spacing: 0.01em; box-shadow: inset 0 1px 0 rgba(255,255,255,0.1); transition: background 0.2s ease, transform 0.2s ease;
+        }
+        body.ui-refined #login-btn:hover { background: rgba(255,255,255,0.2); transform: translateY(-1px) scale(1.02); }
+        body.ui-refined #login-section > div > div:first-child { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; }
+        body.ui-refined #credits-btn { background: transparent; border: 1px solid var(--ui-line); color: var(--text-grey); border-radius: 40px; padding: 12px 22px; }
+        body.ui-refined #credits-btn:hover { color: #fff; border-color: rgba(255,255,255,0.35); background: rgba(255,255,255,0.06); }
+        body.ui-refined #login-section img { border-radius: 22px !important; box-shadow: 0 14px 36px rgba(0,0,0,0.4); border: 1px solid var(--ui-line); }
         body.ui-refined .lyric-line { font-weight: 500; line-height: 1.45; opacity: 0.32; letter-spacing: -0.01em; }
         body.ui-refined .lyric-line.active { font-weight: 700; opacity: 1; text-shadow: 0 0 26px rgba(255,255,255,0.28); }
         body.ui-refined #explorer-rechercher-title,
@@ -1348,6 +1371,7 @@
         <option value="5">5.0 — Losanges pulsés</option>
         <option value="6">6.0 — Code-barres pulsé</option>
         <option value="7">7.0 — Égaliseur LED</option>
+        <option value="8">8.0 — Égaliseur LED (couleurs pochette)</option>
     </select>
 </div>
 
@@ -2431,6 +2455,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 initSpectrum5State();
                 initSpectrum6State();
                 initSpectrum7State();
+                initSpectrum8State();
                 initFondParoleState();
                 initFondParoleAdaptatifState();
                 initMiniPlayerState();
@@ -4145,6 +4170,7 @@ let spectrum4Enabled = localStorage.getItem('spectrum4Enabled') === 'true';
 let spectrum5Enabled = localStorage.getItem('spectrum5Enabled') === 'true';
 let spectrum6Enabled = localStorage.getItem('spectrum6Enabled') === 'true';
 let spectrum7Enabled = localStorage.getItem('spectrum7Enabled') === 'true';
+let spectrum8Enabled = localStorage.getItem('spectrum8Enabled') === 'true';
 
 // Design épuré : un seul réglage qui change tout le graphisme (cartes, liserés, couleurs, boutons, panneaux)
 let uiRefinedEnabled = localStorage.getItem('uiRefinedEnabled') === 'true';
@@ -4156,9 +4182,11 @@ function toggleUiRefinedSetting(checked) {
     updateProgressBarWidthVar();
 }
 function initUiRefinedState() { applyUiRefined(); }
+applyUiRefined(); // dès le chargement : l'écran d'accueil (avant connexion) est lui aussi concerné
 
 // Un seul spectre à la fois, choisi dans un menu déroulant (comme la typographie)
 function currentSpectrumStyle() {
+    if (spectrum8Enabled) return '8';
     if (spectrum7Enabled) return '7';
     if (spectrum6Enabled) return '6';
     if (spectrum5Enabled) return '5';
@@ -4169,8 +4197,8 @@ function currentSpectrumStyle() {
     return 'none';
 }
 function setSpectrumStyle(value) {
-    const setters = { '2': toggleSpectrum2Setting, '3': toggleSpectrum3Setting, '4': toggleSpectrum4Setting, '5': toggleSpectrum5Setting, '6': toggleSpectrum6Setting, '7': toggleSpectrum7Setting };
-    const flags = { '2': () => spectrum2Enabled, '3': () => spectrum3Enabled, '4': () => spectrum4Enabled, '5': () => spectrum5Enabled, '6': () => spectrum6Enabled, '7': () => spectrum7Enabled };
+    const setters = { '2': toggleSpectrum2Setting, '3': toggleSpectrum3Setting, '4': toggleSpectrum4Setting, '5': toggleSpectrum5Setting, '6': toggleSpectrum6Setting, '7': toggleSpectrum7Setting, '8': toggleSpectrum8Setting };
+    const flags = { '2': () => spectrum2Enabled, '3': () => spectrum3Enabled, '4': () => spectrum4Enabled, '5': () => spectrum5Enabled, '6': () => spectrum6Enabled, '7': () => spectrum7Enabled, '8': () => spectrum8Enabled };
     if (value !== '1' && spectrumEnabled) toggleSpectrumSetting(false);
     Object.keys(setters).forEach(k => { if (k !== value && flags[k]()) setters[k](false); });
     if (value === '1') toggleSpectrumSetting(true);
@@ -5331,6 +5359,7 @@ function ensureCreditsModal() {
         <h3>✨ Design épuré</h3>
         <ul>
             <li><strong>Premier réglage des Paramètres</strong> — un seul interrupteur qui redessine toute l'interface : cartes en verre plus discret, liserés fins teintés par la couleur de la pochette, titres de section sobres, boutons et champs allégés, panneaux flottants (clip, paroles, sous-titres) harmonisés, barre de progression plus fine, barres de défilement discrètes.</li>
+            <li><strong>Écran d'accueil</strong> redessiné lui aussi : carte en verre centrée, titre dégradé, boutons « Se connecter » et « Crédit » sobres.</li>
             <li>Désactivé par défaut ; il se combine avec tous les autres réglages (typographie, spectre, animations) et se mémorise.</li>
         </ul>
 
@@ -5395,7 +5424,7 @@ function ensureCreditsModal() {
         <h3>🎨 Interface & ambiance</h3>
         <ul>
             <li><strong>Fond dynamique</strong> — les couleurs de fond de l'app s'adaptent à la pochette du titre en cours.</li>
-            <li><strong>7 spectres audio animés</strong> — barres classiques, barres colorées, particules dansantes, vague, losanges pulsés, code-barres pulsé, égaliseur LED (un seul actif à la fois, choisi dans un menu).</li>
+            <li><strong>8 spectres audio animés</strong> — barres classiques, barres colorées, particules dansantes, vague, losanges pulsés, code-barres pulsé, égaliseur LED et égaliseur LED aux 5 couleurs de la pochette (un seul actif à la fois, choisi dans un menu).</li>
             <li><strong>Mini-lecteur flottant</strong> — barre toujours visible en haut de l'écran (pochette, titre, artiste, durée, pause/reprendre), même en consultant un autre panneau.</li>
             <li><strong>Boule à facettes 🪩</strong>, <strong>projecteurs</strong>, <strong>guirlande lumineuse</strong>, <strong>bouton pétard 🎉</strong> interactif.</li>
             <li><strong>Personnalisation</strong> — chaque ambiance se règle et se retient indépendamment dans les Paramètres.</li>
@@ -11411,7 +11440,7 @@ function updatePipPanelContent(f) { try { updatePipPanelContentUnsafe(f); } catc
 // --- Barre « Vagues + point » : rendu canvas fidèle au lecteur multimédia Android ---
 let pfWaveRAF = null, pfWaveCanvas = null, pfWaveT = 0, pfWaveLast = 0, pfWaveFrame = 0;
 let pfWaveC1 = [88, 166, 245], pfWaveC2 = [174, 240, 255];
-const PF_T = 8, PF_R = 12, PF_PAD = 16, PF_H = 88, PF_YC = 46; // épaisseur, rayon de la pastille, marge, hauteur du canvas, axe de la barre
+const PF_T = 8, PF_R = 9, PF_PAD = 16, PF_H = 88, PF_YC = 46; // épaisseur, rayon de la pastille, marge, hauteur du canvas, axe de la barre
 
 function pfParseRgb(str, fb) {
     const a = String(str || '').split(',').map(n => parseInt(n, 10));
@@ -11490,7 +11519,7 @@ function drawWaveBar() {
     halo.addColorStop(0, pfRgba(main, 0.6)); halo.addColorStop(1, pfRgba(main, 0));
     ctx.fillStyle = halo; ctx.beginPath(); ctx.arc(px, yc, R * 2.7, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(px, yc, R, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = pfRgba(main, 1); ctx.beginPath(); ctx.arc(px, yc, R - 3.2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = pfRgba(main, 1); ctx.beginPath(); ctx.arc(px, yc, R - 2.6, 0, Math.PI * 2); ctx.fill();
 }
 
 function startWaveBar() {
