@@ -547,7 +547,8 @@ const SPECTRUM_OVERLAY_REGISTRY = {
     spectrum4: { toggleId: 'spectrum4-toggle', canvasId: 'spectrum4-canvas', storageKey: 'spectrum4Enabled', setVar: v => { spectrum4Enabled = v; } },
     spectrum5: { toggleId: 'spectrum5-toggle', canvasId: 'spectrum5-canvas', storageKey: 'spectrum5Enabled', setVar: v => { spectrum5Enabled = v; } },
     spectrum6: { toggleId: 'spectrum6-toggle', canvasId: 'spectrum6-canvas', storageKey: 'spectrum6Enabled', setVar: v => { spectrum6Enabled = v; } },
-    spectrum7: { toggleId: 'spectrum7-toggle', canvasId: 'spectrum7-canvas', storageKey: 'spectrum7Enabled', setVar: v => { spectrum7Enabled = v; } }
+    spectrum7: { toggleId: 'spectrum7-toggle', canvasId: 'spectrum7-canvas', storageKey: 'spectrum7Enabled', setVar: v => { spectrum7Enabled = v; } },
+    spectrum8: { toggleId: 'spectrum8-toggle', canvasId: 'spectrum8-canvas', storageKey: 'spectrum8Enabled', setVar: v => { spectrum8Enabled = v; } }
 };
 
 function enforceExclusiveSpectrumOverlay(activeKey) {
@@ -567,6 +568,7 @@ function enforceExclusiveSpectrumOverlay(activeKey) {
     if (activeKey !== 'spectrum5' && spectrum5AnimId) { cancelAnimationFrame(spectrum5AnimId); spectrum5AnimId = null; }
     if (activeKey !== 'spectrum6' && spectrum6AnimId) { cancelAnimationFrame(spectrum6AnimId); spectrum6AnimId = null; }
     if (activeKey !== 'spectrum7' && spectrum7AnimId) { cancelAnimationFrame(spectrum7AnimId); spectrum7AnimId = null; }
+    if (activeKey !== 'spectrum8' && spectrum8AnimId) { cancelAnimationFrame(spectrum8AnimId); spectrum8AnimId = null; }
 }
 
 function toggleSpectrum3Setting(checked) {
@@ -1074,6 +1076,186 @@ function initSpectrum7State() {
     const canvas = ensureSpectrum7Canvas();
     canvas.style.display = spectrum7Enabled ? 'block' : 'none';
     if (spectrum7Enabled) initSpectrum7();
+}
+
+// ==========================================
+// SPECTRE AUDIO ANIMÉ 8.0 — « Égaliseur LED pochette » : le même égaliseur que le 7.0, mais les diodes
+// prennent un dégradé de PLUSIEURS couleurs extraites de la pochette du titre en cours (5 couleurs
+// principales, du bas vers le haut des colonnes). Sans pochette : vert → rouge comme le 7.0.
+// ==========================================
+function injectSpectrum8Styles() {
+    if (document.getElementById('spectrum8-inline-style')) return;
+    const styleTag = document.createElement('style');
+    styleTag.id = 'spectrum8-inline-style';
+    styleTag.textContent = `
+        #spectrum8-canvas {
+            display: none;
+            position: fixed;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            height: 60px;
+            z-index: 500;
+            pointer-events: none;
+            background: transparent;
+        }
+    `;
+    document.head.appendChild(styleTag);
+}
+injectSpectrum8Styles();
+
+function ensureSpectrum8Canvas() {
+    let canvas = document.getElementById('spectrum8-canvas');
+    if (!canvas) {
+        canvas = document.createElement('canvas');
+        canvas.id = 'spectrum8-canvas';
+        document.body.appendChild(canvas);
+    }
+    return canvas;
+}
+
+// Extrait jusqu'à n couleurs bien distinctes de la pochette : pixels regroupés par famille de couleur
+// (64 familles), classées par présence (les couleurs ternes sont désavantagées), puis on ne garde que
+// celles assez éloignées de celles déjà retenues. Les couleurs sombres sont rehaussées pour rester visibles.
+function getCoverPaletteFromImageSrc(src, n, callback) {
+    const img = new Image();
+    img.crossOrigin = 'Anonymous';
+    img.onload = function () {
+        try {
+            const canvas = document.createElement('canvas');
+            canvas.width = 32; canvas.height = 32;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, 32, 32);
+            const data = ctx.getImageData(0, 0, 32, 32).data;
+            const buckets = {};
+            for (let i = 0; i < data.length; i += 4) {
+                const r = data[i], g = data[i + 1], b = data[i + 2];
+                const key = (r >> 6) * 16 + (g >> 6) * 4 + (b >> 6);
+                const sat = Math.max(r, g, b) - Math.min(r, g, b);
+                const bk = buckets[key] || (buckets[key] = { w: 0, r: 0, g: 0, b: 0, n: 0 });
+                bk.w += 1 + sat / 64; bk.r += r; bk.g += g; bk.b += b; bk.n++;
+            }
+            const list = Object.values(buckets).map(bk => ({ w: bk.w, c: [Math.round(bk.r / bk.n), Math.round(bk.g / bk.n), Math.round(bk.b / bk.n)] })).sort((a, b) => b.w - a.w);
+            const dist = (a, b) => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]);
+            const picked = [];
+            for (const e of list) {
+                if (picked.every(c => dist(c, e.c) > 70)) picked.push(e.c);
+                if (picked.length >= n) break;
+            }
+            const brighten = c => { const m = Math.max(c[0], c[1], c[2], 1); const k = m < 170 ? 170 / m : 1; return c.map(v => Math.min(255, Math.round(v * k))); };
+            callback(picked.length ? picked.map(brighten) : null);
+        } catch (e) {
+            callback(null);
+        }
+    };
+    img.onerror = () => callback(null);
+    img.src = src;
+}
+
+let spectrum8Cols = [];
+let spectrum8AnimId = null;
+let spectrum8Palette = null;
+let spectrum8LastArt = '';
+
+function spectrum8ColorAt(t) { // t de 0 (bas) à 1 (haut) : dégradé à travers la palette de la pochette
+    const pal = spectrum8Palette;
+    if (!pal || !pal.length) return `hsl(${130 - t * 130}, 90%, 55%)`;
+    if (pal.length === 1) return `rgb(${pal[0][0]}, ${pal[0][1]}, ${pal[0][2]})`;
+    const pos = t * (pal.length - 1), i = Math.min(pal.length - 2, Math.floor(pos)), f = pos - i;
+    const a = pal[i], b = pal[i + 1];
+    return `rgb(${Math.round(a[0] + (b[0] - a[0]) * f)}, ${Math.round(a[1] + (b[1] - a[1]) * f)}, ${Math.round(a[2] + (b[2] - a[2]) * f)})`;
+}
+
+function spectrum8RefreshPalette() {
+    const art = document.getElementById('track-art');
+    const src = art && art.src ? art.src : '';
+    if (src === spectrum8LastArt) return;
+    spectrum8LastArt = src;
+    if (!src) { spectrum8Palette = null; return; }
+    getCoverPaletteFromImageSrc(src, 5, pal => { if (src === spectrum8LastArt) spectrum8Palette = pal; });
+}
+
+function initSpectrum8() {
+    const canvas = ensureSpectrum8Canvas();
+    const ctx = canvas.getContext('2d');
+    const colCount = 32;
+    const ledCount = 12;
+    let frame = 0;
+
+    spectrum8Cols = Array.from({ length: colCount }, () => ({
+        phase: Math.random() * Math.PI * 2,
+        speed: 0.03 + Math.random() * 0.05,
+        current: 0.05,
+        peak: 0.05
+    }));
+
+    function resizeCanvas() {
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = Math.max(1, rect.width) * window.devicePixelRatio;
+        canvas.height = Math.max(1, rect.height) * window.devicePixelRatio;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    spectrum8LastArt = '';
+    spectrum8RefreshPalette();
+
+    function draw() {
+        spectrum8AnimId = requestAnimationFrame(draw);
+        if (frame++ % 30 === 0) spectrum8RefreshPalette(); // détecte un changement de pochette
+
+        const w = canvas.width;
+        const h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+
+        if (!spectrum8Enabled) {
+            spectrum8Cols.forEach(c => { c.current = 0.05; c.peak = 0.05; });
+            return;
+        }
+
+        const active = spectrum8Enabled && isCurrentlyPlaying;
+        const colW = w / spectrum8Cols.length;
+        const ledH = h / ledCount;
+        const ledColors = Array.from({ length: ledCount }, (_, k) => spectrum8ColorAt(k / (ledCount - 1)));
+
+        spectrum8Cols.forEach((c, i) => {
+            c.phase += c.speed;
+            const target = active ? (0.15 + 0.85 * Math.abs(Math.sin(c.phase) * Math.cos(c.phase * 0.43 + i))) : 0.05;
+            c.current += (target - c.current) * 0.2;
+            c.peak = Math.max(c.current, c.peak - 0.012);
+
+            const lit = Math.round(c.current * ledCount);
+            const peakLed = Math.min(ledCount - 1, Math.round(c.peak * ledCount));
+            const x = i * colW + colW * 0.12;
+            const cw = colW * 0.76;
+            for (let k = 0; k < ledCount; k++) {
+                const y = h - (k + 1) * ledH + ledH * 0.14;
+                const on = k < lit || (k === peakLed && c.peak > 0.12);
+                ctx.fillStyle = on ? ledColors[k] : 'rgba(255,255,255,0.06)';
+                ctx.fillRect(x, y, cw, ledH * 0.72);
+            }
+        });
+    }
+    draw();
+}
+
+function toggleSpectrum8Setting(checked) {
+    spectrum8Enabled = checked;
+    localStorage.setItem('spectrum8Enabled', checked ? 'true' : 'false');
+    const canvas = ensureSpectrum8Canvas();
+    canvas.style.display = checked ? 'block' : 'none';
+    if (checked) {
+        enforceExclusiveSpectrumOverlay('spectrum8');
+        if (!spectrum8AnimId) initSpectrum8();
+    } else if (spectrum8AnimId) {
+        cancelAnimationFrame(spectrum8AnimId);
+        spectrum8AnimId = null;
+    }
+}
+
+function initSpectrum8State() {
+    const canvas = ensureSpectrum8Canvas();
+    canvas.style.display = spectrum8Enabled ? 'block' : 'none';
+    if (spectrum8Enabled) initSpectrum8();
 }
 
 function toggleSpectrum2Setting(checked) {
