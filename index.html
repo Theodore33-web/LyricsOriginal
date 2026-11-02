@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v2.63";
+        const APP_VERSION = "2.65";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -67,6 +67,10 @@
         }
 
         #login-section { text-align: center; margin-top: 100px; position: relative; z-index: 2; }
+        /* Mini boutons de réaffichage (🎵 paroles, 📝 sous-titres) : style GLOBAL — il était auparavant défini
+           seulement quand l'interface Paroles existait, d'où un 📝 isolé visible sur l'accueil. */
+        .floating-reveal-btn { display: none; position: fixed; right: 15px; z-index: 9600; width: 38px; height: 38px; padding: 0; border-radius: 50%; border: 1px solid rgba(255,255,255,0.25); background: rgba(10,10,10,0.85); color: #fff; font-size: 1.05rem; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+        .floating-reveal-btn.visible { display: block; }
         #login-btn { 
             background-color: var(--spotify-green); color: white; border: none; 
             padding: 15px 40px; border-radius: 40px; font-weight: bold; 
@@ -999,6 +1003,39 @@
         body.ui-refined .lyrics-section.fond-parole-adaptatif-active {
             background: linear-gradient(160deg, rgba(255,255,255,0.09), rgba(0,0,0,0.26) 100%), rgba(var(--fond-parole-adaptatif-color, 29, 185, 84), 0.72);
         }
+        /* Mini-lecteur flottant */
+        body.ui-refined #mini-player-bar { background: rgba(14, 14, 16, 0.6); backdrop-filter: blur(24px) saturate(1.25); -webkit-backdrop-filter: blur(24px) saturate(1.25); border-bottom: 1px solid var(--ui-line); box-shadow: 0 12px 34px rgba(0,0,0,0.35); }
+        body.ui-refined #mini-player-content { padding: 8px 16px; gap: 12px; }
+        body.ui-refined #mini-player-art { width: 34px; height: 34px; border-radius: 9px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+        body.ui-refined #mini-player-title { font-weight: 600; letter-spacing: -0.01em; }
+        body.ui-refined #mini-player-artist, body.ui-refined #mini-player-times { color: var(--text-grey); }
+        body.ui-refined #mini-player-playpause-btn { width: 30px; height: 30px; border-radius: 50%; background: rgba(255,255,255,0.12); border: 1px solid var(--ui-line); font-size: 0.85rem; padding: 0; }
+        body.ui-refined #mini-player-progress-track { height: 2px; background: rgba(255,255,255,0.1); }
+        body.ui-refined #mini-player-progress-fill { background: linear-gradient(90deg, rgba(255,255,255,0.55), #fff); }
+        /* Intégrations Clip, Paroles (PiP) et Sous-titres */
+        body.ui-refined #pip-panel, body.ui-refined #clip-panel, body.ui-refined #subs-panel {
+            background: linear-gradient(160deg, rgba(var(--pip-bg-color, 29, 185, 84), 0.2), rgba(12, 12, 14, 0.82) 70%);
+        }
+        body.ui-refined #clip-video-wrap { border-radius: 14px; }
+        body.ui-refined #clip-header { background: linear-gradient(rgba(8,8,10,0.78), rgba(8,8,10,0)); }
+        body.ui-refined #clip-title-label { font-weight: 600; letter-spacing: -0.01em; }
+        body.ui-refined #clip-controls button, body.ui-refined .subs-off-btn, body.ui-refined #subs-redo-btn, body.ui-refined #subs-hide-btn, body.ui-refined #pip-hide-btn {
+            background: rgba(255,255,255,0.1); border: 1px solid var(--ui-line); border-radius: 999px; padding: 3px 10px;
+        }
+        body.ui-refined #pip-hide-btn { padding: 0; }
+        body.ui-refined #clip-controls button:hover, body.ui-refined .subs-off-btn:hover, body.ui-refined #subs-redo-btn:hover, body.ui-refined #subs-hide-btn:hover { background: rgba(255,255,255,0.2); }
+        body.ui-refined #clip-cc-btn.on { background: rgba(255,255,255,0.3); border-color: rgba(255,255,255,0.4); }
+        body.ui-refined #clip-progress-track, body.ui-refined #pip-progress-track { height: 2px; background: rgba(255,255,255,0.1); }
+        body.ui-refined #clip-progress-fill, body.ui-refined #pip-progress-fill { background: linear-gradient(90deg, rgba(255,255,255,0.55), #fff); }
+        body.ui-refined #pip-cover { border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.45); }
+        body.ui-refined #pip-lyric-current { font-weight: 650; letter-spacing: -0.01em; }
+        body.ui-refined #pip-info-playpause { background: rgba(255,255,255,0.12); border: 1px solid var(--ui-line); }
+        body.ui-refined #subs-header { font-weight: 600; letter-spacing: 0.02em; }
+        body.ui-refined #subs-generate-btn { background: rgba(255,255,255,0.14); color: #fff; border: 1px solid var(--ui-line); border-radius: 999px; font-weight: 600; }
+        body.ui-refined #subs-generate-btn:hover:not(:disabled) { background: rgba(255,255,255,0.22); }
+        body.ui-refined .subs-line { letter-spacing: -0.005em; }
+        body.ui-refined .subs-line.current { font-weight: 650; }
+        body.ui-refined #clip-message, body.ui-refined #subs-message { color: var(--text-grey); }
         /* Écran d'accueil (avant connexion) */
         body.ui-refined #login-section {
             max-width: 720px; width: calc(100% - 32px); box-sizing: border-box; margin: 12vh auto 0; padding: 52px 40px 44px;
@@ -1012,7 +1049,7 @@
             background: linear-gradient(120deg, #ffffff 30%, var(--gradient-color-2, #71b280)); -webkit-background-clip: text; background-clip: text;
             -webkit-text-fill-color: transparent; color: transparent !important;
         }
-        body.ui-refined #login-section > p { max-width: 520px; margin: 0 auto 32px !important; line-height: 1.65; font-size: 0.95rem; color: var(--text-grey) !important; }
+        body.ui-refined #login-section > p { max-width: 600px; margin: 0 auto 32px !important; line-height: 1.65; font-size: 0.95rem; color: var(--text-grey) !important; }
         body.ui-refined #login-btn {
             background: rgba(255,255,255,0.12); color: #fff; border: 1px solid var(--ui-line); padding: 13px 30px; font-size: 0.95rem; font-weight: 600;
             letter-spacing: 0.01em; box-shadow: inset 0 1px 0 rgba(255,255,255,0.1); transition: background 0.2s ease, transform 0.2s ease;
@@ -1291,11 +1328,16 @@
 </style>
 </head>
 <body>
+    <script>try { if (localStorage.getItem('uiRefinedEnabled') === 'true') document.body.classList.add('ui-refined'); } catch (e) {} // avant tout affichage : plus de flash de l'ancien accueil</script>
     <div class="background-aurora" id="bg-aurora"></div>
     
     <div id="login-section">
         <h1 style="color: var(--spotify-green); font-size: 3rem; margin-bottom: 10px;">Lyrics Original</h1>
-        <p style="color: var(--text-grey); margin-bottom: 30px;">Vos paroles synchronisées et votre bibliothèque réunies. Tout ça tient dans <span id="code-line-count">...</span> lignes de code et fait en 100% avec des émojis !</p>
+        <p style="color: var(--text-grey); margin-bottom: 30px; line-height: 1.7;">
+            🎤 Tes paroles Spotify synchronisées en direct, avec ta bibliothèque<br>
+            🎬 clip YouTube · 📝 sous-titres · 🎨 pochettes animées · 🎆 feux d'artifice · 🎮 mini-jeux · 🎧 DJ<br>
+            ✨ Tout ça tient dans <span id="code-line-count">...</span> lignes de code (index.html + script.js) et fait en 100% avec des émojis !
+        </p>
         <div style="display: flex; align-items: center; justify-content: center; gap: 24px; flex-wrap: wrap;">
             <div>
                 <button id="login-btn">Se connecter avec Spotify</button>
@@ -1362,7 +1404,7 @@
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
     <span style="font-size: 0.85rem; color: var(--text-grey);">Spectre audio animé 🎛️</span>
-    <select id="spectrum-style-select" onchange="setSpectrumStyle(this.value)" style="background: #1a1a1a; color: #fff; border: 1px solid #444; border-radius: 6px; padding: 4px 6px; font-size: 0.75rem; max-width: 190px;">
+    <select id="spectrum-style-select" onchange="setSpectrumStyle(this.value)" style="background: #1a1a1a; color: #fff; border: 1px solid #444; border-radius: 6px; padding: 4px 6px; font-size: 0.75rem; width: 130px; flex-shrink: 0;">
         <option value="none">Aucun</option>
         <option value="1">1.0 — Barres</option>
         <option value="2">2.0 — Barres colorées</option>
@@ -2012,16 +2054,19 @@
 
     <script>
         // ==== NOMBRE DE LIGNES DE CODE RÉEL (calculé, pas une valeur fixe) ====
-        // Recharge la page HTML actuelle (celle-là même que le navigateur a déjà, donc pas de
-        // requête vers un autre fichier) et compte ses lignes pour l'afficher dans le texte
-        // de présentation. Se recalcule tout seul à chaque modification du fichier.
+        // Recharge index.html (la page actuelle) ET script.js et additionne leurs lignes pour
+        // l'afficher dans le texte de présentation. Se recalcule tout seul à chaque modification du fichier.
         async function updateCodeLineCount() {
             const el = document.getElementById('code-line-count');
             if (!el) return;
             try {
-                const response = await fetch(window.location.href, { cache: "no-store" });
-                const text = await response.text();
-                const lineCount = text.split('\n').length;
+                const countLines = async (url) => {
+                    const response = await fetch(url, { cache: "no-store" });
+                    if (!response.ok) throw new Error(url + ' : ' + response.status);
+                    return (await response.text()).split('\n').length;
+                };
+                let lineCount = await countLines(window.location.href); // index.html
+                try { lineCount += await countLines('script.js'); } catch (e) { /* script.js introuvable : on garde les lignes de index.html */ }
                 el.innerText = lineCount.toLocaleString('fr-FR');
             } catch (e) {
                 console.error("Impossible de calculer le nombre de lignes de code :", e);
@@ -5359,7 +5404,8 @@ function ensureCreditsModal() {
         <h3>✨ Design épuré</h3>
         <ul>
             <li><strong>Premier réglage des Paramètres</strong> — un seul interrupteur qui redessine toute l'interface : cartes en verre plus discret, liserés fins teintés par la couleur de la pochette, titres de section sobres, boutons et champs allégés, panneaux flottants (clip, paroles, sous-titres) harmonisés, barre de progression plus fine, barres de défilement discrètes.</li>
-            <li><strong>Écran d'accueil</strong> redessiné lui aussi : carte en verre centrée, titre dégradé, boutons « Se connecter » et « Crédit » sobres.</li>
+            <li><strong>Écran d'accueil</strong> redessiné lui aussi : carte en verre centrée, titre dégradé, boutons « Se connecter » et « Crédit » sobres ; il s'affiche directement dans le bon style au chargement.</li>
+            <li><strong>Mini-lecteur, clip, interface Paroles et sous-titres</strong> adoptent le même verre dépoli, les mêmes liserés fins et des boutons en pastilles.</li>
             <li>Désactivé par défaut ; il se combine avec tous les autres réglages (typographie, spectre, animations) et se mémorise.</li>
         </ul>
 
@@ -10449,6 +10495,7 @@ function injectPipStyles() {
             transition: transform 0.2s ease;
         }
         #pip-cover:hover { transform: scale(1.05); }
+        #pip-cover:not([src]), #pip-cover[src=""] { visibility: hidden; }
         #pip-content { flex: 1; min-width: 0; padding-top: 0; }
         #pip-lyric-current { color: #fff; font-weight: bold; font-size: 0.92rem; line-height: 1.3; }
         #pip-lyric-next { color: rgba(255,255,255,0.65); font-size: 0.8rem; margin-top: 4px; }
@@ -10480,7 +10527,7 @@ function ensurePipPanel() {
     panel = document.createElement('div');
     panel.id = 'pip-panel';
     panel.innerHTML = `
-        <img id="pip-cover" onclick="togglePipView()" title="Cliquer pour changer de vue" crossorigin="anonymous">
+        <img id="pip-cover" onclick="togglePipView()" title="Cliquer pour changer de vue" crossorigin="anonymous" onerror="this.style.visibility='hidden'" onload="this.style.visibility='visible'">
         <div id="pip-content">
             <div id="pip-view-lyrics">
                 <div id="pip-lyric-current">♪</div>
@@ -12564,7 +12611,8 @@ function injectMiniPlayerStyles() {
             gap: 10px;
             padding: 6px 14px;
         }
-        #mini-player-art { width: 32px; height: 32px; border-radius: 4px; object-fit: cover; flex-shrink: 0; background: #333; }
+        #mini-player-art { width: 32px; height: 32px; border-radius: 4px; object-fit: cover; flex-shrink: 0; }
+        #mini-player-art[src=""] { visibility: hidden; }
         #mini-player-info { flex: 1; min-width: 0; overflow: hidden; }
         #mini-player-title { font-size: 0.8rem; font-weight: bold; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         #mini-player-artist { font-size: 0.7rem; color: #b3b3b3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -12590,7 +12638,7 @@ function ensureMiniPlayerBar() {
         bar.id = 'mini-player-bar';
         bar.innerHTML = `
             <div id="mini-player-content">
-                <img id="mini-player-art" src="" alt="">
+                <img id="mini-player-art" src="" alt="" onerror="this.style.visibility='hidden'" onload="this.style.visibility='visible'">
                 <div id="mini-player-info">
                     <div id="mini-player-title">Aucune lecture</div>
                     <div id="mini-player-artist"></div>
