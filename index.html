@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "2.65";
+        const APP_VERSION = "v2.66";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -71,6 +71,9 @@
            seulement quand l'interface Paroles existait, d'où un 📝 isolé visible sur l'accueil. */
         .floating-reveal-btn { display: none; position: fixed; right: 15px; z-index: 9600; width: 38px; height: 38px; padding: 0; border-radius: 50%; border: 1px solid rgba(255,255,255,0.25); background: rgba(10,10,10,0.85); color: #fff; font-size: 1.05rem; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
         .floating-reveal-btn.visible { display: block; }
+        body.on-home .floating-reveal-btn, body.on-home #clip-reveal-btn, body.on-home #pip-panel, body.on-home #clip-panel, body.on-home #subs-panel, body.on-home #mini-player-bar { display: none !important; }
+        /* Mini-lecteur actif : la page est décalée vers le bas pour ne pas être recouverte (design épuré ou non) */
+        body.mini-player-on { padding-top: calc(20px + var(--mp-h, 48px)); }
         #login-btn { 
             background-color: var(--spotify-green); color: white; border: none; 
             padding: 15px 40px; border-radius: 40px; font-weight: bold; 
@@ -1049,7 +1052,7 @@
             background: linear-gradient(120deg, #ffffff 30%, var(--gradient-color-2, #71b280)); -webkit-background-clip: text; background-clip: text;
             -webkit-text-fill-color: transparent; color: transparent !important;
         }
-        body.ui-refined #login-section > p { max-width: 600px; margin: 0 auto 32px !important; line-height: 1.65; font-size: 0.95rem; color: var(--text-grey) !important; }
+        body.ui-refined #login-section > p { max-width: 600px; margin: 0 auto 32px !important; line-height: 1.65; font-size: 0.8rem !important; color: var(--text-grey) !important; }
         body.ui-refined #login-btn {
             background: rgba(255,255,255,0.12); color: #fff; border: 1px solid var(--ui-line); padding: 13px 30px; font-size: 0.95rem; font-weight: 600;
             letter-spacing: 0.01em; box-shadow: inset 0 1px 0 rgba(255,255,255,0.1); transition: background 0.2s ease, transform 0.2s ease;
@@ -1333,10 +1336,10 @@
     
     <div id="login-section">
         <h1 style="color: var(--spotify-green); font-size: 3rem; margin-bottom: 10px;">Lyrics Original</h1>
-        <p style="color: var(--text-grey); margin-bottom: 30px; line-height: 1.7;">
+        <p style="color: var(--text-grey); margin-bottom: 30px; line-height: 1.7; font-size: 0.82rem;">
             🎤 Tes paroles Spotify synchronisées en direct, avec ta bibliothèque<br>
             🎬 clip YouTube · 📝 sous-titres · 🎨 pochettes animées · 🎆 feux d'artifice · 🎮 mini-jeux · 🎧 DJ<br>
-            ✨ Tout ça tient dans <span id="code-line-count">...</span> lignes de code (index.html + script.js) et fait en 100% avec des émojis !
+            ✨ Tout ça tient dans <span id="code-line-count">...</span> lignes de code et fait en 100% avec des émojis !
         </p>
         <div style="display: flex; align-items: center; justify-content: center; gap: 24px; flex-wrap: wrap;">
             <div>
@@ -1346,6 +1349,18 @@
             <img src="chargement2.gif" alt="Chargement Spotify" style="width: 160px; border-radius: 12px; background: #fff;">
         </div>
     </div>
+
+    <script>
+        // Sur l'écran d'accueil (avant connexion) aucune intégration flottante (clip, paroles, sous-titres, mini-lecteur)
+        // ni bouton de réaffichage ne doit apparaître : la classe on-home les masque tant que l'accueil est affiché.
+        (function () {
+            const login = document.getElementById('login-section');
+            if (!login) return;
+            const sync = () => document.body.classList.toggle('on-home', !!login.offsetParent);
+            sync();
+            setInterval(sync, 400);
+        })();
+    </script>
 
     <div id="dashboard">
         <div class="lyrics-section" id="lyrics-container" onclick="handleLyricsTripleClick()">
@@ -10508,8 +10523,6 @@ function injectPipStyles() {
         #pip-info-title { padding-right: 30px; }
         #pip-hide-btn { display: none; position: absolute; top: 5px; right: 8px; width: 22px; height: 22px; padding: 0; border: none; border-radius: 50%; background: rgba(255,255,255,0.18); font-size: 0.8rem; line-height: 22px; cursor: pointer; z-index: 2; }
         #pip-panel.info-view #pip-hide-btn { display: block; }
-        .floating-reveal-btn { display: none; position: fixed; right: 15px; z-index: 9600; width: 38px; height: 38px; padding: 0; border-radius: 50%; border: 1px solid rgba(255,255,255,0.25); background: rgba(10,10,10,0.85); color: #fff; font-size: 1.05rem; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
-        .floating-reveal-btn.visible { display: block; }
         #pip-info-playpause {
             flex-shrink: 0; margin: -7px 0 -7px auto; position: relative; top: -9px;
             background: rgba(255,255,255,0.18);
@@ -12663,6 +12676,9 @@ const MP_OFFSET_OVERLAY_IDS = ['fireworks-manager-overlay', 'puzzle-overlay', 'b
 // barre du mini-lecteur flottant. Appelée au toggle, au démarrage, et en continu pendant la
 // synchronisation pour couvrir les panneaux créés après coup.
 function applyMiniPlayerOffsetToOverlays() {
+    const mpBar = document.getElementById('mini-player-bar');
+    document.body.classList.toggle('mini-player-on', !!miniPlayerEnabled);
+    if (mpBar && mpBar.offsetHeight) document.body.style.setProperty('--mp-h', mpBar.offsetHeight + 'px');
     MP_OFFSET_OVERLAY_IDS.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.toggle('mp-offset', miniPlayerEnabled);
