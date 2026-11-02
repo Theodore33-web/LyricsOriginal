@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v2.66";
+        const APP_VERSION = "v2.67";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -71,6 +71,9 @@
            seulement quand l'interface Paroles existait, d'où un 📝 isolé visible sur l'accueil. */
         .floating-reveal-btn { display: none; position: fixed; right: 15px; z-index: 9600; width: 38px; height: 38px; padding: 0; border-radius: 50%; border: 1px solid rgba(255,255,255,0.25); background: rgba(10,10,10,0.85); color: #fff; font-size: 1.05rem; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
         .floating-reveal-btn.visible { display: block; }
+        /* Retour visuel des réglages de décalage (✅ vert / ⚠️ orange) */
+        .offset-flash { color: #6dff9d !important; font-weight: 700; }
+        .offset-flash-warn { color: #ffd166 !important; }
         body.on-home .floating-reveal-btn, body.on-home #clip-reveal-btn, body.on-home #pip-panel, body.on-home #clip-panel, body.on-home #subs-panel, body.on-home #mini-player-bar { display: none !important; }
         /* Mini-lecteur actif : la page est décalée vers le bas pour ne pas être recouverte (design épuré ou non) */
         body.mini-player-on { padding-top: calc(20px + var(--mp-h, 48px)); }
@@ -10774,7 +10777,7 @@ function injectClipStyles() {
         #clip-controls button { background: rgba(255,255,255,0.2); border: none; color: #fff; font-size: 0.72rem; border-radius: 6px; padding: 3px 8px; cursor: pointer; }
         #clip-cc-btn.on { background: rgba(29,185,84,0.75); }
         #clip-time-label { color: #fff; font-size: 0.72rem; font-variant-numeric: tabular-nums; padding: 0 4px; white-space: nowrap; }
-        #clip-offset-label { color: rgba(255,255,255,0.8); font-size: 0.72rem; min-width: 30px; text-align: center; }
+        #clip-offset-label { color: rgba(255,255,255,0.8); font-size: 0.72rem; min-width: 64px; text-align: center; transition: color 0.2s ease; }
         /* Bande cliquable tout en haut de l'encadré : ouvre / referme les contrôles */
         #clip-top-toggle { position: absolute; top: 0; left: 0; right: 0; height: 34px; z-index: 4; cursor: pointer; }
         #clip-video-wrap { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 10px; overflow: hidden; }
@@ -10903,7 +10906,7 @@ function updateClipLabels(title) {
     const label = document.getElementById('clip-title-label');
     if (label && title !== undefined) label.innerText = '🎬 ' + title;
     const off = document.getElementById('clip-offset-label');
-    if (off) off.innerText = (clipOffsetSec > 0 ? '+' : '') + clipOffsetSec + 's';
+    if (off) off.innerText = clipOffsetText();
 }
 
 function clipFmtTime(sec) {
@@ -11049,15 +11052,37 @@ function clipChangeLink() {
     clipLoadForTrack();
 }
 
+// Retour visuel d'un réglage de décalage : le texte du compteur devient « ✅ valeur » en vert pendant ~1,4 s
+// (ou « ⚠️ message » si le réglage est impossible), puis revient à la normale.
+function flashOffsetLabel(el, text, restore, ok) {
+    if (!el) return;
+    el.innerText = (ok === false ? '⚠️ ' : '✅ ') + text;
+    el.classList.toggle('offset-flash-warn', ok === false);
+    el.classList.add('offset-flash');
+    clearTimeout(el._flashTimer);
+    el._flashTimer = setTimeout(() => { el.classList.remove('offset-flash', 'offset-flash-warn'); restore(); }, 1400);
+}
+function clipOffsetText() { return (clipOffsetSec > 0 ? '+' : '') + Math.round(clipOffsetSec * 1000) + ' ms'; }
+
 function clipAdjustOffset(delta) {
-    if (!clipVideoId) return;
+    const lab = document.getElementById('clip-offset-label');
+    if (!clipVideoId) { flashOffsetLabel(lab, 'aucun clip', () => updateClipLabels(), false); return; }
     clipOffsetSec = Math.round((clipOffsetSec + delta) * 1000) / 1000;
     const offsets = clipReadStore('clipOffsets');
     offsets[clipVideoId] = clipOffsetSec;
     clipWriteStore('clipOffsets', offsets);
     updateClipLabels();
-    clipLastSeek = 0;
+    // Le recalage automatique ne corrige que les écarts > 1,5 s : un réglage de ±500 ms / ±1 s n'aurait donc
+    // aucun effet visible. On force un saut immédiat à la nouvelle position.
+    try {
+        if (clipPlayer && clipPlayerReady && !clipHidden && typeof clipPlayer.seekTo === 'function') {
+            clipMarkProgrammatic();
+            clipPlayer.seekTo(clipStartSeconds(), true);
+            clipLastSeek = Date.now();
+        }
+    } catch (e) { console.warn('Clip (saut de synchro) :', e); }
     syncClipPlayback();
+    flashOffsetLabel(lab, clipOffsetText(), () => updateClipLabels());
 }
 
 function clipLoadYouTubeApi(callback) {
@@ -11164,10 +11189,12 @@ function subsOffsetLoad(videoId) {
     const v = clipReadStore('subsOffsets')[videoId];
     subsOffsetCur = typeof v === 'number' ? v : SUBS_ADVANCE_SEC;
     const lab = document.getElementById('subs-offset-label');
-    if (lab) lab.innerText = (subsOffsetCur > 0 ? '+' : '') + Math.round(subsOffsetCur * 1000) + ' ms';
+    if (lab) lab.innerText = subsOffsetText();
 }
+function subsOffsetText() { return (subsOffsetCur > 0 ? '+' : '') + Math.round(subsOffsetCur * 1000) + ' ms'; }
 function subsAdjustOffset(deltaSec) {
-    if (!clipVideoId) return;
+    const lab = document.getElementById('subs-offset-label');
+    if (!clipVideoId) { flashOffsetLabel(lab, 'aucune vidéo', () => subsOffsetLoad(clipVideoId), false); return; }
     subsOffsetCur = Math.round((subsOffsetCur + deltaSec) * 1000) / 1000;
     const store = clipReadStore('subsOffsets');
     store[clipVideoId] = subsOffsetCur;
@@ -11177,6 +11204,7 @@ function subsAdjustOffset(deltaSec) {
     subsOffsetLoad(clipVideoId);
     subsLastIdx = -2; // force le redessin immédiat
     updateSubsPanelContent();
+    flashOffsetLabel(lab, subsOffsetText(), () => subsOffsetLoad(clipVideoId));
 }
 let subsFeatureEnabled = localStorage.getItem('subsFeatureEnabled') === 'true';
 let subsLines = [];
@@ -11249,7 +11277,7 @@ function injectSubsStyles() {
         #subs-panel.has-lines:not(.controls-open) #subs-header { display: none; }
         #subs-header { flex-wrap: wrap; }
         .subs-off-btn { background: rgba(255,255,255,0.18); border: none; color: #fff; border-radius: 6px; font-size: 0.72rem; padding: 2px 7px; cursor: pointer; }
-        #subs-offset-label { color: rgba(255,255,255,0.85); font-size: 0.72rem; font-weight: normal; min-width: 54px; display: inline-block; text-align: center; font-variant-numeric: tabular-nums; }
+        #subs-offset-label { color: rgba(255,255,255,0.85); font-size: 0.72rem; font-weight: normal; min-width: 78px; display: inline-block; text-align: center; font-variant-numeric: tabular-nums; }
         #subs-hide-btn { background: rgba(255,255,255,0.18); border: none; color: #fff; border-radius: 6px; font-size: 0.75rem; padding: 1px 7px; cursor: pointer; margin-left: 4px; }
         #subs-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; color: #fff; font-size: 0.78rem; font-weight: bold; }
         #subs-redo-btn { display: none; background: rgba(255,255,255,0.18); border: none; color: #fff; border-radius: 6px; font-size: 0.75rem; padding: 1px 7px; cursor: pointer; margin-left: 4px; }
