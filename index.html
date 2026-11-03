@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v6.6";
+        const APP_VERSION = "v6.7";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1855,6 +1855,14 @@
 </div>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Aperçu des 3 prochains titres (à côté de la pochette)</span>
+    <label class="switch">
+        <input type="checkbox" id="queue-peek-toggle" onchange="toggleQueuePeekSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
     <span style="font-size: 0.85rem; color: var(--text-grey);">Bras du tourne-disque sur le vinyle (lecture en cours)</span>
     <label class="switch">
         <input type="checkbox" id="bras-tourne-disque-toggle" onchange="toggleBrasTourneDisqueSetting(this.checked)">
@@ -2467,6 +2475,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
         }
         
         async function redirectToSpotify() {
+            try { divoomNavigating = true; divoomStopTicker(); } catch (e) {}
             const verifier = generateCodeVerifier(128);
             const challenge = await generateCodeChallenge(verifier);
             localStorage.setItem("verifier", verifier);
@@ -2521,6 +2530,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 }, 100);
                 
                 updateNowPlaying();
+                try { applyDivoomState(); setTimeout(divoomAutoReconnect, 4000); } catch (e) {}
                 initSpectrum();
                 initDiscoBallState();
                 initSpotlightsState();
@@ -4356,9 +4366,15 @@ let divoomDevices = []; // { type: 'timebox' | 'pixoo', port, writer, name }
 let divoomLastPixels = null;
 // Aperçu des 3 prochains titres de la file d'attente, en bas à droite de la pochette
 let queuePeekTracks = [], queuePeekSel = -1, queuePeekTimer = null;
+let queuePeekEnabled = localStorage.getItem('queuePeekEnabled') !== 'false'; // activé par défaut
+function toggleQueuePeekSetting(on) {
+    queuePeekEnabled = !!on;
+    try { localStorage.setItem('queuePeekEnabled', on ? 'true' : 'false'); } catch (e) {}
+    if (on) refreshQueuePeek(); else { const el = document.getElementById('queue-peek'); if (el) { el.style.display = 'none'; el.innerHTML = ''; } }
+}
 async function refreshQueuePeek() {
     try {
-        if (!currentToken || driveMusicModeActive) return;
+        if (!queuePeekEnabled || !currentToken || driveMusicModeActive) return;
         const r = await fetch('https://api.spotify.com/v1/me/player/queue', { headers: { 'Authorization': 'Bearer ' + currentToken } });
         if (!r.ok) return;
         const d = await r.json();
@@ -4540,15 +4556,16 @@ async function divoomRememberPorts() {
         localStorage.setItem('divoomPortTypes', JSON.stringify(types.map((t, i) => t || old[i] || '')));
     } catch (e) {}
 }
-let divoomReconnecting = false;
+let divoomReconnecting = false, divoomNavigating = false;
 async function divoomAutoReconnect() {
-    if (divoomReconnecting) return;
+    if (divoomReconnecting || divoomNavigating || !currentToken) return; // jamais sur l'écran de connexion Spotify
     divoomReconnecting = true;
     try { await divoomAutoReconnectInner(); } catch (e) {}
     divoomReconnecting = false;
 }
 async function divoomAutoReconnectInner(manual) {
     try {
+        if (divoomNavigating) return;
         if ((!divoomEnabled && !manual) || !navigator.serial || !navigator.serial.getPorts) return;
         const ports = await navigator.serial.getPorts();
         if (!ports.length) { if (manual) divoomStatus('⚠️ Aucun appareil mémorisé : connecte-les une première fois avec les boutons 🔌'); return; }
@@ -4585,9 +4602,11 @@ async function divoomReconnectNow() {
 }
 // Au chargement de la page (sans ouvrir les paramètres) : on applique l'état et on reconnecte les appareils mémorisés
 window.addEventListener('load', () => {
-    try { const t = document.getElementById('divoom-toggle'); if (t) t.checked = divoomEnabled; applyDivoomState(); } catch (e) {}
-    setTimeout(divoomAutoReconnect, 1200);
+    try { const t = document.getElementById('divoom-toggle'); if (t) t.checked = divoomEnabled; const q = document.getElementById('queue-peek-toggle'); if (q) q.checked = queuePeekEnabled; } catch (e) {}
 });
+// Pendant un changement de page (redirection vers Spotify, rechargement) : on arrête tout accès Bluetooth
+window.addEventListener('pagehide', () => { divoomNavigating = true; try { divoomStopTicker(); } catch (e) {} });
+window.addEventListener('pageshow', (ev) => { if (ev.persisted) divoomNavigating = false; });
 try {
     if (navigator.serial) {
         navigator.serial.addEventListener('connect', () => setTimeout(divoomAutoReconnect, 1500));
@@ -4715,7 +4734,7 @@ async function divoomTick() {
 }
 async function divoomTickInner() {
     try {
-        if (divoomEnabled && Date.now() - divoomLastRetry > 8000) { // appareil mémorisé mais absent : on retente toutes les 8 s
+        if (divoomEnabled && currentToken && !divoomNavigating && Date.now() - divoomLastRetry > 8000) { // appareil mémorisé mais absent : on retente toutes les 8 s
             divoomLastRetry = Date.now();
             let remembered = 0; try { remembered = JSON.parse(localStorage.getItem('divoomPortTypes') || '[]').filter(Boolean).length; } catch (e) {}
             if (remembered > divoomDevices.length) divoomAutoReconnect();
@@ -4766,7 +4785,7 @@ function applyDivoomState() {
     const rm = document.getElementById('divoom-render-mode'); if (rm) rm.value = divoomRenderMode;
     const pt = document.getElementById('divoom-progress-toggle'); if (pt) pt.checked = divoomProgressBar;
     divoomUpdateIcons();
-    if (divoomEnabled) divoomStartTicker(); else divoomStopTicker();
+    if (divoomEnabled && currentToken && !divoomNavigating) divoomStartTicker(); else divoomStopTicker();
 }
 
 // Design épuré : un seul réglage qui change tout le graphisme (cartes, liserés, couleurs, boutons, panneaux)
@@ -4845,6 +4864,7 @@ function toggleSettings() {
         if (toggle) toggle.checked = spectrumEnabled;
         const divoomTgl = document.getElementById('divoom-toggle');
         if (divoomTgl) divoomTgl.checked = divoomEnabled;
+        const qpTgl = document.getElementById('queue-peek-toggle'); if (qpTgl) qpTgl.checked = queuePeekEnabled;
         applyDivoomState();
         setTimeout(divoomAutoReconnect, 800);
         const uiRefTgl = document.getElementById('ui-refined-toggle');
