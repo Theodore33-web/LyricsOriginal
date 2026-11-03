@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v6.1";
+        const APP_VERSION = "v6.2";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1542,6 +1542,10 @@
         <button class="divoom-btn" onclick="divoomConnect('timebox')">🔌 Timebox Evo</button>
         <button class="divoom-btn" onclick="divoomConnect('pixoo')">🔌 Pixoo</button>
         <button class="divoom-btn" onclick="divoomTestColor()">🔴 Test rouge</button>
+        <select id="divoom-render-mode" onchange="divoomSetRenderMode(this.value)" style="background: #1a1a1a; color: #fff; border: 1px solid #444; border-radius: 6px; padding: 4px 6px; font-size: 0.72rem;">
+            <option value="color">Mode : couleur principale (fond)</option>
+            <option value="image">Mode : pochette en 16×16</option>
+        </select>
     </div>
     <div id="divoom-status" style="font-size: 0.75rem; color: var(--text-grey);">Aucun appareil connecté</div>
 </div>
@@ -2055,6 +2059,10 @@
             </div> <div class="card">
                 <div style="display: flex; align-items: center; justify-content: space-between;">
                     <p id="lecture-en-cours-title" style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 0;">LECTURE EN COURS</p>
+                    <span id="divoom-icons" style="display: inline-flex; gap: 6px; align-items: center;">
+                        <img id="divoom-icon-timebox" src="enceinte.png" alt="Enceinte connectée" title="Enceinte Divoom connectée" style="display: none; height: 22px; width: auto; object-fit: contain;" onerror="this.style.visibility='hidden'">
+                        <img id="divoom-icon-pixoo" src="ecranled.png" alt="Écran LED connecté" title="Écran LED connecté" style="display: none; height: 22px; width: auto; object-fit: contain;" onerror="this.style.visibility='hidden'">
+                    </span>
                 </div>
                 <img id="track-art" src="" alt="" style="display:none;" crossorigin="anonymous">
                 <h3 id="track-title">Aucune lecture</h3>
@@ -4313,12 +4321,20 @@ let spectrum8Enabled = localStorage.getItem('spectrum8Enabled') === 'true';
 // l'enceinte expose, pour pouvoir corriger le protocole si l'affichage ne réagit pas. Rien ne peut gêner la lecture.
 // ==========================================
 let divoomEnabled = localStorage.getItem('divoomEnabled') === 'true';
+let divoomRenderMode = localStorage.getItem('divoomRenderMode') === 'image' ? 'image' : 'color'; // 'color' = couleur principale, 'image' = pochette en 16x16
 let divoomDevices = []; // { type: 'timebox' | 'pixoo', port, writer, name }
+let divoomLastPixels = null;
 let divoomBusy = false, divoomLastArt = '', divoomLastColor = '', divoomLastSend = 0, divoomTimer = null;
 const DIVOOM_TYPES = { timebox: 'Timebox Evo', pixoo: 'Pixoo' };
 
 function divoomStatus(text) { const el = document.getElementById('divoom-status'); if (el) el.textContent = text; }
+function divoomUpdateIcons() {
+    const e = document.getElementById('divoom-icon-timebox'), p = document.getElementById('divoom-icon-pixoo');
+    if (e) e.style.display = divoomDevices.some(d => d.type === 'timebox') ? 'inline-block' : 'none';
+    if (p) p.style.display = divoomDevices.some(d => d.type === 'pixoo') ? 'inline-block' : 'none';
+}
 function divoomRefreshStatus() {
+    divoomUpdateIcons();
     if (!divoomDevices.length) { divoomStatus('Aucun appareil connecté'); return; }
     divoomStatus('✅ Connecté : ' + divoomDevices.map(d => DIVOOM_TYPES[d.type]).join(' + '));
 }
@@ -4335,19 +4351,54 @@ function divoomLightPayload(r, g, b) { return [0x45, 0x01, r, g, b, 100, 0x00, 0
 // Pixoo : image fixe 0x44 d'une seule couleur (palette de 1 couleur, aucun pixel à écrire) : 44 00 0A 0A 04 | AA 0A 00 0000 00 01 R G B
 function divoomImagePayload(r, g, b) { return [0x44, 0x00, 0x0A, 0x0A, 0x04, 0xAA, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x01, r, g, b]; }
 function divoomBrightnessPayload(v) { return [0x74, v]; }
+// Image 16x16 : palette (jusqu'à 256 couleurs) + indices de pixels codés sur ceil(log2(N)) bits, du bit de poids faible vers le fort
+function divoomPixelsImagePayload(px) { // px : tableau de 256 [r,g,b], ligne par ligne depuis le haut gauche
+    const pal = [], idx = new Map(), indices = [];
+    for (const c of px) {
+        const key = (c[0] << 16) | (c[1] << 8) | c[2];
+        if (!idx.has(key)) { idx.set(key, pal.length); pal.push(c); }
+        indices.push(idx.get(key));
+    }
+    const n = pal.length, bits = n < 2 ? 0 : Math.ceil(Math.log2(n));
+    const packed = new Array(32 * bits).fill(0);
+    indices.forEach((v, i) => { for (let b = 0; b < bits; b++) if (v >> b & 1) { const pos = i * bits + b; packed[pos >> 3] |= 1 << (pos & 7); } });
+    const len = 7 + 3 * n + 32 * bits;
+    const frame = [0xAA, len & 255, len >> 8, 0x00, 0x00, 0x00, n === 256 ? 0 : n];
+    pal.forEach(c => frame.push(c[0], c[1], c[2]));
+    return [0x44, 0x00, 0x0A, 0x0A, 0x04].concat(frame, packed);
+}
+// Réduit la pochette en 16x16 (recadrage carré centré, léger coup de saturation pour que les LED rendent mieux)
+function divoomCoverPixels(img) {
+    const cv = document.createElement('canvas'); cv.width = 16; cv.height = 16;
+    const ctx = cv.getContext('2d', { willReadFrequently: true });
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+    const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height, m = Math.min(w, h);
+    ctx.drawImage(img, (w - m) / 2, (h - m) / 2, m, m, 0, 0, 16, 16);
+    const d = ctx.getImageData(0, 0, 16, 16).data, out = [];
+    for (let i = 0; i < 256; i++) {
+        let r = d[i * 4], g = d[i * 4 + 1], b = d[i * 4 + 2];
+        const l = 0.3 * r + 0.59 * g + 0.11 * b, k = 1.25;
+        r = Math.max(0, Math.min(255, Math.round(l + (r - l) * k)));
+        g = Math.max(0, Math.min(255, Math.round(l + (g - l) * k)));
+        b = Math.max(0, Math.min(255, Math.round(l + (b - l) * k)));
+        out.push([r & 0xF8, g & 0xF8, b & 0xF8]); // 5 bits par canal : regroupe les teintes voisines (palette plus courte)
+    }
+    return out;
+}
 
-async function divoomSendTo(dev, r, g, b) {
+async function divoomSendTo(dev, r, g, b, pixels) {
     const frames = [];
-    if (dev.type === 'pixoo') { frames.push(divoomSppFrame(divoomBrightnessPayload(100))); frames.push(divoomSppFrame(divoomImagePayload(r, g, b))); }
+    if (pixels) { if (dev.type === 'pixoo') frames.push(divoomSppFrame(divoomBrightnessPayload(100))); frames.push(divoomSppFrame(divoomPixelsImagePayload(pixels))); }
+    else if (dev.type === 'pixoo') { frames.push(divoomSppFrame(divoomBrightnessPayload(100))); frames.push(divoomSppFrame(divoomImagePayload(r, g, b))); }
     else frames.push(divoomSppFrame(divoomLightPayload(r, g, b)));
     for (const f of frames) { await dev.writer.write(new Uint8Array(f)); await new Promise(res => setTimeout(res, 60)); }
 }
-async function divoomSendColor(r, g, b) {
+async function divoomSendColor(r, g, b, pixels) {
     if (!divoomDevices.length || divoomBusy) return;
     divoomBusy = true;
     for (const dev of divoomDevices.slice()) {
-        try { await divoomSendTo(dev, r, g, b); }
-        catch (e) { divoomStatus('⚠️ envoi impossible vers ' + DIVOOM_TYPES[dev.type] + ' : ' + (e && e.message ? e.message : e)); divoomDevices = divoomDevices.filter(d => d !== dev); }
+        try { await divoomSendTo(dev, r, g, b, pixels); }
+        catch (e) { divoomStatus('⚠️ envoi impossible vers ' + DIVOOM_TYPES[dev.type] + ' : ' + (e && e.message ? e.message : e)); divoomDevices = divoomDevices.filter(d => d !== dev); divoomUpdateIcons(); }
     }
     divoomBusy = false;
 }
@@ -4373,6 +4424,11 @@ function divoomTestColor() {
     if (!divoomDevices.length) { divoomStatus('⚠️ aucun appareil connecté'); return; }
     divoomSendColor(255, 0, 0);
 }
+function divoomSetRenderMode(v) {
+    divoomRenderMode = v === 'image' ? 'image' : 'color';
+    try { localStorage.setItem('divoomRenderMode', divoomRenderMode); } catch (e) {}
+    divoomLastArt = ''; divoomLastColor = ''; divoomPollCover();
+}
 
 // Surveille la pochette : à chaque nouveau titre on envoie sa couleur principale (au plus 1 envoi par seconde)
 function divoomPollCover() {
@@ -4386,9 +4442,11 @@ function divoomPollCover() {
             if (!c1) return;
             const k = 255 / Math.max(c1[0], c1[1], c1[2], 1); // couleur ramenée à pleine intensité pour bien allumer les LED
             const rgb = c1.map(v => Math.min(255, Math.round(v * k)));
-            if (rgb.join() === divoomLastColor) return;
+            if (rgb.join() === divoomLastColor && divoomRenderMode === 'color') return;
             divoomLastColor = rgb.join();
-            divoomSendColor(rgb[0], rgb[1], rgb[2]);
+            let pixels = null;
+            if (divoomRenderMode === 'image') { try { pixels = divoomCoverPixels(art); } catch (e) { console.warn('Divoom image :', e); } }
+            divoomSendColor(rgb[0], rgb[1], rgb[2], pixels);
         });
     } catch (e) { console.warn('Divoom :', e); }
 }
@@ -4400,6 +4458,8 @@ function toggleDivoomSetting(checked) {
 function applyDivoomState() {
     const panel = document.getElementById('divoom-panel');
     if (panel) panel.style.display = divoomEnabled ? 'flex' : 'none';
+    const rm = document.getElementById('divoom-render-mode'); if (rm) rm.value = divoomRenderMode;
+    divoomUpdateIcons();
     if (divoomEnabled && !divoomTimer) divoomTimer = setInterval(divoomPollCover, 1500);
     if (!divoomEnabled && divoomTimer) { clearInterval(divoomTimer); divoomTimer = null; }
 }
