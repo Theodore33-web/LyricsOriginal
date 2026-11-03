@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v6.9";
+        const APP_VERSION = "v7.0";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -979,17 +979,18 @@
         body.progress-style-vagues .progress-bar-bg::after { content: ''; position: absolute; left: -6px; right: -6px; top: -16px; bottom: -16px; }
         body.progress-style-vagues #progress-fill { background: transparent !important; box-shadow: none; opacity: 0; }
 
-        /* 15) Pixels 16 : 16 cases carrées façon écran LED, couleur de la pochette (--pf-c1) */
+        /* 15) Pixels 16 : comme la dernière ligne de l'écran LED — 16 pixels carrés, allumés un par un en blanc,
+           les pixels éteints gardent la couleur de la pochette atténuée (--pf-c1) */
         body.progress-style-pixel16 .progress-bar-bg {
-            height: 12px; border-radius: 0; overflow: visible;
-            background-image: linear-gradient(90deg, rgba(255,255,255,0.16) calc(100% - 3px), transparent 0);
+            height: calc(var(--bar-w, 320px) / 16 - 3px); border-radius: 0; overflow: visible;
+            background-image: linear-gradient(90deg, rgba(var(--pf-c1, 29, 185, 84), 0.32) calc(100% - 3px), transparent 0);
             background-size: calc(var(--bar-w, 320px) / 16) 100%; background-repeat: repeat-x;
         }
         body.progress-style-pixel16 #progress-fill {
-            border-radius: 0; background-image: linear-gradient(90deg, rgb(var(--pf-c1, 29, 185, 84)), rgb(var(--pf-c1, 29, 185, 84)));
+            border-radius: 0; background: #f8f8f8; background-image: none;
             -webkit-mask: linear-gradient(90deg, #000 calc(100% - 3px), transparent 0) 0 0 / calc(var(--bar-w, 320px) / 16) 100% repeat-x;
             mask: linear-gradient(90deg, #000 calc(100% - 3px), transparent 0) 0 0 / calc(var(--bar-w, 320px) / 16) 100% repeat-x;
-            box-shadow: none; transition: none;
+            box-shadow: none; transition: none; animation: none;
         }
 
         /* 12) Pulsation */
@@ -1565,6 +1566,7 @@
         <button class="divoom-btn" onclick="divoomConnect('pixoo')">🔌 Pixoo</button>
         <button class="divoom-btn" onclick="divoomTestColor()">🔴 Test rouge</button>
         <button class="divoom-btn" onclick="divoomDisconnectAll(true)">⏏️ Déconnecter</button>
+        <label style="font-size: 0.72rem; color: var(--text-grey); display: inline-flex; align-items: center; gap: 4px;"><input type="checkbox" id="divoom-keepalive-toggle" onchange="divoomSetKeepAlive(this.checked)"> Maintien en arrière-plan (signal inaudible, à tester : peut gêner Spotify)</label>
         <label style="font-size: 0.72rem; color: var(--text-grey); display: inline-flex; align-items: center; gap: 4px;"><input type="checkbox" id="divoom-auto-toggle" onchange="divoomSetAutoReconnect(this.checked)"> Reconnexion automatique</label>
         <select id="divoom-render-mode" onchange="divoomSetRenderMode(this.value)" style="background: #1a1a1a; color: #fff; border: 1px solid #444; border-radius: 6px; padding: 4px 6px; font-size: 0.72rem;">
             <option value="color">Mode : couleur principale (fond)</option>
@@ -4367,6 +4369,24 @@ let divoomProgressBar = localStorage.getItem('divoomProgressBar') === 'true';
 let divoomCoverRgb = null, divoomCoverPx = null, divoomDirty = false, divoomLastKey = '', divoomProgSeen = -1, divoomProgSeenAt = 0;
 let divoomDevices = []; // { type: 'timebox' | 'pixoo', port, writer, name }
 let divoomLastPixels = null;
+// Option « maintien en arrière-plan » : un signal audio inaudible garde la page active quand Chrome passe en arrière-plan
+let divoomKeepAliveOn = localStorage.getItem('divoomKeepAlive') === 'true', divoomAudioCtx = null;
+function divoomKeepAliveStart() {
+    try {
+        if (divoomAudioCtx) { if (divoomAudioCtx.state === 'suspended') divoomAudioCtx.resume(); return; }
+        const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+        const ctx = new AC(), osc = ctx.createOscillator(), g = ctx.createGain();
+        g.gain.value = 0.00002; osc.frequency.value = 40; osc.connect(g); g.connect(ctx.destination); osc.start();
+        divoomAudioCtx = ctx;
+    } catch (e) {}
+}
+function divoomKeepAliveStop() { try { if (divoomAudioCtx) { divoomAudioCtx.close(); divoomAudioCtx = null; } } catch (e) {} }
+function divoomSetKeepAlive(on) {
+    divoomKeepAliveOn = !!on;
+    try { localStorage.setItem('divoomKeepAlive', on ? 'true' : 'false'); } catch (e) {}
+    if (on) divoomKeepAliveStart(); else divoomKeepAliveStop();
+}
+document.addEventListener('pointerdown', () => { if (divoomKeepAliveOn && !divoomAudioCtx) divoomKeepAliveStart(); }, { passive: true });
 // Aperçu des 3 prochains titres de la file d'attente, en bas à droite de la pochette
 let queuePeekTracks = [], queuePeekSel = -1, queuePeekTimer = null;
 let queuePeekEnabled = localStorage.getItem('queuePeekEnabled') !== 'false'; // activé par défaut
@@ -4447,9 +4467,9 @@ async function divoomDisconnectAll(withBye) {
     try {
         if (withBye) { // les appareils sont traités en parallèle
             await Promise.all(list.map(d => divoomSendTo(d, 248, 0, 0, divoomByePixels()).catch(() => {})));
-            await new Promise(r => setTimeout(r, 1200));
+            await divoomSleep(1200);
             await Promise.all(list.map(d => divoomSendTo(d, 0, 0, 0, divoomPixelsOf(() => null)).catch(() => {})));
-            await new Promise(r => setTimeout(r, 150));
+            await divoomSleep(150);
         }
     } catch (e) {}
     await Promise.all(list.map(divoomDrop));
@@ -4523,9 +4543,9 @@ async function divoomSendTo(dev, r, g, b, pixels) {
         const data = new Uint8Array(f);
         for (let i = 0; i < data.length; i += 200) { // petits paquets pour ne pas saturer la liaison Bluetooth
             await divoomWithTimeout(dev.writer.write(data.slice(i, i + 200)), 4000);
-            if (data.length > 200) await new Promise(res => setTimeout(res, 15));
+            if (data.length > 200) await divoomSleep(15);
         }
-        await new Promise(res => setTimeout(res, 40));
+        await divoomSleep(25);
     }
 }
 function divoomWithTimeout(pr, ms) { return Promise.race([pr, new Promise((_, rej) => setTimeout(() => rej(new Error('délai d\'envoi dépassé')), ms))]); }
@@ -4665,7 +4685,7 @@ function divoomPollCover() {
         });
     } catch (e) { console.warn('Divoom :', e); }
 }
-const DIVOOM_SCROLL_PXS = 32; // vitesse minimale de défilement des paroles (pixels par seconde)
+const DIVOOM_SCROLL_PXS = 40; // vitesse minimale de défilement des paroles (pixels par seconde)
 // Police 3x5 (accents retirés) pour les paroles défilantes ; chaque glyphe = 5 lignes de 3 points, lues de haut en bas
 const DIVOOM_FONT = {
  A:'010101111101101',B:'110101110101110',C:'011100100100011',D:'110101101101110',E:'111100110100111',F:'111100110100100',
@@ -4775,7 +4795,7 @@ async function divoomTickInner() {
             const px = divoomBuildFrame(); if (!px) return;
             const key = px.map(c => c.join('.')).join('|');
             if (key === divoomLastKey) return;
-            if (Date.now() - divoomLastPixSend < 300) return; // au plus ~3 images par seconde : ménage la liaison Bluetooth
+            if (Date.now() - divoomLastPixSend < 150) return; // au plus ~6 images par seconde : ménage la liaison Bluetooth
             divoomLastPixSend = Date.now();
             if (await divoomSendColor(rgb[0], rgb[1], rgb[2], px)) { divoomLastKey = key; divoomDirty = false; }
         }
@@ -4783,29 +4803,49 @@ async function divoomTickInner() {
 }
 // Le minuteur tourne dans un Web Worker (moins ralenti que celui de la page quand Chrome est en arrière-plan)
 // et un « verrou web » est gardé pour que Chrome évite de geler la page.
-let divoomWorker = null, divoomLockRelease = null, divoomBgPoll = 0;
+let divoomWorker = null, divoomLockRelease = null, divoomBgPoll = 0, divoomSleepSeq = 0;
+const divoomSleepers = {};
+// Pause qui n'est PAS ralentie quand Chrome est en arrière-plan (les setTimeout de la page le sont, ceux du worker non)
+function divoomSleep(ms) {
+    if (!divoomWorker) return new Promise(r => setTimeout(r, ms));
+    return new Promise(r => { const id = ++divoomSleepSeq; divoomSleepers[id] = r; divoomWorker.postMessage({ id: id, ms: ms }); });
+}
+// Relance la lecture de l'état Spotify depuis le worker : plus souvent autour des changements de titre, et aussi quand la page est cachée
+let divoomPollBusy = false;
+async function divoomBackgroundSync() {
+    try {
+        if (!divoomDevices.length || divoomPollBusy || driveMusicModeActive) return;
+        const prog = divoomProgressMs(), near = trackDurationMs > 0 && (trackDurationMs - prog < 4500 || prog < 4000);
+        const gap = near ? 700 : (document.hidden ? 1500 : 0);
+        if (!gap || Date.now() - divoomBgPoll < gap) return;
+        divoomBgPoll = Date.now(); divoomPollBusy = true;
+        try { await updateNowPlaying(); } catch (e) {}
+        divoomPollBusy = false;
+    } catch (e) { divoomPollBusy = false; }
+}
 function divoomStartTicker() {
     if (divoomWorker || divoomTimer) return;
     try {
-        const blob = new Blob(['setInterval(function(){postMessage(1)},200)'], { type: 'text/javascript' });
+        const blob = new Blob(['setInterval(function(){postMessage(1)},100);onmessage=function(e){var d=e.data;setTimeout(function(){postMessage({id:d.id})},d.ms)}'], { type: 'text/javascript' });
         divoomWorker = new Worker(URL.createObjectURL(blob));
-        divoomWorker.onmessage = () => {
+        divoomWorker.onmessage = (ev) => {
+            if (ev.data && ev.data.id) { const r = divoomSleepers[ev.data.id]; if (r) { delete divoomSleepers[ev.data.id]; r(); } return; }
             divoomTick();
-            // Page en arrière-plan : les minuteurs de la page sont ralentis, donc on relance nous-mêmes la synchro Spotify
-            if (document.hidden && divoomDevices.length && Date.now() - divoomBgPoll > 2500) { divoomBgPoll = Date.now(); try { updateNowPlaying(); } catch (e) {} }
+            divoomBackgroundSync();
         };
-    } catch (e) { divoomTimer = setInterval(divoomTick, 200); }
+    } catch (e) { divoomTimer = setInterval(divoomTick, 150); }
     try { if (navigator.locks && !divoomLockRelease) navigator.locks.request('divoom-keepalive', () => new Promise(res => { divoomLockRelease = res; })); } catch (e) {}
 }
 function divoomStopTicker() {
     if (divoomWorker) { divoomWorker.terminate(); divoomWorker = null; }
+    Object.keys(divoomSleepers).forEach(k => { const r = divoomSleepers[k]; delete divoomSleepers[k]; r(); }); // libère les pauses en attente
     if (divoomTimer) { clearInterval(divoomTimer); divoomTimer = null; }
     if (divoomLockRelease) { divoomLockRelease(); divoomLockRelease = null; }
 }
-function toggleDivoomSetting(checked) {
-    if (!checked && divoomDevices.length) { divoomDisconnectAll(true); }
+async function toggleDivoomSetting(checked) {
     divoomEnabled = checked;
     try { localStorage.setItem('divoomEnabled', checked ? 'true' : 'false'); } catch (e) {}
+    if (!checked && divoomDevices.length) { await divoomDisconnectAll(true); } // la croix puis l'écran noir passent AVANT l'arrêt du minuteur
     applyDivoomState();
     if (checked) divoomAutoReconnect();
 }
@@ -4815,6 +4855,7 @@ function applyDivoomState() {
     const rm = document.getElementById('divoom-render-mode'); if (rm) rm.value = divoomRenderMode;
     const pt = document.getElementById('divoom-progress-toggle'); if (pt) pt.checked = divoomProgressBar;
     const at = document.getElementById('divoom-auto-toggle'); if (at) at.checked = divoomAutoEnabled;
+    const kt = document.getElementById('divoom-keepalive-toggle'); if (kt) kt.checked = divoomKeepAliveOn;
     divoomUpdateIcons();
     if (divoomEnabled && currentToken && !divoomNavigating) divoomStartTicker(); else divoomStopTicker();
 }
@@ -12342,7 +12383,7 @@ function setProgressStyle(style) {
 // Pose la largeur totale de la barre dans --bar-w pour que les dégradés s'étirent sur toute la barre
 function updateProgressBarWidthVar() {
     const fill = document.getElementById('progress-fill');
-    if (fill && fill.parentElement) fill.style.setProperty('--bar-w', fill.parentElement.clientWidth + 'px');
+    if (fill && fill.parentElement) { fill.style.setProperty('--bar-w', fill.parentElement.clientWidth + 'px'); fill.parentElement.style.setProperty('--bar-w', fill.parentElement.clientWidth + 'px'); }
 }
 
 function initProgressStyleState() {
