@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v6.8";
+        const APP_VERSION = "v6.9";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -811,7 +811,7 @@
         #queue-peek .qp-thumb { width: 38px; height: 38px; border-radius: 6px; object-fit: cover; border: 1px solid rgba(255,255,255,0.35); box-shadow: 0 3px 8px rgba(0,0,0,0.5); cursor: pointer; background: #222; box-sizing: border-box; margin-left: -12px; }
         #queue-peek .qp-thumb:first-child { margin-left: 0; }
         #queue-peek .qp-thumb.on { outline: 2px solid var(--spotify-green); outline-offset: 1px; }
-        #queue-peek .qp-info { width: 150px; padding: 5px 9px; border-radius: 9px; background: rgba(0,0,0,0.78); color: #fff; font-size: 0.72rem; line-height: 1.3; text-align: right; display: none; }
+        #queue-peek .qp-info { position: absolute; right: 0; top: calc(100% + 4px); width: 170px; text-align: left; z-index: 8; padding: 5px 9px; border-radius: 9px; background: rgba(0,0,0,0.78); color: #fff; font-size: 0.72rem; line-height: 1.3; display: none; }
         #queue-peek .qp-info b { display: block; font-size: 0.78rem; }
         #track-art { 
             width: 150px; 
@@ -1565,6 +1565,7 @@
         <button class="divoom-btn" onclick="divoomConnect('pixoo')">🔌 Pixoo</button>
         <button class="divoom-btn" onclick="divoomTestColor()">🔴 Test rouge</button>
         <button class="divoom-btn" onclick="divoomDisconnectAll(true)">⏏️ Déconnecter</button>
+        <label style="font-size: 0.72rem; color: var(--text-grey); display: inline-flex; align-items: center; gap: 4px;"><input type="checkbox" id="divoom-auto-toggle" onchange="divoomSetAutoReconnect(this.checked)"> Reconnexion automatique</label>
         <select id="divoom-render-mode" onchange="divoomSetRenderMode(this.value)" style="background: #1a1a1a; color: #fff; border: 1px solid #444; border-radius: 6px; padding: 4px 6px; font-size: 0.72rem;">
             <option value="color">Mode : couleur principale (fond)</option>
             <option value="image">Mode : pochette en 16×16</option>
@@ -3084,7 +3085,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
     const progressPercent = (targetPositionMs / trackDurationMs) * 100;
     const fillEl = document.getElementById('progress-fill');
     const timeEl = document.getElementById('time-current');
-    if (fillEl) fillEl.style.width = `${progressPercent}%`;
+    if (fillEl) fillEl.style.width = snapProgressPct(progressPercent) + '%';
     if (timeEl) timeEl.innerText = formatTime(targetPositionMs);
 
     // Le déplacement manuel change le temps restant réel : il faut reprogrammer
@@ -3527,7 +3528,7 @@ async function seekToLyricLine(lineIndex) {
     const progressPercent = (targetPositionMs / trackDurationMs) * 100;
     const fillEl = document.getElementById('progress-fill');
     const timeEl = document.getElementById('time-current');
-    if (fillEl) fillEl.style.width = `${progressPercent}%`;
+    if (fillEl) fillEl.style.width = snapProgressPct(progressPercent) + '%';
     if (timeEl) timeEl.innerText = formatTime(targetPositionMs);
     highlightLyrics(currentLyrics[lineIndex].time);
 
@@ -3805,7 +3806,7 @@ function highlightLyrics(currentTime) {
                     document.getElementById('time-current').innerText = formatTime(data.progress_ms);
                     document.getElementById('time-max').innerText = formatTime(trackDurationMs);
                     const progressPercent = (data.progress_ms / trackDurationMs) * 100;
-                    document.getElementById('progress-fill').style.width = `${progressPercent}%`;
+                    document.getElementById('progress-fill').style.width = snapProgressPct(progressPercent) + '%';
 
                     const art = document.getElementById('track-art');
                     const oldSrc = art.src;
@@ -3894,7 +3895,7 @@ function highlightLyrics(currentTime) {
             const progressPercent = (currentProgressMs / trackDurationMs) * 100;
             const fillEl = document.getElementById('progress-fill');
             const timeEl = document.getElementById('time-current');
-            if (fillEl) fillEl.style.width = `${progressPercent}%`;
+            if (fillEl) fillEl.style.width = snapProgressPct(progressPercent) + '%';
             if (timeEl) timeEl.innerText = formatTime(currentProgressMs);
 
             highlightLyrics(currentProgressMs / 1000);
@@ -4420,7 +4421,7 @@ function positionQueuePeek() {
     left = Math.min(left, card.clientWidth - rowW - 6);
     el.style.left = left + 'px';
     el.style.top = (art.offsetTop + art.offsetHeight - rowH) + 'px'; // bas aligné sur le bas de la pochette
-    const info = el.querySelector('.qp-info'); if (info) info.style.alignSelf = 'flex-end';
+
 }
 setInterval(() => { try { refreshQueuePeek(); } catch (e) {} }, 20000);
 setTimeout(() => { try { refreshQueuePeek(); } catch (e) {} }, 4000);
@@ -4571,8 +4572,10 @@ async function divoomRememberPorts() {
     } catch (e) {}
 }
 let divoomReconnecting = false, divoomNavigating = false;
+let divoomAutoEnabled = localStorage.getItem('divoomAutoReconnect') !== 'false'; // réglage « reconnexion automatique », activé par défaut
+function divoomSetAutoReconnect(on) { divoomAutoEnabled = !!on; try { localStorage.setItem('divoomAutoReconnect', on ? 'true' : 'false'); } catch (e) {} if (on) divoomAutoReconnect(); }
 async function divoomAutoReconnect() {
-    if (divoomReconnecting || divoomNavigating || !currentToken) return; // jamais sur l'écran de connexion Spotify
+    if (divoomReconnecting || divoomNavigating || !currentToken || !divoomAutoEnabled) return; // jamais sur l'écran de connexion Spotify
     divoomReconnecting = true;
     try { await divoomAutoReconnectInner(); } catch (e) {}
     divoomReconnecting = false;
@@ -4662,7 +4665,7 @@ function divoomPollCover() {
         });
     } catch (e) { console.warn('Divoom :', e); }
 }
-const DIVOOM_SCROLL_PXS = 22; // vitesse minimale de défilement des paroles (pixels par seconde)
+const DIVOOM_SCROLL_PXS = 32; // vitesse minimale de défilement des paroles (pixels par seconde)
 // Police 3x5 (accents retirés) pour les paroles défilantes ; chaque glyphe = 5 lignes de 3 points, lues de haut en bas
 const DIVOOM_FONT = {
  A:'010101111101101',B:'110101110101110',C:'011100100100011',D:'110101101101110',E:'111100110100111',F:'111100110100100',
@@ -4718,7 +4721,7 @@ function divoomBuildFrame(opts) {
             else {
                 const travel = bm.w - 14, elapsed = prog - line.time * 1000;
                 const speed = Math.max(DIVOOM_SCROLL_PXS, travel / (dur * 0.8 / 1000)); // px/s : assez vite pour finir la ligne avant la suivante
-                x0 = Math.round(1 - Math.min(travel, Math.max(0, elapsed - 350) / 1000 * speed));
+                x0 = Math.round(1 - Math.min(travel, Math.max(0, elapsed - 250) / 1000 * speed));
             }
             for (let cx = 0; cx < bm.w; cx++) {
                 const X = x0 + cx; if (X < 0 || X > 15) continue;
@@ -4755,7 +4758,7 @@ async function divoomTick() {
 }
 async function divoomTickInner() {
     try {
-        if (divoomEnabled && currentToken && !divoomNavigating && Date.now() - divoomLastRetry > 8000) { // appareil mémorisé mais absent : on retente toutes les 8 s
+        if (divoomEnabled && divoomAutoEnabled && currentToken && !divoomNavigating && Date.now() - divoomLastRetry > 8000) { // appareil mémorisé mais absent : on retente toutes les 8 s
             divoomLastRetry = Date.now();
             let remembered = 0; try { remembered = JSON.parse(localStorage.getItem('divoomPortTypes') || '[]').filter(Boolean).length; } catch (e) {}
             if (remembered > divoomDevices.length) divoomAutoReconnect();
@@ -4780,13 +4783,17 @@ async function divoomTickInner() {
 }
 // Le minuteur tourne dans un Web Worker (moins ralenti que celui de la page quand Chrome est en arrière-plan)
 // et un « verrou web » est gardé pour que Chrome évite de geler la page.
-let divoomWorker = null, divoomLockRelease = null;
+let divoomWorker = null, divoomLockRelease = null, divoomBgPoll = 0;
 function divoomStartTicker() {
     if (divoomWorker || divoomTimer) return;
     try {
         const blob = new Blob(['setInterval(function(){postMessage(1)},200)'], { type: 'text/javascript' });
         divoomWorker = new Worker(URL.createObjectURL(blob));
-        divoomWorker.onmessage = () => divoomTick();
+        divoomWorker.onmessage = () => {
+            divoomTick();
+            // Page en arrière-plan : les minuteurs de la page sont ralentis, donc on relance nous-mêmes la synchro Spotify
+            if (document.hidden && divoomDevices.length && Date.now() - divoomBgPoll > 2500) { divoomBgPoll = Date.now(); try { updateNowPlaying(); } catch (e) {} }
+        };
     } catch (e) { divoomTimer = setInterval(divoomTick, 200); }
     try { if (navigator.locks && !divoomLockRelease) navigator.locks.request('divoom-keepalive', () => new Promise(res => { divoomLockRelease = res; })); } catch (e) {}
 }
@@ -4807,6 +4814,7 @@ function applyDivoomState() {
     if (panel) panel.style.display = divoomEnabled ? 'flex' : 'none';
     const rm = document.getElementById('divoom-render-mode'); if (rm) rm.value = divoomRenderMode;
     const pt = document.getElementById('divoom-progress-toggle'); if (pt) pt.checked = divoomProgressBar;
+    const at = document.getElementById('divoom-auto-toggle'); if (at) at.checked = divoomAutoEnabled;
     divoomUpdateIcons();
     if (divoomEnabled && currentToken && !divoomNavigating) divoomStartTicker(); else divoomStopTicker();
 }
@@ -9763,7 +9771,7 @@ function playDriveMusicTrack(index) {
         const currentEl = document.getElementById('time-current');
         const fillEl = document.getElementById('progress-fill');
         if (currentEl) currentEl.innerText = formatTime(currentMs);
-        if (fillEl) fillEl.style.width = `${(currentMs / durationMs) * 100}%`;
+        if (fillEl) fillEl.style.width = snapProgressPct((currentMs / durationMs) * 100) + '%';
     }, 500);
 }
 
@@ -12256,6 +12264,11 @@ function stopWaveBar() {
 let progressStyle = localStorage.getItem('progressStyle') || 'none';
 const PROGRESS_STYLES = ['vinyle', 'retro', 'neon', 'arcenciel', 'rayures', 'perles', 'egaliseur', 'flamme', 'glace', 'or', 'comete', 'pulsation', 'pochette', 'vagues', 'pixel16'];
 
+// Style « Pixels 16 cases » : la barre avance case par case (même arrondi que sur l'écran LED : round(16 × position))
+function snapProgressPct(pct) {
+    if (typeof progressStyle !== 'undefined' && progressStyle === 'pixel16') return Math.round(Math.max(0, Math.min(100, pct)) / 100 * 16) / 16 * 100;
+    return pct;
+}
 function applyProgressStyle() {
     if (progressStyle === 'vagues') startWaveBar(); else stopWaveBar();
     PROGRESS_STYLES.forEach(k => document.body.classList.remove('progress-style-' + k));
