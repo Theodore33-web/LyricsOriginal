@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v5.9";
+        const APP_VERSION = "v6.0";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1539,7 +1539,8 @@
 <div id="divoom-panel" style="display: none; flex-direction: column; gap: 6px; width: 100%;">
     <div style="font-size: 0.72rem; color: var(--text-grey); line-height: 1.5;">Affiche la couleur principale de la pochette sur l'enceinte via le Bluetooth du téléphone. <b>Bêta, non garanti</b> : Chrome sur Android, page en https, enceinte allumée et à proximité. Le « journal » aide à diagnostiquer si rien ne s'affiche.</div>
     <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
-        <button class="divoom-btn" onclick="divoomConnect()">🔗 Connecter</button>
+        <button class="divoom-btn" onclick="divoomConnectSerial()">🔌 Connecter (série, conseillé)</button>
+        <button class="divoom-btn" onclick="divoomConnect()">🔗 Connecter (BLE)</button>
         <button class="divoom-btn" onclick="divoomTestColor()">🔴 Test rouge</button>
         <button class="divoom-btn" onclick="divoomCopyLog()">📋 Journal</button>
         <select id="divoom-mode" onchange="divoomSetMode(this.value)" style="background: #1a1a1a; color: #fff; border: 1px solid #444; border-radius: 6px; padding: 4px 6px; font-size: 0.72rem;">
@@ -4319,6 +4320,7 @@ let spectrum8Enabled = localStorage.getItem('spectrum8Enabled') === 'true';
 // ==========================================
 let divoomEnabled = localStorage.getItem('divoomEnabled') === 'true';
 let divoomMode = localStorage.getItem('divoomMode') || 'raw';
+let divoomSerial = null, divoomSerialWriter = null;
 let divoomDevice = null, divoomChar = null, divoomBusy = false, divoomLastArt = '', divoomLastColor = '', divoomLastSend = 0, divoomTimer = null;
 const divoomLogLines = [];
 
@@ -4349,6 +4351,7 @@ function divoomRcspWrap(sppFrame) {
 }
 
 async function divoomWrite(bytes) {
+    if (divoomSerialWriter) { await divoomSerialWriter.write(new Uint8Array(bytes)); return; }
     if (!divoomChar) throw new Error('pas de caractéristique d\'écriture');
     const data = new Uint8Array(bytes);
     for (let i = 0; i < data.length; i += 20) { // MTU BLE par défaut : 20 octets
@@ -4359,11 +4362,11 @@ async function divoomWrite(bytes) {
     }
 }
 async function divoomSendColor(r, g, b) {
-    if (!divoomChar || divoomBusy) return;
+    if ((!divoomChar && !divoomSerialWriter) || divoomBusy) return;
     divoomBusy = true;
     try {
         let frame = divoomSppFrame(divoomLightPayload(r, g, b));
-        if (divoomMode === 'rcsp') frame = divoomRcspWrap(frame);
+        if (divoomMode === 'rcsp' && !divoomSerialWriter) frame = divoomRcspWrap(frame);
         await divoomWrite(frame);
         divoomLog('envoyé rgb(' + r + ',' + g + ',' + b + ') [' + divoomMode + '] ' + frame.map(x => x.toString(16).padStart(2, '0')).join(' '));
     } catch (e) {
@@ -4411,8 +4414,25 @@ async function divoomConnect() {
         divoomLog('erreur : ' + (e && e.message ? e.message : e));
     }
 }
+// Voie « série Bluetooth » (RFCOMM/SPP) : c'est le canal qui pilote vraiment les LED de la Timebox Evo
+async function divoomConnectSerial() {
+    try {
+        if (!navigator.serial) { divoomStatus('⚠️ Web Serial indisponible sur ce navigateur (essaie Chrome à jour, page en https)'); divoomLog('navigator.serial absent'); return; }
+        divoomStatus('Choisis la Timebox (appairée avant dans les réglages Bluetooth du téléphone)…');
+        const port = await navigator.serial.requestPort({ allowedBluetoothServiceClassIds: ['00001101-0000-1000-8000-00805f9b34fb'], filters: [{ bluetoothServiceClassId: '00001101-0000-1000-8000-00805f9b34fb' }] });
+        await port.open({ baudRate: 115200 });
+        divoomSerial = port; divoomSerialWriter = port.writable.getWriter();
+        divoomLog('port série Bluetooth ouvert');
+        divoomStatus('✅ Connectée en série Bluetooth');
+        divoomLastArt = '';
+        divoomPollCover();
+    } catch (e) {
+        divoomStatus('⚠️ ' + (e && e.message ? e.message : e));
+        divoomLog('erreur série : ' + (e && e.message ? e.message : e));
+    }
+}
 function divoomTestColor() {
-    if (!divoomChar) { divoomStatus('⚠️ pas connectée'); return; }
+    if (!divoomChar && !divoomSerialWriter) { divoomStatus('⚠️ pas connectée'); return; }
     divoomSendColor(255, 0, 0);
 }
 function divoomCopyLog() {
@@ -4425,7 +4445,7 @@ function divoomSetMode(v) { divoomMode = v; try { localStorage.setItem('divoomMo
 // Surveille la pochette : à chaque nouveau titre on envoie sa couleur principale (au plus 1 envoi par seconde)
 function divoomPollCover() {
     try {
-        if (!divoomEnabled || !divoomChar) return;
+        if (!divoomEnabled || (!divoomChar && !divoomSerialWriter)) return;
         const art = document.getElementById('track-art');
         const src = art && art.src ? art.src : '';
         if (!src || src === divoomLastArt || Date.now() - divoomLastSend < 1000) return;
