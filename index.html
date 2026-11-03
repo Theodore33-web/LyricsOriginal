@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v6.0";
+        const APP_VERSION = "v6.1";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1530,26 +1530,20 @@
 <p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 14px 0 2px 0;">📱 APPAREILS</p>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Divoom Timebox Evo 🔷 (bêta)</span>
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Divoom Timebox Evo 🔷 + Pixoo</span>
     <label class="switch">
         <input type="checkbox" id="divoom-toggle" onchange="toggleDivoomSetting(this.checked)">
         <span class="slider"></span>
     </label>
 </div>
 <div id="divoom-panel" style="display: none; flex-direction: column; gap: 6px; width: 100%;">
-    <div style="font-size: 0.72rem; color: var(--text-grey); line-height: 1.5;">Affiche la couleur principale de la pochette sur l'enceinte via le Bluetooth du téléphone. <b>Bêta, non garanti</b> : Chrome sur Android, page en https, enceinte allumée et à proximité. Le « journal » aide à diagnostiquer si rien ne s'affiche.</div>
+    <div style="font-size: 0.72rem; color: var(--text-grey); line-height: 1.5;">Affiche la couleur principale de la pochette sur tes appareils Divoom via le Bluetooth du téléphone. Appaire d'abord l'appareil dans les réglages Bluetooth du téléphone, puis connecte-le ici. Les deux peuvent être connectés en même temps.</div>
     <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
-        <button class="divoom-btn" onclick="divoomConnectSerial()">🔌 Connecter (série, conseillé)</button>
-        <button class="divoom-btn" onclick="divoomConnect()">🔗 Connecter (BLE)</button>
+        <button class="divoom-btn" onclick="divoomConnect('timebox')">🔌 Timebox Evo</button>
+        <button class="divoom-btn" onclick="divoomConnect('pixoo')">🔌 Pixoo</button>
         <button class="divoom-btn" onclick="divoomTestColor()">🔴 Test rouge</button>
-        <button class="divoom-btn" onclick="divoomCopyLog()">📋 Journal</button>
-        <select id="divoom-mode" onchange="divoomSetMode(this.value)" style="background: #1a1a1a; color: #fff; border: 1px solid #444; border-radius: 6px; padding: 4px 6px; font-size: 0.72rem;">
-            <option value="raw">Envoi brut</option>
-            <option value="rcsp">Envoi RCSP (expérimental)</option>
-        </select>
     </div>
-    <div id="divoom-status" style="font-size: 0.75rem; color: var(--text-grey);">Non connectée</div>
-    <pre id="divoom-log" style="display: none; max-height: 110px; overflow: auto; margin: 0; padding: 6px 8px; border-radius: 8px; background: rgba(0,0,0,0.35); color: #b9c2cc; font-size: 0.62rem; white-space: pre-wrap; text-align: left;"></pre>
+    <div id="divoom-status" style="font-size: 0.75rem; color: var(--text-grey);">Aucun appareil connecté</div>
 </div>
 
 <p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 14px 0 2px 0;">🎪 CARNAVAL &amp; GUIRLANDES</p>
@@ -4319,133 +4313,71 @@ let spectrum8Enabled = localStorage.getItem('spectrum8Enabled') === 'true';
 // l'enceinte expose, pour pouvoir corriger le protocole si l'affichage ne réagit pas. Rien ne peut gêner la lecture.
 // ==========================================
 let divoomEnabled = localStorage.getItem('divoomEnabled') === 'true';
-let divoomMode = localStorage.getItem('divoomMode') || 'raw';
-let divoomSerial = null, divoomSerialWriter = null;
-let divoomDevice = null, divoomChar = null, divoomBusy = false, divoomLastArt = '', divoomLastColor = '', divoomLastSend = 0, divoomTimer = null;
-const divoomLogLines = [];
+let divoomDevices = []; // { type: 'timebox' | 'pixoo', port, writer, name }
+let divoomBusy = false, divoomLastArt = '', divoomLastColor = '', divoomLastSend = 0, divoomTimer = null;
+const DIVOOM_TYPES = { timebox: 'Timebox Evo', pixoo: 'Pixoo' };
 
-function divoomLog(msg) {
-    const line = new Date().toLocaleTimeString('fr-FR') + ' ' + msg;
-    divoomLogLines.push(line);
-    if (divoomLogLines.length > 80) divoomLogLines.shift();
-    const box = document.getElementById('divoom-log');
-    if (box) { box.style.display = 'block'; box.textContent = divoomLogLines.join('\n'); box.scrollTop = box.scrollHeight; }
-}
 function divoomStatus(text) { const el = document.getElementById('divoom-status'); if (el) el.textContent = text; }
+function divoomRefreshStatus() {
+    if (!divoomDevices.length) { divoomStatus('Aucun appareil connecté'); return; }
+    divoomStatus('✅ Connecté : ' + divoomDevices.map(d => DIVOOM_TYPES[d.type]).join(' + '));
+}
 
-// Trame « SPP » Divoom : 01 | longueur (2 o., LE) | commande + données | somme de contrôle (2 o., LE) | 02
+// Trame Divoom (Bluetooth classique SPP) : 01 | longueur (2 o., LE) | commande + données | somme de contrôle (2 o., LE) | 02
 function divoomSppFrame(payload) {
     const len = payload.length + 2;
     const body = [len & 255, (len >> 8) & 255].concat(payload);
     const sum = body.reduce((a, b) => a + b, 0) & 0xFFFF;
     return [0x01].concat(body, [sum & 255, (sum >> 8) & 255, 0x02]);
 }
-// Commande « lumière » : 45 01 R G B luminosité(0-100) effet(0) marche(1) 00 00 00
+// Timebox Evo : commande « lumière » 45 01 R G B luminosité(0-100) effet(0) marche(1) 00 00 00
 function divoomLightPayload(r, g, b) { return [0x45, 0x01, r, g, b, 100, 0x00, 0x01, 0x00, 0x00, 0x00]; }
-// Enveloppe RCSP (JieLi) — expérimental : FE EF AA 55 | longueur (2 o., BE) | 01 seq 00 00 00 + trame SPP | somme (2 o., BE)
-let divoomSeq = 0;
-function divoomRcspWrap(sppFrame) {
-    const inner = [0x01, (divoomSeq++) & 255, 0x00, 0x00, 0x00].concat(sppFrame);
-    const sum = inner.reduce((a, b) => a + b, 0) & 0xFFFF;
-    return [0xFE, 0xEF, 0xAA, 0x55, (inner.length >> 8) & 255, inner.length & 255].concat(inner, [(sum >> 8) & 255, sum & 255]);
-}
+// Pixoo : image fixe 0x44 d'une seule couleur (palette de 1 couleur, aucun pixel à écrire) : 44 00 0A 0A 04 | AA 0A 00 0000 00 01 R G B
+function divoomImagePayload(r, g, b) { return [0x44, 0x00, 0x0A, 0x0A, 0x04, 0xAA, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x01, r, g, b]; }
+function divoomBrightnessPayload(v) { return [0x74, v]; }
 
-async function divoomWrite(bytes) {
-    if (divoomSerialWriter) { await divoomSerialWriter.write(new Uint8Array(bytes)); return; }
-    if (!divoomChar) throw new Error('pas de caractéristique d\'écriture');
-    const data = new Uint8Array(bytes);
-    for (let i = 0; i < data.length; i += 20) { // MTU BLE par défaut : 20 octets
-        const chunk = data.slice(i, i + 20);
-        if (divoomChar.writeValueWithoutResponse && divoomChar.properties.writeWithoutResponse) await divoomChar.writeValueWithoutResponse(chunk);
-        else await divoomChar.writeValue(chunk);
-        await new Promise(r => setTimeout(r, 30));
-    }
+async function divoomSendTo(dev, r, g, b) {
+    const frames = [];
+    if (dev.type === 'pixoo') { frames.push(divoomSppFrame(divoomBrightnessPayload(100))); frames.push(divoomSppFrame(divoomImagePayload(r, g, b))); }
+    else frames.push(divoomSppFrame(divoomLightPayload(r, g, b)));
+    for (const f of frames) { await dev.writer.write(new Uint8Array(f)); await new Promise(res => setTimeout(res, 60)); }
 }
 async function divoomSendColor(r, g, b) {
-    if ((!divoomChar && !divoomSerialWriter) || divoomBusy) return;
+    if (!divoomDevices.length || divoomBusy) return;
     divoomBusy = true;
-    try {
-        let frame = divoomSppFrame(divoomLightPayload(r, g, b));
-        if (divoomMode === 'rcsp' && !divoomSerialWriter) frame = divoomRcspWrap(frame);
-        await divoomWrite(frame);
-        divoomLog('envoyé rgb(' + r + ',' + g + ',' + b + ') [' + divoomMode + '] ' + frame.map(x => x.toString(16).padStart(2, '0')).join(' '));
-    } catch (e) {
-        divoomLog('échec d\'envoi : ' + e.message);
-        divoomStatus('⚠️ envoi impossible : ' + e.message);
+    for (const dev of divoomDevices.slice()) {
+        try { await divoomSendTo(dev, r, g, b); }
+        catch (e) { divoomStatus('⚠️ envoi impossible vers ' + DIVOOM_TYPES[dev.type] + ' : ' + (e && e.message ? e.message : e)); divoomDevices = divoomDevices.filter(d => d !== dev); }
     }
     divoomBusy = false;
 }
 
-async function divoomConnect() {
+// Connexion série Bluetooth (RFCOMM/SPP) : le canal qui pilote vraiment les LED. Un appareil de chaque type peut être connecté en même temps.
+async function divoomConnect(type) {
     try {
-        if (!navigator.bluetooth) { divoomStatus('⚠️ Web Bluetooth indisponible (Chrome sur Android, page en https)'); divoomLog('navigator.bluetooth absent'); return; }
-        const U = n => '0000' + n.toString(16).padStart(4, '0') + '-0000-1000-8000-00805f9b34fb';
-        const optionalServices = [0xAE00, 0xAE30, 0xAF30, 0xFF00, 0xFFE0, 0xFFF0, 0xFEE7, 0xFEA0, 0xFD00, 0x180A, 0x1800, 0x1801].map(U)
-            .concat(['49535343-fe7d-4ae5-8fa9-9fafd205e455', '6e400001-b5a3-f393-e0a9-e50e24dcca9e']);
-        divoomStatus('Recherche de l\'enceinte…');
-        divoomDevice = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: optionalServices });
-        divoomLog('appareil choisi : ' + (divoomDevice.name || '(sans nom)'));
-        divoomDevice.addEventListener('gattserverdisconnected', () => { divoomChar = null; divoomStatus('Déconnectée'); divoomLog('déconnecté'); });
-        divoomStatus('Connexion…');
-        const server = await divoomDevice.gatt.connect();
-        let services = [];
-        try { services = await server.getPrimaryServices(); } catch (e) { divoomLog('services illisibles : ' + e.message); }
-        let best = null;
-        for (const svc of services) {
-            divoomLog('service ' + svc.uuid);
-            let chars = [];
-            try { chars = await svc.getCharacteristics(); } catch (e) { continue; }
-            for (const ch of chars) {
-                const pr = Object.keys(ch.properties).filter(k => ch.properties[k]).join(',');
-                divoomLog('   car. ' + ch.uuid + ' [' + pr + ']');
-                const writable = ch.properties.write || ch.properties.writeWithoutResponse;
-                const generic = /^0000(1800|1801|180a)/.test(svc.uuid);
-                if (writable && !generic && (!best || /0000ae01/.test(ch.uuid))) best = ch;
-            }
-        }
-        if (!best) { divoomStatus('⚠️ connectée mais aucune caractéristique d\'écriture trouvée (voir le journal)'); return; }
-        divoomChar = best;
-        divoomLog('écriture via ' + best.uuid);
-        divoomStatus('✅ Connectée : ' + (divoomDevice.name || 'enceinte'));
-        divoomLastArt = '';
-        divoomPollCover();
-    } catch (e) {
-        divoomStatus('⚠️ ' + (e && e.message ? e.message : e));
-        divoomLog('erreur : ' + (e && e.message ? e.message : e));
-    }
-}
-// Voie « série Bluetooth » (RFCOMM/SPP) : c'est le canal qui pilote vraiment les LED de la Timebox Evo
-async function divoomConnectSerial() {
-    try {
-        if (!navigator.serial) { divoomStatus('⚠️ Web Serial indisponible sur ce navigateur (essaie Chrome à jour, page en https)'); divoomLog('navigator.serial absent'); return; }
-        divoomStatus('Choisis la Timebox (appairée avant dans les réglages Bluetooth du téléphone)…');
-        const port = await navigator.serial.requestPort({ allowedBluetoothServiceClassIds: ['00001101-0000-1000-8000-00805f9b34fb'], filters: [{ bluetoothServiceClassId: '00001101-0000-1000-8000-00805f9b34fb' }] });
+        if (!navigator.serial) { divoomStatus('⚠️ Web Serial indisponible sur ce navigateur (Chrome à jour, page en https)'); return; }
+        divoomStatus('Choisis l\'appareil (appairé avant dans les réglages Bluetooth du téléphone)…');
+        const uuid = '00001101-0000-1000-8000-00805f9b34fb';
+        const port = await navigator.serial.requestPort({ allowedBluetoothServiceClassIds: [uuid], filters: [{ bluetoothServiceClassId: uuid }] });
         await port.open({ baudRate: 115200 });
-        divoomSerial = port; divoomSerialWriter = port.writable.getWriter();
-        divoomLog('port série Bluetooth ouvert');
-        divoomStatus('✅ Connectée en série Bluetooth');
-        divoomLastArt = '';
+        divoomDevices = divoomDevices.filter(d => d.type !== type);
+        divoomDevices.push({ type: type, port: port, writer: port.writable.getWriter() });
+        divoomRefreshStatus();
+        divoomLastArt = ''; divoomLastColor = '';
         divoomPollCover();
     } catch (e) {
         divoomStatus('⚠️ ' + (e && e.message ? e.message : e));
-        divoomLog('erreur série : ' + (e && e.message ? e.message : e));
     }
 }
 function divoomTestColor() {
-    if (!divoomChar && !divoomSerialWriter) { divoomStatus('⚠️ pas connectée'); return; }
+    if (!divoomDevices.length) { divoomStatus('⚠️ aucun appareil connecté'); return; }
     divoomSendColor(255, 0, 0);
 }
-function divoomCopyLog() {
-    const txt = divoomLogLines.join('\n') || '(journal vide)';
-    const box = document.getElementById('divoom-log'); if (box) { box.style.display = 'block'; box.textContent = txt; }
-    try { navigator.clipboard.writeText(txt).then(() => divoomStatus('📋 Journal copié')); } catch (e) { /* le journal reste affiché */ }
-}
-function divoomSetMode(v) { divoomMode = v; try { localStorage.setItem('divoomMode', v); } catch (e) {} divoomLog('mode d\'envoi : ' + v); }
 
 // Surveille la pochette : à chaque nouveau titre on envoie sa couleur principale (au plus 1 envoi par seconde)
 function divoomPollCover() {
     try {
-        if (!divoomEnabled || (!divoomChar && !divoomSerialWriter)) return;
+        if (!divoomEnabled || !divoomDevices.length) return;
         const art = document.getElementById('track-art');
         const src = art && art.src ? art.src : '';
         if (!src || src === divoomLastArt || Date.now() - divoomLastSend < 1000) return;
@@ -4468,10 +4400,8 @@ function toggleDivoomSetting(checked) {
 function applyDivoomState() {
     const panel = document.getElementById('divoom-panel');
     if (panel) panel.style.display = divoomEnabled ? 'flex' : 'none';
-    const sel = document.getElementById('divoom-mode'); if (sel) sel.value = divoomMode;
     if (divoomEnabled && !divoomTimer) divoomTimer = setInterval(divoomPollCover, 1500);
     if (!divoomEnabled && divoomTimer) { clearInterval(divoomTimer); divoomTimer = null; }
-    if (!divoomEnabled && divoomDevice && divoomDevice.gatt && divoomDevice.gatt.connected) { try { divoomDevice.gatt.disconnect(); } catch (e) {} }
 }
 
 // Design épuré : un seul réglage qui change tout le graphisme (cartes, liserés, couleurs, boutons, panneaux)
@@ -5755,7 +5685,7 @@ function ensureCreditsModal() {
 
         <h3>📱 Appareils (bêta)</h3>
         <ul>
-            <li><strong>Divoom Timebox Evo 🔷</strong> — catégorie « Appareils » des Paramètres : l'enceinte affiche la couleur principale de la pochette, mise à jour à chaque titre.</li>
+            <li><strong>Divoom Timebox Evo 🔷 et Pixoo</strong> — catégorie « Appareils » des Paramètres, connexion série Bluetooth, les deux appareils en même temps : ils affichent la couleur principale de la pochette, mise à jour à chaque titre.</li>
             <li>Passe par le Bluetooth du téléphone (Web Bluetooth, Chrome sur Android, page en https) ; un journal intégré et un bouton « Test rouge » aident à diagnostiquer la connexion.</li>
             <li>Fonction expérimentale : la Timebox Evo utilise surtout le Bluetooth « classique », que les navigateurs ne gèrent pas, donc le résultat n'est pas garanti.</li>
         </ul>
@@ -5812,7 +5742,7 @@ function ensureCreditsModal() {
             <li><strong>Web Speech API</strong> (SpeechRecognition) — commandes vocales.</li>
             <li><strong>Web Audio API</strong> — soundboard, sons des feux d'artifice, son du Mode DJ.</li>
             <li><strong>MediaDevices / MediaRecorder</strong> — enregistrement micro (Drive, reconnaissance de chanson).</li>
-            <li><strong>Web Bluetooth API</strong> — bêta : envoi de la couleur principale de la pochette à l'enceinte Divoom Timebox Evo.</li>
+            <li><strong>Web Serial API</strong> — envoi de la couleur principale de la pochette aux appareils Divoom (Timebox Evo, Pixoo) en série Bluetooth.</li>
             <li><strong>Screen Wake Lock API</strong> — garde l'écran allumé pendant l'écoute.</li>
             <li><strong>Canvas 2D</strong> — spectres, feux d'artifice, effets visuels, et détection de la couleur principale de la pochette (calcul local sur l'image, aucun service externe).</li>
             <li><strong>localStorage</strong> — réglages, historique et caches (clips, sous-titres) enregistrés dans ton navigateur.</li>
