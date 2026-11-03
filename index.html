@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v6.2";
+        const APP_VERSION = "v6.5";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -805,6 +805,14 @@
             border: 1px solid rgba(255, 255, 255, 0.08);
         }
 
+        .card:has(#track-art) { position: relative; }
+        #queue-peek { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+        #queue-peek .qp-row { display: flex; }
+        #queue-peek .qp-thumb { width: 38px; height: 38px; border-radius: 6px; object-fit: cover; border: 1px solid rgba(255,255,255,0.35); box-shadow: 0 3px 8px rgba(0,0,0,0.5); cursor: pointer; margin-left: -12px; transition: transform .15s; background: #222; }
+        #queue-peek .qp-thumb:first-child { margin-left: 0; }
+        #queue-peek .qp-thumb:hover, #queue-peek .qp-thumb.on { transform: translateY(-4px) scale(1.12); }
+        #queue-peek .qp-info { max-width: 190px; padding: 5px 9px; border-radius: 9px; background: rgba(0,0,0,0.78); color: #fff; font-size: 0.72rem; line-height: 1.3; text-align: right; display: none; }
+        #queue-peek .qp-info b { display: block; font-size: 0.78rem; }
         #track-art { 
             width: 150px; 
             height: 150px; 
@@ -1542,10 +1550,13 @@
         <button class="divoom-btn" onclick="divoomConnect('timebox')">🔌 Timebox Evo</button>
         <button class="divoom-btn" onclick="divoomConnect('pixoo')">🔌 Pixoo</button>
         <button class="divoom-btn" onclick="divoomTestColor()">🔴 Test rouge</button>
+        <button class="divoom-btn" onclick="divoomDisconnectAll(true)">⏏️ Déconnecter</button>
         <select id="divoom-render-mode" onchange="divoomSetRenderMode(this.value)" style="background: #1a1a1a; color: #fff; border: 1px solid #444; border-radius: 6px; padding: 4px 6px; font-size: 0.72rem;">
             <option value="color">Mode : couleur principale (fond)</option>
             <option value="image">Mode : pochette en 16×16</option>
+            <option value="lyrics">Mode : paroles défilantes</option>
         </select>
+        <label style="font-size: 0.72rem; color: var(--text-grey); display: inline-flex; align-items: center; gap: 4px;"><input type="checkbox" id="divoom-progress-toggle" onchange="divoomSetProgressBar(this.checked)"> Barre de progression (dernière ligne)</label>
     </div>
     <div id="divoom-status" style="font-size: 0.75rem; color: var(--text-grey);">Aucun appareil connecté</div>
 </div>
@@ -1826,6 +1837,7 @@
         <option value="cassette">Cassette qui s'insère</option>
         <option value="polaroid">Polaroid qui s'éjecte</option>
         <option value="miroirbrise">Miroir brisé qui se reforme</option>
+        <option value="pixel16">Pixels 16×16 (comme l'écran LED)</option>
     </select>
 </div>
 
@@ -2060,11 +2072,12 @@
                 <div style="display: flex; align-items: center; justify-content: space-between;">
                     <p id="lecture-en-cours-title" style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 0;">LECTURE EN COURS</p>
                     <span id="divoom-icons" style="display: inline-flex; gap: 6px; align-items: center;">
-                        <img id="divoom-icon-timebox" src="enceinte.png" alt="Enceinte connectée" title="Enceinte Divoom connectée" style="display: none; height: 22px; width: auto; object-fit: contain;" onerror="this.style.visibility='hidden'">
+                        <img id="divoom-icon-timebox" src="enceinte.png" alt="Enceinte connectée" title="Enceinte Divoom connectée" style="display: none; height: 44px; width: auto; object-fit: contain;" onerror="this.style.visibility='hidden'">
                         <img id="divoom-icon-pixoo" src="ecranled.png" alt="Écran LED connecté" title="Écran LED connecté" style="display: none; height: 22px; width: auto; object-fit: contain;" onerror="this.style.visibility='hidden'">
                     </span>
                 </div>
                 <img id="track-art" src="" alt="" style="display:none;" crossorigin="anonymous">
+                <div id="queue-peek" style="display:none; position:absolute; z-index:6;"></div>
                 <h3 id="track-title">Aucune lecture</h3>
                 <p id="track-artist"></p>
                  
@@ -3781,6 +3794,7 @@ function highlightLyrics(currentTime) {
                     }
 
                     if (art.src !== oldSrc) {
+                        setTimeout(refreshQueuePeek, 1500);
                         art.onload = () => {
                             updateDynamicBackground();
                             updatePochetteHaloColor();
@@ -4321,13 +4335,91 @@ let spectrum8Enabled = localStorage.getItem('spectrum8Enabled') === 'true';
 // l'enceinte expose, pour pouvoir corriger le protocole si l'affichage ne réagit pas. Rien ne peut gêner la lecture.
 // ==========================================
 let divoomEnabled = localStorage.getItem('divoomEnabled') === 'true';
-let divoomRenderMode = localStorage.getItem('divoomRenderMode') === 'image' ? 'image' : 'color'; // 'color' = couleur principale, 'image' = pochette en 16x16
+let divoomRenderMode = ['image', 'lyrics'].includes(localStorage.getItem('divoomRenderMode')) ? localStorage.getItem('divoomRenderMode') : 'color'; // 'color' = couleur principale, 'image' = pochette en 16x16, 'lyrics' = paroles défilantes
+let divoomProgressBar = localStorage.getItem('divoomProgressBar') === 'true';
+let divoomCoverRgb = null, divoomCoverPx = null, divoomDirty = false, divoomLastKey = '', divoomProgSeen = -1, divoomProgSeenAt = 0;
 let divoomDevices = []; // { type: 'timebox' | 'pixoo', port, writer, name }
 let divoomLastPixels = null;
+// Aperçu des 3 prochains titres de la file d'attente, en bas à droite de la pochette
+let queuePeekTracks = [], queuePeekSel = -1, queuePeekTimer = null;
+async function refreshQueuePeek() {
+    try {
+        if (!currentToken || driveMusicModeActive) return;
+        const r = await fetch('https://api.spotify.com/v1/me/player/queue', { headers: { 'Authorization': 'Bearer ' + currentToken } });
+        if (!r.ok) return;
+        const d = await r.json();
+        queuePeekTracks = (d.queue || []).slice(0, 3).map(t => ({
+            name: t.name,
+            artist: t.artists && t.artists.length ? t.artists.map(a => a.name).join(', ') : (t.show ? t.show.name : ''),
+            img: t.album && t.album.images && t.album.images.length ? t.album.images[t.album.images.length > 1 ? 1 : 0].url : (t.images && t.images.length ? t.images[0].url : 'imagemusic.jpg')
+        }));
+        queuePeekSel = -1;
+        renderQueuePeek();
+    } catch (e) {}
+}
+function renderQueuePeek() {
+    const el = document.getElementById('queue-peek'); if (!el) return;
+    if (!queuePeekTracks.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
+    el.innerHTML = '';
+    const row = document.createElement('div'); row.className = 'qp-row';
+    const info = document.createElement('div'); info.className = 'qp-info';
+    queuePeekTracks.forEach((t, i) => {
+        const im = document.createElement('img'); im.className = 'qp-thumb'; im.src = t.img; im.alt = t.name; im.style.zIndex = String(10 - i);
+        im.onclick = () => {
+            if (queuePeekSel === i) { queuePeekSel = -1; info.style.display = 'none'; im.classList.remove('on'); return; }
+            queuePeekSel = i;
+            row.querySelectorAll('.qp-thumb').forEach(x => x.classList.remove('on')); im.classList.add('on');
+            info.innerHTML = ''; const b = document.createElement('b'); b.textContent = t.name; info.appendChild(b); info.appendChild(document.createTextNode(t.artist));
+            info.style.display = 'block';
+            clearTimeout(queuePeekTimer); queuePeekTimer = setTimeout(() => { info.style.display = 'none'; im.classList.remove('on'); queuePeekSel = -1; }, 6000);
+        };
+        row.appendChild(im);
+    });
+    el.appendChild(row); el.appendChild(info);
+    el.style.display = 'flex';
+    positionQueuePeek();
+}
+function positionQueuePeek() {
+    const el = document.getElementById('queue-peek'), art = document.getElementById('track-art');
+    if (!el || !art || el.style.display === 'none' || art.style.display === 'none') return;
+    const card = el.parentElement; if (!card) return;
+    const w = el.offsetWidth || 90;
+    let left = art.offsetLeft + art.offsetWidth - w + 14;
+    left = Math.max(4, Math.min(left, card.clientWidth - w - 4));
+    el.style.left = left + 'px';
+    el.style.top = (art.offsetTop + art.offsetHeight - 44) + 'px';
+}
+setInterval(() => { try { refreshQueuePeek(); } catch (e) {} }, 20000);
+setTimeout(() => { try { refreshQueuePeek(); } catch (e) {} }, 4000);
 let divoomBusy = false, divoomLastArt = '', divoomLastColor = '', divoomLastSend = 0, divoomTimer = null;
 const DIVOOM_TYPES = { timebox: 'Timebox Evo', pixoo: 'Pixoo' };
 
 function divoomStatus(text) { const el = document.getElementById('divoom-status'); if (el) el.textContent = text; }
+function divoomDrop(dev) {
+    divoomDevices = divoomDevices.filter(d => d !== dev);
+    try { dev.writer.releaseLock(); } catch (e) {}
+    try { dev.port.close(); } catch (e) {}
+    divoomUpdateIcons();
+}
+// Image « déconnexion » : une croix rouge sur fond noir, puis écran noir
+function divoomPixelsOf(fn) { return Array.from({ length: 256 }, (_, i) => fn(i % 16, Math.floor(i / 16)) || [0, 0, 0]); }
+function divoomByePixels() { return divoomPixelsOf((x, y) => (x >= 2 && x <= 13 && y >= 2 && y <= 13 && (Math.abs(x - y) <= 1 || Math.abs(x + y - 15) <= 1)) ? [248, 0, 0] : null); }
+async function divoomDisconnectAll(withBye) {
+    const list = divoomDevices.slice();
+    divoomBusy = true; // coupe les envois automatiques pendant la séquence
+    try {
+        if (withBye) {
+            for (const d of list) { try { await divoomSendTo(d, 248, 0, 0, divoomByePixels()); } catch (e) {} }
+            await new Promise(r => setTimeout(r, 1800));
+            for (const d of list) { try { await divoomSendTo(d, 0, 0, 0, divoomPixelsOf(() => null)); } catch (e) {} }
+            await new Promise(r => setTimeout(r, 300));
+        }
+    } catch (e) {}
+    list.forEach(divoomDrop);
+    try { localStorage.setItem('divoomPortTypes', localStorage.getItem('divoomPortTypes') || '[]'); } catch (e) {}
+    divoomBusy = false;
+    divoomRefreshStatus();
+}
 function divoomUpdateIcons() {
     const e = document.getElementById('divoom-icon-timebox'), p = document.getElementById('divoom-icon-pixoo');
     if (e) e.style.display = divoomDevices.some(d => d.type === 'timebox') ? 'inline-block' : 'none';
@@ -4388,19 +4480,20 @@ function divoomCoverPixels(img) {
 
 async function divoomSendTo(dev, r, g, b, pixels) {
     const frames = [];
-    if (pixels) { if (dev.type === 'pixoo') frames.push(divoomSppFrame(divoomBrightnessPayload(100))); frames.push(divoomSppFrame(divoomPixelsImagePayload(pixels))); }
+    if (pixels) { if (dev.type === 'pixoo' && !dev.bright) { dev.bright = true; frames.push(divoomSppFrame(divoomBrightnessPayload(100))); } frames.push(divoomSppFrame(divoomPixelsImagePayload(pixels))); }
     else if (dev.type === 'pixoo') { frames.push(divoomSppFrame(divoomBrightnessPayload(100))); frames.push(divoomSppFrame(divoomImagePayload(r, g, b))); }
     else frames.push(divoomSppFrame(divoomLightPayload(r, g, b)));
     for (const f of frames) { await dev.writer.write(new Uint8Array(f)); await new Promise(res => setTimeout(res, 60)); }
 }
 async function divoomSendColor(r, g, b, pixels) {
-    if (!divoomDevices.length || divoomBusy) return;
+    if (!divoomDevices.length || divoomBusy) return false;
     divoomBusy = true;
     for (const dev of divoomDevices.slice()) {
         try { await divoomSendTo(dev, r, g, b, pixels); }
-        catch (e) { divoomStatus('⚠️ envoi impossible vers ' + DIVOOM_TYPES[dev.type] + ' : ' + (e && e.message ? e.message : e)); divoomDevices = divoomDevices.filter(d => d !== dev); divoomUpdateIcons(); }
+        catch (e) { divoomStatus('⚠️ envoi impossible vers ' + DIVOOM_TYPES[dev.type] + ' : ' + (e && e.message ? e.message : e)); divoomDrop(dev); }
     }
     divoomBusy = false;
+    return true;
 }
 
 // Connexion série Bluetooth (RFCOMM/SPP) : le canal qui pilote vraiment les LED. Un appareil de chaque type peut être connecté en même temps.
@@ -4413,21 +4506,69 @@ async function divoomConnect(type) {
         await port.open({ baudRate: 115200 });
         divoomDevices = divoomDevices.filter(d => d.type !== type);
         divoomDevices.push({ type: type, port: port, writer: port.writable.getWriter() });
+        await divoomRememberPorts();
         divoomRefreshStatus();
-        divoomLastArt = ''; divoomLastColor = '';
+        divoomLastArt = ''; divoomLastColor = ''; divoomLastKey = '';
         divoomPollCover();
     } catch (e) {
         divoomStatus('⚠️ ' + (e && e.message ? e.message : e));
     }
 }
+// Reconnexion automatique : Chrome se souvient des ports déjà autorisés (getPorts), on les rouvre sans redemander.
+// L'ordre de la liste est mémorisé avec le type de chaque appareil (Timebox Evo / Pixoo).
+async function divoomRememberPorts() {
+    try {
+        const ports = await navigator.serial.getPorts();
+        const types = ports.map(p => { const d = divoomDevices.find(x => x.port === p); return d ? d.type : ''; });
+        const old = JSON.parse(localStorage.getItem('divoomPortTypes') || '[]');
+        localStorage.setItem('divoomPortTypes', JSON.stringify(types.map((t, i) => t || old[i] || '')));
+    } catch (e) {}
+}
+let divoomReconnecting = false;
+async function divoomAutoReconnect() {
+    if (divoomReconnecting) return;
+    divoomReconnecting = true;
+    try { await divoomAutoReconnectInner(); } catch (e) {}
+    divoomReconnecting = false;
+}
+async function divoomAutoReconnectInner() {
+    try {
+        if (!divoomEnabled || !navigator.serial || !navigator.serial.getPorts) return;
+        const ports = await navigator.serial.getPorts();
+        const types = JSON.parse(localStorage.getItem('divoomPortTypes') || '[]');
+        let n = 0;
+        for (let i = 0; i < ports.length; i++) {
+            const type = types[i];
+            if (!type || divoomDevices.some(d => d.port === ports[i] || d.type === type)) continue;
+            try {
+                if (!ports[i].writable) await ports[i].open({ baudRate: 115200 });
+                divoomDevices.push({ type: type, port: ports[i], writer: ports[i].writable.getWriter() });
+                n++;
+            } catch (e) { /* appareil éteint ou hors de portée : on ne bloque pas */ }
+        }
+        if (n) { divoomRefreshStatus(); divoomLastArt = ''; divoomLastColor = ''; divoomLastKey = ''; divoomPollCover(); }
+    } catch (e) {}
+}
+try {
+    if (navigator.serial) {
+        navigator.serial.addEventListener('connect', () => setTimeout(divoomAutoReconnect, 1500));
+        navigator.serial.addEventListener('disconnect', (ev) => { const d = divoomDevices.find(x => x.port === ev.target); if (d) { divoomDrop(d); divoomRefreshStatus(); } });
+    }
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) { divoomLastKey = ''; setTimeout(divoomAutoReconnect, 500); } });
+} catch (e) {}
 function divoomTestColor() {
     if (!divoomDevices.length) { divoomStatus('⚠️ aucun appareil connecté'); return; }
     divoomSendColor(255, 0, 0);
 }
 function divoomSetRenderMode(v) {
-    divoomRenderMode = v === 'image' ? 'image' : 'color';
+    divoomRenderMode = (v === 'image' || v === 'lyrics') ? v : 'color';
     try { localStorage.setItem('divoomRenderMode', divoomRenderMode); } catch (e) {}
-    divoomLastArt = ''; divoomLastColor = ''; divoomPollCover();
+    divoomLastArt = ''; divoomLastColor = ''; divoomLastKey = ''; divoomLastKey = ''; divoomDirty = true; divoomPollCover();
+}
+function divoomSetProgressBar(on) {
+    divoomProgressBar = !!on;
+    try { localStorage.setItem('divoomProgressBar', on ? 'true' : 'false'); } catch (e) {}
+    divoomLastKey = ''; divoomDirty = true;
 }
 
 // Surveille la pochette : à chaque nouveau titre on envoie sa couleur principale (au plus 1 envoi par seconde)
@@ -4436,32 +4577,144 @@ function divoomPollCover() {
         if (!divoomEnabled || !divoomDevices.length) return;
         const art = document.getElementById('track-art');
         const src = art && art.src ? art.src : '';
-        if (!src || src === divoomLastArt || Date.now() - divoomLastSend < 1000) return;
+        if (!src || src === divoomLastArt || Date.now() - divoomLastSend < 600) return;
         divoomLastArt = src; divoomLastSend = Date.now();
         getTwoDominantColorsFromImageSrc(src, (c1) => {
             if (!c1) return;
             const k = 255 / Math.max(c1[0], c1[1], c1[2], 1); // couleur ramenée à pleine intensité pour bien allumer les LED
             const rgb = c1.map(v => Math.min(255, Math.round(v * k)));
-            if (rgb.join() === divoomLastColor && divoomRenderMode === 'color') return;
             divoomLastColor = rgb.join();
-            let pixels = null;
-            if (divoomRenderMode === 'image') { try { pixels = divoomCoverPixels(art); } catch (e) { console.warn('Divoom image :', e); } }
-            divoomSendColor(rgb[0], rgb[1], rgb[2], pixels);
+            divoomCoverRgb = rgb;
+            try { divoomCoverPx = divoomCoverPixels(art); } catch (e) { divoomCoverPx = null; }
+            divoomDirty = true; divoomLastKey = '';
         });
     } catch (e) { console.warn('Divoom :', e); }
 }
+// Police 3x5 (accents retirés) pour les paroles défilantes ; chaque glyphe = 5 lignes de 3 points, lues de haut en bas
+const DIVOOM_FONT = {
+ A:'010101111101101',B:'110101110101110',C:'011100100100011',D:'110101101101110',E:'111100110100111',F:'111100110100100',
+ G:'011100101101011',H:'101101111101101',I:'111010010010111',J:'001001001101010',K:'101101110101101',L:'100100100100111',
+ M:'101111111101101',N:'110101101101101',O:'010101101101010',P:'110101110100100',Q:'010101101111011',R:'110101110101101',
+ S:'011100010001110',T:'111010010010010',U:'101101101101111',V:'101101101101010',W:'101101111111101',X:'101101010101101',
+ Y:'101101010010010',Z:'111001010100111',
+ '0':'111101101101111','1':'010110010010111','2':'110001010100111','3':'110001010001110','4':'101101111001001',
+ '5':'111100110001110','6':'011100111101111','7':'111001010010010','8':'111101111101111','9':'111101111001110',
+ ' ':'000000000000000','.':'000000000000010',',':'000000000010100','!':'010010010000010','?':'110001010000010',
+ "'":'010010000000000','-':'000000111000000',':':'000010000010000'
+};
+function divoomTextBitmap(text) { // renvoie { w, cols } où cols[x] = tableau de 5 booléens
+    const clean = text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[’`´]/g, "'");
+    const cols = [];
+    for (const ch of clean) {
+        const g = DIVOOM_FONT[ch]; if (!g) continue;
+        for (let x = 0; x < 3; x++) cols.push([0, 1, 2, 3, 4].map(y => g[y * 3 + x] === '1'));
+        cols.push([false, false, false, false, false]);
+    }
+    if (cols.length) cols.pop();
+    return { w: cols.length, cols: cols };
+}
+// Position de lecture en ms, interpolée entre deux tops de 1 s
+function divoomProgressMs() {
+    try {
+        if (divoomProgSeen !== currentProgressMs) { divoomProgSeen = currentProgressMs; divoomProgSeenAt = Date.now(); }
+        const v = currentProgressMs + (isCurrentlyPlaying ? Date.now() - divoomProgSeenAt : 0); // reste juste même si le minuteur de la page est ralenti en arrière-plan
+        return trackDurationMs > 0 ? Math.min(v, trackDurationMs) : v;
+    } catch (e) { return 0; }
+}
+function divoomBuildFrame() {
+    const rgb = divoomCoverRgb; if (!rgb) return null;
+    const mode = divoomRenderMode;
+    const prog = divoomProgressMs();
+    const dim = rgb.map(v => v >> 2 & 0xF8);
+    let px;
+    if (mode === 'image' && divoomCoverPx) px = divoomCoverPx.map(c => c.slice());
+    else if (mode === 'lyrics') px = Array.from({ length: 256 }, () => [0, 0, 0]);
+    else px = Array.from({ length: 256 }, () => rgb.map(v => v & 0xF8));
+    if (mode === 'lyrics') {
+        let line = null, next = null;
+        try { for (let i = 0; i < currentLyrics.length; i++) { if (currentLyrics[i].time * 1000 <= prog) { line = currentLyrics[i]; next = currentLyrics[i + 1] || null; } else break; } } catch (e) {}
+        if (!line || !String(line.text || '').trim()) px = Array.from({ length: 256 }, () => dim.slice());
+        else {
+            const bm = divoomTextBitmap(String(line.text));
+            const dur = Math.max(1000, next ? (next.time - line.time) * 1000 : 4000);
+            const t = Math.max(0, Math.min(1, ((prog - line.time * 1000) / (dur * 0.85)) - 0.1));
+            let x0;
+            if (bm.w <= 14) x0 = Math.floor((16 - bm.w) / 2);
+            else x0 = Math.round(1 - t * (bm.w - 14));
+            for (let cx = 0; cx < bm.w; cx++) {
+                const X = x0 + cx; if (X < 0 || X > 15) continue;
+                for (let y = 0; y < 5; y++) if (bm.cols[cx][y]) px[(5 + y) * 16 + X] = rgb.map(v => Math.max(v, 96) & 0xF8);
+            }
+        }
+    }
+    if (divoomProgressBar) {
+        let filled = 0;
+        try { filled = trackDurationMs > 0 ? Math.round(16 * prog / trackDurationMs) : 0; } catch (e) {}
+        for (let x = 0; x < 16; x++) px[15 * 16 + x] = x < filled ? [248, 248, 248] : dim.slice();
+    }
+    return px;
+}
+let divoomTickRunning = false, divoomLastRetry = 0;
+async function divoomTick() {
+    if (divoomTickRunning) return;
+    divoomTickRunning = true;
+    try { await divoomTickInner(); } catch (e) { console.warn('Divoom tick :', e); }
+    divoomTickRunning = false;
+}
+async function divoomTickInner() {
+    try {
+        if (divoomEnabled && Date.now() - divoomLastRetry > 8000) { // appareil mémorisé mais absent : on retente toutes les 8 s
+            divoomLastRetry = Date.now();
+            let remembered = 0; try { remembered = JSON.parse(localStorage.getItem('divoomPortTypes') || '[]').filter(Boolean).length; } catch (e) {}
+            if (remembered > divoomDevices.length) divoomAutoReconnect();
+        }
+        if (!divoomEnabled || !divoomDevices.length) return;
+        divoomPollCover();
+        if (!divoomCoverRgb) return;
+        const rgb = divoomCoverRgb;
+        if (divoomRenderMode === 'color' && !divoomProgressBar) {
+            if (divoomDirty && await divoomSendColor(rgb[0], rgb[1], rgb[2])) divoomDirty = false;
+            return;
+        }
+        if (divoomRenderMode === 'lyrics' || divoomRenderMode === 'image' || divoomProgressBar) {
+            const px = divoomBuildFrame(); if (!px) return;
+            const key = px.map(c => c.join('.')).join('|');
+            if (key === divoomLastKey) return;
+            if (await divoomSendColor(rgb[0], rgb[1], rgb[2], px)) { divoomLastKey = key; divoomDirty = false; }
+        }
+    } catch (e) { console.warn('Divoom tick :', e); }
+}
+// Le minuteur tourne dans un Web Worker (moins ralenti que celui de la page quand Chrome est en arrière-plan)
+// et un « verrou web » est gardé pour que Chrome évite de geler la page.
+let divoomWorker = null, divoomLockRelease = null;
+function divoomStartTicker() {
+    if (divoomWorker || divoomTimer) return;
+    try {
+        const blob = new Blob(['setInterval(function(){postMessage(1)},200)'], { type: 'text/javascript' });
+        divoomWorker = new Worker(URL.createObjectURL(blob));
+        divoomWorker.onmessage = () => divoomTick();
+    } catch (e) { divoomTimer = setInterval(divoomTick, 200); }
+    try { if (navigator.locks && !divoomLockRelease) navigator.locks.request('divoom-keepalive', () => new Promise(res => { divoomLockRelease = res; })); } catch (e) {}
+}
+function divoomStopTicker() {
+    if (divoomWorker) { divoomWorker.terminate(); divoomWorker = null; }
+    if (divoomTimer) { clearInterval(divoomTimer); divoomTimer = null; }
+    if (divoomLockRelease) { divoomLockRelease(); divoomLockRelease = null; }
+}
 function toggleDivoomSetting(checked) {
+    if (!checked && divoomDevices.length) { divoomDisconnectAll(true); }
     divoomEnabled = checked;
     try { localStorage.setItem('divoomEnabled', checked ? 'true' : 'false'); } catch (e) {}
     applyDivoomState();
+    if (checked) divoomAutoReconnect();
 }
 function applyDivoomState() {
     const panel = document.getElementById('divoom-panel');
     if (panel) panel.style.display = divoomEnabled ? 'flex' : 'none';
     const rm = document.getElementById('divoom-render-mode'); if (rm) rm.value = divoomRenderMode;
+    const pt = document.getElementById('divoom-progress-toggle'); if (pt) pt.checked = divoomProgressBar;
     divoomUpdateIcons();
-    if (divoomEnabled && !divoomTimer) divoomTimer = setInterval(divoomPollCover, 1500);
-    if (!divoomEnabled && divoomTimer) { clearInterval(divoomTimer); divoomTimer = null; }
+    if (divoomEnabled) divoomStartTicker(); else divoomStopTicker();
 }
 
 // Design épuré : un seul réglage qui change tout le graphisme (cartes, liserés, couleurs, boutons, panneaux)
@@ -4541,6 +4794,7 @@ function toggleSettings() {
         const divoomTgl = document.getElementById('divoom-toggle');
         if (divoomTgl) divoomTgl.checked = divoomEnabled;
         applyDivoomState();
+        setTimeout(divoomAutoReconnect, 800);
         const uiRefTgl = document.getElementById('ui-refined-toggle');
         if (uiRefTgl) uiRefTgl.checked = uiRefinedEnabled;
         const spectrumSel = document.getElementById('spectrum-style-select');
@@ -10610,7 +10864,31 @@ function setPochetteAnimStyle(style) {
     if (art) art.classList.toggle('pochette-anim-vinyle-active', style === 'vinyle');
     syncVinylSpinState();
     updateBrasTourneDisqueVisibility();
+    updatePixelCover();
 }
+
+// Pochette pixelisée en 16×16 : exactement les mêmes pixels que ceux envoyés aux écrans LED (Timebox Evo / Pixoo)
+function updatePixelCover() {
+    try {
+        const art = document.getElementById('track-art');
+        let cv = document.getElementById('pochette-pixel-canvas');
+        if (pochetteAnimStyle !== 'pixel16' || !art || art.style.display === 'none' || !art.complete || !art.naturalWidth) { if (cv) cv.remove(); return; }
+        const host = art.parentElement; if (!host) return;
+        if (getComputedStyle(host).position === 'static') host.style.position = 'relative';
+        if (!cv) {
+            cv = document.createElement('canvas'); cv.id = 'pochette-pixel-canvas'; cv.width = 16; cv.height = 16;
+            cv.style.cssText = 'position:absolute; pointer-events:none; image-rendering:pixelated; z-index:3;';
+            host.appendChild(cv);
+        }
+        cv.style.left = art.offsetLeft + 'px'; cv.style.top = art.offsetTop + 'px';
+        cv.style.width = art.offsetWidth + 'px'; cv.style.height = art.offsetHeight + 'px';
+        cv.style.borderRadius = getComputedStyle(art).borderRadius;
+        const px = divoomCoverPixels(art), ctx = cv.getContext('2d'), img = ctx.createImageData(16, 16);
+        px.forEach((c, i) => { img.data[i * 4] = c[0]; img.data[i * 4 + 1] = c[1]; img.data[i * 4 + 2] = c[2]; img.data[i * 4 + 3] = 255; });
+        ctx.putImageData(img, 0, 0);
+    } catch (e) { const cv = document.getElementById('pochette-pixel-canvas'); if (cv) cv.remove(); }
+}
+window.addEventListener('resize', () => { try { updatePixelCover(); positionQueuePeek(); } catch (e) {} });
 
 function initPochetteAnimState() {
     const select = document.getElementById('pochette-anim-select');
@@ -11975,9 +12253,11 @@ const POCHETTE_ANIM_CLASSES = ['pochette-anim-fadescale', 'pochette-anim-blurfoc
 function applyPochetteAnimStyle() {
     const art = document.getElementById('track-art');
     if (!art) return;
+    updatePixelCover();
+    positionQueuePeek();
 
     art.classList.toggle('pochette-anim-vinyle-active', pochetteAnimStyle === 'vinyle');
-    if (pochetteAnimStyle === 'none' || pochetteAnimStyle === 'vinyle') return;
+    if (pochetteAnimStyle === 'none' || pochetteAnimStyle === 'vinyle' || pochetteAnimStyle === 'pixel16') return;
 
     if (pochetteAnimStyle === 'puzzle') { applyPochettePuzzleEffect(art); return; }
     if (pochetteAnimStyle === 'spotifyload') { applyPochetteSpotifyShimmer(art); return; }
