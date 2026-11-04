@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v7.4";
+        const APP_VERSION = "v7.6";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -4364,7 +4364,7 @@ let divoomEnabled = localStorage.getItem('divoomEnabled') === 'true';
 let divoomRenderMode = ['image', 'lyrics'].includes(localStorage.getItem('divoomRenderMode')) ? localStorage.getItem('divoomRenderMode') : 'color'; // 'color' = couleur principale, 'image' = pochette en 16x16, 'lyrics' = paroles défilantes
 let divoomProgressBar = localStorage.getItem('divoomProgressBar') === 'true';
 // Réglages PROPRES à chaque appareil (Timebox Evo / Pixoo), mémorisés
-const DIVOOM_CFG_DEFAULT = { mode: 'color', bar: false, announce: false, fallbackTitle: true, cafe: true, pause: 'pause', trans: 'off', heart: true };
+const DIVOOM_CFG_DEFAULT = { likedN: 3, mode: 'color', bar: false, announce: false, fallbackTitle: true, cafe: true, pause: 'pause', trans: 'off', heart: true };
 // Image « tasse de café » (16×16, intégrée au code) affichée quand la lecture est en pause depuis plus de 2 minutes
 const DIVOOM_CAFE_HEX = '98d0d898d0e098d0e098d0e0a0d8e098d8e898d8e888d0e098d8e890d8e880d0e088d8e090d8e888d8e090d8e880d0e088d0e090d0e090d0e098d0d898d0d898d0d8a0d8e088d0e088d8e080d0e078d0d870d0d880d8e078d8e088d8e878d0e088d0e088d0e098d0e0a0d0e0a8d8d8b8d8e0c0d8e0c0d8e0b8d8e0b0d8e098d0e078d0d878d0e068d0e080d8e870d0e088d0e088d0e090d0e0b8d0e0d8d8e0d8d8d8b8c0d0b8a890e8c098e8d0b8e8e0d8d0e0e080d8e060d0e070d0e068d0e088d0e098d0e0d0d8e0e0e0e8e0d8e0a8a8b0c06818f09000f89000f89000f0b868e8d8c8d8e0e088d0e070d0d860d0e090d0e8c8d8e080a8c0a8c0d8c8c8d0a84828f08000f89000f89000f89000f8a020f0a038d8d8e0d0d8e0d8e0e870d0e898d0e8e0e0e85080b0b0c8d8c0b8b0d82800f08000f88800f88800f89000f89000f89000d0d0c858a8d080b0d0306888b0d8e8e8e0e87890b078a8d0c0c8c8d05030e05800f88800f88800f88800f88800f0a84898b8c860a0c83878a8003078b0d8e8e8e8e8d0d0e05088b8c0c8d8d8d0d0c07058e86010f87800f09018f0b878d0d8d038a0d030a0d83898d0002868a0d8e8e8e8e8e8e8e8c0d0e0d0d8e8d8d8e0e0d8e0d8d8d8d0d0d0d0d8d8d0e0e080b8d040a8d840a8d840a8d800286080d0e0e0e0e8e8e8e8d8d8d8b0c8d8e0d8e0d8d8e0e0e0e0d8e0e0c0d8e080b8d03098d060b0d8a0d0e098b8d000306880d0e8b8d8e8e8e8e8e0d8d898b8d0e0e0e0e0e0e0d8d8e0d0d8d898c0d898c0d8c8d8e0e8e8e8e8e8e890a8b800306878d0e088d0e8d0e0e8e8e0e06890b8b8d0e8e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e8e8e8e8e8e8e8e8e848607000204078d0e088d0e888d0e8d0e0e85078a0a0b8d8e0e0e8e0e0e0e0e0e0e0e0e0e8e8e0e8e8e8e8e8e878889008204038688088d0e888d0e080d0e870c8e858a0c8a8c0d8e0e0e0e0e0e0e0e0e0e0e0e0e0e8e8c8d0e050688800182828505870d8e090d0e880d0e080d0e070c8e868c8e068c0d86098b078a0b878a0b86090a830587810385018506860a8b080d8e070d0e0';
 const DIVOOM_CAFE_PX = Array.from({ length: 256 }, (_, i) => [parseInt(DIVOOM_CAFE_HEX.substr(i * 6, 2), 16), parseInt(DIVOOM_CAFE_HEX.substr(i * 6 + 2, 2), 16), parseInt(DIVOOM_CAFE_HEX.substr(i * 6 + 4, 2), 16)]);
@@ -4756,14 +4756,16 @@ function divoomCfgBlockHTML(type, title) {
     return `<div style="border:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:5px;">
       <div style="font-size:0.78rem;font-weight:bold;color:var(--spotify-green);">${title}</div>
       <label style="font-size:0.72rem;color:var(--text-grey);display:flex;align-items:center;justify-content:space-between;gap:6px;">Mode
-        <select style="${sel}" onchange="divoomSetCfg('${type}','mode',this.value)">${o('color', c.mode, 'Couleur principale (fond)')}${o('image', c.mode, 'Pochette en 16×16')}${o('lyrics', c.mode, 'Paroles défilantes')}</select></label>
+        <select style="${sel}" onchange="divoomSetCfg('${type}','mode',this.value)">${o('color', c.mode, 'Couleur principale (fond)')}${o('image', c.mode, 'Pochette en 16×16')}${o('lyrics', c.mode, 'Paroles défilantes')}${o('liked', c.mode, '❤️ Titres aimés (défilant + pochettes)')}</select></label>
+      <label style="font-size:0.72rem;color:var(--text-grey);display:flex;align-items:center;justify-content:space-between;gap:6px;">Pochettes affichées (mode titres aimés)
+        <select style="${sel}" onchange="divoomSetCfg('${type}','likedN',parseInt(this.value,10))">${o('3', String(c.likedN), '3 pochettes')}${o('4', String(c.likedN), '4 pochettes')}</select></label>
       ${chk('bar', 'Barre de progression (dernière ligne)')}
       <div style="border-top:1px solid rgba(255,255,255,0.08);margin:2px 0;"></div>
       ${chk('announce', 'Titre + artiste à chaque nouveau titre')}
       ${chk('fallbackTitle', 'Titre + artiste quand il n\'y a pas de parole (mode paroles)')}
       <div style="border-top:1px solid rgba(255,255,255,0.08);margin:2px 0;"></div>
       ${chk('heart', 'Cœur quand le titre est aimé')}
-      ${chk('cafe', 'Image « tasse de café » après 2 min de pause')}
+
       <label style="font-size:0.72rem;color:var(--text-grey);display:flex;align-items:center;justify-content:space-between;gap:6px;">Icône en pause
         <select style="${sel}" onchange="divoomSetCfg('${type}','pause',this.value)">${o('off', c.pause, 'Aucune')}${o('pause', c.pause, '⏸ Pause')}${o('play', c.pause, '▶ Lecture')}</select></label>
       <label style="font-size:0.72rem;color:var(--text-grey);display:flex;align-items:center;justify-content:space-between;gap:6px;">Transition entre titres
@@ -4826,6 +4828,66 @@ function divoomProgressMs() {
         return trackDurationMs > 0 ? Math.min(v, trackDurationMs) : v;
     } catch (e) { return 0; }
 }
+// Mode « titres aimés » : tes derniers titres likés défilent (titre - artiste) pendant que leurs mini-pochettes s'affichent en haut
+const divoomLiked = { tracks: [], loaded: 0, loading: false, start: 0 };
+async function divoomLikedEnsure() {
+    if (divoomLiked.loading || !currentToken || (divoomLiked.tracks.length && Date.now() - divoomLiked.loaded < 300000)) return;
+    divoomLiked.loading = true;
+    try {
+        const r = await fetch('https://api.spotify.com/v1/me/tracks?limit=20', { headers: { 'Authorization': 'Bearer ' + currentToken } });
+        if (r.ok) {
+            const d = await r.json();
+            divoomLiked.tracks = (d.items || []).map(it => {
+                const t = it.track || {}, imgs = (t.album && t.album.images) || [];
+                return { label: (t.name || '') + ' - ' + ((t.artists && t.artists[0] && t.artists[0].name) || ''), url: imgs.length ? imgs[imgs.length > 1 ? 1 : 0].url : '', px: {}, img: null, bm: null };
+            });
+            divoomLiked.loaded = Date.now(); if (!divoomLiked.start) divoomLiked.start = Date.now();
+            divoomLiked.tracks.forEach(tr => { if (!tr.url) return; const im = new Image(); im.crossOrigin = 'anonymous'; im.onload = () => { tr.img = im; }; im.src = tr.url; });
+        }
+    } catch (e) {}
+    divoomLiked.loading = false;
+}
+function divoomMiniCover(tr, size) { // pochette réduite à size×size pixels (mise en cache)
+    if (tr.px[size]) return tr.px[size];
+    if (!tr.img) return null;
+    try {
+        const cv = document.createElement('canvas'); cv.width = size; cv.height = size;
+        const ctx = cv.getContext('2d', { willReadFrequently: true }); ctx.imageSmoothingQuality = 'high';
+        const w = tr.img.naturalWidth, h = tr.img.naturalHeight, m = Math.min(w, h);
+        ctx.drawImage(tr.img, (w - m) / 2, (h - m) / 2, m, m, 0, 0, size, size);
+        const d = ctx.getImageData(0, 0, size, size).data, out = [];
+        for (let i = 0; i < size * size; i++) {
+            let r = d[i * 4], g = d[i * 4 + 1], b = d[i * 4 + 2]; const l = 0.3 * r + 0.59 * g + 0.11 * b;
+            out.push([r, g, b].map(v => Math.max(0, Math.min(255, Math.round(l + (v - l) * 1.3))) & 0xF8));
+        }
+        tr.px[size] = out; return out;
+    } catch (e) { return null; }
+}
+function divoomLikedFrame(px, n, textCol) {
+    const T = divoomLiked.tracks;
+    n = n === 4 ? 4 : 3;
+    if (!T.length) { // rien à montrer (pas encore chargé / aucun titre aimé)
+        const bm = divoomTextBitmap(divoomLiked.loaded ? 'AUCUN TITRE AIME' : '...'), sh = Math.floor((Date.now() / 1000) * 24) % (bm.w + 16);
+        for (let cx = 0; cx < bm.w; cx++) { const X = 16 + cx - sh; if (X < 0 || X > 15) continue; for (let y = 0; y < 5; y++) if (bm.cols[cx][y]) px[(5 + y) * 16 + X] = textCol; }
+        return;
+    }
+    T.forEach(tr => { if (!tr.bm) tr.bm = divoomTextBitmap(tr.label || '?'); });
+    const SPEED = 30, HOLD = 0.5, dur = T.map(tr => (tr.bm.w + 16) / SPEED + HOLD);
+    const total = dur.reduce((a, b) => a + b, 0), t = (((Date.now() - (divoomLiked.start || Date.now())) / 1000) % total + total) % total;
+    let k = 0, acc = 0; while (k < T.length - 1 && acc + dur[k] <= t) { acc += dur[k]; k++; }
+    const el = t - acc, group = Math.floor(k / n), size = n === 3 ? 5 : 4;
+    for (let i = 0; i < n; i++) { // rangée de mini-pochettes : la piste en cours est en pleine lumière, les autres sont assombries
+        const tr = T[group * n + i]; if (!tr) continue;
+        const mc = divoomMiniCover(tr, size), active = group * n + i === k, x0 = i * size;
+        for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+            const c = mc ? mc[y * size + x] : [56, 56, 56];
+            px[(1 + y) * 16 + x0 + x] = active ? c : c.map(v => (v * 0.35) & 0xF8);
+        }
+        if (active) for (let x = 0; x < size; x++) px[(2 + size) * 16 + x0 + x] = [248, 248, 248]; // trait sous la pochette en cours
+    }
+    const bm = T[k].bm, off = 16 - Math.floor(el * SPEED);
+    for (let cx = 0; cx < bm.w; cx++) { const X = off + cx; if (X < 0 || X > 15) continue; for (let y = 0; y < 5; y++) if (bm.cols[cx][y]) px[(8 + y) * 16 + X] = textCol; }
+}
 function divoomLikedNow() { try { return document.getElementById('like-btn').getAttribute('data-liked') === 'true'; } catch (e) { return false; } }
 // Construit une image 16×16. opts : mode ('color' | 'image' | 'lyrics' | 'announce'), bar, rgb, coverPx,
 // device (true = icône pause + cœur), pause ('off' | 'pause' | 'play'), heart, announceStart, out
@@ -4842,11 +4904,12 @@ function divoomBuildFrame(opts) {
     const black = () => Array.from({ length: 256 }, () => [0, 0, 0]);
     let px;
     if (mode === 'image' && coverPx) px = coverPx.map(c => c.slice());
-    else if (mode === 'lyrics' || mode === 'announce') px = black();
+    else if (mode === 'lyrics' || mode === 'announce' || mode === 'liked') px = black();
     else px = Array.from({ length: 256 }, () => rgb.map(v => v & 0xF8));
     const drawText = (bm, x0) => { for (let cx = 0; cx < bm.w; cx++) { const X = x0 + cx; if (X < 0 || X > 15) continue; for (let y = 0; y < 5; y++) if (bm.cols[cx][y]) px[(5 + y) * 16 + X] = textCol; } };
     const titleLabel = () => { let l = ''; try { l = (document.getElementById('track-title').innerText + ' - ' + document.getElementById('track-artist').innerText).replace(/\s*-\s*$/, ''); } catch (e) {} return l || 'MUSIQUE'; };
-    if (mode === 'announce') {
+    if (mode === 'liked') divoomLikedFrame(px, opts.likedN, textCol);
+    else if (mode === 'announce') {
         const bm = divoomTextBitmap(titleLabel()), el = (Date.now() - (opts.announceStart || Date.now())) / 1000;
         const shift = el * 30; // pixels par seconde
         if (shift >= bm.w + 16 && opts.out) opts.out.announceDone = true;
@@ -4875,11 +4938,11 @@ function divoomBuildFrame(opts) {
         }
     }
     if (opts.device) {
-        if (opts.heart && divoomLikedNow()) { // petit cœur rouge en haut à droite (dessiné AVANT l'icône pause : il passe derrière)
+        if (opts.heart && mode !== 'liked' && divoomLikedNow()) { // petit cœur rouge en haut à droite (dessiné AVANT l'icône pause : il passe derrière)
             const H = [[0, 1, 0, 1, 0], [1, 1, 1, 1, 1], [1, 1, 1, 1, 1], [0, 1, 1, 1, 0], [0, 0, 1, 0, 0]];
             H.forEach((row, y) => row.forEach((v, x) => { if (v) px[y * 16 + 10 + x] = [248, 32, 72]; }));
         }
-        if (!playing && opts.pause && opts.pause !== 'off') { // image (et cœur) assombries + symbole pause / lecture au premier plan
+        if (!playing && opts.pause && opts.pause !== 'off' && mode !== 'liked') { // image (et cœur) assombries + symbole pause / lecture au premier plan
             px = px.map(c => c.map(v => (v * 0.3) & 0xF8));
             const W = [248, 248, 248];
             if (opts.pause === 'pause') { for (let y = 3; y <= 12; y++) for (const x of [4, 5, 6, 9, 10, 11]) px[y * 16 + x] = W; }
@@ -4959,7 +5022,8 @@ async function divoomDeviceTick(dev) {
     const playing = (function () { try { return isCurrentlyPlaying; } catch (e) { return true; } })();
     const announcePending = cfg.announce && dev.announceStart && Date.now() - dev.announceStart < 30000;
     const announcing = announcePending && Date.now() >= dev.announceStart; // pas avant la fin de la transition
-    const cafe = cfg.cafe && divoomCafeActive();
+    const cafe = divoomCafeActive() && cfg.mode !== 'liked'; // tasse de café après 2 min de pause (sauf animation des titres aimés)
+    if (cfg.mode === 'liked') divoomLikedEnsure();
     const needPx = cafe || cfg.mode !== 'color' || cfg.bar || announcing || !!dev.trans || (!playing && cfg.pause !== 'off') || (cfg.heart && divoomLikedNow());
     void announcePending;
     if (!needPx) { // fond uni : une seule commande, renvoyée seulement si besoin
@@ -4972,7 +5036,7 @@ async function divoomDeviceTick(dev) {
     }
     if (Date.now() - dev.lastSend < 150) return; // au plus ~6 images par seconde et par appareil
     const out = {};
-    const base = { rgb: rgb, coverPx: divoomCoverPx, device: true, pause: cfg.pause, heart: cfg.heart, bar: cfg.bar, fallbackTitle: cfg.fallbackTitle, out: out };
+    const base = { rgb: rgb, coverPx: divoomCoverPx, device: true, pause: cfg.pause, heart: cfg.heart, bar: cfg.bar, fallbackTitle: cfg.fallbackTitle, likedN: cfg.likedN, out: out };
     let target = cafe ? DIVOOM_CAFE_PX.map(c => c.slice()) : announcing ? divoomBuildFrame(Object.assign({}, base, { mode: 'announce', announceStart: dev.announceStart })) : divoomBuildFrame(Object.assign({}, base, { mode: cfg.mode }));
     if (!target) return;
     if (announcing && out.announceDone) { dev.announceStart = 0; dev.lastKey = ''; }
