@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v7.2";
+        const APP_VERSION = "v7.4";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1566,6 +1566,8 @@
         <button class="divoom-btn" onclick="divoomConnect('pixoo')">🔌 Pixoo</button>
         <button class="divoom-btn" onclick="divoomTestColor()">🔴 Test rouge</button>
         <button class="divoom-btn" onclick="divoomDisconnectAll(true)">⏏️ Déconnecter</button>
+        <button class="divoom-btn" onclick="divoomIdentify()">🔎 Identifier</button>
+        <button class="divoom-btn" onclick="divoomSwapTypes()">🔁 Inverser</button>
         <label style="font-size: 0.72rem; color: var(--text-grey); display: inline-flex; align-items: center; gap: 4px;"><input type="checkbox" id="divoom-keepalive-toggle" onchange="divoomSetKeepAlive(this.checked)"> Maintien en arrière-plan (signal inaudible, à tester : peut gêner Spotify)</label>
         <label style="font-size: 0.72rem; color: var(--text-grey); display: inline-flex; align-items: center; gap: 4px;"><input type="checkbox" id="divoom-auto-toggle" onchange="divoomSetAutoReconnect(this.checked)"> Reconnexion automatique</label>
     </div>
@@ -4362,7 +4364,13 @@ let divoomEnabled = localStorage.getItem('divoomEnabled') === 'true';
 let divoomRenderMode = ['image', 'lyrics'].includes(localStorage.getItem('divoomRenderMode')) ? localStorage.getItem('divoomRenderMode') : 'color'; // 'color' = couleur principale, 'image' = pochette en 16x16, 'lyrics' = paroles défilantes
 let divoomProgressBar = localStorage.getItem('divoomProgressBar') === 'true';
 // Réglages PROPRES à chaque appareil (Timebox Evo / Pixoo), mémorisés
-const DIVOOM_CFG_DEFAULT = { mode: 'color', bar: false, announce: false, pause: 'pause', trans: 'off', heart: true };
+const DIVOOM_CFG_DEFAULT = { mode: 'color', bar: false, announce: false, fallbackTitle: true, cafe: true, pause: 'pause', trans: 'off', heart: true };
+// Image « tasse de café » (16×16, intégrée au code) affichée quand la lecture est en pause depuis plus de 2 minutes
+const DIVOOM_CAFE_HEX = '98d0d898d0e098d0e098d0e0a0d8e098d8e898d8e888d0e098d8e890d8e880d0e088d8e090d8e888d8e090d8e880d0e088d0e090d0e090d0e098d0d898d0d898d0d8a0d8e088d0e088d8e080d0e078d0d870d0d880d8e078d8e088d8e878d0e088d0e088d0e098d0e0a0d0e0a8d8d8b8d8e0c0d8e0c0d8e0b8d8e0b0d8e098d0e078d0d878d0e068d0e080d8e870d0e088d0e088d0e090d0e0b8d0e0d8d8e0d8d8d8b8c0d0b8a890e8c098e8d0b8e8e0d8d0e0e080d8e060d0e070d0e068d0e088d0e098d0e0d0d8e0e0e0e8e0d8e0a8a8b0c06818f09000f89000f89000f0b868e8d8c8d8e0e088d0e070d0d860d0e090d0e8c8d8e080a8c0a8c0d8c8c8d0a84828f08000f89000f89000f89000f8a020f0a038d8d8e0d0d8e0d8e0e870d0e898d0e8e0e0e85080b0b0c8d8c0b8b0d82800f08000f88800f88800f89000f89000f89000d0d0c858a8d080b0d0306888b0d8e8e8e0e87890b078a8d0c0c8c8d05030e05800f88800f88800f88800f88800f0a84898b8c860a0c83878a8003078b0d8e8e8e8e8d0d0e05088b8c0c8d8d8d0d0c07058e86010f87800f09018f0b878d0d8d038a0d030a0d83898d0002868a0d8e8e8e8e8e8e8e8c0d0e0d0d8e8d8d8e0e0d8e0d8d8d8d0d0d0d0d8d8d0e0e080b8d040a8d840a8d840a8d800286080d0e0e0e0e8e8e8e8d8d8d8b0c8d8e0d8e0d8d8e0e0e0e0d8e0e0c0d8e080b8d03098d060b0d8a0d0e098b8d000306880d0e8b8d8e8e8e8e8e0d8d898b8d0e0e0e0e0e0e0d8d8e0d0d8d898c0d898c0d8c8d8e0e8e8e8e8e8e890a8b800306878d0e088d0e8d0e0e8e8e0e06890b8b8d0e8e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e8e8e8e8e8e8e8e8e848607000204078d0e088d0e888d0e8d0e0e85078a0a0b8d8e0e0e8e0e0e0e0e0e0e0e0e0e8e8e0e8e8e8e8e8e878889008204038688088d0e888d0e080d0e870c8e858a0c8a8c0d8e0e0e0e0e0e0e0e0e0e0e0e0e0e8e8c8d0e050688800182828505870d8e090d0e880d0e080d0e070c8e868c8e068c0d86098b078a0b878a0b86090a830587810385018506860a8b080d8e070d0e0';
+const DIVOOM_CAFE_PX = Array.from({ length: 256 }, (_, i) => [parseInt(DIVOOM_CAFE_HEX.substr(i * 6, 2), 16), parseInt(DIVOOM_CAFE_HEX.substr(i * 6 + 2, 2), 16), parseInt(DIVOOM_CAFE_HEX.substr(i * 6 + 4, 2), 16)]);
+const DIVOOM_CAFE_DELAY_MS = 120000;
+let divoomPausedSince = 0;
+function divoomCafeActive() { return divoomPausedSince > 0 && Date.now() - divoomPausedSince > DIVOOM_CAFE_DELAY_MS; }
 let divoomCfg = (function () {
     let c = {};
     try { c = JSON.parse(localStorage.getItem('divoomCfg') || '{}') || {}; } catch (e) {}
@@ -4617,6 +4625,12 @@ async function divoomConnect(type) {
         const uuid = '00001101-0000-1000-8000-00805f9b34fb';
         const port = await navigator.serial.requestPort({ allowedBluetoothServiceClassIds: [uuid], filters: [{ bluetoothServiceClassId: uuid }] });
         await port.open({ baudRate: 115200 });
+        const same = divoomDevices.find(d => d.port === port); // appareil déjà connecté : on change seulement son type, sans rouvrir le port
+        if (same) {
+            divoomDevices = divoomDevices.filter(d => d.type !== type || d === same);
+            same.type = type; same.bright = false; same.dirty = true; same.lastKey = ''; same.trans = null; same.lastFramePx = null;
+            await divoomRememberPorts(); divoomRefreshStatus(); return;
+        }
         divoomDevices = divoomDevices.filter(d => d.type !== type);
         divoomDevices.push(divoomNewDevice(type, port));
         await divoomRememberPorts();
@@ -4629,13 +4643,47 @@ async function divoomConnect(type) {
 }
 // Reconnexion automatique : Chrome se souvient des ports déjà autorisés (getPorts), on les rouvre sans redemander.
 // L'ordre de la liste est mémorisé avec le type de chaque appareil (Timebox Evo / Pixoo).
+// Garantit qu'un type (Timebox / Pixoo) n'est attribué qu'à UN seul port : les doublons sont effacés puis le type manquant est rempli
+function divoomNormalizeTypes(types, n) {
+    const seen = new Set(), out = [];
+    for (let i = 0; i < n; i++) { const t = types[i]; if ((t === 'timebox' || t === 'pixoo') && !seen.has(t)) { seen.add(t); out.push(t); } else out.push(''); }
+    const free = ['timebox', 'pixoo'].filter(t => !seen.has(t));
+    return out.map(t => t || free.shift() || '');
+}
 async function divoomRememberPorts() {
     try {
         const ports = await navigator.serial.getPorts();
-        const types = ports.map(p => { const d = divoomDevices.find(x => x.port === p); return d ? d.type : ''; });
         const old = JSON.parse(localStorage.getItem('divoomPortTypes') || '[]');
-        localStorage.setItem('divoomPortTypes', JSON.stringify(types.map((t, i) => t || old[i] || '')));
+        const connectedTypes = new Set(divoomDevices.map(d => d.type));
+        // un appareil connecté fait foi ; un autre port ne peut pas garder le même type
+        const types = ports.map((p, i) => { const d = divoomDevices.find(x => x.port === p); if (d) return d.type; return connectedTypes.has(old[i]) ? '' : (old[i] || ''); });
+        localStorage.setItem('divoomPortTypes', JSON.stringify(divoomNormalizeTypes(types, ports.length)));
     } catch (e) {}
+}
+// Échange Timebox ↔ Pixoo (si les deux appareils sont inversés)
+async function divoomSwapTypes() {
+    try {
+        const ports = await navigator.serial.getPorts();
+        let types = []; try { types = JSON.parse(localStorage.getItem('divoomPortTypes') || '[]'); } catch (e) {}
+        types = divoomNormalizeTypes(types, ports.length).map(t => t === 'timebox' ? 'pixoo' : t === 'pixoo' ? 'timebox' : t);
+        localStorage.setItem('divoomPortTypes', JSON.stringify(types));
+        divoomDevices.forEach(d => { d.type = d.type === 'timebox' ? 'pixoo' : 'timebox'; d.bright = false; d.dirty = true; d.lastKey = ''; d.trans = null; d.lastFramePx = null; });
+        divoomRefreshStatus();
+        divoomStatus('🔁 Appareils inversés — ' + (divoomDevices.map(d => DIVOOM_TYPES[d.type]).join(' + ') || 'aucun connecté'));
+    } catch (e) {}
+}
+// Affiche un grand « T » (Timebox) ou « P » (Pixoo) sur chaque écran pendant 4 s pour vérifier qui est qui
+async function divoomIdentify() {
+    if (!divoomDevices.length) { divoomStatus('⚠️ aucun appareil connecté'); return; }
+    divoomStatus('🔎 « T » = appareil réglé comme Timebox, « P » = réglé comme Pixoo');
+    await Promise.all(divoomDevices.slice().map(d => {
+        const bm = divoomTextBitmap(d.type === 'timebox' ? 'T' : 'P'); // lettre 3×5 agrandie ×2
+        const px = divoomPixelsOf((x, y) => { const cx = Math.floor((x - 5) / 2), cy = Math.floor((y - 3) / 2); return (cx >= 0 && cx < 3 && cy >= 0 && cy < 5 && bm.cols[cx] && bm.cols[cx][cy]) ? [248, 248, 248] : null; });
+        d.dirty = false; d.lastKey = 'identify';
+        return divoomSafeSend(d, 0, 0, 0, px);
+    }));
+    await divoomSleep(4000);
+    divoomDevices.forEach(d => { d.dirty = true; d.lastKey = ''; });
 }
 let divoomReconnecting = false, divoomNavigating = false;
 let divoomAutoEnabled = localStorage.getItem('divoomAutoReconnect') !== 'false'; // réglage « reconnexion automatique », activé par défaut
@@ -4655,8 +4703,7 @@ async function divoomAutoReconnectInner(manual) {
         let types = [];
         try { types = JSON.parse(localStorage.getItem('divoomPortTypes') || '[]'); } catch (e) {}
         // appareils autorisés avant la mémorisation des types : on attribue les types manquants dans l'ordre
-        const free = ['timebox', 'pixoo'].filter(t => !types.includes(t));
-        const assign = ports.map((p, i) => types[i] || free.shift() || '');
+        const assign = divoomNormalizeTypes(types, ports.length); // jamais deux ports avec le même type
         const todo = [];
         ports.forEach((p, i) => { const type = assign[i]; if (type && !divoomDevices.some(d => d.port === p || d.type === type)) todo.push({ p, type }); });
         if (!todo.length) { if (manual) divoomStatus(divoomDevices.length ? '✅ Déjà connecté' : '⚠️ Rien à reconnecter'); return; }
@@ -4711,12 +4758,16 @@ function divoomCfgBlockHTML(type, title) {
       <label style="font-size:0.72rem;color:var(--text-grey);display:flex;align-items:center;justify-content:space-between;gap:6px;">Mode
         <select style="${sel}" onchange="divoomSetCfg('${type}','mode',this.value)">${o('color', c.mode, 'Couleur principale (fond)')}${o('image', c.mode, 'Pochette en 16×16')}${o('lyrics', c.mode, 'Paroles défilantes')}</select></label>
       ${chk('bar', 'Barre de progression (dernière ligne)')}
-      ${chk('announce', 'Afficher titre + artiste à chaque nouveau titre')}
+      <div style="border-top:1px solid rgba(255,255,255,0.08);margin:2px 0;"></div>
+      ${chk('announce', 'Titre + artiste à chaque nouveau titre')}
+      ${chk('fallbackTitle', 'Titre + artiste quand il n\'y a pas de parole (mode paroles)')}
+      <div style="border-top:1px solid rgba(255,255,255,0.08);margin:2px 0;"></div>
       ${chk('heart', 'Cœur quand le titre est aimé')}
+      ${chk('cafe', 'Image « tasse de café » après 2 min de pause')}
       <label style="font-size:0.72rem;color:var(--text-grey);display:flex;align-items:center;justify-content:space-between;gap:6px;">Icône en pause
         <select style="${sel}" onchange="divoomSetCfg('${type}','pause',this.value)">${o('off', c.pause, 'Aucune')}${o('pause', c.pause, '⏸ Pause')}${o('play', c.pause, '▶ Lecture')}</select></label>
       <label style="font-size:0.72rem;color:var(--text-grey);display:flex;align-items:center;justify-content:space-between;gap:6px;">Transition entre titres
-        <select style="${sel}" onchange="divoomSetCfg('${type}','trans',this.value)">${o('off', c.trans, 'Désactivée')}${o('pixel', c.trans, 'Pixel par pixel')}${o('sweep', c.trans, 'Balayage')}</select></label>
+        <select style="${sel}" onchange="divoomSetCfg('${type}','trans',this.value)">${o('off', c.trans, 'Désactivée')}${o('pixel', c.trans, 'Pixel par pixel')}${o('sweep', c.trans, 'Balayage')}${o('fade', c.trans, 'Fondu enchaîné')}${o('curtain', c.trans, 'Rideau (du centre)')}${o('rain', c.trans, 'Pluie de pixels')}</select></label>
     </div>`;
 }
 function divoomRenderCfgUI() {
@@ -4805,9 +4856,11 @@ function divoomBuildFrame(opts) {
         try { for (let i = 0; i < currentLyrics.length; i++) { if (currentLyrics[i].time * 1000 <= prog) { line = currentLyrics[i]; next = currentLyrics[i + 1] || null; } else break; } } catch (e) {}
         if (!line || !String(line.text || '').trim()) {
             // pas de parole à cet instant (intro, passage instrumental, paroles introuvables) : on fait défiler « titre - artiste »
-            const bm = divoomTextBitmap(titleLabel());
-            const period = bm.w + 16, shift = playing ? Math.floor((Date.now() / 1000) * 24) % period : 0;
-            drawText(bm, 16 - shift);
+            if (opts.fallbackTitle !== false) {
+                const bm = divoomTextBitmap(titleLabel());
+                const period = bm.w + 16, shift = playing ? Math.floor((Date.now() / 1000) * 24) % period : 0;
+                drawText(bm, 16 - shift);
+            } else px = px.map(() => dim.slice());
         } else {
             const bm = divoomTextBitmap(String(line.text));
             const dur = Math.max(1000, next ? (next.time - line.time) * 1000 : 4000);
@@ -4822,15 +4875,15 @@ function divoomBuildFrame(opts) {
         }
     }
     if (opts.device) {
-        if (!playing && opts.pause && opts.pause !== 'off') { // image assombrie + symbole pause / lecture
+        if (opts.heart && divoomLikedNow()) { // petit cœur rouge en haut à droite (dessiné AVANT l'icône pause : il passe derrière)
+            const H = [[0, 1, 0, 1, 0], [1, 1, 1, 1, 1], [1, 1, 1, 1, 1], [0, 1, 1, 1, 0], [0, 0, 1, 0, 0]];
+            H.forEach((row, y) => row.forEach((v, x) => { if (v) px[y * 16 + 10 + x] = [248, 32, 72]; }));
+        }
+        if (!playing && opts.pause && opts.pause !== 'off') { // image (et cœur) assombries + symbole pause / lecture au premier plan
             px = px.map(c => c.map(v => (v * 0.3) & 0xF8));
             const W = [248, 248, 248];
             if (opts.pause === 'pause') { for (let y = 3; y <= 12; y++) for (const x of [4, 5, 6, 9, 10, 11]) px[y * 16 + x] = W; }
             else { const widths = [1, 2, 3, 4, 5, 6, 6, 5, 4, 3, 2, 1]; widths.forEach((w, i) => { for (let k = 0; k < w; k++) px[(2 + i) * 16 + 5 + k] = W; }); }
-        }
-        if (opts.heart && divoomLikedNow()) { // petit cœur rouge en haut à droite
-            const H = [[0, 1, 0, 1, 0], [1, 1, 1, 1, 1], [1, 1, 1, 1, 1], [0, 1, 1, 1, 0], [0, 0, 1, 0, 0]];
-            H.forEach((row, y) => row.forEach((v, x) => { if (v) px[y * 16 + 10 + x] = [248, 32, 72]; }));
         }
     }
     if (barOn) {
@@ -4878,20 +4931,37 @@ function divoomMakeTransition(dev, kind) {
     const order = Array.from({ length: 256 }, (_, i) => i);
     for (let i = 255; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = order[i]; order[i] = order[j]; order[j] = t; }
     const rank = new Array(256); order.forEach((idx, k) => { rank[idx] = k; });
-    dev.trans = { from: dev.lastFramePx.map(c => c.slice()), start: Date.now(), kind: kind, rank: rank };
+    const colDelay = Array.from({ length: 16 }, () => Math.random() * 0.4); // pluie : retard propre à chaque colonne
+    dev.trans = { from: dev.lastFramePx.map(c => c.slice()), start: Date.now(), kind: kind, rank: rank, colDelay: colDelay };
+}
+// Couleur d'un pixel pendant une transition (t de 0 à 1)
+function divoomTransPixel(tr, t, i, to) {
+    const x = i % 16, y = Math.floor(i / 16), from = tr.from[i];
+    switch (tr.kind) {
+        case 'sweep': return x < t * 17 ? to : from;                                   // balayage gauche → droite
+        case 'curtain': return Math.abs(x - 7.5) < t * 8.5 ? to : from;                // rideau : du centre vers les bords
+        case 'rain': return (y / 16) * 0.6 + tr.colDelay[x] < t ? to : from;           // pluie : chaque colonne se remplit du haut vers le bas
+        case 'fade': return [0, 1, 2].map(k => Math.round(from[k] + (to[k] - from[k]) * t) & 0xF8); // fondu enchaîné
+        default: return tr.rank[i] < t * 256 ? to : from;                              // pixel par pixel
+    }
 }
 async function divoomDeviceTick(dev) {
     if (dev.busy) return;
     const cfg = divoomCfgOf(dev.type), rgb = divoomCoverRgb; if (!rgb) return;
+    const playingNow = (function () { try { return isCurrentlyPlaying; } catch (e) { return true; } })();
+    if (playingNow) divoomPausedSince = 0; else if (!divoomPausedSince) divoomPausedSince = Date.now();
     if (dev.coverSeen !== divoomCoverVersion) { // nouveau titre
         dev.coverSeen = divoomCoverVersion;
-        if (cfg.announce) dev.announceStart = Date.now();
+        if (cfg.announce) dev.announceStart = Date.now() + (cfg.trans !== 'off' && dev.lastFramePx ? 1450 : 0); // le titre attend la fin de la transition pour être lu en entier
         if (cfg.trans !== 'off' && dev.lastFramePx) divoomMakeTransition(dev, cfg.trans);
         dev.dirty = true; dev.lastKey = '';
     }
     const playing = (function () { try { return isCurrentlyPlaying; } catch (e) { return true; } })();
-    const announcing = cfg.announce && dev.announceStart && Date.now() - dev.announceStart < 30000;
-    const needPx = cfg.mode !== 'color' || cfg.bar || announcing || !!dev.trans || (!playing && cfg.pause !== 'off') || (cfg.heart && divoomLikedNow());
+    const announcePending = cfg.announce && dev.announceStart && Date.now() - dev.announceStart < 30000;
+    const announcing = announcePending && Date.now() >= dev.announceStart; // pas avant la fin de la transition
+    const cafe = cfg.cafe && divoomCafeActive();
+    const needPx = cafe || cfg.mode !== 'color' || cfg.bar || announcing || !!dev.trans || (!playing && cfg.pause !== 'off') || (cfg.heart && divoomLikedNow());
+    void announcePending;
     if (!needPx) { // fond uni : une seule commande, renvoyée seulement si besoin
         if (dev.dirty || dev.wasPixels) {
             dev.dirty = false; dev.wasPixels = false;
@@ -4902,15 +4972,15 @@ async function divoomDeviceTick(dev) {
     }
     if (Date.now() - dev.lastSend < 150) return; // au plus ~6 images par seconde et par appareil
     const out = {};
-    const base = { rgb: rgb, coverPx: divoomCoverPx, device: true, pause: cfg.pause, heart: cfg.heart, bar: cfg.bar, out: out };
-    let target = announcing ? divoomBuildFrame(Object.assign({}, base, { mode: 'announce', announceStart: dev.announceStart })) : divoomBuildFrame(Object.assign({}, base, { mode: cfg.mode }));
+    const base = { rgb: rgb, coverPx: divoomCoverPx, device: true, pause: cfg.pause, heart: cfg.heart, bar: cfg.bar, fallbackTitle: cfg.fallbackTitle, out: out };
+    let target = cafe ? DIVOOM_CAFE_PX.map(c => c.slice()) : announcing ? divoomBuildFrame(Object.assign({}, base, { mode: 'announce', announceStart: dev.announceStart })) : divoomBuildFrame(Object.assign({}, base, { mode: cfg.mode }));
     if (!target) return;
     if (announcing && out.announceDone) { dev.announceStart = 0; dev.lastKey = ''; }
     let frame = target;
     if (dev.trans) {
         const t = (Date.now() - dev.trans.start) / 1300;
         if (t >= 1) dev.trans = null;
-        else frame = target.map((c, i) => ((dev.trans.kind === 'sweep' ? (i % 16) < t * 17 : dev.trans.rank[i] < t * 256) ? c : dev.trans.from[i]));
+        else frame = target.map((c, i) => divoomTransPixel(dev.trans, t, i, c));
     }
     const key = frame.map(c => c.join('.')).join('|');
     if (key === dev.lastKey && !dev.dirty) return;
