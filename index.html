@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v7.0";
+        const APP_VERSION = "v7.2";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1568,13 +1568,8 @@
         <button class="divoom-btn" onclick="divoomDisconnectAll(true)">⏏️ Déconnecter</button>
         <label style="font-size: 0.72rem; color: var(--text-grey); display: inline-flex; align-items: center; gap: 4px;"><input type="checkbox" id="divoom-keepalive-toggle" onchange="divoomSetKeepAlive(this.checked)"> Maintien en arrière-plan (signal inaudible, à tester : peut gêner Spotify)</label>
         <label style="font-size: 0.72rem; color: var(--text-grey); display: inline-flex; align-items: center; gap: 4px;"><input type="checkbox" id="divoom-auto-toggle" onchange="divoomSetAutoReconnect(this.checked)"> Reconnexion automatique</label>
-        <select id="divoom-render-mode" onchange="divoomSetRenderMode(this.value)" style="background: #1a1a1a; color: #fff; border: 1px solid #444; border-radius: 6px; padding: 4px 6px; font-size: 0.72rem;">
-            <option value="color">Mode : couleur principale (fond)</option>
-            <option value="image">Mode : pochette en 16×16</option>
-            <option value="lyrics">Mode : paroles défilantes</option>
-        </select>
-        <label style="font-size: 0.72rem; color: var(--text-grey); display: inline-flex; align-items: center; gap: 4px;"><input type="checkbox" id="divoom-progress-toggle" onchange="divoomSetProgressBar(this.checked)"> Barre de progression (dernière ligne)</label>
     </div>
+    <div id="divoom-cfg" style="display: flex; flex-direction: column; gap: 8px;"></div>
     <div id="divoom-status" style="font-size: 0.75rem; color: var(--text-grey);">Aucun appareil connecté</div>
 </div>
 
@@ -4366,6 +4361,22 @@ let spectrum8Enabled = localStorage.getItem('spectrum8Enabled') === 'true';
 let divoomEnabled = localStorage.getItem('divoomEnabled') === 'true';
 let divoomRenderMode = ['image', 'lyrics'].includes(localStorage.getItem('divoomRenderMode')) ? localStorage.getItem('divoomRenderMode') : 'color'; // 'color' = couleur principale, 'image' = pochette en 16x16, 'lyrics' = paroles défilantes
 let divoomProgressBar = localStorage.getItem('divoomProgressBar') === 'true';
+// Réglages PROPRES à chaque appareil (Timebox Evo / Pixoo), mémorisés
+const DIVOOM_CFG_DEFAULT = { mode: 'color', bar: false, announce: false, pause: 'pause', trans: 'off', heart: true };
+let divoomCfg = (function () {
+    let c = {};
+    try { c = JSON.parse(localStorage.getItem('divoomCfg') || '{}') || {}; } catch (e) {}
+    const legacy = { mode: ['image', 'lyrics'].includes(localStorage.getItem('divoomRenderMode')) ? localStorage.getItem('divoomRenderMode') : 'color', bar: localStorage.getItem('divoomProgressBar') === 'true' };
+    ['timebox', 'pixoo'].forEach(t => { c[t] = Object.assign({}, DIVOOM_CFG_DEFAULT, legacy, c[t] || {}); });
+    return c;
+})();
+function divoomCfgOf(type) { return divoomCfg[type] || DIVOOM_CFG_DEFAULT; }
+function divoomSetCfg(type, key, value) {
+    divoomCfg[type][key] = value;
+    try { localStorage.setItem('divoomCfg', JSON.stringify(divoomCfg)); } catch (e) {}
+    divoomDevices.filter(d => d.type === type).forEach(d => { d.dirty = true; d.lastKey = ''; d.trans = null; });
+}
+let divoomCoverVersion = 0;
 let divoomCoverRgb = null, divoomCoverPx = null, divoomDirty = false, divoomLastKey = '', divoomProgSeen = -1, divoomProgSeenAt = 0;
 let divoomDevices = []; // { type: 'timebox' | 'pixoo', port, writer, name }
 let divoomLastPixels = null;
@@ -4453,6 +4464,7 @@ async function divoomDrop(dev) {
     divoomDevices = divoomDevices.filter(d => d !== dev);
     divoomUpdateIcons();
     try { dev.writer.releaseLock(); } catch (e) {}
+    try { if (dev.reader) { await dev.reader.cancel(); dev.reader.releaseLock(); } } catch (e) {}
     try { await dev.port.close(); } catch (e) {}
 }
 // Image « déconnexion » : une croix rouge sur fond noir, puis écran noir
@@ -4461,7 +4473,7 @@ function divoomByePixels() { return divoomPixelsOf((x, y) => (x >= 2 && x <= 13 
 async function divoomDisconnectAll(withBye) {
     const list = divoomDevices.slice();
     if (!list.length) { divoomStatus('Aucun appareil connecté'); return; }
-    divoomBusy = true; // coupe les envois automatiques pendant la séquence
+    list.forEach(d => { d.busy = true; }); // coupe les envois automatiques pendant la séquence
     divoomUpdateIcons();
     divoomStatus('⏳ Déconnexion en cours…');
     try {
@@ -4473,7 +4485,6 @@ async function divoomDisconnectAll(withBye) {
         }
     } catch (e) {}
     await Promise.all(list.map(divoomDrop));
-    divoomBusy = false;
     divoomStatus('Déconnecté (reconnexion : bouton ⚡)');
 }
 function divoomUpdateIcons() {
@@ -4534,6 +4545,37 @@ function divoomCoverPixels(img) {
     return out;
 }
 
+// Lecture des réponses de l'appareil : sert d'accusé de réception pour ne jamais envoyer plus vite qu'il ne sait afficher
+function divoomStartReader(dev) {
+    try {
+        if (!dev.port || !dev.port.readable || dev.port.readable.locked) return;
+        dev.reader = dev.port.readable.getReader(); dev.ackCount = 0; dev.acksSeen = 0;
+        (async () => {
+            try {
+                for (;;) {
+                    const r = await dev.reader.read(); if (r.done) break;
+                    for (const b of (r.value || [])) if (b === 0x02) {
+                        dev.acksSeen++;
+                        if (dev.ackRes) { const f = dev.ackRes; dev.ackRes = null; f(); } else dev.ackCount = Math.min(6, (dev.ackCount || 0) + 1);
+                    }
+                }
+            } catch (e) {}
+        })();
+    } catch (e) {}
+}
+async function divoomWaitAck(dev) {
+    if (!dev.reader || dev.noAck) { await divoomSleep(60); return; }
+    if (dev.ackCount > 0) { dev.ackCount--; return; }
+    let got = false;
+    await Promise.race([new Promise(r => { dev.ackRes = () => { got = true; r(); }; }), divoomSleep(450)]);
+    dev.ackRes = null;
+    if (!got) { dev.ackMiss = (dev.ackMiss || 0) + 1; if (dev.ackMiss >= 4 && !dev.acksSeen) dev.noAck = true; await divoomSleep(40); } else dev.ackMiss = 0;
+}
+function divoomNewDevice(type, port) {
+    const dev = { type: type, port: port, writer: port.writable.getWriter(), dirty: true, lastKey: '', lastSend: 0, busy: false, trans: null, lastFramePx: null, announceStart: 0, coverSeen: divoomCoverVersion, wasPixels: false };
+    divoomStartReader(dev);
+    return dev;
+}
 async function divoomSendTo(dev, r, g, b, pixels) {
     const frames = [];
     if (pixels) { if (dev.type === 'pixoo' && !dev.bright) { dev.bright = true; frames.push(divoomSppFrame(divoomBrightnessPayload(100))); } frames.push(divoomSppFrame(divoomPixelsImagePayload(pixels))); }
@@ -4541,25 +4583,29 @@ async function divoomSendTo(dev, r, g, b, pixels) {
     else frames.push(divoomSppFrame(divoomLightPayload(r, g, b)));
     for (const f of frames) {
         const data = new Uint8Array(f);
+        dev.ackCount = 0;
         for (let i = 0; i < data.length; i += 200) { // petits paquets pour ne pas saturer la liaison Bluetooth
             await divoomWithTimeout(dev.writer.write(data.slice(i, i + 200)), 4000);
             if (data.length > 200) await divoomSleep(15);
         }
-        await divoomSleep(25);
+        await divoomWaitAck(dev);
     }
 }
 function divoomWithTimeout(pr, ms) { return Promise.race([pr, new Promise((_, rej) => setTimeout(() => rej(new Error('délai d\'envoi dépassé')), ms))]); }
-async function divoomSendColor(r, g, b, pixels) {
-    if (!divoomDevices.length || divoomBusy) return false;
-    divoomBusy = true;
-    for (const dev of divoomDevices.slice()) {
-        try { await divoomSendTo(dev, r, g, b, pixels); dev.fail = 0; }
-        catch (e) {
-            dev.fail = (dev.fail || 0) + 1; // une erreur isolée ne coupe plus l'appareil : il faut 4 échecs de suite
-            if (dev.fail >= 4) { divoomStatus('⚠️ ' + DIVOOM_TYPES[dev.type] + ' ne répond plus : ' + (e && e.message ? e.message : e)); divoomDrop(dev); }
-        }
+// Envoi à UN appareil : une erreur isolée ne le coupe pas (il faut 4 échecs de suite)
+async function divoomSafeSend(dev, r, g, b, pixels) {
+    if (dev.busy) return false;
+    dev.busy = true;
+    try { await divoomSendTo(dev, r, g, b, pixels); dev.fail = 0; dev.busy = false; return true; }
+    catch (e) {
+        dev.fail = (dev.fail || 0) + 1;
+        if (dev.fail >= 4) { divoomStatus('⚠️ ' + DIVOOM_TYPES[dev.type] + ' ne répond plus : ' + (e && e.message ? e.message : e)); divoomDrop(dev); }
     }
-    divoomBusy = false;
+    dev.busy = false;
+    return false;
+}
+async function divoomSendColor(r, g, b, pixels) { // envoi à tous les appareils (test, séquences)
+    await Promise.all(divoomDevices.slice().map(d => divoomSafeSend(d, r, g, b, pixels)));
     return true;
 }
 
@@ -4572,7 +4618,7 @@ async function divoomConnect(type) {
         const port = await navigator.serial.requestPort({ allowedBluetoothServiceClassIds: [uuid], filters: [{ bluetoothServiceClassId: uuid }] });
         await port.open({ baudRate: 115200 });
         divoomDevices = divoomDevices.filter(d => d.type !== type);
-        divoomDevices.push({ type: type, port: port, writer: port.writable.getWriter() });
+        divoomDevices.push(divoomNewDevice(type, port));
         await divoomRememberPorts();
         divoomRefreshStatus();
         divoomLastArt = ''; divoomLastColor = ''; divoomLastKey = '';
@@ -4619,7 +4665,7 @@ async function divoomAutoReconnectInner(manual) {
         const res = await Promise.all(todo.map(async (t) => {
             try {
                 if (!t.p.writable) await withTimeout(t.p.open({ baudRate: 115200 }), 12000);
-                divoomDevices.push({ type: t.type, port: t.p, writer: t.p.writable.getWriter() });
+                divoomDevices.push(divoomNewDevice(t.type, t.p));
                 return true;
             } catch (e) { return false; } // éteint ou hors de portée : on réessaiera
         }));
@@ -4653,17 +4699,29 @@ try {
 } catch (e) {}
 function divoomTestColor() {
     if (!divoomDevices.length) { divoomStatus('⚠️ aucun appareil connecté'); return; }
-    divoomSendColor(255, 0, 0);
+    divoomSendColor(255, 0, 0).then(() => divoomSleep(1500)).then(() => divoomDevices.forEach(d => { d.dirty = true; d.lastKey = ''; }));
 }
-function divoomSetRenderMode(v) {
-    divoomRenderMode = (v === 'image' || v === 'lyrics') ? v : 'color';
-    try { localStorage.setItem('divoomRenderMode', divoomRenderMode); } catch (e) {}
-    divoomLastArt = ''; divoomLastColor = ''; divoomLastKey = ''; divoomLastKey = ''; divoomDirty = true; divoomPollCover();
+// Panneau de réglages : un bloc par appareil
+function divoomCfgBlockHTML(type, title) {
+    const c = divoomCfgOf(type), sel = 'background:#1a1a1a;color:#fff;border:1px solid #444;border-radius:6px;padding:3px 5px;font-size:0.72rem;';
+    const o = (v, cur, label) => `<option value="${v}"${v === cur ? ' selected' : ''}>${label}</option>`;
+    const chk = (k, label) => `<label style="font-size:0.72rem;color:var(--text-grey);display:flex;align-items:center;gap:5px;"><input type="checkbox"${c[k] ? ' checked' : ''} onchange="divoomSetCfg('${type}','${k}',this.checked)"> ${label}</label>`;
+    return `<div style="border:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:5px;">
+      <div style="font-size:0.78rem;font-weight:bold;color:var(--spotify-green);">${title}</div>
+      <label style="font-size:0.72rem;color:var(--text-grey);display:flex;align-items:center;justify-content:space-between;gap:6px;">Mode
+        <select style="${sel}" onchange="divoomSetCfg('${type}','mode',this.value)">${o('color', c.mode, 'Couleur principale (fond)')}${o('image', c.mode, 'Pochette en 16×16')}${o('lyrics', c.mode, 'Paroles défilantes')}</select></label>
+      ${chk('bar', 'Barre de progression (dernière ligne)')}
+      ${chk('announce', 'Afficher titre + artiste à chaque nouveau titre')}
+      ${chk('heart', 'Cœur quand le titre est aimé')}
+      <label style="font-size:0.72rem;color:var(--text-grey);display:flex;align-items:center;justify-content:space-between;gap:6px;">Icône en pause
+        <select style="${sel}" onchange="divoomSetCfg('${type}','pause',this.value)">${o('off', c.pause, 'Aucune')}${o('pause', c.pause, '⏸ Pause')}${o('play', c.pause, '▶ Lecture')}</select></label>
+      <label style="font-size:0.72rem;color:var(--text-grey);display:flex;align-items:center;justify-content:space-between;gap:6px;">Transition entre titres
+        <select style="${sel}" onchange="divoomSetCfg('${type}','trans',this.value)">${o('off', c.trans, 'Désactivée')}${o('pixel', c.trans, 'Pixel par pixel')}${o('sweep', c.trans, 'Balayage')}</select></label>
+    </div>`;
 }
-function divoomSetProgressBar(on) {
-    divoomProgressBar = !!on;
-    try { localStorage.setItem('divoomProgressBar', on ? 'true' : 'false'); } catch (e) {}
-    divoomLastKey = ''; divoomDirty = true;
+function divoomRenderCfgUI() {
+    const box = document.getElementById('divoom-cfg'); if (!box) return;
+    box.innerHTML = divoomCfgBlockHTML('timebox', '🔷 Timebox Evo') + divoomCfgBlockHTML('pixoo', '🟦 Pixoo');
 }
 
 // Surveille la pochette : à chaque nouveau titre on envoie sa couleur principale (au plus 1 envoi par seconde)
@@ -4681,7 +4739,7 @@ function divoomPollCover() {
             divoomLastColor = rgb.join();
             divoomCoverRgb = rgb;
             try { divoomCoverPx = divoomCoverPixels(art); } catch (e) { divoomCoverPx = null; }
-            divoomDirty = true; divoomLastKey = '';
+            divoomCoverVersion++; // nouveau titre : chaque appareil réagit selon ses propres réglages
         });
     } catch (e) { console.warn('Divoom :', e); }
 }
@@ -4717,23 +4775,40 @@ function divoomProgressMs() {
         return trackDurationMs > 0 ? Math.min(v, trackDurationMs) : v;
     } catch (e) { return 0; }
 }
+function divoomLikedNow() { try { return document.getElementById('like-btn').getAttribute('data-liked') === 'true'; } catch (e) { return false; } }
+// Construit une image 16×16. opts : mode ('color' | 'image' | 'lyrics' | 'announce'), bar, rgb, coverPx,
+// device (true = icône pause + cœur), pause ('off' | 'pause' | 'play'), heart, announceStart, out
 function divoomBuildFrame(opts) {
     opts = opts || {};
     const rgb = opts.rgb || divoomCoverRgb; if (!rgb) return null;
-    const mode = opts.mode || divoomRenderMode;
-    const barOn = opts.bar !== undefined ? opts.bar : divoomProgressBar;
+    const mode = opts.mode || 'color';
+    const barOn = !!opts.bar;
     const coverPx = opts.coverPx || divoomCoverPx;
+    const playing = (function () { try { return isCurrentlyPlaying; } catch (e) { return true; } })();
     const prog = divoomProgressMs();
     const dim = rgb.map(v => v >> 2 & 0xF8);
+    const textCol = rgb.map(v => Math.max(v, 96) & 0xF8);
+    const black = () => Array.from({ length: 256 }, () => [0, 0, 0]);
     let px;
     if (mode === 'image' && coverPx) px = coverPx.map(c => c.slice());
-    else if (mode === 'lyrics') px = Array.from({ length: 256 }, () => [0, 0, 0]);
+    else if (mode === 'lyrics' || mode === 'announce') px = black();
     else px = Array.from({ length: 256 }, () => rgb.map(v => v & 0xF8));
-    if (mode === 'lyrics') {
+    const drawText = (bm, x0) => { for (let cx = 0; cx < bm.w; cx++) { const X = x0 + cx; if (X < 0 || X > 15) continue; for (let y = 0; y < 5; y++) if (bm.cols[cx][y]) px[(5 + y) * 16 + X] = textCol; } };
+    const titleLabel = () => { let l = ''; try { l = (document.getElementById('track-title').innerText + ' - ' + document.getElementById('track-artist').innerText).replace(/\s*-\s*$/, ''); } catch (e) {} return l || 'MUSIQUE'; };
+    if (mode === 'announce') {
+        const bm = divoomTextBitmap(titleLabel()), el = (Date.now() - (opts.announceStart || Date.now())) / 1000;
+        const shift = el * 30; // pixels par seconde
+        if (shift >= bm.w + 16 && opts.out) opts.out.announceDone = true;
+        drawText(bm, 16 - Math.floor(shift));
+    } else if (mode === 'lyrics') {
         let line = null, next = null;
         try { for (let i = 0; i < currentLyrics.length; i++) { if (currentLyrics[i].time * 1000 <= prog) { line = currentLyrics[i]; next = currentLyrics[i + 1] || null; } else break; } } catch (e) {}
-        if (!line || !String(line.text || '').trim()) px = Array.from({ length: 256 }, () => dim.slice());
-        else {
+        if (!line || !String(line.text || '').trim()) {
+            // pas de parole à cet instant (intro, passage instrumental, paroles introuvables) : on fait défiler « titre - artiste »
+            const bm = divoomTextBitmap(titleLabel());
+            const period = bm.w + 16, shift = playing ? Math.floor((Date.now() / 1000) * 24) % period : 0;
+            drawText(bm, 16 - shift);
+        } else {
             const bm = divoomTextBitmap(String(line.text));
             const dur = Math.max(1000, next ? (next.time - line.time) * 1000 : 4000);
             let x0;
@@ -4743,10 +4818,19 @@ function divoomBuildFrame(opts) {
                 const speed = Math.max(DIVOOM_SCROLL_PXS, travel / (dur * 0.8 / 1000)); // px/s : assez vite pour finir la ligne avant la suivante
                 x0 = Math.round(1 - Math.min(travel, Math.max(0, elapsed - 250) / 1000 * speed));
             }
-            for (let cx = 0; cx < bm.w; cx++) {
-                const X = x0 + cx; if (X < 0 || X > 15) continue;
-                for (let y = 0; y < 5; y++) if (bm.cols[cx][y]) px[(5 + y) * 16 + X] = rgb.map(v => Math.max(v, 96) & 0xF8);
-            }
+            drawText(bm, x0);
+        }
+    }
+    if (opts.device) {
+        if (!playing && opts.pause && opts.pause !== 'off') { // image assombrie + symbole pause / lecture
+            px = px.map(c => c.map(v => (v * 0.3) & 0xF8));
+            const W = [248, 248, 248];
+            if (opts.pause === 'pause') { for (let y = 3; y <= 12; y++) for (const x of [4, 5, 6, 9, 10, 11]) px[y * 16 + x] = W; }
+            else { const widths = [1, 2, 3, 4, 5, 6, 6, 5, 4, 3, 2, 1]; widths.forEach((w, i) => { for (let k = 0; k < w; k++) px[(2 + i) * 16 + 5 + k] = W; }); }
+        }
+        if (opts.heart && divoomLikedNow()) { // petit cœur rouge en haut à droite
+            const H = [[0, 1, 0, 1, 0], [1, 1, 1, 1, 1], [1, 1, 1, 1, 1], [0, 1, 1, 1, 0], [0, 0, 1, 0, 0]];
+            H.forEach((row, y) => row.forEach((v, x) => { if (v) px[y * 16 + 10 + x] = [248, 32, 72]; }));
         }
     }
     if (barOn) {
@@ -4755,15 +4839,16 @@ function divoomBuildFrame(opts) {
         const bg = []; for (let x = 0; x < 16; x++) bg.push(px[15 * 16 + x].slice());
         const dist = (a, b) => Math.hypot((a[0] - b[0]) * 0.8, (a[1] - b[1]) * 1.0, (a[2] - b[2]) * 0.6);
         const lum = (c) => 0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2];
-        const cands = [[248, 248, 248], [8, 8, 8], [29, 185, 84], [255, 64, 200], [255, 220, 0], [0, 200, 255], rgb.map(v => 255 - v)];
+        // jamais de noir : la barre pleine en fin de titre ressemblerait à un trait noir mal découpé
+        const cands = [[248, 248, 248], [29, 185, 84], [255, 64, 200], [255, 220, 0], [0, 200, 255], [255, 90, 0], [60, 100, 255], rgb.map(v => 255 - v)].map(c => c.map(v => Math.max(v, 0)));
         let best = cands[0], bestScore = -1;
-        cands.forEach((c, i) => { const sc = Math.min.apply(null, bg.map(b => dist(c, b))) + (i === 0 ? 40 : 0); if (sc > bestScore) { bestScore = sc; best = c; } });
+        cands.forEach((c, i) => { if (lum(c) < 45) return; const sc = Math.min.apply(null, bg.map(b => dist(c, b))) + (i === 0 ? 40 : 0); if (sc > bestScore) { bestScore = sc; best = c; } });
         const fillLight = lum(best) > 128;
         const fillCol = best.map(v => v & 0xF8);
         for (let x = 0; x < 16; x++) {
             if (x < filled) { px[15 * 16 + x] = fillCol; continue; }
-            let u = fillLight ? bg[x].map(v => (v * 0.35) & 0xF8) : bg[x].map(v => (v + (255 - v) * 0.65) & 0xF8);
-            if (dist(u, fillCol) < 90) u = fillLight ? [24, 24, 24] : [232, 232, 232];
+            let u = fillLight ? bg[x].map(v => Math.max(v * 0.5, 40) & 0xF8) : bg[x].map(v => (v + (255 - v) * 0.65) & 0xF8);
+            if (dist(u, fillCol) < 90) u = fillLight ? [48, 48, 48] : [208, 208, 208];
             px[15 * 16 + x] = u;
         }
     }
@@ -4786,20 +4871,52 @@ async function divoomTickInner() {
         if (!divoomEnabled || !divoomDevices.length) return;
         divoomPollCover();
         if (!divoomCoverRgb) return;
-        const rgb = divoomCoverRgb;
-        if (divoomRenderMode === 'color' && !divoomProgressBar) {
-            if (divoomDirty && await divoomSendColor(rgb[0], rgb[1], rgb[2])) divoomDirty = false;
-            return;
-        }
-        if (divoomRenderMode === 'lyrics' || divoomRenderMode === 'image' || divoomProgressBar) {
-            const px = divoomBuildFrame(); if (!px) return;
-            const key = px.map(c => c.join('.')).join('|');
-            if (key === divoomLastKey) return;
-            if (Date.now() - divoomLastPixSend < 150) return; // au plus ~6 images par seconde : ménage la liaison Bluetooth
-            divoomLastPixSend = Date.now();
-            if (await divoomSendColor(rgb[0], rgb[1], rgb[2], px)) { divoomLastKey = key; divoomDirty = false; }
-        }
+        await Promise.all(divoomDevices.slice().map(divoomDeviceTick)); // chaque appareil suit SES réglages, indépendamment
     } catch (e) { console.warn('Divoom tick :', e); }
+}
+function divoomMakeTransition(dev, kind) {
+    const order = Array.from({ length: 256 }, (_, i) => i);
+    for (let i = 255; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = order[i]; order[i] = order[j]; order[j] = t; }
+    const rank = new Array(256); order.forEach((idx, k) => { rank[idx] = k; });
+    dev.trans = { from: dev.lastFramePx.map(c => c.slice()), start: Date.now(), kind: kind, rank: rank };
+}
+async function divoomDeviceTick(dev) {
+    if (dev.busy) return;
+    const cfg = divoomCfgOf(dev.type), rgb = divoomCoverRgb; if (!rgb) return;
+    if (dev.coverSeen !== divoomCoverVersion) { // nouveau titre
+        dev.coverSeen = divoomCoverVersion;
+        if (cfg.announce) dev.announceStart = Date.now();
+        if (cfg.trans !== 'off' && dev.lastFramePx) divoomMakeTransition(dev, cfg.trans);
+        dev.dirty = true; dev.lastKey = '';
+    }
+    const playing = (function () { try { return isCurrentlyPlaying; } catch (e) { return true; } })();
+    const announcing = cfg.announce && dev.announceStart && Date.now() - dev.announceStart < 30000;
+    const needPx = cfg.mode !== 'color' || cfg.bar || announcing || !!dev.trans || (!playing && cfg.pause !== 'off') || (cfg.heart && divoomLikedNow());
+    if (!needPx) { // fond uni : une seule commande, renvoyée seulement si besoin
+        if (dev.dirty || dev.wasPixels) {
+            dev.dirty = false; dev.wasPixels = false;
+            const ok = await divoomSafeSend(dev, rgb[0], rgb[1], rgb[2]);
+            if (ok) dev.lastFramePx = Array.from({ length: 256 }, () => rgb.map(v => v & 0xF8)); else dev.dirty = true;
+        }
+        return;
+    }
+    if (Date.now() - dev.lastSend < 150) return; // au plus ~6 images par seconde et par appareil
+    const out = {};
+    const base = { rgb: rgb, coverPx: divoomCoverPx, device: true, pause: cfg.pause, heart: cfg.heart, bar: cfg.bar, out: out };
+    let target = announcing ? divoomBuildFrame(Object.assign({}, base, { mode: 'announce', announceStart: dev.announceStart })) : divoomBuildFrame(Object.assign({}, base, { mode: cfg.mode }));
+    if (!target) return;
+    if (announcing && out.announceDone) { dev.announceStart = 0; dev.lastKey = ''; }
+    let frame = target;
+    if (dev.trans) {
+        const t = (Date.now() - dev.trans.start) / 1300;
+        if (t >= 1) dev.trans = null;
+        else frame = target.map((c, i) => ((dev.trans.kind === 'sweep' ? (i % 16) < t * 17 : dev.trans.rank[i] < t * 256) ? c : dev.trans.from[i]));
+    }
+    const key = frame.map(c => c.join('.')).join('|');
+    if (key === dev.lastKey && !dev.dirty) return;
+    dev.lastSend = Date.now();
+    const ok = await divoomSafeSend(dev, rgb[0], rgb[1], rgb[2], frame);
+    if (ok) { dev.lastKey = key; dev.dirty = false; dev.wasPixels = true; dev.lastFramePx = frame; }
 }
 // Le minuteur tourne dans un Web Worker (moins ralenti que celui de la page quand Chrome est en arrière-plan)
 // et un « verrou web » est gardé pour que Chrome évite de geler la page.
@@ -4852,8 +4969,7 @@ async function toggleDivoomSetting(checked) {
 function applyDivoomState() {
     const panel = document.getElementById('divoom-panel');
     if (panel) panel.style.display = divoomEnabled ? 'flex' : 'none';
-    const rm = document.getElementById('divoom-render-mode'); if (rm) rm.value = divoomRenderMode;
-    const pt = document.getElementById('divoom-progress-toggle'); if (pt) pt.checked = divoomProgressBar;
+    divoomRenderCfgUI();
     const at = document.getElementById('divoom-auto-toggle'); if (at) at.checked = divoomAutoEnabled;
     const kt = document.getElementById('divoom-keepalive-toggle'); if (kt) kt.checked = divoomKeepAliveOn;
     divoomUpdateIcons();
@@ -11013,14 +11129,19 @@ function setPochetteAnimStyle(style) {
 }
 
 // Pochette pixelisée en 16×16 : exactement les mêmes pixels que ceux envoyés aux écrans LED (Timebox Evo / Pixoo)
-let pixelSiteSrc = '', pixelSiteRgb = null, pixelLyricsTimer = null;
+let pixelSiteSrc = '', pixelSiteRgb = null, pixelLyricsTimer = null, pixelCoverCache = { src: '', px: null }, pixelRO = null;
+function removePixelCover() { const cv = document.getElementById('pochette-pixel-canvas'); if (cv) cv.remove(); if (pixelLyricsTimer) { clearInterval(pixelLyricsTimer); pixelLyricsTimer = null; } }
 function updatePixelCover() {
     try {
-        if (pochetteAnimStyle !== 'pixellyrics' && pixelLyricsTimer) { clearInterval(pixelLyricsTimer); pixelLyricsTimer = null; }
         const art = document.getElementById('track-art');
-        let cv = document.getElementById('pochette-pixel-canvas');
-        if ((pochetteAnimStyle !== 'pixel16' && pochetteAnimStyle !== 'pixellyrics') || !art || art.style.display === 'none' || !art.complete || !art.naturalWidth) { if (cv) cv.remove(); return; }
+        const active = pochetteAnimStyle === 'pixel16' || pochetteAnimStyle === 'pixellyrics';
+        if (!active || !art || art.style.display === 'none' || !art.src) { removePixelCover(); return; }
         const host = art.parentElement; if (!host) return;
+        let cv = document.getElementById('pochette-pixel-canvas');
+        // pendant le chargement d'une nouvelle pochette on garde l'ancien rendu (pas de flash de la vraie pochette)
+        const loaded = art.complete && art.naturalWidth > 0;
+        if (loaded && pixelCoverCache.src !== art.src) { try { pixelCoverCache = { src: art.src, px: divoomCoverPixels(art) }; } catch (e) { pixelCoverCache = { src: '', px: null }; } }
+        if (!pixelCoverCache.px) { if (!loaded && cv) return; removePixelCover(); return; }
         if (getComputedStyle(host).position === 'static') host.style.position = 'relative';
         if (!cv) {
             cv = document.createElement('canvas'); cv.id = 'pochette-pixel-canvas'; cv.width = 16; cv.height = 16;
@@ -11030,17 +11151,17 @@ function updatePixelCover() {
         cv.style.left = art.offsetLeft + 'px'; cv.style.top = art.offsetTop + 'px';
         cv.style.width = art.offsetWidth + 'px'; cv.style.height = art.offsetHeight + 'px';
         cv.style.borderRadius = getComputedStyle(art).borderRadius;
-        const coverPx = divoomCoverPixels(art);
-        let px = coverPx;
+        let px = pixelCoverCache.px;
         if (pochetteAnimStyle === 'pixellyrics') {
-            if (pixelSiteSrc !== art.src) { pixelSiteSrc = art.src; pixelSiteRgb = null; getTwoDominantColorsFromImageSrc(art.src, (c) => { if (c) { const k = 255 / Math.max(c[0], c[1], c[2], 1); pixelSiteRgb = c.map(v => Math.min(255, Math.round(v * k))); } }); }
-            px = divoomBuildFrame({ mode: 'lyrics', rgb: pixelSiteRgb || [29, 185, 84], bar: false, coverPx: coverPx }) || coverPx;
+            if (pixelSiteSrc !== art.src) { pixelSiteSrc = art.src; getTwoDominantColorsFromImageSrc(art.src, (c) => { if (c) { const k = 255 / Math.max(c[0], c[1], c[2], 1); pixelSiteRgb = c.map(v => Math.min(255, Math.round(v * k))); } }); }
+            px = divoomBuildFrame({ mode: 'lyrics', rgb: pixelSiteRgb || [29, 185, 84], bar: false, coverPx: pixelCoverCache.px }) || pixelCoverCache.px;
             if (!pixelLyricsTimer) pixelLyricsTimer = setInterval(updatePixelCover, 120);
         } else if (pixelLyricsTimer) { clearInterval(pixelLyricsTimer); pixelLyricsTimer = null; }
         const ctx = cv.getContext('2d'), img = ctx.createImageData(16, 16);
         px.forEach((c, i) => { img.data[i * 4] = c[0]; img.data[i * 4 + 1] = c[1]; img.data[i * 4 + 2] = c[2]; img.data[i * 4 + 3] = 255; });
         ctx.putImageData(img, 0, 0);
-    } catch (e) { const cv = document.getElementById('pochette-pixel-canvas'); if (cv) cv.remove(); }
+        if (!pixelRO && window.ResizeObserver) { pixelRO = new ResizeObserver(() => updatePixelCover()); pixelRO.observe(art); }
+    } catch (e) { /* on garde le dernier rendu */ }
 }
 window.addEventListener('resize', () => { try { updatePixelCover(); positionQueuePeek(); } catch (e) {} });
 
