@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v8.0";
+        const APP_VERSION = "v8.1";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -4380,11 +4380,12 @@ const DIVOOM_CFG_DEFAULT = { likedN: 3, mode: 'color', bar: false, announce: fal
 // Image « tasse de café » (16×16, intégrée au code) affichée quand la lecture est en pause depuis plus de 2 minutes
 const DIVOOM_CAFE_HEX = '98d0d898d0e098d0e098d0e0a0d8e098d8e898d8e888d0e098d8e890d8e880d0e088d8e090d8e888d8e090d8e880d0e088d0e090d0e090d0e098d0d898d0d898d0d8a0d8e088d0e088d8e080d0e078d0d870d0d880d8e078d8e088d8e878d0e088d0e088d0e098d0e0a0d0e0a8d8d8b8d8e0c0d8e0c0d8e0b8d8e0b0d8e098d0e078d0d878d0e068d0e080d8e870d0e088d0e088d0e090d0e0b8d0e0d8d8e0d8d8d8b8c0d0b8a890e8c098e8d0b8e8e0d8d0e0e080d8e060d0e070d0e068d0e088d0e098d0e0d0d8e0e0e0e8e0d8e0a8a8b0c06818f09000f89000f89000f0b868e8d8c8d8e0e088d0e070d0d860d0e090d0e8c8d8e080a8c0a8c0d8c8c8d0a84828f08000f89000f89000f89000f8a020f0a038d8d8e0d0d8e0d8e0e870d0e898d0e8e0e0e85080b0b0c8d8c0b8b0d82800f08000f88800f88800f89000f89000f89000d0d0c858a8d080b0d0306888b0d8e8e8e0e87890b078a8d0c0c8c8d05030e05800f88800f88800f88800f88800f0a84898b8c860a0c83878a8003078b0d8e8e8e8e8d0d0e05088b8c0c8d8d8d0d0c07058e86010f87800f09018f0b878d0d8d038a0d030a0d83898d0002868a0d8e8e8e8e8e8e8e8c0d0e0d0d8e8d8d8e0e0d8e0d8d8d8d0d0d0d0d8d8d0e0e080b8d040a8d840a8d840a8d800286080d0e0e0e0e8e8e8e8d8d8d8b0c8d8e0d8e0d8d8e0e0e0e0d8e0e0c0d8e080b8d03098d060b0d8a0d0e098b8d000306880d0e8b8d8e8e8e8e8e0d8d898b8d0e0e0e0e0e0e0d8d8e0d0d8d898c0d898c0d8c8d8e0e8e8e8e8e8e890a8b800306878d0e088d0e8d0e0e8e8e0e06890b8b8d0e8e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e8e8e8e8e8e8e8e8e848607000204078d0e088d0e888d0e8d0e0e85078a0a0b8d8e0e0e8e0e0e0e0e0e0e0e0e0e8e8e0e8e8e8e8e8e878889008204038688088d0e888d0e080d0e870c8e858a0c8a8c0d8e0e0e0e0e0e0e0e0e0e0e0e0e0e8e8c8d0e050688800182828505870d8e090d0e880d0e080d0e070c8e868c8e068c0d86098b078a0b878a0b86090a830587810385018506860a8b080d8e070d0e0';
 const DIVOOM_CAFE_PX = Array.from({ length: 256 }, (_, i) => [parseInt(DIVOOM_CAFE_HEX.substr(i * 6, 2), 16), parseInt(DIVOOM_CAFE_HEX.substr(i * 6 + 2, 2), 16), parseInt(DIVOOM_CAFE_HEX.substr(i * 6 + 4, 2), 16)]);
-const DIVOOM_CAFE_DELAY_MS = 300000; // tasse de café après 5 min de pause
-const DIVOOM_CAFE_DIM_MS = 180000;  // puis la luminosité baisse progressivement jusqu'au minimum en 3 min
+const DIVOOM_CAFE_DELAY_MS = 120000; // tasse de café après 2 min de pause
+const DIVOOM_CAFE_DIM_START_MS = 300000; // la luminosité commence à baisser après 5 min de pause…
+const DIVOOM_CAFE_DIM_MS = 180000;  // …et atteint le minimum 3 min plus tard
 const DIVOOM_CAFE_MIN_LUM = 0.06;
 let divoomBlank = false; // « écran vide » : rien ne s'affiche sur les appareils
-function divoomCafeDim() { if (!divoomCafeActive()) return 1; const t = Math.min(1, (Date.now() - divoomPausedSince - DIVOOM_CAFE_DELAY_MS) / DIVOOM_CAFE_DIM_MS); return Math.round((1 - t * (1 - DIVOOM_CAFE_MIN_LUM)) * 32) / 32; }
+function divoomCafeDim() { if (!divoomCafeActive()) return 1; const t = Math.max(0, Math.min(1, (Date.now() - divoomPausedSince - DIVOOM_CAFE_DIM_START_MS) / DIVOOM_CAFE_DIM_MS)); return Math.round((1 - t * (1 - DIVOOM_CAFE_MIN_LUM)) * 32) / 32; }
 function divoomToggleBlank() {
     divoomBlank = !divoomBlank;
     divoomDevices.forEach(d => { d.dirty = true; d.lastKey = ''; });
@@ -5053,15 +5054,16 @@ function divoomBuildFrame(opts) {
     else px = Array.from({ length: 256 }, () => rgb.map(v => v & 0xF8));
     const drawText = (bm, x0) => { for (let cx = 0; cx < bm.w; cx++) { const X = x0 + cx; if (X < 0 || X > 15) continue; for (let y = 0; y < 5; y++) if (bm.cols[cx][y]) px[(5 + y) * 16 + X] = textCol; } };
     const titleLabel = () => { let l = ''; try { l = (document.getElementById('track-title').innerText + ' - ' + document.getElementById('track-artist').innerText).replace(/\s*-\s*$/, ''); } catch (e) {} return l || 'MUSIQUE'; };
+    let textShown = false;
     if (mode === 'liked') divoomLikedFrame(px, opts.likedN, textCol);
     else if (mode === 'title') {
         const bm = divoomTextBitmap(titleLabel()), period = bm.w + 16, shift = playing ? Math.floor((Date.now() / 1000) * 24) % period : 0;
-        drawText(bm, 16 - shift);
+        drawText(bm, 16 - shift); textShown = true;
     } else if (mode === 'announce') {
         const bm = divoomTextBitmap(titleLabel()), el = (Date.now() - (opts.announceStart || Date.now())) / 1000;
         const shift = el * 30; // pixels par seconde
         if (shift >= bm.w + 16 && opts.out) opts.out.announceDone = true;
-        drawText(bm, 16 - Math.floor(shift));
+        drawText(bm, 16 - Math.floor(shift)); textShown = true;
     } else if (mode === 'lyrics') {
         let line = null, next = null;
         try { for (let i = 0; i < currentLyrics.length; i++) { if (currentLyrics[i].time * 1000 <= prog) { line = currentLyrics[i]; next = currentLyrics[i + 1] || null; } else break; } } catch (e) {}
@@ -5070,7 +5072,7 @@ function divoomBuildFrame(opts) {
             if (opts.fallbackTitle !== false) {
                 const bm = divoomTextBitmap(titleLabel());
                 const period = bm.w + 16, shift = playing ? Math.floor((Date.now() / 1000) * 24) % period : 0;
-                drawText(bm, 16 - shift);
+                drawText(bm, 16 - shift); textShown = true;
             } else px = px.map(() => dim.slice());
         } else {
             const bm = divoomTextBitmap(String(line.text));
@@ -5082,11 +5084,11 @@ function divoomBuildFrame(opts) {
                 const speed = Math.max(DIVOOM_SCROLL_PXS, travel / (dur * 0.8 / 1000)); // px/s : assez vite pour finir la ligne avant la suivante
                 x0 = Math.round(1 - Math.min(travel, Math.max(0, elapsed - 250) / 1000 * speed));
             }
-            drawText(bm, x0);
+            drawText(bm, x0); textShown = true;
         }
     }
     if (opts.device) {
-        if (opts.heart && mode !== 'liked' && divoomLikedNow()) { // petit cœur rouge en haut à droite (dessiné AVANT l'icône pause : il passe derrière)
+        if (opts.heart && mode !== 'liked' && !textShown && divoomLikedNow()) { // petit cœur rouge en haut à droite (dessiné AVANT l'icône pause : il passe derrière)
             const H = [[0, 1, 0, 1, 0], [1, 1, 1, 1, 1], [1, 1, 1, 1, 1], [0, 1, 1, 1, 0], [0, 0, 1, 0, 0]];
             H.forEach((row, y) => row.forEach((v, x) => { if (v) px[y * 16 + 10 + x] = [248, 32, 72]; }));
         }
@@ -5175,7 +5177,7 @@ async function divoomDeviceTick(dev) {
     if (divoomBlank) { // écran vide : tout noir, envoyé une seule fois
         if (dev.dirty || dev.lastKey !== 'blank') {
             dev.dirty = false;
-            const ok = await divoomSafeSend(dev, 0, 0, 0);
+            const ok = await divoomSafeSend(dev, 0, 0, 0, divoomPixelsOf(() => null)); // image noire explicite (comme à la déconnexion) : identique sur les 2 appareils
             if (ok) { dev.lastKey = 'blank'; dev.wasPixels = false; dev.lastFramePx = Array.from({ length: 256 }, () => [0, 0, 0]); } else dev.dirty = true;
         }
         return;
