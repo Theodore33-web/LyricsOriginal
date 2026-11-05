@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v7.8";
+        const APP_VERSION = "v7.9";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1563,20 +1563,21 @@
     </label>
 </div>
 <div id="divoom-panel" style="display: none; flex-direction: column; gap: 8px; width: 100%;">
-    <div style="font-size: 0.72rem; color: var(--text-grey); line-height: 1.5;">Appaire l'appareil dans les réglages Bluetooth du téléphone, puis connecte-le ici.</div>
-    <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
-        <button class="divoom-btn" onclick="divoomReconnectNow()">⚡ Reconnecter</button>
-        <button class="divoom-btn" onclick="divoomConnect('timebox')">🔌 Timebox Evo</button>
-        <button class="divoom-btn" onclick="divoomConnect('pixoo')">🔌 Pixoo</button>
+    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <button class="divoom-btn" onclick="divoomSwapTypes()">🔁 Inverser les appareils</button>
+        <span id="divoom-status" style="font-size: 0.75rem; color: var(--text-grey);">Aucun appareil connecté</span>
     </div>
-    <div id="divoom-status" style="font-size: 0.75rem; color: var(--text-grey);">Aucun appareil connecté</div>
     <div id="divoom-cfg" style="display: flex; flex-direction: column; gap: 8px;"></div>
-    <details data-k="tools"><summary style="font-size:0.72rem;color:var(--text-grey);cursor:pointer;padding:3px 0;">Outils</summary>
+    <details data-k="tools"><summary style="font-size:0.72rem;color:var(--text-grey);cursor:pointer;padding:3px 0;">Outils (connexion, tests…)</summary>
         <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 6px;">
+            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                <button class="divoom-btn" onclick="divoomReconnectNow()">⚡ Reconnecter</button>
+                <button class="divoom-btn" onclick="divoomConnect('timebox')">🔌 Timebox Evo</button>
+                <button class="divoom-btn" onclick="divoomConnect('pixoo')">🔌 Pixoo</button>
+            </div>
             <div style="display: flex; gap: 6px; flex-wrap: wrap;">
                 <button class="divoom-btn" onclick="divoomTestColor()">🔴 Test</button>
                 <button class="divoom-btn" onclick="divoomIdentify()">🔎 Identifier</button>
-                <button class="divoom-btn" onclick="divoomSwapTypes()">🔁 Inverser</button>
                 <button class="divoom-btn" onclick="divoomDisconnectAll(true)">⏏️ Déconnecter</button>
             </div>
             <label style="font-size: 0.72rem; color: var(--text-grey); display: flex; align-items: center; gap: 5px;"><input type="checkbox" id="divoom-auto-toggle" onchange="divoomSetAutoReconnect(this.checked)"> Reconnexion automatique</label>
@@ -4512,7 +4513,7 @@ function divoomUpdateIcons() {
 }
 function divoomRefreshStatus() {
     divoomUpdateIcons();
-    if (!divoomDevices.length) { divoomStatus('Aucun appareil connecté'); return; }
+    if (!divoomDevices.length) { divoomStatus('Aucun appareil connecté (Outils › 🔌)'); return; }
     divoomStatus('✅ Connecté : ' + divoomDevices.map(d => DIVOOM_TYPES[d.type]).join(' + '));
 }
 
@@ -4762,23 +4763,18 @@ function divoomTestColor() {
 function divoomCfgBlockHTML(type, title) {
     const c = divoomCfgOf(type), sel = 'background:#1a1a1a;color:#fff;border:1px solid #444;border-radius:6px;padding:3px 5px;font-size:0.72rem;';
     const o = (v, cur, label) => `<option value="${v}"${v === cur ? ' selected' : ''}>${label}</option>`;
-    const chk = (k, label) => `<label style="font-size:0.72rem;color:var(--text-grey);display:flex;align-items:center;justify-content:flex-start;gap:6px;width:100%;"><input type="checkbox"${c[k] ? ' checked' : ''} onchange="divoomSetCfg('${type}','${k}',this.checked)"> ${label}</label>`;
+    const chk = (k, label) => `<label style="font-size:0.72rem;color:var(--text-grey);display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;text-align:left;"><span style="text-align:left;">${label}</span><input type="checkbox"${c[k] ? ' checked' : ''} onchange="divoomSetCfg('${type}','${k}',this.checked)"></label>`;
     const row = (label, inner) => `<label style="font-size:0.72rem;color:var(--text-grey);display:flex;align-items:center;justify-content:space-between;gap:6px;">${label}${inner}</label>`;
-    const sm = 'font-size:0.72rem;color:var(--text-grey);cursor:pointer;padding:3px 0;';
     return `<details data-k="${type}" open style="border:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:8px 10px;">
       <summary style="font-size:0.8rem;font-weight:bold;color:var(--spotify-green);cursor:pointer;">${title}</summary>
       <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px;">
-        ${row('Affichage', `<select style="${sel}" onchange="divoomSetCfg('${type}','mode',this.value)">${o('color', c.mode, 'Couleur de la pochette')}${o('image', c.mode, 'Pochette en pixels')}${o('lyrics', c.mode, 'Paroles défilantes')}${o('liked', c.mode, '❤️ Titres aimés')}</select>`)}
+        ${row('Affichage', `<select style="${sel}" onchange="divoomSetCfg('${type}','mode',this.value)">${o('color', c.mode, 'Couleur de la pochette')}${o('image', c.mode, 'Pochette en pixels')}${o('lyrics', c.mode, 'Paroles défilantes')}${c.mode === 'liked' ? o('liked', c.mode, '❤️ Titres aimés (lancé depuis ❤️)') : ''}</select>`)}
         ${chk('bar', 'Barre de progression')}
-        <details data-k="${type}-more"><summary style="${sm}">Plus d'options</summary>
-          <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px;">
-            ${chk('announce', 'Titre + artiste à chaque nouveau titre')}
-            ${chk('fallbackTitle', 'Titre + artiste quand il n\'y a pas de parole')}
-            ${chk('heart', 'Cœur quand le titre est aimé')}
-            ${row('Icône en pause', `<select style="${sel}" onchange="divoomSetCfg('${type}','pause',this.value)">${o('off', c.pause, 'Aucune')}${o('pause', c.pause, '⏸ Pause')}${o('play', c.pause, '▶ Lecture')}</select>`)}
-            ${row('Transition', `<select style="${sel}" onchange="divoomSetCfg('${type}','trans',this.value)">${o('off', c.trans, 'Aucune')}${o('pixel', c.trans, 'Pixel par pixel')}${o('sweep', c.trans, 'Balayage')}${o('fade', c.trans, 'Fondu')}${o('curtain', c.trans, 'Rideau')}${o('rain', c.trans, 'Pluie')}</select>`)}
-          </div>
-        </details>
+        ${chk('heart', 'Petit cœur quand le titre est aimé')}
+        ${chk('announce', 'Titre + artiste à chaque nouveau titre')}
+        ${chk('fallbackTitle', 'Titre + artiste quand il n\'y a pas de parole')}
+        ${row('Icône en pause', `<select style="${sel}" onchange="divoomSetCfg('${type}','pause',this.value)">${o('off', c.pause, 'Aucune')}${o('pause', c.pause, '⏸ Pause')}${o('play', c.pause, '▶ Lecture')}</select>`)}
+        ${row('Transition', `<select style="${sel}" onchange="divoomSetCfg('${type}','trans',this.value)">${o('off', c.trans, 'Aucune')}${o('pixel', c.trans, 'Pixel par pixel')}${o('sweep', c.trans, 'Balayage')}${o('fade', c.trans, 'Fondu')}${o('curtain', c.trans, 'Rideau')}${o('rain', c.trans, 'Pluie')}</select>`)}
       </div>
     </details>`;
 }
@@ -4864,7 +4860,7 @@ async function divoomLikedEnsure(force) {
             else if (order === 'random') { items = items.slice(); for (let i = items.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = items[i]; items[i] = items[j]; items[j] = t; } }
             divoomLiked.tracks = items.map(it => {
                 const t = it.track || {}, imgs = (t.album && t.album.images) || [];
-                return { label: (t.name || '') + ' - ' + ((t.artists && t.artists[0] && t.artists[0].name) || ''), url: imgs.length ? imgs[imgs.length > 1 ? 1 : 0].url : '', px: {}, img: null, bm: null };
+                return { uri: t.uri || '', label: (t.name || '') + ' - ' + ((t.artists && t.artists[0] && t.artists[0].name) || ''), url: imgs.length ? imgs[imgs.length > 1 ? 1 : 0].url : '', px: {}, img: null, bm: null };
             });
             divoomLiked.loaded = Date.now(); divoomLiked.start = Date.now(); divoomLiked.sel = 0; divoomLiked.selStart = Date.now();
             divoomLiked.tracks.forEach(tr => { if (!tr.url) return; const im = new Image(); im.crossOrigin = 'anonymous'; im.onload = () => { tr.img = im; }; im.src = tr.url; });
@@ -4968,12 +4964,16 @@ function divoomLikedPanelTick() {
         }
         mq.textContent = st.T[st.k].label;
     }
-    const ctr = document.getElementById('liked-counter'); if (ctr) ctr.textContent = (st.k + 1) + ' / ' + st.T.length;
+    const ctr = document.getElementById('liked-counter'); if (ctr) ctr.textContent = '(' + (st.k + 1) + '/' + st.T.length + ')';
     // une seule ligne qui défile, calée sur le même temps que l'écran LED
     const cw = mqbox.clientWidth, sw = mq.offsetWidth, frac = Math.min(1, st.el / ((st.T[st.k].bm.w + 16) / DIVOOM_LIKED_SPEED));
     mq.style.transform = 'translateX(' + Math.round(cw - frac * (sw + cw)) + 'px)';
 }
 function divoomLikedSelect(i) { const L = divoomLiked.tracks.length; if (!L) return; divoomLiked.sel = ((i % L) + L) % L; divoomLiked.selStart = Date.now(); const c = document.getElementById('liked-covers'); if (c) c.dataset.key = ''; }
+function divoomLikedPlay() { // lance le titre sélectionné sur Spotify
+    const tr = divoomLiked.tracks[divoomLiked.sel];
+    if (tr && tr.uri) { try { playTrack(tr.uri); } catch (e) {} }
+}
 function divoomLikedStep(d) { divoomLikedSelect(divoomLiked.sel + d); }
 function divoomLikedSetOrder(v) { divoomLikedPrefs.order = v; divoomLikedSavePrefs(); divoomLikedEnsure(true); const c = document.getElementById('liked-covers'); if (c) c.dataset.key = ''; }
 function divoomLikedSetManual(on) {
@@ -4994,6 +4994,11 @@ async function toggleLikedShow() {
     box.innerHTML = `<div id="liked-panel" style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px;padding:6px 0;">
         <p style="color:var(--spotify-green);font-weight:bold;font-size:0.8rem;margin:0;">❤️ TITRES AIMÉS</p>
         <div id="liked-covers" style="display:flex;gap:8px;justify-content:center;min-height:60px;"></div>
+        <div id="liked-manual-ctl" style="display:none;gap:6px;align-items:center;justify-content:center;">
+            <button style="${btn}" onclick="divoomLikedStep(-1)">◀</button>
+            <button style="${btn}" onclick="divoomLikedPlay()">▶ Lancer <span id="liked-counter" style="opacity:0.7;"></span></button>
+            <button style="${btn}" onclick="divoomLikedStep(1)">▶</button>
+        </div>
         <div id="liked-marquee-box" style="width:100%;max-width:360px;overflow:hidden;white-space:nowrap;height:1.5em;"><span id="liked-marquee" style="display:inline-block;font-size:0.9rem;"></span></div>
         <canvas id="liked-preview" width="16" height="16" style="width:128px;height:128px;image-rendering:pixelated;border-radius:8px;background:#000;"></canvas>
         <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;font-size:0.78rem;color:var(--text-grey);">
@@ -5001,11 +5006,7 @@ async function toggleLikedShow() {
             <label>Ordre <select id="liked-order-select" onchange="divoomLikedSetOrder(this.value)" style="background:#1a1a1a;color:#fff;border:1px solid #444;border-radius:6px;padding:3px 6px;font-size:0.78rem;"><option value="recent">Récents d'abord</option><option value="oldest">Anciens d'abord</option><option value="random">Aléatoire</option></select></label>
             <label>Défilement <select id="liked-manual-select" onchange="divoomLikedSetManual(this.value==='manual')" style="background:#1a1a1a;color:#fff;border:1px solid #444;border-radius:6px;padding:3px 6px;font-size:0.78rem;"><option value="auto">Automatique</option><option value="manual">Manuel</option></select></label>
         </div>
-        <div id="liked-manual-ctl" style="display:none;gap:8px;align-items:center;justify-content:center;">
-            <button style="${btn}" onclick="divoomLikedStep(-1)">◀ Précédent</button>
-            <span id="liked-counter" style="font-size:0.78rem;color:var(--text-grey);min-width:54px;"></span>
-            <button style="${btn}" onclick="divoomLikedStep(1)">Suivant ▶</button>
-        </div>
+
         <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;">
             <button style="${btn}" onclick="divoomLikedApply(['timebox'],true)">🔷 Afficher sur la Timebox</button>
             <button style="${btn}" onclick="divoomLikedApply(['pixoo'],true)">🟦 Afficher sur le Pixoo</button>
