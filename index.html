@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v7.6";
+        const APP_VERSION = "v7.7";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1410,6 +1410,7 @@
                         <button id="voice-command-btn" onclick="toggleVoiceCommand()" title="Commande vocale">🗣️</button>
                         <button id="mic-btn" onclick="toggleMicrophoneListen()" title="Identifier le titre (ACRCloud)">🎙️</button>
                         <button id="lib-toggle-btn" onclick="getUserLibrary()" title="Ouvrir ma bibliothèque (Likés)">📂</button>
+                        <button id="liked-show-btn" onclick="toggleLikedShow()" title="Titres aimés : animation et affichage sur les écrans LED">❤️</button>
                         <button id="record-drive-btn" onclick="startDriveRecording()" title="Enregistrer un audio pour Google Drive">📹</button>
                         <button id="recent-toggle-btn" onclick="getRecentlyPlayed()" title="Écoutes récentes">📄</button>
                         <button id="profile-toggle-btn" onclick="toggleProfileCard()" title="Mon Profil">👤</button>
@@ -4863,6 +4864,17 @@ function divoomMiniCover(tr, size) { // pochette réduite à size×size pixels (
         tr.px[size] = out; return out;
     } catch (e) { return null; }
 }
+const DIVOOM_LIKED_SPEED = 30; // pixels LED par seconde
+// Où en est l'animation : titre en cours (k), temps écoulé sur ce titre (el), groupe de 3/4 pochettes affiché
+function divoomLikedState(n) {
+    const T = divoomLiked.tracks; n = n === 4 ? 4 : 3;
+    if (!T.length) return null;
+    T.forEach(tr => { if (!tr.bm) tr.bm = divoomTextBitmap(tr.label || '?'); });
+    const HOLD = 0.5, dur = T.map(tr => (tr.bm.w + 16) / DIVOOM_LIKED_SPEED + HOLD);
+    const total = dur.reduce((a, b) => a + b, 0), t = (((Date.now() - (divoomLiked.start || Date.now())) / 1000) % total + total) % total;
+    let k = 0, acc = 0; while (k < T.length - 1 && acc + dur[k] <= t) { acc += dur[k]; k++; }
+    return { T: T, k: k, el: t - acc, dur: dur[k], group: Math.floor(k / n), n: n, size: n === 3 ? 5 : 4 };
+}
 function divoomLikedFrame(px, n, textCol) {
     const T = divoomLiked.tracks;
     n = n === 4 ? 4 : 3;
@@ -4871,11 +4883,7 @@ function divoomLikedFrame(px, n, textCol) {
         for (let cx = 0; cx < bm.w; cx++) { const X = 16 + cx - sh; if (X < 0 || X > 15) continue; for (let y = 0; y < 5; y++) if (bm.cols[cx][y]) px[(5 + y) * 16 + X] = textCol; }
         return;
     }
-    T.forEach(tr => { if (!tr.bm) tr.bm = divoomTextBitmap(tr.label || '?'); });
-    const SPEED = 30, HOLD = 0.5, dur = T.map(tr => (tr.bm.w + 16) / SPEED + HOLD);
-    const total = dur.reduce((a, b) => a + b, 0), t = (((Date.now() - (divoomLiked.start || Date.now())) / 1000) % total + total) % total;
-    let k = 0, acc = 0; while (k < T.length - 1 && acc + dur[k] <= t) { acc += dur[k]; k++; }
-    const el = t - acc, group = Math.floor(k / n), size = n === 3 ? 5 : 4;
+    const st = divoomLikedState(n), k = st.k, el = st.el, group = st.group, size = st.size, SPEED = DIVOOM_LIKED_SPEED;
     for (let i = 0; i < n; i++) { // rangée de mini-pochettes : la piste en cours est en pleine lumière, les autres sont assombries
         const tr = T[group * n + i]; if (!tr) continue;
         const mc = divoomMiniCover(tr, size), active = group * n + i === k, x0 = i * size;
@@ -4887,6 +4895,83 @@ function divoomLikedFrame(px, n, textCol) {
     }
     const bm = T[k].bm, off = 16 - Math.floor(el * SPEED);
     for (let cx = 0; cx < bm.w; cx++) { const X = off + cx; if (X < 0 || X > 15) continue; for (let y = 0; y < 5; y++) if (bm.cols[cx][y]) px[(8 + y) * 16 + X] = textCol; }
+}
+// ---- Panneau « Titres aimés » (bouton ❤️ de la barre d'outils) ----
+let divoomLikedPanelTimer = null;
+function divoomLikedApply(types, on) {
+    const n = parseInt((document.getElementById('liked-n-select') || {}).value || '3', 10) === 4 ? 4 : 3;
+    types.forEach(type => {
+        const cfg = divoomCfgOf(type);
+        if (on) { if (cfg.mode !== 'liked') divoomSetCfg(type, 'prevMode', cfg.mode); divoomSetCfg(type, 'likedN', n); divoomSetCfg(type, 'mode', 'liked'); }
+        else if (cfg.mode === 'liked') divoomSetCfg(type, 'mode', (cfg.prevMode && cfg.prevMode !== 'liked') ? cfg.prevMode : 'color');
+    });
+    divoomLikedEnsure(); divoomRenderCfgUI(); divoomLikedPanelStatus();
+}
+function divoomLikedPanelStatus() {
+    const el = document.getElementById('liked-status'); if (!el) return;
+    const line = (type, label) => {
+        const connected = divoomDevices.some(d => d.type === type), on = divoomCfgOf(type).mode === 'liked';
+        return label + ' : ' + (on ? '❤️ affiche les titres aimés' : 'mode normal') + (connected ? ' (connecté)' : ' (non connecté)');
+    };
+    el.innerHTML = line('timebox', '🔷 Timebox Evo') + '<br>' + line('pixoo', '🟦 Pixoo') + (divoomEnabled ? '' : '<br>⚠️ Active la fonction dans Paramètres › 📱 Appareils pour voir ça sur les écrans.');
+}
+function divoomLikedPanelTick() {
+    const panel = document.getElementById('liked-panel');
+    if (!panel) { clearInterval(divoomLikedPanelTimer); divoomLikedPanelTimer = null; return; }
+    const n = parseInt(document.getElementById('liked-n-select').value, 10) === 4 ? 4 : 3;
+    const st = divoomLikedState(n);
+    const cv = document.getElementById('liked-preview'), covers = document.getElementById('liked-covers'), mq = document.getElementById('liked-marquee'), mqbox = document.getElementById('liked-marquee-box');
+    // aperçu fidèle de l'écran 16×16
+    const px = Array.from({ length: 256 }, () => [0, 0, 0]);
+    divoomLikedFrame(px, n, (divoomCoverRgb || [29, 185, 84]).map(v => Math.max(v, 96) & 0xF8));
+    const ctx = cv.getContext('2d'), img = ctx.createImageData(16, 16);
+    px.forEach((c, i) => { img.data[i * 4] = c[0]; img.data[i * 4 + 1] = c[1]; img.data[i * 4 + 2] = c[2]; img.data[i * 4 + 3] = 255; });
+    ctx.putImageData(img, 0, 0);
+    if (!st) { covers.innerHTML = ''; mq.textContent = divoomLiked.loaded ? 'Aucun titre aimé' : 'Chargement…'; mq.style.transform = 'none'; return; }
+    // rangée de pochettes du groupe en cours (la piste active est entourée)
+    const key = st.group + ':' + n + ':' + st.k;
+    if (covers.dataset.key !== key) {
+        covers.dataset.key = key; covers.innerHTML = '';
+        for (let i = 0; i < n; i++) {
+            const tr = st.T[st.group * n + i]; if (!tr) continue;
+            const im = document.createElement('img'); im.src = tr.url || 'imagemusic.jpg'; im.alt = tr.label;
+            im.style.cssText = 'width:56px;height:56px;object-fit:cover;border-radius:8px;transition:opacity .3s,transform .3s;' + (st.group * n + i === st.k ? 'outline:2px solid var(--spotify-green);outline-offset:2px;' : 'opacity:0.4;transform:scale(0.92);');
+            covers.appendChild(im);
+        }
+        mq.textContent = st.T[st.k].label;
+    }
+    // une seule ligne qui défile, calée sur le même temps que l'écran LED
+    const cw = mqbox.clientWidth, sw = mq.offsetWidth, frac = Math.min(1, st.el / ((st.T[st.k].bm.w + 16) / DIVOOM_LIKED_SPEED));
+    mq.style.transform = 'translateX(' + Math.round(cw - frac * (sw + cw)) + 'px)';
+}
+async function toggleLikedShow() {
+    document.getElementById('device-control-zone').style.display = 'none';
+    document.getElementById('volume-control-zone').style.display = 'none';
+    const plContainer = document.getElementById('playlist-container');
+    if (plContainer) { plContainer.style.display = 'none'; plContainer.innerHTML = ''; }
+    const box = document.getElementById('search-results');
+    box.dataset.topTracksOpen = ''; stopQueueAutoRefresh();
+    if (box.dataset.view === 'liked') { box.innerHTML = ''; box.dataset.view = ''; return; }
+    box.dataset.view = 'liked';
+    const btn = 'background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;border-radius:999px;padding:6px 12px;font-size:0.75rem;cursor:pointer;';
+    box.innerHTML = `<div id="liked-panel" style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px;padding:6px 0;">
+        <p style="color:var(--spotify-green);font-weight:bold;font-size:0.8rem;margin:0;">❤️ TITRES AIMÉS</p>
+        <div id="liked-covers" style="display:flex;gap:8px;justify-content:center;min-height:60px;"></div>
+        <div id="liked-marquee-box" style="width:100%;max-width:360px;overflow:hidden;white-space:nowrap;height:1.5em;"><span id="liked-marquee" style="display:inline-block;font-size:0.9rem;"></span></div>
+        <canvas id="liked-preview" width="16" height="16" style="width:128px;height:128px;image-rendering:pixelated;border-radius:8px;background:#000;"></canvas>
+        <label style="font-size:0.78rem;color:var(--text-grey);">Pochettes : <select id="liked-n-select" style="background:#1a1a1a;color:#fff;border:1px solid #444;border-radius:6px;padding:3px 6px;font-size:0.78rem;"><option value="3">3</option><option value="4">4</option></select></label>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;">
+            <button style="${btn}" onclick="divoomLikedApply(['timebox'],true)">🔷 Afficher sur la Timebox</button>
+            <button style="${btn}" onclick="divoomLikedApply(['pixoo'],true)">🟦 Afficher sur le Pixoo</button>
+            <button style="${btn}" onclick="divoomLikedApply(['timebox','pixoo'],true)">Les deux</button>
+            <button style="${btn}" onclick="divoomLikedApply(['timebox','pixoo'],false)">⏹ Arrêter</button>
+        </div>
+        <div id="liked-status" style="font-size:0.72rem;color:var(--text-grey);line-height:1.5;"></div>
+    </div>`;
+    const sel = document.getElementById('liked-n-select'); sel.value = String(divoomCfgOf('timebox').likedN === 4 ? 4 : 3);
+    divoomLikedPanelStatus();
+    await divoomLikedEnsure();
+    if (!divoomLikedPanelTimer) divoomLikedPanelTimer = setInterval(divoomLikedPanelTick, 100);
 }
 function divoomLikedNow() { try { return document.getElementById('like-btn').getAttribute('data-liked') === 'true'; } catch (e) { return false; } }
 // Construit une image 16×16. opts : mode ('color' | 'image' | 'lyrics' | 'announce'), bar, rgb, coverPx,
