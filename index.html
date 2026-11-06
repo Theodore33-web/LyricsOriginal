@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v8.4";
+        const APP_VERSION = "v8.5";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -4405,6 +4405,7 @@ let divoomCfg = (function () {
 function divoomCfgOf(type) { return divoomCfg[type] || DIVOOM_CFG_DEFAULT; }
 function divoomSetCfg(type, key, value) {
     divoomCfg[type][key] = value;
+    if (key === 'mode') setTimeout(() => { try { divoomRenderCfgUI(); } catch (e) {} }, 0); // affiche / masque les options titre + artiste selon le mode
     try { localStorage.setItem('divoomCfg', JSON.stringify(divoomCfg)); } catch (e) {}
     divoomDevices.filter(d => d.type === type).forEach(d => { d.dirty = true; d.lastKey = ''; d.trans = null; });
 }
@@ -4787,8 +4788,8 @@ function divoomCfgBlockHTML(type, title) {
         ${row('Affichage', `<select style="${sel}" onchange="divoomSetCfg('${type}','mode',this.value)">${o('color', c.mode, 'Couleur de la pochette')}${o('image', c.mode, 'Pochette en pixels')}${o('lyrics', c.mode, 'Paroles défilantes')}${o('title', c.mode, 'Titre + artiste (défilement continu)')}${o('stats', c.mode, '📊 Stats d\'écoute (défilement)')}${c.mode === 'liked' ? o('liked', c.mode, '❤️ Titres aimés (lancé depuis ❤️)') : ''}</select>`)}
         ${chk('bar', 'Barre de progression')}
         ${chk('heart', 'Petit cœur quand le titre est aimé')}
-        ${chk('announce', 'Titre + artiste à chaque nouveau titre')}
-        ${chk('fallbackTitle', 'Titre + artiste quand il n\'y a pas de parole')}
+        ${c.mode === 'stats' ? '' : chk('announce', 'Titre + artiste à chaque nouveau titre')}
+        ${c.mode === 'stats' ? '' : chk('fallbackTitle', 'Titre + artiste quand il n\'y a pas de parole')}
         ${row('Icône en pause', `<select style="${sel}" onchange="divoomSetCfg('${type}','pause',this.value)">${o('off', c.pause, 'Aucune')}${o('pause', c.pause, '⏸ Pause')}${o('play', c.pause, '▶ Lecture')}</select>`)}
         ${row('Transition', `<select style="${sel}" onchange="divoomSetCfg('${type}','trans',this.value)">${o('off', c.trans, 'Aucune')}${o('pixel', c.trans, 'Pixel par pixel')}${o('sweep', c.trans, 'Balayage')}${o('fade', c.trans, 'Fondu')}${o('curtain', c.trans, 'Rideau')}${o('rain', c.trans, 'Pluie')}</select>`)}
       </div>
@@ -5201,12 +5202,12 @@ async function divoomDeviceTick(dev) {
     if (playingNow) divoomPausedSince = 0; else if (!divoomPausedSince) divoomPausedSince = Date.now();
     if (dev.coverSeen !== divoomCoverVersion) { // nouveau titre
         dev.coverSeen = divoomCoverVersion;
-        if (cfg.announce) dev.announceStart = Date.now() + (cfg.trans !== 'off' && dev.lastFramePx ? 1450 : 0); // le titre attend la fin de la transition pour être lu en entier
+        if (cfg.announce && cfg.mode !== 'stats') dev.announceStart = Date.now() + (cfg.trans !== 'off' && dev.lastFramePx ? 1450 : 0); // le titre attend la fin de la transition pour être lu en entier
         if (cfg.trans !== 'off' && dev.lastFramePx) divoomMakeTransition(dev, cfg.trans);
         dev.dirty = true; dev.lastKey = '';
     }
     const playing = (function () { try { return isCurrentlyPlaying; } catch (e) { return true; } })();
-    const announcePending = cfg.announce && dev.announceStart && Date.now() - dev.announceStart < 30000;
+    const announcePending = cfg.announce && cfg.mode !== 'stats' && dev.announceStart && Date.now() - dev.announceStart < 30000;
     const announcing = announcePending && Date.now() >= dev.announceStart; // pas avant la fin de la transition
     const cafe = divoomCafeActive() && cfg.mode !== 'liked'; // tasse de café après 2 min de pause (sauf animation des titres aimés)
     if (cfg.mode === 'liked') divoomLikedEnsure();
