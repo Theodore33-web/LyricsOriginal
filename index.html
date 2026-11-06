@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v8.3";
+        const APP_VERSION = "v8.4";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1582,7 +1582,6 @@
                 <button class="divoom-btn" onclick="divoomDisconnectAll(true)">⏏️ Déconnecter</button>
             </div>
             <label style="font-size: 0.72rem; color: var(--text-grey); display: flex; align-items: center; gap: 5px;"><input type="checkbox" id="divoom-auto-toggle" onchange="divoomSetAutoReconnect(this.checked)"> Reconnexion automatique</label>
-            <label style="font-size: 0.72rem; color: var(--text-grey); display: flex; align-items: center; gap: 5px;"><input type="checkbox" id="divoom-media-toggle" onchange="divoomSetMedia(this.checked)"> Lecture média silencieuse (reste actif en arrière-plan ; peut mettre Spotify en pause)</label>
             <label style="font-size: 0.72rem; color: var(--text-grey); display: flex; align-items: center; gap: 5px;"><input type="checkbox" id="divoom-keepalive-toggle" onchange="divoomSetKeepAlive(this.checked)"> Garder actif en arrière-plan</label>
         </div>
     </details>
@@ -4425,44 +4424,6 @@ function divoomKeepAliveStart() {
         divoomAudioCtx = ctx;
     } catch (e) {}
 }
-// « Lecture média » : un vrai élément <audio> en boucle (quasi silencieux) + notification média. Chrome le traite comme une lecture de musique
-// (comme YouTube) et ne gèle plus la page quand tu changes d'appli. Android peut toutefois mettre Spotify en pause à cause du focus audio.
-let divoomMediaOn = localStorage.getItem('divoomMediaKeep') !== 'false', divoomMediaEl = null;
-function divoomSilentWavUrl() {
-    const sr = 8000, n = sr, buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
-    const w = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
-    w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVE'); w(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
-    v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n * 2, true);
-    for (let i = 0; i < n; i++) v.setInt16(44 + i * 2, Math.round(Math.sin(2 * Math.PI * 25 * i / sr) * 60), true); // ≈ -55 dB, boucle exacte de 1 s
-    return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
-}
-function divoomMediaMeta() {
-    try {
-        if (!('mediaSession' in navigator)) return;
-        const art = document.getElementById('track-art');
-        const parts = (divoomNowLabel || 'Appareils LED connectés').split(' - ');
-        navigator.mediaSession.metadata = new MediaMetadata({ title: parts[0] || 'Appareils LED', artist: parts.slice(1).join(' - ') || 'Lyrics Original', artwork: art && art.src ? [{ src: art.src, sizes: '512x512' }] : [] });
-    } catch (e) {}
-}
-function divoomMediaStart() {
-    try {
-        if (!divoomMediaOn) return;
-        if (!divoomMediaEl) { divoomMediaEl = new Audio(divoomSilentWavUrl()); divoomMediaEl.loop = true; divoomMediaEl.volume = 1; }
-        if (divoomMediaEl.paused) { const pr = divoomMediaEl.play(); if (pr && pr.catch) pr.catch(() => {}); }
-        divoomMediaMeta();
-        if ('mediaSession' in navigator) {
-            try { navigator.mediaSession.playbackState = 'playing'; navigator.mediaSession.setActionHandler('pause', () => { try { divoomMediaEl.play(); } catch (e) {} }); } catch (e) {}
-        }
-    } catch (e) {}
-}
-function divoomMediaStop() { try { if (divoomMediaEl) { divoomMediaEl.pause(); } if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'none'; } catch (e) {} }
-function divoomSetMedia(on) {
-    divoomMediaOn = !!on;
-    try { localStorage.setItem('divoomMediaKeep', on ? 'true' : 'false'); } catch (e) {}
-    if (on) divoomMediaStart(); else divoomMediaStop();
-}
-document.addEventListener('pointerdown', () => { if (divoomMediaOn && divoomEnabled && divoomDevices.length) divoomMediaStart(); }, { passive: true });
-document.addEventListener('visibilitychange', () => { if (divoomMediaOn && divoomEnabled && divoomDevices.length) divoomMediaStart(); });
 function divoomKeepAliveStop() { try { if (divoomAudioCtx) { divoomAudioCtx.close(); divoomAudioCtx = null; } } catch (e) {} }
 function divoomSetKeepAlive(on) {
     divoomKeepAliveOn = !!on;
@@ -4648,7 +4609,6 @@ function divoomNewDevice(type, port) {
     const dev = { type: type, port: port, writer: port.writable.getWriter(), dirty: true, lastKey: '', lastSend: 0, busy: false, trans: null, lastFramePx: null, announceStart: 0, coverSeen: divoomCoverVersion, wasPixels: false };
     divoomStartReader(dev);
     if (divoomKeepAliveOn) divoomKeepAliveStart();
-    divoomMediaStart();
     return dev;
 }
 async function divoomSendTo(dev, r, g, b, pixels) {
@@ -4824,7 +4784,7 @@ function divoomCfgBlockHTML(type, title) {
     return `<details data-k="${type}" open style="border:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:8px 10px;">
       <summary style="font-size:0.8rem;font-weight:bold;color:var(--spotify-green);cursor:pointer;">${title}</summary>
       <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px;">
-        ${row('Affichage', `<select style="${sel}" onchange="divoomSetCfg('${type}','mode',this.value)">${o('color', c.mode, 'Couleur de la pochette')}${o('image', c.mode, 'Pochette en pixels')}${o('lyrics', c.mode, 'Paroles défilantes')}${o('title', c.mode, 'Titre + artiste (défilement continu)')}${c.mode === 'liked' ? o('liked', c.mode, '❤️ Titres aimés (lancé depuis ❤️)') : ''}</select>`)}
+        ${row('Affichage', `<select style="${sel}" onchange="divoomSetCfg('${type}','mode',this.value)">${o('color', c.mode, 'Couleur de la pochette')}${o('image', c.mode, 'Pochette en pixels')}${o('lyrics', c.mode, 'Paroles défilantes')}${o('title', c.mode, 'Titre + artiste (défilement continu)')}${o('stats', c.mode, '📊 Stats d\'écoute (défilement)')}${c.mode === 'liked' ? o('liked', c.mode, '❤️ Titres aimés (lancé depuis ❤️)') : ''}</select>`)}
         ${chk('bar', 'Barre de progression')}
         ${chk('heart', 'Petit cœur quand le titre est aimé')}
         ${chk('announce', 'Titre + artiste à chaque nouveau titre')}
@@ -4856,7 +4816,6 @@ function divoomPollCover() {
             divoomLastColor = rgb.join();
             divoomCoverRgb = rgb;
             try { divoomCoverPx = divoomCoverPixels(art); } catch (e) { divoomCoverPx = null; }
-            divoomMediaMeta();
             divoomCoverVersion++; // nouveau titre : chaque appareil réagit selon ses propres réglages
         });
     } catch (e) { console.warn('Divoom :', e); }
@@ -4892,6 +4851,32 @@ function divoomProgressMs() {
         const v = currentProgressMs + (isCurrentlyPlaying ? Date.now() - divoomProgSeenAt : 0); // reste juste même si le minuteur de la page est ralenti en arrière-plan
         return trackDurationMs > 0 ? Math.min(v, trackDurationMs) : v;
     } catch (e) { return 0; }
+}
+// Mode « stats » : texte défilant avec le nombre de titres écoutés aujourd'hui, le titre / l'artiste le plus écouté, le temps d'écoute
+const divoomStats = { text: '', loaded: 0, loading: false, bm: null, bmText: '' };
+function divoomStatsFmt(ms) { const m = Math.round(ms / 60000), h = Math.floor(m / 60); return h > 0 ? h + 'H' + String(m % 60).padStart(2, '0') : m + ' MIN'; }
+async function divoomStatsEnsure() {
+    if (divoomStats.loading || !currentToken || (divoomStats.text && Date.now() - divoomStats.loaded < 180000)) return;
+    divoomStats.loading = true;
+    try {
+        const r = await fetch('https://api.spotify.com/v1/me/player/recently-played?limit=50', { headers: { 'Authorization': 'Bearer ' + currentToken } });
+        if (!r.ok) throw new Error(r.status);
+        const d = await r.json();
+        const mid = new Date(); mid.setHours(0, 0, 0, 0);
+        const today = (d.items || []).filter(it => it.track && new Date(it.played_at).getTime() >= mid.getTime());
+        const full = (d.items || []).length >= 50 && today.length >= 50; // l'API ne remonte que 50 titres
+        const top = (keyFn, labelFn) => { const m = new Map(); today.forEach(it => { const k = keyFn(it.track); const e = m.get(k) || { n: 0, label: labelFn(it.track) }; e.n++; m.set(k, e); }); let best = null; m.forEach(e => { if (!best || e.n > best.n) best = e; }); return best; };
+        const parts = [];
+        parts.push("AUJOURD'HUI : " + today.length + (full ? '+' : '') + (today.length > 1 ? ' TITRES ECOUTES' : ' TITRE ECOUTE'));
+        const bt = top(t => t.id, t => t.name + ' - ' + (t.artists[0] ? t.artists[0].name : ''));
+        if (bt && bt.n >= 2) parts.push('TITRE LE PLUS ECOUTE : ' + bt.label + ' ' + bt.n + ' FOIS');
+        const ba = top(t => t.artists[0] ? t.artists[0].id : '?', t => t.artists[0] ? t.artists[0].name : '?');
+        if (ba && ba.n >= 2) parts.push('ARTISTE LE PLUS ECOUTE : ' + ba.label + ' ' + ba.n + ' TITRES');
+        const ms = today.reduce((a, it) => a + (it.track.duration_ms || 0), 0);
+        if (ms > 0) parts.push("TEMPS D'ECOUTE : " + divoomStatsFmt(ms));
+        divoomStats.text = parts.join('   -   '); divoomStats.loaded = Date.now();
+    } catch (e) { if (!divoomStats.text) divoomStats.text = 'STATS INDISPONIBLES'; divoomStats.loaded = Date.now() - 120000; } // nouvel essai dans 1 min
+    divoomStats.loading = false;
 }
 // Mode « titres aimés » : tes derniers titres likés défilent (titre - artiste) pendant que leurs mini-pochettes s'affichent en haut
 const divoomLiked = { tracks: [], loaded: 0, loading: false, start: 0, sel: 0, selStart: 0 };
@@ -5096,13 +5081,18 @@ function divoomBuildFrame(opts) {
     const black = () => Array.from({ length: 256 }, () => [0, 0, 0]);
     let px;
     if (mode === 'image' && coverPx) px = coverPx.map(c => c.slice());
-    else if (mode === 'lyrics' || mode === 'announce' || mode === 'liked' || mode === 'title') px = black();
+    else if (mode === 'lyrics' || mode === 'announce' || mode === 'liked' || mode === 'title' || mode === 'stats') px = black();
     else px = Array.from({ length: 256 }, () => rgb.map(v => v & 0xF8));
     const drawText = (bm, x0) => { for (let cx = 0; cx < bm.w; cx++) { const X = x0 + cx; if (X < 0 || X > 15) continue; for (let y = 0; y < 5; y++) if (bm.cols[cx][y]) px[(5 + y) * 16 + X] = textCol; } };
     const titleLabel = () => { let l = divoomNowLabel || ''; if (!l) try { l = (document.getElementById('track-title').innerText + ' - ' + document.getElementById('track-artist').innerText).replace(/\s*-\s*$/, ''); } catch (e) {} return l || 'MUSIQUE'; };
     let textShown = false;
     if (mode === 'liked') divoomLikedFrame(px, opts.likedN, textCol);
-    else if (mode === 'title') {
+    else if (mode === 'stats') {
+        const txt = divoomStats.text || 'STATS EN CHARGEMENT';
+        if (divoomStats.bmText !== txt) { divoomStats.bm = divoomTextBitmap(txt); divoomStats.bmText = txt; }
+        const bm = divoomStats.bm, period = bm.w + 16, shift = playing ? Math.floor((Date.now() / 1000) * 24) % period : Math.floor((Date.now() / 1000) * 24) % period;
+        drawText(bm, 16 - shift); textShown = true;
+    } else if (mode === 'title') {
         const bm = divoomTextBitmap(titleLabel()), period = bm.w + 16, shift = playing ? Math.floor((Date.now() / 1000) * 24) % period : 0;
         drawText(bm, 16 - shift); textShown = true;
     } else if (mode === 'announce') {
@@ -5180,7 +5170,6 @@ async function divoomTickInner() {
             let remembered = 0; try { remembered = JSON.parse(localStorage.getItem('divoomPortTypes') || '[]').filter(Boolean).length; } catch (e) {}
             if (remembered > divoomDevices.length) divoomAutoReconnect();
         }
-        if (!divoomDevices.length && divoomMediaEl && !divoomMediaEl.paused) divoomMediaStop();
         if (!divoomEnabled || !divoomDevices.length) return;
         divoomPollCover();
         if (!divoomCoverRgb) return;
@@ -5221,6 +5210,7 @@ async function divoomDeviceTick(dev) {
     const announcing = announcePending && Date.now() >= dev.announceStart; // pas avant la fin de la transition
     const cafe = divoomCafeActive() && cfg.mode !== 'liked'; // tasse de café après 2 min de pause (sauf animation des titres aimés)
     if (cfg.mode === 'liked') divoomLikedEnsure();
+    if (cfg.mode === 'stats') divoomStatsEnsure();
     if (divoomBlank) { // écran vide : tout noir, envoyé une seule fois
         if (dev.dirty || dev.lastKey !== 'blank') {
             dev.dirty = false;
@@ -5295,7 +5285,6 @@ function divoomStartTicker() {
     try { if (navigator.locks && !divoomLockRelease) navigator.locks.request('divoom-keepalive', () => new Promise(res => { divoomLockRelease = res; })); } catch (e) {}
 }
 function divoomStopTicker() {
-    divoomMediaStop();
     if (divoomWorker) { divoomWorker.terminate(); divoomWorker = null; }
     Object.keys(divoomSleepers).forEach(k => { const r = divoomSleepers[k]; delete divoomSleepers[k]; r(); }); // libère les pauses en attente
     if (divoomTimer) { clearInterval(divoomTimer); divoomTimer = null; }
@@ -5315,7 +5304,6 @@ function applyDivoomState() {
     const lb = document.getElementById('liked-show-btn'); if (lb) lb.style.display = divoomEnabled ? '' : 'none';
     if (!divoomEnabled) { const rb = document.getElementById('search-results'); if (rb && rb.dataset.view === 'liked') { rb.innerHTML = ''; rb.dataset.view = ''; } }
     const at = document.getElementById('divoom-auto-toggle'); if (at) at.checked = divoomAutoEnabled;
-    const mt = document.getElementById('divoom-media-toggle'); if (mt) mt.checked = divoomMediaOn;
     const kt = document.getElementById('divoom-keepalive-toggle'); if (kt) kt.checked = divoomKeepAliveOn;
     divoomUpdateIcons();
     if (divoomEnabled && currentToken && !divoomNavigating) divoomStartTicker(); else divoomStopTicker();
