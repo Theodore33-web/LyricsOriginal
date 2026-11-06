@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v8.2";
+        const APP_VERSION = "v8.3";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1582,6 +1582,7 @@
                 <button class="divoom-btn" onclick="divoomDisconnectAll(true)">⏏️ Déconnecter</button>
             </div>
             <label style="font-size: 0.72rem; color: var(--text-grey); display: flex; align-items: center; gap: 5px;"><input type="checkbox" id="divoom-auto-toggle" onchange="divoomSetAutoReconnect(this.checked)"> Reconnexion automatique</label>
+            <label style="font-size: 0.72rem; color: var(--text-grey); display: flex; align-items: center; gap: 5px;"><input type="checkbox" id="divoom-media-toggle" onchange="divoomSetMedia(this.checked)"> Lecture média silencieuse (reste actif en arrière-plan ; peut mettre Spotify en pause)</label>
             <label style="font-size: 0.72rem; color: var(--text-grey); display: flex; align-items: center; gap: 5px;"><input type="checkbox" id="divoom-keepalive-toggle" onchange="divoomSetKeepAlive(this.checked)"> Garder actif en arrière-plan</label>
         </div>
     </details>
@@ -4424,6 +4425,44 @@ function divoomKeepAliveStart() {
         divoomAudioCtx = ctx;
     } catch (e) {}
 }
+// « Lecture média » : un vrai élément <audio> en boucle (quasi silencieux) + notification média. Chrome le traite comme une lecture de musique
+// (comme YouTube) et ne gèle plus la page quand tu changes d'appli. Android peut toutefois mettre Spotify en pause à cause du focus audio.
+let divoomMediaOn = localStorage.getItem('divoomMediaKeep') !== 'false', divoomMediaEl = null;
+function divoomSilentWavUrl() {
+    const sr = 8000, n = sr, buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
+    const w = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+    w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVE'); w(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n * 2, true);
+    for (let i = 0; i < n; i++) v.setInt16(44 + i * 2, Math.round(Math.sin(2 * Math.PI * 25 * i / sr) * 60), true); // ≈ -55 dB, boucle exacte de 1 s
+    return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+}
+function divoomMediaMeta() {
+    try {
+        if (!('mediaSession' in navigator)) return;
+        const art = document.getElementById('track-art');
+        const parts = (divoomNowLabel || 'Appareils LED connectés').split(' - ');
+        navigator.mediaSession.metadata = new MediaMetadata({ title: parts[0] || 'Appareils LED', artist: parts.slice(1).join(' - ') || 'Lyrics Original', artwork: art && art.src ? [{ src: art.src, sizes: '512x512' }] : [] });
+    } catch (e) {}
+}
+function divoomMediaStart() {
+    try {
+        if (!divoomMediaOn) return;
+        if (!divoomMediaEl) { divoomMediaEl = new Audio(divoomSilentWavUrl()); divoomMediaEl.loop = true; divoomMediaEl.volume = 1; }
+        if (divoomMediaEl.paused) { const pr = divoomMediaEl.play(); if (pr && pr.catch) pr.catch(() => {}); }
+        divoomMediaMeta();
+        if ('mediaSession' in navigator) {
+            try { navigator.mediaSession.playbackState = 'playing'; navigator.mediaSession.setActionHandler('pause', () => { try { divoomMediaEl.play(); } catch (e) {} }); } catch (e) {}
+        }
+    } catch (e) {}
+}
+function divoomMediaStop() { try { if (divoomMediaEl) { divoomMediaEl.pause(); } if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'none'; } catch (e) {} }
+function divoomSetMedia(on) {
+    divoomMediaOn = !!on;
+    try { localStorage.setItem('divoomMediaKeep', on ? 'true' : 'false'); } catch (e) {}
+    if (on) divoomMediaStart(); else divoomMediaStop();
+}
+document.addEventListener('pointerdown', () => { if (divoomMediaOn && divoomEnabled && divoomDevices.length) divoomMediaStart(); }, { passive: true });
+document.addEventListener('visibilitychange', () => { if (divoomMediaOn && divoomEnabled && divoomDevices.length) divoomMediaStart(); });
 function divoomKeepAliveStop() { try { if (divoomAudioCtx) { divoomAudioCtx.close(); divoomAudioCtx = null; } } catch (e) {} }
 function divoomSetKeepAlive(on) {
     divoomKeepAliveOn = !!on;
@@ -4609,6 +4648,7 @@ function divoomNewDevice(type, port) {
     const dev = { type: type, port: port, writer: port.writable.getWriter(), dirty: true, lastKey: '', lastSend: 0, busy: false, trans: null, lastFramePx: null, announceStart: 0, coverSeen: divoomCoverVersion, wasPixels: false };
     divoomStartReader(dev);
     if (divoomKeepAliveOn) divoomKeepAliveStart();
+    divoomMediaStart();
     return dev;
 }
 async function divoomSendTo(dev, r, g, b, pixels) {
@@ -4816,6 +4856,7 @@ function divoomPollCover() {
             divoomLastColor = rgb.join();
             divoomCoverRgb = rgb;
             try { divoomCoverPx = divoomCoverPixels(art); } catch (e) { divoomCoverPx = null; }
+            divoomMediaMeta();
             divoomCoverVersion++; // nouveau titre : chaque appareil réagit selon ses propres réglages
         });
     } catch (e) { console.warn('Divoom :', e); }
@@ -5139,6 +5180,7 @@ async function divoomTickInner() {
             let remembered = 0; try { remembered = JSON.parse(localStorage.getItem('divoomPortTypes') || '[]').filter(Boolean).length; } catch (e) {}
             if (remembered > divoomDevices.length) divoomAutoReconnect();
         }
+        if (!divoomDevices.length && divoomMediaEl && !divoomMediaEl.paused) divoomMediaStop();
         if (!divoomEnabled || !divoomDevices.length) return;
         divoomPollCover();
         if (!divoomCoverRgb) return;
@@ -5253,6 +5295,7 @@ function divoomStartTicker() {
     try { if (navigator.locks && !divoomLockRelease) navigator.locks.request('divoom-keepalive', () => new Promise(res => { divoomLockRelease = res; })); } catch (e) {}
 }
 function divoomStopTicker() {
+    divoomMediaStop();
     if (divoomWorker) { divoomWorker.terminate(); divoomWorker = null; }
     Object.keys(divoomSleepers).forEach(k => { const r = divoomSleepers[k]; delete divoomSleepers[k]; r(); }); // libère les pauses en attente
     if (divoomTimer) { clearInterval(divoomTimer); divoomTimer = null; }
@@ -5272,6 +5315,7 @@ function applyDivoomState() {
     const lb = document.getElementById('liked-show-btn'); if (lb) lb.style.display = divoomEnabled ? '' : 'none';
     if (!divoomEnabled) { const rb = document.getElementById('search-results'); if (rb && rb.dataset.view === 'liked') { rb.innerHTML = ''; rb.dataset.view = ''; } }
     const at = document.getElementById('divoom-auto-toggle'); if (at) at.checked = divoomAutoEnabled;
+    const mt = document.getElementById('divoom-media-toggle'); if (mt) mt.checked = divoomMediaOn;
     const kt = document.getElementById('divoom-keepalive-toggle'); if (kt) kt.checked = divoomKeepAliveOn;
     divoomUpdateIcons();
     if (divoomEnabled && currentToken && !divoomNavigating) divoomStartTicker(); else divoomStopTicker();
