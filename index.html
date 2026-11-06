@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v8.1";
+        const APP_VERSION = "v8.2";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1582,7 +1582,7 @@
                 <button class="divoom-btn" onclick="divoomDisconnectAll(true)">⏏️ Déconnecter</button>
             </div>
             <label style="font-size: 0.72rem; color: var(--text-grey); display: flex; align-items: center; gap: 5px;"><input type="checkbox" id="divoom-auto-toggle" onchange="divoomSetAutoReconnect(this.checked)"> Reconnexion automatique</label>
-            <label style="font-size: 0.72rem; color: var(--text-grey); display: flex; align-items: center; gap: 5px;"><input type="checkbox" id="divoom-keepalive-toggle" onchange="divoomSetKeepAlive(this.checked)"> Garder actif en arrière-plan (test)</label>
+            <label style="font-size: 0.72rem; color: var(--text-grey); display: flex; align-items: center; gap: 5px;"><input type="checkbox" id="divoom-keepalive-toggle" onchange="divoomSetKeepAlive(this.checked)"> Garder actif en arrière-plan</label>
         </div>
     </details>
 </div>
@@ -3804,10 +3804,12 @@ function highlightLyrics(currentTime) {
                         // --- ÉPISODE DE PODCAST ---
                         document.getElementById('track-title').innerText = data.item.name;
                         document.getElementById('track-artist').innerText = data.item.show ? data.item.show.name : "Podcast";
+                        divoomNowLabel = data.item.name + ' - ' + (data.item.show ? data.item.show.name : 'Podcast');
                     } else {
                         // --- MORCEAU DE MUSIQUE ---
                         document.getElementById('track-title').innerText = data.item.name;
                         document.getElementById('track-artist').innerText = data.item.artists.map(a => a.name).join(", ");
+                        divoomNowLabel = data.item.name + ' - ' + data.item.artists.map(a => a.name).join(', ');
                     }
 
                     // Resynchronise la progression réelle avec celle de Spotify (corrige toute dérive locale)
@@ -4408,16 +4410,17 @@ function divoomSetCfg(type, key, value) {
 }
 let divoomCoverVersion = 0;
 let divoomCoverRgb = null, divoomCoverPx = null, divoomDirty = false, divoomLastKey = '', divoomProgSeen = -1, divoomProgSeenAt = 0;
+let divoomNowLabel = ''; // « titre - artiste » du morceau en cours (indépendant de l'animation d'écriture du DOM)
 let divoomDevices = []; // { type: 'timebox' | 'pixoo', port, writer, name }
 let divoomLastPixels = null;
 // Option « maintien en arrière-plan » : un signal audio inaudible garde la page active quand Chrome passe en arrière-plan
-let divoomKeepAliveOn = localStorage.getItem('divoomKeepAlive') === 'true', divoomAudioCtx = null;
+let divoomKeepAliveOn = localStorage.getItem('divoomKeepAlive') !== 'false', divoomAudioCtx = null; // activé par défaut
 function divoomKeepAliveStart() {
     try {
         if (divoomAudioCtx) { if (divoomAudioCtx.state === 'suspended') divoomAudioCtx.resume(); return; }
         const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
         const ctx = new AC(), osc = ctx.createOscillator(), g = ctx.createGain();
-        g.gain.value = 0.00002; osc.frequency.value = 40; osc.connect(g); g.connect(ctx.destination); osc.start();
+        g.gain.value = 0.002; osc.frequency.value = 35; // sous -50 dB : inaudible, mais Chrome ne le prend plus pour du silence (seuil ≈ -72 dB), donc la page n'est ni gelée ni ralentie osc.connect(g); g.connect(ctx.destination); osc.start();
         divoomAudioCtx = ctx;
     } catch (e) {}
 }
@@ -4427,7 +4430,8 @@ function divoomSetKeepAlive(on) {
     try { localStorage.setItem('divoomKeepAlive', on ? 'true' : 'false'); } catch (e) {}
     if (on) divoomKeepAliveStart(); else divoomKeepAliveStop();
 }
-document.addEventListener('pointerdown', () => { if (divoomKeepAliveOn && !divoomAudioCtx) divoomKeepAliveStart(); }, { passive: true });
+document.addEventListener('pointerdown', () => { if (divoomKeepAliveOn) divoomKeepAliveStart(); }, { passive: true });
+document.addEventListener('visibilitychange', () => { if (divoomKeepAliveOn && divoomEnabled && divoomDevices.length) divoomKeepAliveStart(); }); // relance le signal si Chrome l'a suspendu
 // Aperçu des 3 prochains titres de la file d'attente, en bas à droite de la pochette
 let queuePeekTracks = [], queuePeekSel = -1, queuePeekTimer = null;
 let queuePeekEnabled = localStorage.getItem('queuePeekEnabled') !== 'false'; // activé par défaut
@@ -4604,6 +4608,7 @@ async function divoomWaitAck(dev) {
 function divoomNewDevice(type, port) {
     const dev = { type: type, port: port, writer: port.writable.getWriter(), dirty: true, lastKey: '', lastSend: 0, busy: false, trans: null, lastFramePx: null, announceStart: 0, coverSeen: divoomCoverVersion, wasPixels: false };
     divoomStartReader(dev);
+    if (divoomKeepAliveOn) divoomKeepAliveStart();
     return dev;
 }
 async function divoomSendTo(dev, r, g, b, pixels) {
@@ -5053,7 +5058,7 @@ function divoomBuildFrame(opts) {
     else if (mode === 'lyrics' || mode === 'announce' || mode === 'liked' || mode === 'title') px = black();
     else px = Array.from({ length: 256 }, () => rgb.map(v => v & 0xF8));
     const drawText = (bm, x0) => { for (let cx = 0; cx < bm.w; cx++) { const X = x0 + cx; if (X < 0 || X > 15) continue; for (let y = 0; y < 5; y++) if (bm.cols[cx][y]) px[(5 + y) * 16 + X] = textCol; } };
-    const titleLabel = () => { let l = ''; try { l = (document.getElementById('track-title').innerText + ' - ' + document.getElementById('track-artist').innerText).replace(/\s*-\s*$/, ''); } catch (e) {} return l || 'MUSIQUE'; };
+    const titleLabel = () => { let l = divoomNowLabel || ''; if (!l) try { l = (document.getElementById('track-title').innerText + ' - ' + document.getElementById('track-artist').innerText).replace(/\s*-\s*$/, ''); } catch (e) {} return l || 'MUSIQUE'; };
     let textShown = false;
     if (mode === 'liked') divoomLikedFrame(px, opts.likedN, textCol);
     else if (mode === 'title') {
