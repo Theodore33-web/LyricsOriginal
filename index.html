@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v8.6";
+        const APP_VERSION = "v8.7";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -3808,7 +3808,16 @@ function highlightLyrics(currentTime) {
             };
         }
 
+        // Un seul sondage Spotify à la fois (le minuteur de 3 s, le worker et les relances manuelles se chevauchaient : paroles chargées 2 fois, états qui se contredisent),
+        // et pause automatique si Spotify répond « trop de requêtes » (429)
+        let npRunning = false, npRunningAt = 0, npBackoffUntil = 0;
         async function updateNowPlaying() {
+            if (Date.now() < npBackoffUntil) return;
+            if (npRunning && Date.now() - npRunningAt < 8000) return;
+            npRunning = true; npRunningAt = Date.now();
+            try { await updateNowPlayingInner(); } finally { npRunning = false; }
+        }
+        async function updateNowPlayingInner() {
             if (!currentToken) return;
             // Mode Musique Drive actif : on ne touche à rien (pochette/titre/artiste/timer), sinon
             // ce polling toutes les 3s réaffiche les infos Spotify par-dessus celles du Drive.
@@ -3817,6 +3826,7 @@ function highlightLyrics(currentTime) {
                 if (spotifyTokenExpiresAt && Date.now() > spotifyTokenExpiresAt - 180000) await spotifyRefreshToken(); // renouvelé 3 min avant l'expiration
                 let response = await fetch('https://api.spotify.com/v1/me/player?additional_types=track,episode', { headers: { 'Authorization': 'Bearer ' + currentToken } });
                 if (response.status === 401 && await spotifyRefreshToken()) response = await fetch('https://api.spotify.com/v1/me/player?additional_types=track,episode', { headers: { 'Authorization': 'Bearer ' + currentToken } });
+                if (response.status === 429) { npBackoffUntil = Date.now() + Math.max(2, Number(response.headers && response.headers.get && response.headers.get('Retry-After')) || 5) * 1000; return; }
                 if (response.status === 204 || response.status === 401) {
                     if (response.status === 204) isCurrentlyPlaying = false; // 401 : on garde l'état précédent plutôt que d'afficher « pause » à tort
                     return;
@@ -3857,7 +3867,7 @@ function highlightLyrics(currentTime) {
                     document.getElementById('play-pause-btn').innerText = data.is_playing ? "⏸" : "▶️";
 
                     if (!isEpisode) {
-                        highlightLyrics(data.progress_ms / 1000);
+                        try { highlightLyrics(data.progress_ms / 1000); } catch (e) {}
                     }
 
                     if (art.src !== oldSrc) {
@@ -3876,9 +3886,9 @@ function highlightLyrics(currentTime) {
                             updatePipPanelContent(true);
                         };
                     }
-                    updatePipPanelContent();
-                    syncClipPlayback();
-                    updateClipPanelContent();
+                    try { updatePipPanelContent(); } catch (e) {}
+                    try { syncClipPlayback(); } catch (e) {}
+                    try { updateClipPanelContent(); } catch (e) {}
 
                     if (data.item.id !== lastTrackId) {
                         lastTrackId = data.item.id;
