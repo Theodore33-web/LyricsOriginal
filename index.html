@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v8.5";
+        const APP_VERSION = "v8.6";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -2500,6 +2500,30 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
             window.location.href = authUrl.toString();
         }
 
+        // Le jeton Spotify expire après 1 h : sans renouvellement, plus aucune donnée n'arrive (ni titre, ni pochette) et les écrans passent en « pause »
+        let spotifyTokenExpiresAt = 0, spotifyRefreshing = null;
+        function spotifyStoreTokens(data) {
+            try {
+                if (data.expires_in) spotifyTokenExpiresAt = Date.now() + data.expires_in * 1000;
+                if (data.refresh_token) localStorage.setItem('spotifyRefreshToken', data.refresh_token);
+            } catch (e) {}
+        }
+        function spotifyRefreshToken() {
+            if (spotifyRefreshing) return spotifyRefreshing;
+            let rt = ''; try { rt = localStorage.getItem('spotifyRefreshToken') || ''; } catch (e) {}
+            if (!rt) return Promise.resolve(false);
+            spotifyRefreshing = (async () => {
+                try {
+                    const r = await fetch('https://accounts.spotify.com/api/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: rt, client_id: clientId }) });
+                    const d = await r.json();
+                    if (d && d.access_token) { currentToken = d.access_token; spotifyStoreTokens(d); return true; }
+                } catch (e) {}
+                return false;
+            })();
+            const clear = () => { spotifyRefreshing = null; };
+            spotifyRefreshing.then(clear, clear);
+            return spotifyRefreshing;
+        }
         async function handleCallback(code, loadingStartedAt) {
             const verifier = localStorage.getItem("verifier");
             const body = new URLSearchParams({ client_id: clientId, grant_type: 'authorization_code', code: code, redirect_uri: redirectUri, code_verifier: verifier });
@@ -2508,6 +2532,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 const response = await fetch('https://accounts.spotify.com/api/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body });
                 const data = await response.json();
                 if (data.access_token) {
+                    spotifyStoreTokens(data);
                     window.history.replaceState({}, document.title, window.location.pathname);
                     getUserData(data.access_token, loadingStartedAt);
                 } else {
@@ -3789,9 +3814,11 @@ function highlightLyrics(currentTime) {
             // ce polling toutes les 3s réaffiche les infos Spotify par-dessus celles du Drive.
             if (driveMusicModeActive) return;
             try {
-                const response = await fetch('https://api.spotify.com/v1/me/player?additional_types=track,episode', { headers: { 'Authorization': 'Bearer ' + currentToken } });
+                if (spotifyTokenExpiresAt && Date.now() > spotifyTokenExpiresAt - 180000) await spotifyRefreshToken(); // renouvelé 3 min avant l'expiration
+                let response = await fetch('https://api.spotify.com/v1/me/player?additional_types=track,episode', { headers: { 'Authorization': 'Bearer ' + currentToken } });
+                if (response.status === 401 && await spotifyRefreshToken()) response = await fetch('https://api.spotify.com/v1/me/player?additional_types=track,episode', { headers: { 'Authorization': 'Bearer ' + currentToken } });
                 if (response.status === 204 || response.status === 401) {
-                    isCurrentlyPlaying = false;
+                    if (response.status === 204) isCurrentlyPlaying = false; // 401 : on garde l'état précédent plutôt que d'afficher « pause » à tort
                     return;
                 }
                 const data = await response.json();
@@ -4415,13 +4442,13 @@ let divoomNowLabel = ''; // « titre - artiste » du morceau en cours (indépend
 let divoomDevices = []; // { type: 'timebox' | 'pixoo', port, writer, name }
 let divoomLastPixels = null;
 // Option « maintien en arrière-plan » : un signal audio inaudible garde la page active quand Chrome passe en arrière-plan
-let divoomKeepAliveOn = localStorage.getItem('divoomKeepAlive') !== 'false', divoomAudioCtx = null; // activé par défaut
+let divoomKeepAliveOn = localStorage.getItem('divoomKeepAlive') === 'true', divoomAudioCtx = null;
 function divoomKeepAliveStart() {
     try {
         if (divoomAudioCtx) { if (divoomAudioCtx.state === 'suspended') divoomAudioCtx.resume(); return; }
         const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
         const ctx = new AC(), osc = ctx.createOscillator(), g = ctx.createGain();
-        g.gain.value = 0.002; osc.frequency.value = 35; // sous -50 dB : inaudible, mais Chrome ne le prend plus pour du silence (seuil ≈ -72 dB), donc la page n'est ni gelée ni ralentie osc.connect(g); g.connect(ctx.destination); osc.start();
+        g.gain.value = 0.00002; osc.frequency.value = 40; osc.connect(g); g.connect(ctx.destination); osc.start();
         divoomAudioCtx = ctx;
     } catch (e) {}
 }
@@ -4808,10 +4835,11 @@ function divoomPollCover() {
         if (!divoomEnabled || !divoomDevices.length) return;
         const art = document.getElementById('track-art');
         const src = art && art.src ? art.src : '';
-        if (!src || src === divoomLastArt || Date.now() - divoomLastSend < 600) return;
-        divoomLastArt = src; divoomLastSend = Date.now();
+        const key = src + '|' + divoomNowLabel; // pochette + titre : deux titres du même album sont bien vus comme deux titres
+        if (!src || key === divoomLastArt || Date.now() - divoomLastSend < 600) return;
+        divoomLastArt = key; divoomLastSend = Date.now();
         getTwoDominantColorsFromImageSrc(src, (c1) => {
-            if (!c1) return;
+            if (!c1) { divoomLastArt = ''; return; } // échec : on réessaiera au prochain passage
             const k = 255 / Math.max(c1[0], c1[1], c1[2], 1); // couleur ramenée à pleine intensité pour bien allumer les LED
             const rgb = c1.map(v => Math.min(255, Math.round(v * k)));
             divoomLastColor = rgb.join();
@@ -5173,7 +5201,7 @@ async function divoomTickInner() {
         }
         if (!divoomEnabled || !divoomDevices.length) return;
         divoomPollCover();
-        if (!divoomCoverRgb) return;
+        if (!divoomCoverRgb && !divoomBlank) return;
         await Promise.all(divoomDevices.slice().map(divoomDeviceTick)); // chaque appareil suit SES réglages, indépendamment
     } catch (e) { console.warn('Divoom tick :', e); }
 }
@@ -5195,9 +5223,20 @@ function divoomTransPixel(tr, t, i, to) {
         default: return tr.rank[i] < t * 256 ? to : from;                              // pixel par pixel
     }
 }
+// Écran vide : image noire explicite, envoyée une fois puis rafraîchie toutes les 20 s (au cas où l'appareil reprendrait un autre affichage)
+async function divoomBlankTick(dev) {
+    dev.trans = null; dev.announceStart = 0; dev.statsStart = 0;
+    const due = dev.lastKey !== 'blank' || dev.dirty || Date.now() - dev.lastSend > 20000;
+    if (!due || Date.now() - dev.lastSend < 600) return;
+    dev.lastSend = Date.now();
+    const ok = await divoomSafeSend(dev, 0, 0, 0, divoomPixelsOf(() => null));
+    if (ok) { dev.lastKey = 'blank'; dev.dirty = false; dev.wasPixels = false; dev.lastFramePx = Array.from({ length: 256 }, () => [0, 0, 0]); }
+}
 async function divoomDeviceTick(dev) {
     if (dev.busy) return;
-    const cfg = divoomCfgOf(dev.type), rgb = divoomCoverRgb; if (!rgb) return;
+    const cfg = divoomCfgOf(dev.type), rgb = divoomCoverRgb;
+    if (divoomBlank) { await divoomBlankTick(dev); return; }
+    if (!rgb) return;
     const playingNow = (function () { try { return isCurrentlyPlaying; } catch (e) { return true; } })();
     if (playingNow) divoomPausedSince = 0; else if (!divoomPausedSince) divoomPausedSince = Date.now();
     if (dev.coverSeen !== divoomCoverVersion) { // nouveau titre
@@ -5212,14 +5251,6 @@ async function divoomDeviceTick(dev) {
     const cafe = divoomCafeActive() && cfg.mode !== 'liked'; // tasse de café après 2 min de pause (sauf animation des titres aimés)
     if (cfg.mode === 'liked') divoomLikedEnsure();
     if (cfg.mode === 'stats') divoomStatsEnsure();
-    if (divoomBlank) { // écran vide : tout noir, envoyé une seule fois
-        if (dev.dirty || dev.lastKey !== 'blank') {
-            dev.dirty = false;
-            const ok = await divoomSafeSend(dev, 0, 0, 0, divoomPixelsOf(() => null)); // image noire explicite (comme à la déconnexion) : identique sur les 2 appareils
-            if (ok) { dev.lastKey = 'blank'; dev.wasPixels = false; dev.lastFramePx = Array.from({ length: 256 }, () => [0, 0, 0]); } else dev.dirty = true;
-        }
-        return;
-    }
     if (dev.lastKey === 'blank') { dev.lastKey = ''; dev.dirty = true; }
     const needPx = cafe || cfg.mode !== 'color' || cfg.bar || announcing || !!dev.trans || (!playing && cfg.pause !== 'off') || (cfg.heart && divoomLikedNow());
     void announcePending;
