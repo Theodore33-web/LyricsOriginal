@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v9.0";
+        const APP_VERSION = "v9.1";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -2127,15 +2127,7 @@
                         <button class="dv-dev" id="dv-dev-timebox" onclick="divoomClickDevice('timebox')" title="Enceinte Timebox Evo : touche pour (re)connecter"><img id="divoom-icon-timebox" src="enceinte.png" alt="🔊" style="height: 34px;" onerror="this.outerHTML='<span style=&quot;font-size:1.6rem&quot;>🔊</span>'"><i class="dv-led" id="dv-led-timebox"></i></button>
                         <button class="dv-dev" id="dv-dev-pixoo" onclick="divoomClickDevice('pixoo')" title="Écran LED Pixoo : touche pour (re)connecter"><img id="divoom-icon-pixoo" src="ecranled.png" alt="🟦" style="height: 22px;" onerror="this.outerHTML='<span style=&quot;font-size:1.3rem&quot;>🟦</span>'"><i class="dv-led" id="dv-led-pixoo"></i></button>
                         <button class="dv-plus" id="dv-plus-btn" onclick="divoomTogglePlus(event)" title="Piloter les deux appareils">＋</button>
-                        <div id="dv-plus-pop">
-                            <div class="dv-ptitle">Affichage — les deux appareils en même temps</div>
-                            <button data-m="image" onclick="divoomApplyBoth('image')">🖼️ Pochette en pixels</button>
-                            <button data-m="lyrics" onclick="divoomApplyBoth('lyrics')">🎤 Paroles défilantes</button>
-                            <button data-m="artist" onclick="divoomApplyBoth('artist')">🎨 Image de l'artiste</button>
-                            <button data-m="mixed" onclick="divoomApplyBoth('mixed')">🔀 Mixte : pochette + paroles</button>
-                            <button data-m="blank" onclick="divoomApplyBoth('blank')">⬛ Écran vide</button>
-                            <button onclick="divoomSwapTypes()">🔁 Inverser les appareils</button>
-                        </div>
+                        <div id="dv-plus-pop"></div>
                     </span>
                 </div>
                 <img id="track-art" src="" alt="" style="display:none;" crossorigin="anonymous">
@@ -4640,27 +4632,38 @@ async function divoomClickDevice(type) {
     divoomReconnecting = false;
     if (r === 'none') divoomConnect(type); // aucun port mémorisé pour cet appareil : choix manuel
 }
+const DIVOOM_MODES = [['image', '🖼️ Pochette en pixels'], ['color', '🎨 Pochette en couleur'], ['artist', '🧑‍🎤 Image de l\'artiste'], ['title', '🎵 Titre + artiste (défilement)'], ['stats', '📊 Stats d\'écoute'], ['lyrics', '🎤 Paroles défilantes'], ['blank', '⬛ Écran vide']];
+let divoomPlusStep = 0, divoomComboFirst = ''; // 0 = normal · 1 = combo : choisir le mode de l'enceinte · 2 = combo : choisir le mode du Pixoo
 function divoomRenderPlus() {
     const pop = document.getElementById('dv-plus-pop'); if (!pop) return;
     const tm = divoomCfgOf('timebox').mode, pm = divoomCfgOf('pixoo').mode;
-    const m = tm === pm ? tm : (tm === 'image' && pm === 'lyrics' ? 'mixed' : '');
-    pop.querySelectorAll('button[data-m]').forEach(b => b.classList.toggle('on', divoomBlank ? b.dataset.m === 'blank' : b.dataset.m === m));
+    const title = divoomPlusStep === 0 ? 'Affichage — les deux appareils en même temps' : divoomPlusStep === 1 ? 'Combo 1/2 : mode de l\'enceinte 🔊' : 'Combo 2/2 : mode du Pixoo 🟦 (enceinte : ' + (DIVOOM_MODES.find(m => m[0] === divoomComboFirst) || ['', '?'])[1] + ')';
+    let h = '<div class="dv-ptitle">' + title + '</div>';
+    DIVOOM_MODES.forEach(([k, label]) => {
+        const on = divoomPlusStep === 0 && (k === 'blank' ? (divoomBlank || (tm === 'blank' && pm === 'blank')) : (!divoomBlank && tm === k && pm === k));
+        h += '<button data-m="' + k + '" class="' + (on ? 'on' : '') + '" onclick="divoomPlusPick(\'' + k + '\')">' + label + '</button>';
+    });
+    if (divoomPlusStep === 0) h += '<button onclick="divoomPlusStep=1;divoomRenderPlus()" class="' + (tm !== pm ? 'on' : '') + '">🎛️ Combo : un mode par appareil' + (tm !== pm && !divoomBlank ? ' (' + ((DIVOOM_MODES.find(m => m[0] === tm) || ['', tm])[1].split(' ')[0]) + ' + ' + ((DIVOOM_MODES.find(m => m[0] === pm) || ['', pm])[1].split(' ')[0]) + ')' : '') + '</button><button onclick="divoomSwapTypes()">🔁 Inverser les appareils</button>';
+    else h += '<button onclick="divoomPlusStep=0;divoomRenderPlus()">✖ Annuler le combo</button>';
+    pop.innerHTML = h;
+}
+function divoomPlusPick(m) {
+    if (divoomPlusStep === 0) divoomApplyModes(m, m);
+    else if (divoomPlusStep === 1) { divoomComboFirst = m; divoomPlusStep = 2; divoomRenderPlus(); }
+    else { divoomPlusStep = 0; divoomApplyModes(divoomComboFirst, m); }
 }
 function divoomTogglePlus(ev) { if (ev) ev.stopPropagation(); const pop = document.getElementById('dv-plus-pop'); if (pop) { pop.classList.toggle('open'); divoomRenderPlus(); } }
-document.addEventListener('click', (ev) => { const pop = document.getElementById('dv-plus-pop'); if (pop && pop.classList.contains('open') && !pop.contains(ev.target)) pop.classList.remove('open'); });
-// Applique le même affichage aux deux appareils d'un seul coup (même instant de départ : défilement, transitions et barre restent alignés)
-function divoomApplyBoth(mode) {
-    if (mode === 'blank') divoomSetBlank(true);
-    else {
-        if (mode === 'mixed') { divoomCfg.timebox.mode = 'image'; divoomCfg.pixoo.mode = 'lyrics'; } // enceinte : pochette · Pixoo : paroles (« Inverser les appareils » échange les deux)
-        else ['timebox', 'pixoo'].forEach(t => { divoomCfg[t].mode = mode; });
-        try { localStorage.setItem('divoomCfg', JSON.stringify(divoomCfg)); } catch (e) {}
-        divoomSetBlank(false);
-        divoomDevices.forEach(d => { d.dirty = true; d.lastKey = ''; d.trans = null; d.lastFramePx = null; d.announceStart = 0; d.statsStart = 0; d.lastSend = 0; });
-        try { divoomRenderCfgUI(); } catch (e) {}
-    }
+document.addEventListener('click', (ev) => { const pop = document.getElementById('dv-plus-pop'); if (pop && pop.classList.contains('open') && !(ev.composedPath ? ev.composedPath() : [ev.target]).includes(pop)) { pop.classList.remove('open'); divoomPlusStep = 0; } }); // composedPath : le bouton cliqué a pu être remplacé par le rendu
+// Applique un mode à chaque appareil (enceinte, Pixoo) d'un seul coup : même instant de départ, défilement / transitions / barre restent alignés
+function divoomApplyModes(modeTimebox, modePixoo) {
+    divoomCfg.timebox.mode = modeTimebox; divoomCfg.pixoo.mode = modePixoo;
+    try { localStorage.setItem('divoomCfg', JSON.stringify(divoomCfg)); } catch (e) {}
+    divoomSetBlank(false); // l'écran vide global (réglages) est coupé : « Écran vide » se choisit maintenant par appareil
+    divoomDevices.forEach(d => { d.dirty = true; d.lastKey = ''; d.trans = null; d.lastFramePx = null; d.announceStart = 0; d.statsStart = 0; d.lastSend = 0; });
+    try { divoomRenderCfgUI(); } catch (e) {}
     divoomRenderPlus();
 }
+function divoomApplyBoth(mode) { divoomApplyModes(mode, mode); }
 function divoomRefreshStatus() {
     divoomUpdateIcons();
     if (!divoomDevices.length) { divoomStatus('Aucun appareil connecté (Outils › 🔌)'); return; }
@@ -4925,7 +4928,7 @@ function divoomCfgBlockHTML(type, title) {
       <summary style="font-size:0.8rem;font-weight:bold;color:var(--spotify-green);cursor:pointer;">${title}</summary>
       <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px;">
         <label style="font-size:0.72rem;color:var(--text-grey);display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;"><span>Utiliser cet appareil (le connecter automatiquement)</span><input type="checkbox"${c.enabled !== false ? ' checked' : ''} onchange="divoomSetEnabled('${type}',this.checked)"></label>
-        ${row('Affichage', `<select style="${sel}" onchange="divoomSetCfg('${type}','mode',this.value)">${o('color', c.mode, 'Couleur de la pochette')}${o('image', c.mode, 'Pochette en pixels')}${o('artist', c.mode, 'Image de l\'artiste en cours')}${o('lyrics', c.mode, 'Paroles défilantes')}${o('title', c.mode, 'Titre + artiste (défilement continu)')}${o('stats', c.mode, '📊 Stats d\'écoute (défilement)')}${c.mode === 'liked' ? o('liked', c.mode, '❤️ Titres aimés (lancé depuis ❤️)') : ''}</select>`)}
+        ${row('Affichage', `<select style="${sel}" onchange="divoomSetCfg('${type}','mode',this.value)">${o('color', c.mode, 'Couleur de la pochette')}${o('image', c.mode, 'Pochette en pixels')}${o('artist', c.mode, 'Image de l\'artiste en cours')}${o('lyrics', c.mode, 'Paroles défilantes')}${o('blank', c.mode, '⬛ Écran vide')}${o('title', c.mode, 'Titre + artiste (défilement continu)')}${o('stats', c.mode, '📊 Stats d\'écoute (défilement)')}${c.mode === 'liked' ? o('liked', c.mode, '❤️ Titres aimés (lancé depuis ❤️)') : ''}</select>`)}
         ${chk('bar', 'Barre de progression')}
         ${chk('heart', 'Petit cœur quand le titre est aimé')}
         ${c.mode === 'stats' ? '' : chk('announce', 'Titre + artiste à chaque nouveau titre')}
@@ -5317,7 +5320,6 @@ async function divoomTickInner() {
         }
         if (!divoomEnabled || !divoomDevices.length) return;
         divoomPollCover();
-        if (!divoomCoverRgb && !divoomBlank) return;
         await Promise.all(divoomDevices.slice().map(divoomDeviceTick)); // chaque appareil suit SES réglages, indépendamment
     } catch (e) { console.warn('Divoom tick :', e); }
 }
@@ -5351,7 +5353,7 @@ async function divoomBlankTick(dev) {
 async function divoomDeviceTick(dev) {
     if (dev.busy) return;
     const cfg = divoomCfgOf(dev.type), rgb = divoomCoverRgb;
-    if (divoomBlank) { await divoomBlankTick(dev); return; }
+    if (divoomBlank || cfg.mode === 'blank') { await divoomBlankTick(dev); return; }
     if (!rgb) return;
     const playingNow = (function () { try { return isCurrentlyPlaying; } catch (e) { return true; } })();
     if (playingNow) divoomPausedSince = 0; else if (!divoomPausedSince) divoomPausedSince = Date.now();
