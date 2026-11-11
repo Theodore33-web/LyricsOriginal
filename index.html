@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v9.3";
+        const APP_VERSION = "v9.4";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -822,6 +822,8 @@
         #dv-plus-pop .dv-ptitle { font-size: 0.68rem; color: var(--text-grey); margin-bottom: 2px; }
         #dv-plus-pop button { width: 100% !important; margin: 0 !important; padding: 8px 10px !important; border-radius: 9px !important; background: #232323 !important; color: #fff !important; border: 1px solid #444 !important; font-size: 0.8rem !important; text-align: left !important; cursor: pointer; display: block !important; height: auto !important; box-shadow: none !important; }
         #dv-plus-pop button.on { border-color: var(--spotify-green) !important; background: rgba(30,215,96,0.16) !important; }
+        .seno-chip { background: rgba(0,0,0,0.45) !important; color: #fff !important; border: 1px solid rgba(255,255,255,0.3) !important; border-radius: 14px !important; padding: 4px 10px !important; margin: 0 !important; font-size: 0.72rem !important; width: auto !important; height: auto !important; cursor: pointer; box-shadow: none !important; backdrop-filter: blur(6px); }
+        .seno-chip.on { background: rgba(30,215,96,0.35) !important; border-color: var(--spotify-green) !important; }
         #queue-peek { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
         #queue-peek .qp-row { display: flex; flex-direction: row; }
         #queue-peek .qp-thumb { width: 38px; height: 38px; border-radius: 6px; object-fit: cover; border: 1px solid rgba(255,255,255,0.35); box-shadow: 0 3px 8px rgba(0,0,0,0.5); cursor: pointer; background: #222; box-sizing: border-box; margin-left: -12px; }
@@ -1408,6 +1410,11 @@
         })();
     </script>
 
+    <div id="seno-card" class="card" style="display: none; width: 100%; max-width: 1200px; margin-top: 20px; padding: 0; overflow: hidden; position: relative; z-index: 2; box-sizing: border-box;">
+        <canvas id="seno-canvas" style="display: block; width: 100%; height: 220px;"></canvas>
+        <div id="seno-chips" style="position: absolute; top: 10px; right: 10px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; max-width: 90%;"></div>
+    </div>
+
     <div id="dashboard">
         <div class="lyrics-section" id="lyrics-container" onclick="handleLyricsTripleClick()">
             <div id="lyrics-content">Lancez une musique sur Spotify...</div>
@@ -1882,6 +1889,14 @@
         <option value="pixel16">Pixels 16×16 (comme l'écran LED)</option>
         <option value="pixellyrics">Paroles pixélisées qui défilent (comme l'écran LED)</option>
     </select>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Scénographie : encadré animé au-dessus (selon le titre et les couleurs de la pochette)</span>
+    <label class="switch">
+        <input type="checkbox" id="seno-toggle" onchange="toggleScenography(this.checked)">
+        <span class="slider"></span>
+    </label>
 </div>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
@@ -3860,12 +3875,14 @@ function highlightLyrics(currentTime) {
                         document.getElementById('track-title').innerText = data.item.name;
                         document.getElementById('track-artist').innerText = data.item.show ? data.item.show.name : "Podcast";
                         divoomNowLabel = data.item.name + ' - ' + (data.item.show ? data.item.show.name : 'Podcast');
+                        scenoTrack = { id: data.item.id || '', title: data.item.name, artist: data.item.show ? data.item.show.name : 'Podcast' };
                     } else {
                         // --- MORCEAU DE MUSIQUE ---
                         document.getElementById('track-title').innerText = data.item.name;
                         document.getElementById('track-artist').innerText = data.item.artists.map(a => a.name).join(", ");
                         divoomNowLabel = data.item.name + ' - ' + data.item.artists.map(a => a.name).join(', ');
                         divoomArtistId = (data.item.artists[0] && data.item.artists[0].id) || '';
+                        scenoTrack = { id: data.item.id || '', title: data.item.name, artist: data.item.artists.map(a => a.name).join(', ') };
                     }
 
                     // Resynchronise la progression réelle avec celle de Spotify (corrige toute dérive locale)
@@ -4534,6 +4551,125 @@ document.addEventListener('pointerdown', () => { if (divoomKeepAliveOn) divoomKe
 document.addEventListener('visibilitychange', () => { if (divoomKeepAliveOn && divoomEnabled && divoomDevices.length) divoomKeepAliveStart(); }); // relance le signal si Chrome l'a suspendu
 // Aperçu des 3 prochains titres de la file d'attente, en bas à droite de la pochette
 let queuePeekTracks = [], queuePeekSel = -1, queuePeekTimer = null;
+// ===== Scénographie : encadré animé (au-dessus du tableau de bord) selon le titre et les couleurs de la pochette =====
+let scenoEnabled = (function () { try { return localStorage.getItem('scenoEnabled') === 'true'; } catch (e) { return false; } })(); // désactivée par défaut
+let scenoStyle = (function () { try { return localStorage.getItem('scenoStyle') || 'aurore'; } catch (e) { return 'aurore'; } })();
+let scenoTrack = { id: '', title: '', artist: '' };
+const scenoCols = { c1: [30, 215, 96], c2: [120, 80, 255], src: '' };
+const SCENO_STYLES = [['aurore', '🌌 Aurore'], ['ondes', '🔵 Ondes'], ['particules', '✨ Particules'], ['projecteurs', '🔦 Projecteurs'], ['barres', '📊 Égaliseur']];
+let scenoRaf = 0, scenoParts = null, scenoRings = [], scenoLastBeat = -1, scenoLast = 0, scenoCanvas = null;
+function scenoHash(str) { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0); }
+function scenoBpm() { return 72 + (scenoHash(scenoTrack.id || scenoTrack.title) % 70); } // tempo SIMULÉ (déterministe par titre) : Spotify ne donne plus le vrai tempo
+function toggleScenography(on) {
+    scenoEnabled = !!on;
+    try { localStorage.setItem('scenoEnabled', on ? 'true' : 'false'); } catch (e) {}
+    scenoSync();
+}
+function setScenoStyle(k) {
+    scenoStyle = k; scenoParts = null; scenoRings = [];
+    try { localStorage.setItem('scenoStyle', k); } catch (e) {}
+    scenoRenderChips();
+}
+function scenoRenderChips() {
+    const box = document.getElementById('seno-chips'); if (!box) return;
+    box.innerHTML = SCENO_STYLES.map(([k, l]) => '<button class="seno-chip' + (k === scenoStyle ? ' on' : '') + '" onclick="setScenoStyle(\'' + k + '\')">' + l + '</button>').join('');
+}
+function scenoSync() {
+    const card = document.getElementById('seno-card'); if (!card) return;
+    const dash = document.getElementById('dashboard');
+    const visible = scenoEnabled && dash && dash.style.display !== 'none' && getComputedStyle(dash).display !== 'none' && !driveMusicModeActive;
+    card.style.display = visible ? 'block' : 'none';
+    const t = document.getElementById('seno-toggle'); if (t && t.checked !== scenoEnabled) t.checked = scenoEnabled;
+    if (visible && !scenoRaf) { scenoCanvas = document.getElementById('seno-canvas'); scenoRenderChips(); scenoRaf = requestAnimationFrame(scenoFrame); }
+    if (!visible && scenoRaf) { cancelAnimationFrame(scenoRaf); scenoRaf = 0; }
+}
+function scenoUpdateColors() {
+    try {
+        const art = document.getElementById('track-art'); const src = art && art.src ? art.src : '';
+        if (!src || src === scenoCols.src) return;
+        scenoCols.src = src;
+        getTwoDominantColorsFromImageSrc(src, (c1, c2) => {
+            if (!c1) return;
+            const br = c => { const m = Math.max(c[0], c[1], c[2], 1), k = m < 140 ? 140 / m : 1; return c.map(v => Math.min(255, Math.round(v * k))); };
+            scenoCols.c1 = br(c1); scenoCols.c2 = br(c2 || c1);
+        });
+    } catch (e) {}
+}
+function scenoFrame(ts) {
+    scenoRaf = requestAnimationFrame(scenoFrame);
+    if (!scenoCanvas || document.hidden) return;
+    if (ts - scenoLast < 33) return; // ~30 images/s
+    scenoLast = ts;
+    scenoUpdateColors();
+    const cv = scenoCanvas, dpr = Math.min(window.devicePixelRatio || 1, 2), W = cv.clientWidth, H = cv.clientHeight;
+    if (!W || !H) return;
+    if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+    const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const playing = (function () { try { return isCurrentlyPlaying; } catch (e) { return true; } })();
+    const t = ts / 1000, seed = scenoHash(scenoTrack.id || scenoTrack.title || 'x') % 1000;
+    const bpm = scenoBpm(), beatsF = t * bpm / 60, beat = Math.floor(beatsF), frac = beatsF - beat;
+    const pulse = playing ? Math.exp(-frac * 4.5) : 0, speed = playing ? 1 : 0.25;
+    const A = scenoCols.c1, B = scenoCols.c2, M = A.map((v, i) => (v + B[i]) >> 1);
+    const rgba = (c, a) => 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a + ')';
+    g.globalCompositeOperation = 'source-over'; g.fillStyle = '#05050a'; g.fillRect(0, 0, W, H);
+    g.globalCompositeOperation = 'lighter';
+    if (scenoStyle === 'aurore') {
+        const cols = [A, B, M];
+        for (let i = 0; i < 5; i++) {
+            const c = cols[i % 3], ph = seed * 0.37 + i * 1.7;
+            const x = W * (0.5 + 0.42 * Math.sin(t * 0.21 * speed + ph)), y = H * (0.5 + 0.3 * Math.cos(t * 0.17 * speed + ph * 1.3));
+            const r = Math.max(W, H) * (0.3 + 0.05 * Math.sin(t * 0.5 + ph)) * (1 + pulse * 0.12);
+            const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, rgba(c, 0.55)); gr.addColorStop(1, rgba(c, 0));
+            g.fillStyle = gr; g.fillRect(0, 0, W, H);
+        }
+    } else if (scenoStyle === 'ondes') {
+        if (playing && beat !== scenoLastBeat) { scenoLastBeat = beat; scenoRings.push({ t0: t, c: beat % 2 ? A : B }); if (scenoRings.length > 14) scenoRings.shift(); }
+        const cx = W / 2, cy = H / 2, maxR = Math.hypot(W, H) / 2;
+        scenoRings = scenoRings.filter(r => t - r.t0 < 3.2);
+        scenoRings.forEach(r => { const k = (t - r.t0) / 3.2; g.beginPath(); g.arc(cx, cy, k * maxR, 0, Math.PI * 2); g.lineWidth = 3 + 8 * (1 - k); g.strokeStyle = rgba(r.c, 0.7 * (1 - k)); g.stroke(); });
+        const gr = g.createRadialGradient(cx, cy, 0, cx, cy, 70 + pulse * 30); gr.addColorStop(0, rgba(M, 0.5)); gr.addColorStop(1, rgba(M, 0)); g.fillStyle = gr; g.fillRect(0, 0, W, H);
+    } else if (scenoStyle === 'particules') {
+        const N = Math.max(40, Math.min(120, Math.round(W / 12)));
+        if (!scenoParts || scenoParts.length !== N) scenoParts = Array.from({ length: N }, (_, i) => ({ x: Math.random(), y: Math.random(), s: 0.4 + Math.random() * 1.6, r: 1.5 + Math.random() * 3.5, c: i % 3 }));
+        const dt = 0.033 * speed * (1 + pulse * 1.5);
+        scenoParts.forEach(p => {
+            p.y -= dt * 0.12 * p.s; p.x += Math.sin(t * 0.8 + p.s * 9) * 0.0008;
+            if (p.y < -0.05) { p.y = 1.05; p.x = Math.random(); }
+            const c = [A, B, M][p.c], r = p.r * (1 + pulse * 0.6);
+            const gr = g.createRadialGradient(p.x * W, p.y * H, 0, p.x * W, p.y * H, r * 4); gr.addColorStop(0, rgba(c, 0.9)); gr.addColorStop(1, rgba(c, 0));
+            g.fillStyle = gr; g.fillRect(p.x * W - r * 4, p.y * H - r * 4, r * 8, r * 8);
+        });
+    } else if (scenoStyle === 'projecteurs') {
+        const n = 5;
+        for (let i = 0; i < n; i++) {
+            const c = [A, B, M][i % 3], bx = W * (i + 0.5) / n, ang = Math.sin(t * 0.6 * speed + i * 1.3 + seed) * 0.5 + (i - 2) * 0.08;
+            g.save(); g.translate(bx, -10); g.rotate(ang);
+            const L = H * 1.5, wd = 26 + pulse * 18 + 14 * Math.sin(t + i);
+            const gr = g.createLinearGradient(0, 0, 0, L); gr.addColorStop(0, rgba(c, 0.7)); gr.addColorStop(1, rgba(c, 0));
+            g.fillStyle = gr; g.beginPath(); g.moveTo(-4, 0); g.lineTo(4, 0); g.lineTo(wd, L); g.lineTo(-wd, L); g.closePath(); g.fill(); g.restore();
+        }
+    } else { // barres
+        const n = Math.max(24, Math.min(72, Math.round(W / 16))), bw = W / n;
+        for (let i = 0; i < n; i++) {
+            const v = playing ? (0.5 + 0.5 * Math.sin(t * 3 + i * 0.7 + seed)) * (0.5 + 0.5 * Math.sin(t * 1.7 + i * 1.9)) * (0.55 + 0.45 * pulse + 0.2) : 0.06;
+            const h = Math.max(4, v * H * 0.9), k = i / (n - 1), c = A.map((x, j) => Math.round(x + (B[j] - x) * k));
+            const gr = g.createLinearGradient(0, H, 0, H - h); gr.addColorStop(0, rgba(c, 0.95)); gr.addColorStop(1, rgba(c, 0.25));
+            g.fillStyle = gr; g.fillRect(i * bw + 2, H - h, bw - 4, h);
+        }
+    }
+    g.globalCompositeOperation = 'source-over';
+    const vg = g.createLinearGradient(0, H, 0, H * 0.35); vg.addColorStop(0, 'rgba(0,0,0,0.65)'); vg.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = vg; g.fillRect(0, 0, W, H);
+    // titre + artiste : grand, avec léger rebond sur le tempo
+    const ts1 = Math.max(18, Math.min(46, W / 22)) * (1 + pulse * 0.025);
+    g.textAlign = 'left'; g.textBaseline = 'alphabetic'; g.shadowColor = 'rgba(0,0,0,0.7)'; g.shadowBlur = 12;
+    g.fillStyle = '#fff'; g.font = '800 ' + ts1 + 'px ' + (getComputedStyle(document.body).fontFamily || 'sans-serif');
+    let title = scenoTrack.title || 'En attente de lecture…'; while (g.measureText(title).width > W - 40 && title.length > 4) title = title.slice(0, -2);
+    g.fillText(title, 20, H - 44);
+    g.fillStyle = 'rgba(255,255,255,0.8)'; g.font = '600 ' + Math.max(13, ts1 * 0.5) + 'px ' + (getComputedStyle(document.body).fontFamily || 'sans-serif');
+    g.fillText(scenoTrack.artist || '', 20, H - 18); g.shadowBlur = 0;
+}
+setInterval(() => { try { scenoSync(); } catch (e) {} }, 500);
+
 let queuePeekEnabled = localStorage.getItem('queuePeekEnabled') !== 'false'; // activé par défaut
 function toggleQueuePeekSetting(on) {
     queuePeekEnabled = !!on;
@@ -5247,8 +5383,8 @@ function divoomBuildFrame(opts) {
     const textCol = rgb.map(v => Math.max(v, 96) & 0xF8);
     const black = () => Array.from({ length: 256 }, () => [0, 0, 0]);
     let px;
-    if (mode === 'rotate') px = opts.rotPhase === 2 ? black() : (opts.rotPhase === 1 && (opts.artistPx || coverPx) ? (opts.artistPx || coverPx) : (coverPx || black())).map(c => c.slice());
-    else if (mode === 'artist' && (opts.artistPx || coverPx)) px = (opts.artistPx || coverPx).map(c => c.slice());
+    if (mode === 'rotate') px = opts.rotPhase === 2 ? black() : (opts.rotPhase === 1 && opts.artistPx ? opts.artistPx : (coverPx || black())).map(c => c.slice());
+    else if (mode === 'artist') px = opts.artistPx ? opts.artistPx.map(c => c.slice()) : black(); // pas de photo d'artiste : rien à afficher (écran noir), pas la pochette
     else if (mode === 'image' && coverPx) px = coverPx.map(c => c.slice());
     else if (mode === 'lyrics' || mode === 'announce' || mode === 'liked' || mode === 'title' || mode === 'stats') px = black();
     else px = Array.from({ length: 256 }, () => rgb.map(v => v & 0xF8));
@@ -5296,7 +5432,7 @@ function divoomBuildFrame(opts) {
         }
     }
     if (opts.device) {
-        if (opts.heart && mode !== 'liked' && !textShown && divoomLikedNow()) { // petit cœur rouge en haut à droite (dessiné AVANT l'icône pause : il passe derrière)
+        if (opts.heart && mode !== 'liked' && mode !== 'artist' && !(mode === 'rotate' && opts.rotPhase === 1) && !textShown && divoomLikedNow()) { // petit cœur rouge en haut à droite (dessiné AVANT l'icône pause : il passe derrière)
             const H = [[0, 1, 0, 1, 0], [1, 1, 1, 1, 1], [1, 1, 1, 1, 1], [0, 1, 1, 1, 0], [0, 0, 1, 0, 0]];
             H.forEach((row, y) => row.forEach((v, x) => { if (v) px[y * 16 + 10 + x] = [248, 32, 72]; }));
         }
