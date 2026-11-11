@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v9.7";
+        const APP_VERSION = "v9.3";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1408,7 +1408,6 @@
         })();
     </script>
 
-
     <div id="dashboard">
         <div class="lyrics-section" id="lyrics-container" onclick="handleLyricsTripleClick()">
             <div id="lyrics-content">Lancez une musique sur Spotify...</div>
@@ -1886,14 +1885,6 @@
 </div>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Scénographie : encadré animé au-dessus (selon le titre et les couleurs de la pochette)</span>
-    <label class="switch">
-        <input type="checkbox" id="seno-toggle" onchange="toggleScenography(this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
     <span style="font-size: 0.85rem; color: var(--text-grey);">Aperçu des 3 prochains titres (à côté de la pochette)</span>
     <label class="switch">
         <input type="checkbox" id="queue-peek-toggle" onchange="toggleQueuePeekSetting(this.checked)">
@@ -2129,11 +2120,7 @@
                 </div>
                 
                 <div id="search-results"></div>
-            </div>
-            <div id="seno-card" class="card" style="display: none; padding: 0; overflow: hidden; position: relative;">
-                <canvas id="seno-canvas" style="display: block; width: 100%; height: 230px;"></canvas>
-            </div>
-            <div class="card">
+            </div> <div class="card">
                 <div style="display: flex; align-items: center; justify-content: space-between;">
                     <p id="lecture-en-cours-title" style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 0;">LECTURE EN COURS</p>
                     <span id="divoom-icons">
@@ -3435,7 +3422,6 @@ function buildA4LyricsSheet(trackName, trackArtist, trackImage, durationStr, lyr
         </head>
         <body>
             <div class="a4-noprint">
-                <button id="a4-back-btn" type="button" style="margin-right: auto;" onclick="try{if(window.opener&&!window.opener.closed)window.opener.focus();}catch(e){}window.close();setTimeout(function(){if(!window.closed){if(history.length>1){history.back();}else{location.href='about:blank';}}},250);">← Retour</button>
                 <label id="a4-gradient-control">
                     <input type="checkbox" id="a4-gradient-toggle" checked>
                     🎨 Dégradé coloré
@@ -3874,14 +3860,12 @@ function highlightLyrics(currentTime) {
                         document.getElementById('track-title').innerText = data.item.name;
                         document.getElementById('track-artist').innerText = data.item.show ? data.item.show.name : "Podcast";
                         divoomNowLabel = data.item.name + ' - ' + (data.item.show ? data.item.show.name : 'Podcast');
-                        scenoTrack = { id: data.item.id || '', title: data.item.name, artist: data.item.show ? data.item.show.name : 'Podcast' };
                     } else {
                         // --- MORCEAU DE MUSIQUE ---
                         document.getElementById('track-title').innerText = data.item.name;
                         document.getElementById('track-artist').innerText = data.item.artists.map(a => a.name).join(", ");
                         divoomNowLabel = data.item.name + ' - ' + data.item.artists.map(a => a.name).join(', ');
                         divoomArtistId = (data.item.artists[0] && data.item.artists[0].id) || '';
-                        scenoTrack = { id: data.item.id || '', title: data.item.name, artist: data.item.artists.map(a => a.name).join(', ') };
                     }
 
                     // Resynchronise la progression réelle avec celle de Spotify (corrige toute dérive locale)
@@ -4494,7 +4478,7 @@ let divoomRotCache = { label: null, w: 40 };
 function divoomRotPhase() {
     const label = divoomNowLabel || '';
     if (divoomRotCache.label !== label) { let w = 40; try { w = divoomTextBitmap(label).w; } catch (e) {} divoomRotCache = { label: label, w: w }; }
-    const d = [7000, divoomArtistPx ? 7000 : 0, 1900 + Math.round((divoomRotCache.w + 2) / 30 * 1000) + 400];
+    const d = [7000, divoomArtistPx ? 7000 : 0, Math.max(4500, Math.round((divoomRotCache.w + 16) / 30 * 1000) + 500)];
     const total = d[0] + d[1] + d[2];
     const now = Date.now(), el = (now - divoomCoverChangedAt) % total;
     let acc = 0, phase = 0, startOf = now - el;
@@ -4550,160 +4534,6 @@ document.addEventListener('pointerdown', () => { if (divoomKeepAliveOn) divoomKe
 document.addEventListener('visibilitychange', () => { if (divoomKeepAliveOn && divoomEnabled && divoomDevices.length) divoomKeepAliveStart(); }); // relance le signal si Chrome l'a suspendu
 // Aperçu des 3 prochains titres de la file d'attente, en bas à droite de la pochette
 let queuePeekTracks = [], queuePeekSel = -1, queuePeekTimer = null;
-// ===== Scénographie : encadré animé (sous « Explorer & rechercher », au-dessus de « Lecture en cours ») selon le titre et les couleurs de la pochette =====
-let scenoEnabled = (function () { try { return localStorage.getItem('scenoEnabled') === 'true'; } catch (e) { return false; } })(); // désactivée par défaut
-let scenoTrack = { id: '', title: '', artist: '' };
-const scenoCols = { c1: [30, 215, 96], c2: [120, 80, 255], src: '' };
-let scenoRaf = 0, scenoLast = 0, scenoCanvas = null, scenoTitleKey = '', scenoT0 = 0, scenoLyric = { text: '', t0: 0 };
-function scenoHash(str) { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0); }
-function scenoBpm() { return 72 + (scenoHash(scenoTrack.id || scenoTrack.title) % 70); } // tempo SIMULÉ (déterministe par titre) : Spotify ne donne plus le vrai tempo
-function toggleScenography(on) {
-    scenoEnabled = !!on;
-    try { localStorage.setItem('scenoEnabled', on ? 'true' : 'false'); } catch (e) {}
-    scenoSync();
-}
-function scenoSync() {
-    const card = document.getElementById('seno-card'); if (!card) return;
-    const dash = document.getElementById('dashboard');
-    const visible = scenoEnabled && dash && getComputedStyle(dash).display !== 'none' && !driveMusicModeActive;
-    card.style.display = visible ? 'block' : 'none';
-    const t = document.getElementById('seno-toggle'); if (t && t.checked !== scenoEnabled) t.checked = scenoEnabled;
-    if (visible && !scenoRaf) { scenoCanvas = document.getElementById('seno-canvas'); scenoRaf = requestAnimationFrame(scenoFrame); }
-    if (!visible && scenoRaf) { cancelAnimationFrame(scenoRaf); scenoRaf = 0; }
-}
-function scenoUpdateColors() {
-    try {
-        const art = document.getElementById('track-art'); const src = art && art.src ? art.src : '';
-        if (!src || src === scenoCols.src) return;
-        scenoCols.src = src;
-        getTwoDominantColorsFromImageSrc(src, (c1, c2) => {
-            if (!c1) return;
-            const br = c => { const m = Math.max(c[0], c[1], c[2], 1), k = m < 140 ? 140 / m : 1; return c.map(v => Math.min(255, Math.round(v * k))); };
-            scenoCols.c1 = br(c1); scenoCols.c2 = br(c2 || c1);
-        });
-    } catch (e) {}
-}
-function scenoCurrentLyric() {
-    try {
-        const sec = divoomProgressMs() / 1000; let txt = '';
-        for (let i = 0; i < currentLyrics.length; i++) { if (currentLyrics[i].time <= sec) txt = String(currentLyrics[i].text || '').trim(); else break; }
-        return txt;
-    } catch (e) { return ''; }
-}
-let scenoRipples = [], scenoStar = null, scenoLastStar = 0, scenoBokeh = null;
-function scenoWrap(g, text, maxW) { // 1 ou 2 lignes (coupe sur les espaces)
-    const words = text.split(' '); let lines = [''];
-    words.forEach(w => { const cur = lines[lines.length - 1], test = cur ? cur + ' ' + w : w; if (g.measureText(test).width <= maxW || !cur) lines[lines.length - 1] = test; else lines.push(w); });
-    return lines;
-}
-function scenoFrame(ts) {
-    scenoRaf = requestAnimationFrame(scenoFrame);
-    if (!scenoCanvas || document.hidden) return;
-    if (ts - scenoLast < 33) return; // ~30 images/s
-    scenoLast = ts;
-    scenoUpdateColors();
-    const cv = scenoCanvas, dpr = Math.min(window.devicePixelRatio || 1, 2), W = cv.clientWidth, H = cv.clientHeight;
-    if (!W || !H) return;
-    if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
-    const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const playing = (function () { try { return isCurrentlyPlaying; } catch (e) { return true; } })();
-    const t = ts / 1000, seed = scenoHash(scenoTrack.id || scenoTrack.title || 'x') % 1000;
-    const bpm = scenoBpm(), beatsF = t * bpm / 60, beatN = Math.floor(beatsF), frac = beatsF - beatN;
-    const pulse = playing ? Math.exp(-frac * 4.5) : 0, speed = playing ? 1 : 0.25;
-    const key = scenoTrack.id + '|' + scenoTrack.title;
-    if (key !== scenoTitleKey) { scenoTitleKey = key; scenoT0 = t; scenoStar = null; }
-    const lyr = scenoCurrentLyric(); if (lyr !== scenoLyric.text) { scenoLyric = { text: lyr, t0: t }; if (lyr) scenoRipples.push({ t0: t, x: 0.15 + 0.7 * ((scenoHash(lyr) % 100) / 100) }); }
-    scenoRipples = scenoRipples.filter(r => t - r.t0 < 2.6);
-    const flash = Math.exp(-(t - scenoLyric.t0) * 2.6);
-    const A = scenoCols.c1, B = scenoCols.c2, M = A.map((v, i) => (v + B[i]) >> 1), lt = c => c.map(v => Math.min(255, v + 90));
-    const rgba = (c, a) => 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a + ')';
-    const mix = (c, d, k) => c.map((v, i) => Math.round(v + (d[i] - v) * k));
-    const palette = k => { k = ((k % 1) + 1) % 1 * 3; const i = Math.floor(k), f = k - i, P = [A, M, B]; return mix(P[i % 3], P[(i + 1) % 3], f); }; // A → M → B → A en boucle
-    // ===== AURORE : ciel + rideaux de lumière ondulants + brume + bokeh + étoile filante + ondes de parole =====
-    g.globalCompositeOperation = 'source-over';
-    const sky = g.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, '#04040c'); sky.addColorStop(1, rgba(mix([4, 4, 12], A, 0.16), 1)); g.fillStyle = sky; g.fillRect(0, 0, W, H);
-    g.globalCompositeOperation = 'lighter';
-    // brume colorée en arrière-plan
-    for (let i = 0; i < 3; i++) {
-        const c = [A, B, M][i], ph = seed * 0.37 + i * 2.1, x = W * (0.5 + 0.45 * Math.sin(t * 0.13 * speed + ph)), y = H * (0.5 + 0.25 * Math.cos(t * 0.1 * speed + ph * 1.4)), r = Math.max(W, H) * (0.5 + 0.06 * Math.sin(t * 0.4 + ph)) * (1 + pulse * 0.08 + flash * 0.15);
-        const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, rgba(c, 0.32 + flash * 0.12)); gr.addColorStop(1, rgba(c, 0)); g.fillStyle = gr; g.fillRect(0, 0, W, H);
-    }
-    // rideaux : colonnes verticales dont la hauteur, la position et l'intensité ondulent (3 couches qui ne vont pas à la même vitesse)
-    const cols = Math.max(36, Math.round(W / 7)), bw = W / cols + 1;
-    try { g.filter = 'blur(3px)'; } catch (e) {} // adoucit les colonnes : on ne voit plus les raies, juste des voiles de lumière
-    for (let layer = 0; layer < 3; layer++) {
-        const sp = (0.25 + layer * 0.17) * speed, amp = H * (0.10 + layer * 0.05), base = H * (0.46 + layer * 0.07);
-        for (let i = 0; i < cols; i++) {
-            const u = i / cols, w1 = Math.sin(u * 5.2 + t * sp + seed + layer * 2), w2 = Math.sin(u * 11.3 - t * sp * 1.7 + layer * 4.1), w3 = Math.sin(u * 2.1 + t * 0.31 * speed + layer);
-            const top = base - amp * (1.4 + w1 * 0.9 + w3 * 0.6) - pulse * H * 0.05, bot = base + amp * (0.7 + w2 * 0.4);
-            const inten = Math.max(0, 0.5 + 0.35 * w1 + 0.25 * w2) * (0.55 + 0.35 * pulse + 0.25 * flash) * (layer === 1 ? 1 : 0.7);
-            const c = palette(u * 0.9 + t * 0.03 * speed + layer * 0.17 + seed * 0.001), x = u * W + w2 * 5;
-            const gr = g.createLinearGradient(0, top, 0, bot); gr.addColorStop(0, rgba(c, 0)); gr.addColorStop(0.35, rgba(lt(c), Math.min(1, inten * 1.15))); gr.addColorStop(0.7, rgba(c, Math.min(1, inten * 0.6))); gr.addColorStop(1, rgba(c, 0));
-            g.fillStyle = gr; g.fillRect(x, top, bw, bot - top);
-        }
-    }
-    try { g.filter = 'none'; } catch (e) {}
-    // reflet au sol : liseré lumineux qui respire
-    const hg = g.createLinearGradient(0, H * 0.78, 0, H); hg.addColorStop(0, rgba(M, 0)); hg.addColorStop(1, rgba(M, 0.18 + 0.1 * pulse)); g.fillStyle = hg; g.fillRect(0, H * 0.78, W, H * 0.22);
-    // bokeh : grosses bulles de lumière qui montent doucement
-    if (!scenoBokeh) scenoBokeh = Array.from({ length: 14 }, (_, i) => ({ x: Math.random(), y: Math.random(), r: 8 + Math.random() * 22, s: 0.01 + Math.random() * 0.03, c: i % 3 }));
-    scenoBokeh.forEach(b => { b.y -= b.s * 0.033 * speed; if (b.y < -0.1) { b.y = 1.1; b.x = Math.random(); } const c = [A, B, M][b.c], r = b.r * (1 + pulse * 0.15), x = (b.x + Math.sin(t * 0.3 + b.s * 90) * 0.02) * W, y = b.y * H;
-        const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, rgba(c, 0.16)); gr.addColorStop(0.8, rgba(c, 0.08)); gr.addColorStop(1, rgba(c, 0)); g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2); });
-    // poussière d'étoiles
-    for (let i = 0; i < 40; i++) {
-        const hx = scenoHash(seed + ':' + i), x = (hx % 1000) / 1000 * W, y = ((hx >> 10) % 1000) / 1000 * H * 0.7, tw = 0.5 + 0.5 * Math.sin(t * (0.8 + (hx % 7) * 0.25) + i), r = (0.7 + (hx % 3) * 0.45) * (1 + pulse * 0.5);
-        g.fillStyle = 'rgba(255,255,255,' + (0.12 + 0.6 * tw) + ')'; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
-    }
-    // étoile filante (toutes les ~9 s, ou au début d'un titre)
-    if (!scenoStar && (t - scenoLastStar > 9 || t - scenoT0 < 0.05)) { scenoStar = { t0: t, x: W * (0.45 + Math.random() * 0.5), y: H * (0.05 + Math.random() * 0.25) }; scenoLastStar = t; }
-    if (scenoStar) { const k = (t - scenoStar.t0) / 1.1; if (k >= 1) scenoStar = null; else { const x = scenoStar.x - k * W * 0.5, y = scenoStar.y + k * H * 0.35, gr = g.createLinearGradient(x, y, x + 70, y - 45); gr.addColorStop(0, 'rgba(255,255,255,' + (0.9 * (1 - k)) + ')'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.strokeStyle = gr; g.lineWidth = 2; g.beginPath(); g.moveTo(x, y); g.lineTo(x + 70, y - 45); g.stroke(); } }
-    // ondes : un anneau de lumière à chaque nouvelle ligne de parole
-    scenoRipples.forEach(r => { const k = (t - r.t0) / 2.6; g.beginPath(); g.ellipse(r.x * W, H * 0.55, k * W * 0.55, k * H * 0.28, 0, 0, 7); g.lineWidth = 1.5 + 4 * (1 - k); g.strokeStyle = rgba(lt(M), 0.5 * (1 - k)); g.stroke(); });
-    g.globalCompositeOperation = 'source-over';
-    const vg = g.createLinearGradient(0, H, 0, H * 0.2); vg.addColorStop(0, 'rgba(0,0,0,0.72)'); vg.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = vg; g.fillRect(0, 0, W, H);
-    // ===== TITRE : les lettres arrivent de partout (rebond + rotation), puis un reflet de lumière balaie le titre en boucle =====
-    const fam = getComputedStyle(document.body).fontFamily || 'sans-serif', maxW = W - 32;
-    let title = scenoTrack.title || 'En attente de lecture…', size = Math.max(18, Math.min(34, W / 10)), lines;
-    for (;;) { g.font = '800 ' + size + 'px ' + fam; lines = scenoWrap(g, title, maxW); if ((lines.length <= 2 && lines.every(l => g.measureText(l).width <= maxW)) || size <= 15) break; size -= 1; }
-    if (lines.length > 2) { lines = lines.slice(0, 2); let l2 = lines[1]; while (g.measureText(l2 + '…').width > maxW && l2.length > 2) l2 = l2.slice(0, -1); lines[1] = l2 + '…'; }
-    const aSize = Math.max(12, size * 0.5), yA = H - 38, yLast = yA - aSize - 8, lh = size * 1.08;
-    const total = lines.reduce((a, l) => a + l.length, 0), per = Math.min(0.05, 1.0 / Math.max(1, total)), sweep = ((t - scenoT0 - 1.4) * 0.45) % 2.2 - 0.6; // position du reflet (0..1 sur le titre)
-    g.textAlign = 'left'; g.textBaseline = 'alphabetic';
-    let gi = 0;
-    lines.forEach((ln, li) => {
-        const y0 = yLast - (lines.length - 1 - li) * lh; let cx = 16;
-        for (let i = 0; i < ln.length; i++, gi++) {
-            const ch = ln[i], wch = g.measureText(ch).width;
-            const k = Math.max(0, Math.min(1, (t - scenoT0 - gi * per) / 0.7));
-            if (k > 0 && ch !== ' ') {
-                const h = scenoHash(seed + ':c' + gi), e = k < 1 ? 1 + 2.4 * Math.pow(k - 1, 3) + 1.4 * Math.pow(k - 1, 2) : 1; // easeOutBack
-                const ox = ((h % 200) - 100) * 0.5 * (1 - e), oy = (((h >> 8) % 120) - 20) * (1 - e), rot = (((h >> 16) % 100) - 50) / 50 * 0.9 * (1 - e);
-                const pos = gi / Math.max(1, total - 1), base = mix(lt(A), lt(B), pos), band = Math.max(0, 1 - Math.abs(pos - sweep) / 0.14), col = base.map(v => Math.round(v + (255 - v) * band));
-                const wave = playing && k >= 1 ? Math.sin(t * 2.4 + gi * 0.55) * 1.3 * (0.4 + pulse) : 0;
-                g.save(); g.translate(cx + wch / 2 + ox, y0 + oy + wave); g.rotate(rot); g.globalAlpha = Math.min(1, k * 2);
-                g.shadowColor = rgba(band > 0.2 ? [255, 255, 255] : M, 0.85); g.shadowBlur = (1 - Math.min(1, k)) * 16 + 6 + pulse * 8 + band * 14;
-                g.fillStyle = 'rgb(' + col[0] + ',' + col[1] + ',' + col[2] + ')'; g.textAlign = 'center'; g.fillText(ch, 0, 0); g.restore();
-            }
-            cx += wch;
-        }
-    });
-    g.globalAlpha = 1; g.shadowBlur = 0; g.textAlign = 'left';
-    // artiste (apparaît après le titre) et ligne de parole en cours (fondu à chaque changement)
-    const ta = Math.max(0, Math.min(1, (t - scenoT0 - 0.9) / 0.6));
-    g.font = '600 ' + aSize + 'px ' + fam; g.fillStyle = 'rgba(255,255,255,' + (0.85 * ta) + ')';
-    let art = scenoTrack.artist || ''; while (g.measureText(art).width > maxW && art.length > 4) art = art.slice(0, -2);
-    g.fillText(art, 16, yA + (1 - ta) * 6);
-    if (scenoLyric.text) {
-        const la = Math.min(1, (t - scenoLyric.t0) / 0.45);
-        g.font = 'italic 500 ' + Math.max(11, size * 0.45) + 'px ' + fam; g.fillStyle = rgba(lt(M), 0.9 * la);
-        let ln = scenoLyric.text; while (g.measureText('♪ ' + ln).width > maxW && ln.length > 4) ln = ln.slice(0, -2);
-        g.fillText('♪ ' + ln, 16, H - 14 - (1 - la) * 6);
-    }
-    // fine barre de progression aux couleurs de la pochette
-    try { if (trackDurationMs > 0) { const p = Math.max(0, Math.min(1, divoomProgressMs() / trackDurationMs)); const bg = g.createLinearGradient(0, 0, W, 0); bg.addColorStop(0, rgba(A, 1)); bg.addColorStop(1, rgba(B, 1)); g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(0, H - 3, W, 3); g.fillStyle = bg; g.fillRect(0, H - 3, W * p, 3); } } catch (e) {}
-}
-setInterval(() => { try { scenoSync(); } catch (e) {} }, 500);
-
 let queuePeekEnabled = localStorage.getItem('queuePeekEnabled') !== 'false'; // activé par défaut
 function toggleQueuePeekSetting(on) {
     queuePeekEnabled = !!on;
@@ -5417,8 +5247,8 @@ function divoomBuildFrame(opts) {
     const textCol = rgb.map(v => Math.max(v, 96) & 0xF8);
     const black = () => Array.from({ length: 256 }, () => [0, 0, 0]);
     let px;
-    if (mode === 'rotate') px = opts.rotPhase === 2 ? black() : (opts.rotPhase === 1 && opts.artistPx ? opts.artistPx : (coverPx || black())).map(c => c.slice());
-    else if (mode === 'artist') px = opts.artistPx ? opts.artistPx.map(c => c.slice()) : black(); // pas de photo d'artiste : rien à afficher (écran noir), pas la pochette
+    if (mode === 'rotate') px = opts.rotPhase === 2 ? black() : (opts.rotPhase === 1 && (opts.artistPx || coverPx) ? (opts.artistPx || coverPx) : (coverPx || black())).map(c => c.slice());
+    else if (mode === 'artist' && (opts.artistPx || coverPx)) px = (opts.artistPx || coverPx).map(c => c.slice());
     else if (mode === 'image' && coverPx) px = coverPx.map(c => c.slice());
     else if (mode === 'lyrics' || mode === 'announce' || mode === 'liked' || mode === 'title' || mode === 'stats') px = black();
     else px = Array.from({ length: 256 }, () => rgb.map(v => v & 0xF8));
@@ -5432,9 +5262,8 @@ function divoomBuildFrame(opts) {
         const bm = divoomStats.bm, period = bm.w + 16, shift = playing ? Math.floor((Date.now() / 1000) * 24) % period : Math.floor((Date.now() / 1000) * 24) % period;
         drawText(bm, 16 - shift); textShown = true;
     } else if (mode === 'rotate' && opts.rotPhase === 2) {
-        // le début du titre reste lisible : il démarre cadré à gauche (pendant la transition), puis défile
-        const bm = divoomTextBitmap(titleLabel()), shift = Math.max(0, (Date.now() - (opts.rotStart || Date.now()) - 1900) / 1000 * 30);
-        drawText(bm, 1 - Math.floor(shift)); textShown = true;
+        const bm = divoomTextBitmap(titleLabel()), shift = (Date.now() - (opts.rotStart || Date.now())) / 1000 * 30;
+        drawText(bm, 16 - Math.floor(shift)); textShown = true;
     } else if (mode === 'title') {
         const bm = divoomTextBitmap(titleLabel()), period = bm.w + 16, shift = playing ? Math.floor((Date.now() / 1000) * 24) % period : 0;
         drawText(bm, 16 - shift); textShown = true;
@@ -5467,7 +5296,7 @@ function divoomBuildFrame(opts) {
         }
     }
     if (opts.device) {
-        if (opts.heart && mode !== 'liked' && mode !== 'artist' && !(mode === 'rotate' && opts.rotPhase === 1) && !textShown && divoomLikedNow()) { // petit cœur rouge en haut à droite (dessiné AVANT l'icône pause : il passe derrière)
+        if (opts.heart && mode !== 'liked' && !textShown && divoomLikedNow()) { // petit cœur rouge en haut à droite (dessiné AVANT l'icône pause : il passe derrière)
             const H = [[0, 1, 0, 1, 0], [1, 1, 1, 1, 1], [1, 1, 1, 1, 1], [0, 1, 1, 1, 0], [0, 0, 1, 0, 0]];
             H.forEach((row, y) => row.forEach((v, x) => { if (v) px[y * 16 + 10 + x] = [248, 32, 72]; }));
         }
@@ -6946,30 +6775,11 @@ function ensureCreditsModal() {
             <li><strong>Mini-jeu rythme 🕹️</strong> et <strong>DJ (Gemini)</strong> — annonces et anecdotes DJ générées, petit son joué automatiquement.</li>
         </ul>
 
-        <h3>📱 Appareils : Timebox Evo 🔊 et Pixoo 🟦</h3>
+        <h3>📱 Appareils (bêta)</h3>
         <ul>
-            <li><strong>Connexion</strong> — liaison série Bluetooth du téléphone (Web Serial, Chrome sur Android, page en https), les deux appareils en même temps, reconnexion automatique, bouton « Inverser les appareils ». Aucun appareil connecté : recherche continue ; un appareil déjà connecté : l'autre n'est tenté que 15 s puis abandonné (ses tentatives font bugger la liaison). Case « Utiliser cet appareil » par appareil.</li>
-            <li><strong>Encadré « Lecture en cours »</strong> — l'image de chaque appareil avec un voyant (🟢 connecté, 🔴 déconnecté, 🔵 connexion en cours) : toucher l'image ou le voyant relance la connexion.</li>
-            <li><strong>Bouton ＋</strong> — pilote les deux appareils d'un coup, avec le même instant de départ. Modes : pochette en pixels, pochette en couleur, image de l'artiste, défilement (pochette · artiste · titre), titre + artiste, stats d'écoute, paroles défilantes, écran vide. <em>Combo</em> : un mode différent par appareil (1ᵉʳ clic = enceinte, 2ᵉ clic = Pixoo).</li>
-            <li><strong>Réglages 100 % par appareil</strong> — affichage, barre de progression (dernière ligne de pixels, couleur dynamique), petit cœur quand le titre est aimé, titre + artiste à chaque nouveau titre, icône en pause, 5 transitions (pixels, balayage, fondu, rideau, pluie).</li>
-            <li><strong>Modes d'affichage</strong> — paroles défilantes, image de l'artiste en 16×16 (écran noir sans photo), défilement pochette · artiste · titre (le titre reste lisible 2 s avant de défiler), stats d'écoute (titres écoutés aujourd'hui, titre et artiste les plus écoutés, temps d'écoute ; basé sur les 50 derniers titres de Spotify), titres aimés (mini-pochettes, panneau ❤️ avec flèches et bouton « Lancer »).</li>
-            <li><strong>Écran vide</strong> — image noire puis luminosité à 0 : l'écran reste éteint même quand le Bluetooth se coupe ou que la page se ferme. La luminosité est rétablie en changeant de mode.</li>
-            <li><strong>Pause</strong> — tasse de café après 2 min de pause, puis luminosité qui baisse progressivement à partir de 5 min (minimum après 3 min de plus) ; tout revient à la reprise de la lecture.</li>
-            <li><strong>Arrière-plan</strong> — minuteur dans un Web Worker, verrou web et option « Garder actif en arrière-plan » ; Chrome sur Android gèle quand même les pages après environ 1 min, la page doit rester visible (écran partagé / fenêtre flottante).</li>
-            <li><strong>Fiabilité</strong> — le jeton Spotify est renouvelé automatiquement avant son expiration (1 h), un seul sondage Spotify à la fois, pause automatique en cas de trop de requêtes (429), détection fiable de deux titres du même album.</li>
-            <li>Fonction expérimentale : testée avec une Timebox Evo ; le rendu du Pixoo n'est pas garanti.</li>
-        </ul>
-
-        <h3>🌌 Scénographie</h3>
-        <ul>
-            <li><strong>Encadré animé</strong> sous « Explorer & rechercher » (désactivé par défaut, interrupteur dans les Paramètres) : aurore de lumière aux deux couleurs dominantes de la pochette (rideaux ondulants, brume, bokeh, étoiles, étoile filante), qui pulse au tempo et réagit à chaque nouvelle ligne de parole.</li>
-            <li><strong>Titre animé</strong> — les lettres arrivent de partout avec un rebond, puis un reflet de lumière balaie le titre ; artiste, ligne de parole en cours et fine barre de progression.</li>
-            <li>Le tempo est simulé à partir du titre (Spotify ne fournit plus le vrai tempo).</li>
-        </ul>
-
-        <h3>📄 Feuille de paroles A4</h3>
-        <ul>
-            <li>Bouton <strong>← Retour</strong> sur la feuille : revient au site sans quitter l'application.</li>
+            <li><strong>Divoom Timebox Evo 🔷 et Pixoo</strong> — catégorie « Appareils » des Paramètres, connexion série Bluetooth, les deux appareils en même temps : ils affichent la couleur principale de la pochette, mise à jour à chaque titre.</li>
+            <li>Passe par le Bluetooth du téléphone (Web Bluetooth, Chrome sur Android, page en https) ; un journal intégré et un bouton « Test rouge » aident à diagnostiquer la connexion.</li>
+            <li>Fonction expérimentale : la Timebox Evo utilise surtout le Bluetooth « classique », que les navigateurs ne gèrent pas, donc le résultat n'est pas garanti.</li>
         </ul>
 
         <h3>🗣️ Commandes vocales</h3>
@@ -7024,7 +6834,7 @@ function ensureCreditsModal() {
             <li><strong>Web Speech API</strong> (SpeechRecognition) — commandes vocales.</li>
             <li><strong>Web Audio API</strong> — soundboard, sons des feux d'artifice, son du Mode DJ.</li>
             <li><strong>MediaDevices / MediaRecorder</strong> — enregistrement micro (Drive, reconnaissance de chanson).</li>
-            <li><strong>Web Serial API</strong> — envoi des images (pochette, paroles, titre…) aux appareils Divoom (Timebox Evo, Pixoo) en série Bluetooth.</li>
+            <li><strong>Web Serial API</strong> — envoi de la couleur principale de la pochette aux appareils Divoom (Timebox Evo, Pixoo) en série Bluetooth.</li>
             <li><strong>Screen Wake Lock API</strong> — garde l'écran allumé pendant l'écoute.</li>
             <li><strong>Canvas 2D</strong> — spectres, feux d'artifice, effets visuels, et détection de la couleur principale de la pochette (calcul local sur l'image, aucun service externe).</li>
             <li><strong>localStorage</strong> — réglages, historique et caches (clips, sous-titres) enregistrés dans ton navigateur.</li>
