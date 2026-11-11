@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v9.4";
+        const APP_VERSION = "v9.5";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -822,8 +822,6 @@
         #dv-plus-pop .dv-ptitle { font-size: 0.68rem; color: var(--text-grey); margin-bottom: 2px; }
         #dv-plus-pop button { width: 100% !important; margin: 0 !important; padding: 8px 10px !important; border-radius: 9px !important; background: #232323 !important; color: #fff !important; border: 1px solid #444 !important; font-size: 0.8rem !important; text-align: left !important; cursor: pointer; display: block !important; height: auto !important; box-shadow: none !important; }
         #dv-plus-pop button.on { border-color: var(--spotify-green) !important; background: rgba(30,215,96,0.16) !important; }
-        .seno-chip { background: rgba(0,0,0,0.45) !important; color: #fff !important; border: 1px solid rgba(255,255,255,0.3) !important; border-radius: 14px !important; padding: 4px 10px !important; margin: 0 !important; font-size: 0.72rem !important; width: auto !important; height: auto !important; cursor: pointer; box-shadow: none !important; backdrop-filter: blur(6px); }
-        .seno-chip.on { background: rgba(30,215,96,0.35) !important; border-color: var(--spotify-green) !important; }
         #queue-peek { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
         #queue-peek .qp-row { display: flex; flex-direction: row; }
         #queue-peek .qp-thumb { width: 38px; height: 38px; border-radius: 6px; object-fit: cover; border: 1px solid rgba(255,255,255,0.35); box-shadow: 0 3px 8px rgba(0,0,0,0.5); cursor: pointer; background: #222; box-sizing: border-box; margin-left: -12px; }
@@ -1410,10 +1408,6 @@
         })();
     </script>
 
-    <div id="seno-card" class="card" style="display: none; width: 100%; max-width: 1200px; margin-top: 20px; padding: 0; overflow: hidden; position: relative; z-index: 2; box-sizing: border-box;">
-        <canvas id="seno-canvas" style="display: block; width: 100%; height: 220px;"></canvas>
-        <div id="seno-chips" style="position: absolute; top: 10px; right: 10px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; max-width: 90%;"></div>
-    </div>
 
     <div id="dashboard">
         <div class="lyrics-section" id="lyrics-container" onclick="handleLyricsTripleClick()">
@@ -2135,7 +2129,11 @@
                 </div>
                 
                 <div id="search-results"></div>
-            </div> <div class="card">
+            </div>
+            <div id="seno-card" class="card" style="display: none; padding: 0; overflow: hidden; position: relative;">
+                <canvas id="seno-canvas" style="display: block; width: 100%; height: 190px;"></canvas>
+            </div>
+            <div class="card">
                 <div style="display: flex; align-items: center; justify-content: space-between;">
                     <p id="lecture-en-cours-title" style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 0;">LECTURE EN COURS</p>
                     <span id="divoom-icons">
@@ -4495,7 +4493,7 @@ let divoomRotCache = { label: null, w: 40 };
 function divoomRotPhase() {
     const label = divoomNowLabel || '';
     if (divoomRotCache.label !== label) { let w = 40; try { w = divoomTextBitmap(label).w; } catch (e) {} divoomRotCache = { label: label, w: w }; }
-    const d = [7000, divoomArtistPx ? 7000 : 0, Math.max(4500, Math.round((divoomRotCache.w + 16) / 30 * 1000) + 500)];
+    const d = [7000, divoomArtistPx ? 7000 : 0, 1900 + Math.round((divoomRotCache.w + 2) / 30 * 1000) + 400];
     const total = d[0] + d[1] + d[2];
     const now = Date.now(), el = (now - divoomCoverChangedAt) % total;
     let acc = 0, phase = 0, startOf = now - el;
@@ -4551,13 +4549,11 @@ document.addEventListener('pointerdown', () => { if (divoomKeepAliveOn) divoomKe
 document.addEventListener('visibilitychange', () => { if (divoomKeepAliveOn && divoomEnabled && divoomDevices.length) divoomKeepAliveStart(); }); // relance le signal si Chrome l'a suspendu
 // Aperçu des 3 prochains titres de la file d'attente, en bas à droite de la pochette
 let queuePeekTracks = [], queuePeekSel = -1, queuePeekTimer = null;
-// ===== Scénographie : encadré animé (au-dessus du tableau de bord) selon le titre et les couleurs de la pochette =====
+// ===== Scénographie : encadré animé (sous « Explorer & rechercher », au-dessus de « Lecture en cours ») selon le titre et les couleurs de la pochette =====
 let scenoEnabled = (function () { try { return localStorage.getItem('scenoEnabled') === 'true'; } catch (e) { return false; } })(); // désactivée par défaut
-let scenoStyle = (function () { try { return localStorage.getItem('scenoStyle') || 'aurore'; } catch (e) { return 'aurore'; } })();
 let scenoTrack = { id: '', title: '', artist: '' };
 const scenoCols = { c1: [30, 215, 96], c2: [120, 80, 255], src: '' };
-const SCENO_STYLES = [['aurore', '🌌 Aurore'], ['ondes', '🔵 Ondes'], ['particules', '✨ Particules'], ['projecteurs', '🔦 Projecteurs'], ['barres', '📊 Égaliseur']];
-let scenoRaf = 0, scenoParts = null, scenoRings = [], scenoLastBeat = -1, scenoLast = 0, scenoCanvas = null;
+let scenoRaf = 0, scenoLast = 0, scenoCanvas = null, scenoTitleKey = '', scenoT0 = 0, scenoLyric = { text: '', t0: 0 };
 function scenoHash(str) { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0); }
 function scenoBpm() { return 72 + (scenoHash(scenoTrack.id || scenoTrack.title) % 70); } // tempo SIMULÉ (déterministe par titre) : Spotify ne donne plus le vrai tempo
 function toggleScenography(on) {
@@ -4565,22 +4561,13 @@ function toggleScenography(on) {
     try { localStorage.setItem('scenoEnabled', on ? 'true' : 'false'); } catch (e) {}
     scenoSync();
 }
-function setScenoStyle(k) {
-    scenoStyle = k; scenoParts = null; scenoRings = [];
-    try { localStorage.setItem('scenoStyle', k); } catch (e) {}
-    scenoRenderChips();
-}
-function scenoRenderChips() {
-    const box = document.getElementById('seno-chips'); if (!box) return;
-    box.innerHTML = SCENO_STYLES.map(([k, l]) => '<button class="seno-chip' + (k === scenoStyle ? ' on' : '') + '" onclick="setScenoStyle(\'' + k + '\')">' + l + '</button>').join('');
-}
 function scenoSync() {
     const card = document.getElementById('seno-card'); if (!card) return;
     const dash = document.getElementById('dashboard');
-    const visible = scenoEnabled && dash && dash.style.display !== 'none' && getComputedStyle(dash).display !== 'none' && !driveMusicModeActive;
+    const visible = scenoEnabled && dash && getComputedStyle(dash).display !== 'none' && !driveMusicModeActive;
     card.style.display = visible ? 'block' : 'none';
     const t = document.getElementById('seno-toggle'); if (t && t.checked !== scenoEnabled) t.checked = scenoEnabled;
-    if (visible && !scenoRaf) { scenoCanvas = document.getElementById('seno-canvas'); scenoRenderChips(); scenoRaf = requestAnimationFrame(scenoFrame); }
+    if (visible && !scenoRaf) { scenoCanvas = document.getElementById('seno-canvas'); scenoRaf = requestAnimationFrame(scenoFrame); }
     if (!visible && scenoRaf) { cancelAnimationFrame(scenoRaf); scenoRaf = 0; }
 }
 function scenoUpdateColors() {
@@ -4595,6 +4582,13 @@ function scenoUpdateColors() {
         });
     } catch (e) {}
 }
+function scenoCurrentLyric() {
+    try {
+        const sec = divoomProgressMs() / 1000; let txt = '';
+        for (let i = 0; i < currentLyrics.length; i++) { if (currentLyrics[i].time <= sec) txt = String(currentLyrics[i].text || '').trim(); else break; }
+        return txt;
+    } catch (e) { return ''; }
+}
 function scenoFrame(ts) {
     scenoRaf = requestAnimationFrame(scenoFrame);
     if (!scenoCanvas || document.hidden) return;
@@ -4607,66 +4601,66 @@ function scenoFrame(ts) {
     const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
     const playing = (function () { try { return isCurrentlyPlaying; } catch (e) { return true; } })();
     const t = ts / 1000, seed = scenoHash(scenoTrack.id || scenoTrack.title || 'x') % 1000;
-    const bpm = scenoBpm(), beatsF = t * bpm / 60, beat = Math.floor(beatsF), frac = beatsF - beat;
+    const bpm = scenoBpm(), beatsF = t * bpm / 60, frac = beatsF - Math.floor(beatsF);
     const pulse = playing ? Math.exp(-frac * 4.5) : 0, speed = playing ? 1 : 0.25;
-    const A = scenoCols.c1, B = scenoCols.c2, M = A.map((v, i) => (v + B[i]) >> 1);
+    const key = scenoTrack.id + '|' + scenoTrack.title;
+    if (key !== scenoTitleKey) { scenoTitleKey = key; scenoT0 = t; }
+    const lyr = scenoCurrentLyric(); if (lyr !== scenoLyric.text) scenoLyric = { text: lyr, t0: t };
+    const flash = Math.exp(-(t - scenoLyric.t0) * 2.6);
+    const A = scenoCols.c1, B = scenoCols.c2, M = A.map((v, i) => (v + B[i]) >> 1), lt = c => c.map(v => Math.min(255, v + 90));
     const rgba = (c, a) => 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a + ')';
+    // fond + aurore (nappes de lumière dans les couleurs de la pochette ; elles gonflent au tempo et à chaque nouvelle ligne de parole)
     g.globalCompositeOperation = 'source-over'; g.fillStyle = '#05050a'; g.fillRect(0, 0, W, H);
     g.globalCompositeOperation = 'lighter';
-    if (scenoStyle === 'aurore') {
-        const cols = [A, B, M];
-        for (let i = 0; i < 5; i++) {
-            const c = cols[i % 3], ph = seed * 0.37 + i * 1.7;
-            const x = W * (0.5 + 0.42 * Math.sin(t * 0.21 * speed + ph)), y = H * (0.5 + 0.3 * Math.cos(t * 0.17 * speed + ph * 1.3));
-            const r = Math.max(W, H) * (0.3 + 0.05 * Math.sin(t * 0.5 + ph)) * (1 + pulse * 0.12);
-            const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, rgba(c, 0.55)); gr.addColorStop(1, rgba(c, 0));
-            g.fillStyle = gr; g.fillRect(0, 0, W, H);
-        }
-    } else if (scenoStyle === 'ondes') {
-        if (playing && beat !== scenoLastBeat) { scenoLastBeat = beat; scenoRings.push({ t0: t, c: beat % 2 ? A : B }); if (scenoRings.length > 14) scenoRings.shift(); }
-        const cx = W / 2, cy = H / 2, maxR = Math.hypot(W, H) / 2;
-        scenoRings = scenoRings.filter(r => t - r.t0 < 3.2);
-        scenoRings.forEach(r => { const k = (t - r.t0) / 3.2; g.beginPath(); g.arc(cx, cy, k * maxR, 0, Math.PI * 2); g.lineWidth = 3 + 8 * (1 - k); g.strokeStyle = rgba(r.c, 0.7 * (1 - k)); g.stroke(); });
-        const gr = g.createRadialGradient(cx, cy, 0, cx, cy, 70 + pulse * 30); gr.addColorStop(0, rgba(M, 0.5)); gr.addColorStop(1, rgba(M, 0)); g.fillStyle = gr; g.fillRect(0, 0, W, H);
-    } else if (scenoStyle === 'particules') {
-        const N = Math.max(40, Math.min(120, Math.round(W / 12)));
-        if (!scenoParts || scenoParts.length !== N) scenoParts = Array.from({ length: N }, (_, i) => ({ x: Math.random(), y: Math.random(), s: 0.4 + Math.random() * 1.6, r: 1.5 + Math.random() * 3.5, c: i % 3 }));
-        const dt = 0.033 * speed * (1 + pulse * 1.5);
-        scenoParts.forEach(p => {
-            p.y -= dt * 0.12 * p.s; p.x += Math.sin(t * 0.8 + p.s * 9) * 0.0008;
-            if (p.y < -0.05) { p.y = 1.05; p.x = Math.random(); }
-            const c = [A, B, M][p.c], r = p.r * (1 + pulse * 0.6);
-            const gr = g.createRadialGradient(p.x * W, p.y * H, 0, p.x * W, p.y * H, r * 4); gr.addColorStop(0, rgba(c, 0.9)); gr.addColorStop(1, rgba(c, 0));
-            g.fillStyle = gr; g.fillRect(p.x * W - r * 4, p.y * H - r * 4, r * 8, r * 8);
-        });
-    } else if (scenoStyle === 'projecteurs') {
-        const n = 5;
-        for (let i = 0; i < n; i++) {
-            const c = [A, B, M][i % 3], bx = W * (i + 0.5) / n, ang = Math.sin(t * 0.6 * speed + i * 1.3 + seed) * 0.5 + (i - 2) * 0.08;
-            g.save(); g.translate(bx, -10); g.rotate(ang);
-            const L = H * 1.5, wd = 26 + pulse * 18 + 14 * Math.sin(t + i);
-            const gr = g.createLinearGradient(0, 0, 0, L); gr.addColorStop(0, rgba(c, 0.7)); gr.addColorStop(1, rgba(c, 0));
-            g.fillStyle = gr; g.beginPath(); g.moveTo(-4, 0); g.lineTo(4, 0); g.lineTo(wd, L); g.lineTo(-wd, L); g.closePath(); g.fill(); g.restore();
-        }
-    } else { // barres
-        const n = Math.max(24, Math.min(72, Math.round(W / 16))), bw = W / n;
-        for (let i = 0; i < n; i++) {
-            const v = playing ? (0.5 + 0.5 * Math.sin(t * 3 + i * 0.7 + seed)) * (0.5 + 0.5 * Math.sin(t * 1.7 + i * 1.9)) * (0.55 + 0.45 * pulse + 0.2) : 0.06;
-            const h = Math.max(4, v * H * 0.9), k = i / (n - 1), c = A.map((x, j) => Math.round(x + (B[j] - x) * k));
-            const gr = g.createLinearGradient(0, H, 0, H - h); gr.addColorStop(0, rgba(c, 0.95)); gr.addColorStop(1, rgba(c, 0.25));
-            g.fillStyle = gr; g.fillRect(i * bw + 2, H - h, bw - 4, h);
-        }
+    const cols = [A, B, M];
+    for (let i = 0; i < 5; i++) {
+        const c = cols[i % 3], ph = seed * 0.37 + i * 1.7;
+        const x = W * (0.5 + 0.42 * Math.sin(t * 0.21 * speed + ph)), y = H * (0.45 + 0.3 * Math.cos(t * 0.17 * speed + ph * 1.3));
+        const r = Math.max(W, H) * (0.34 + 0.05 * Math.sin(t * 0.5 + ph)) * (1 + pulse * 0.12 + flash * 0.18);
+        const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, rgba(c, 0.5 + flash * 0.2)); gr.addColorStop(1, rgba(c, 0));
+        g.fillStyle = gr; g.fillRect(0, 0, W, H);
+    }
+    // poussière d'étoiles qui scintille
+    for (let i = 0; i < 36; i++) {
+        const hx = scenoHash(seed + ':' + i), x = (hx % 1000) / 1000 * W, y = ((hx >> 10) % 1000) / 1000 * H * 0.75;
+        const tw = 0.5 + 0.5 * Math.sin(t * (0.8 + (hx % 7) * 0.25) + i), r = (0.8 + (hx % 3) * 0.5) * (1 + pulse * 0.5);
+        g.fillStyle = 'rgba(255,255,255,' + (0.15 + 0.6 * tw) + ')'; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
     }
     g.globalCompositeOperation = 'source-over';
-    const vg = g.createLinearGradient(0, H, 0, H * 0.35); vg.addColorStop(0, 'rgba(0,0,0,0.65)'); vg.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = vg; g.fillRect(0, 0, W, H);
-    // titre + artiste : grand, avec léger rebond sur le tempo
-    const ts1 = Math.max(18, Math.min(46, W / 22)) * (1 + pulse * 0.025);
-    g.textAlign = 'left'; g.textBaseline = 'alphabetic'; g.shadowColor = 'rgba(0,0,0,0.7)'; g.shadowBlur = 12;
-    g.fillStyle = '#fff'; g.font = '800 ' + ts1 + 'px ' + (getComputedStyle(document.body).fontFamily || 'sans-serif');
-    let title = scenoTrack.title || 'En attente de lecture…'; while (g.measureText(title).width > W - 40 && title.length > 4) title = title.slice(0, -2);
-    g.fillText(title, 20, H - 44);
-    g.fillStyle = 'rgba(255,255,255,0.8)'; g.font = '600 ' + Math.max(13, ts1 * 0.5) + 'px ' + (getComputedStyle(document.body).fontFamily || 'sans-serif');
-    g.fillText(scenoTrack.artist || '', 20, H - 18); g.shadowBlur = 0;
+    const vg = g.createLinearGradient(0, H, 0, H * 0.25); vg.addColorStop(0, 'rgba(0,0,0,0.7)'); vg.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = vg; g.fillRect(0, 0, W, H);
+    // ===== Titre : apparition lettre par lettre (montée + flou qui se dissipe), dégradé aux couleurs de la pochette, vague douce au tempo =====
+    const fam = getComputedStyle(document.body).fontFamily || 'sans-serif';
+    let title = scenoTrack.title || 'En attente de lecture…', size = Math.max(17, Math.min(30, W / 11));
+    g.font = '800 ' + size + 'px ' + fam;
+    while (g.measureText(title).width > W - 32 && size > 15) { size -= 1; g.font = '800 ' + size + 'px ' + fam; }
+    while (g.measureText(title).width > W - 32 && title.length > 4) title = title.slice(0, -2);
+    const tw0 = g.measureText(title).width, x0 = 16, yT = H - 66;
+    const grad = g.createLinearGradient(x0, 0, x0 + tw0, 0); grad.addColorStop(0, rgba(lt(A), 1)); grad.addColorStop(0.5, '#ffffff'); grad.addColorStop(1, rgba(lt(B), 1));
+    g.textAlign = 'left'; g.textBaseline = 'alphabetic'; g.fillStyle = grad;
+    let cx = x0; const n = title.length, per = Math.min(0.045, 1.1 / Math.max(1, n));
+    for (let i = 0; i < n; i++) {
+        const ch = title[i], wch = g.measureText(ch).width, k = Math.max(0, Math.min(1, (t - scenoT0 - i * per) / 0.45)), e = 1 - Math.pow(1 - k, 3);
+        if (k > 0) {
+            const wave = playing && k >= 1 ? Math.sin(t * 2.2 + i * 0.5) * 1.2 * (0.5 + pulse) : 0;
+            g.globalAlpha = e; g.shadowColor = rgba(M, 0.9); g.shadowBlur = (1 - e) * 18 + 6 + pulse * 8;
+            g.fillText(ch, cx, yT + (1 - e) * 14 + wave);
+        }
+        cx += wch;
+    }
+    g.globalAlpha = 1; g.shadowBlur = 0;
+    // artiste (apparaît après le titre) et ligne de parole en cours (fondu à chaque changement)
+    const ta = Math.max(0, Math.min(1, (t - scenoT0 - 0.5) / 0.6));
+    g.font = '600 ' + Math.max(12, size * 0.55) + 'px ' + fam; g.fillStyle = 'rgba(255,255,255,' + (0.85 * ta) + ')';
+    let art = scenoTrack.artist || ''; while (g.measureText(art).width > W - 32 && art.length > 4) art = art.slice(0, -2);
+    g.fillText(art, x0, yT + size * 0.95);
+    if (scenoLyric.text) {
+        const la = Math.min(1, (t - scenoLyric.t0) / 0.45);
+        g.font = 'italic 500 ' + Math.max(11, size * 0.5) + 'px ' + fam; g.fillStyle = rgba(lt(M), 0.9 * la);
+        let ln = scenoLyric.text; while (g.measureText(ln).width > W - 32 && ln.length > 4) ln = ln.slice(0, -2);
+        g.fillText('♪ ' + ln, x0, H - 14 - (1 - la) * 6);
+    }
+    // fine barre de progression aux couleurs de la pochette
+    try { if (trackDurationMs > 0) { const p = Math.max(0, Math.min(1, divoomProgressMs() / trackDurationMs)); const bg = g.createLinearGradient(0, 0, W, 0); bg.addColorStop(0, rgba(A, 1)); bg.addColorStop(1, rgba(B, 1)); g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(0, H - 3, W, 3); g.fillStyle = bg; g.fillRect(0, H - 3, W * p, 3); } } catch (e) {}
 }
 setInterval(() => { try { scenoSync(); } catch (e) {} }, 500);
 
@@ -5398,8 +5392,9 @@ function divoomBuildFrame(opts) {
         const bm = divoomStats.bm, period = bm.w + 16, shift = playing ? Math.floor((Date.now() / 1000) * 24) % period : Math.floor((Date.now() / 1000) * 24) % period;
         drawText(bm, 16 - shift); textShown = true;
     } else if (mode === 'rotate' && opts.rotPhase === 2) {
-        const bm = divoomTextBitmap(titleLabel()), shift = (Date.now() - (opts.rotStart || Date.now())) / 1000 * 30;
-        drawText(bm, 16 - Math.floor(shift)); textShown = true;
+        // le début du titre reste lisible : il démarre cadré à gauche (pendant la transition), puis défile
+        const bm = divoomTextBitmap(titleLabel()), shift = Math.max(0, (Date.now() - (opts.rotStart || Date.now()) - 1900) / 1000 * 30);
+        drawText(bm, 1 - Math.floor(shift)); textShown = true;
     } else if (mode === 'title') {
         const bm = divoomTextBitmap(titleLabel()), period = bm.w + 16, shift = playing ? Math.floor((Date.now() / 1000) * 24) % period : 0;
         drawText(bm, 16 - shift); textShown = true;
