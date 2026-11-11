@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v9.74";
+        const APP_VERSION = "v9.8";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -2131,7 +2131,7 @@
                 <div id="search-results"></div>
             </div>
             <div id="seno-card" class="card" style="display: none; padding: 0; overflow: hidden; position: relative;">
-                <canvas id="seno-canvas" style="display: block; width: 100%; height: 230px;"></canvas>
+                <canvas id="seno-canvas" style="display: block; width: 100%; height: 250px;"></canvas>
             </div>
             <div class="card">
                 <div style="display: flex; align-items: center; justify-content: space-between;">
@@ -4590,7 +4590,7 @@ function scenoCurrentLyric() {
         return txt;
     } catch (e) { return ''; }
 }
-let scenoRipples = [], scenoStar = null, scenoLastStar = 0, scenoBokeh = null;
+let scenoLyH = 0, scenoRipples = [], scenoStar = null, scenoLastStar = 0, scenoBokeh = null;
 function scenoWrap(g, text, maxW) { // 1 ou 2 lignes (coupe sur les espaces)
     const words = text.split(' '); let lines = [''];
     words.forEach(w => { const cur = lines[lines.length - 1], test = cur ? cur + ' ' + w : w; if (g.measureText(test).width <= maxW || !cur) lines[lines.length - 1] = test; else lines.push(w); });
@@ -4661,43 +4661,50 @@ function scenoFrame(ts) {
     scenoRipples.forEach(r => { const k = (t - r.t0) / 2.6; g.beginPath(); g.ellipse(r.x * W, H * 0.55, k * W * 0.55, k * H * 0.28, 0, 0, 7); g.lineWidth = 1.5 + 4 * (1 - k); g.strokeStyle = rgba(lt(M), 0.5 * (1 - k)); g.stroke(); });
     g.globalCompositeOperation = 'source-over';
     const vg = g.createLinearGradient(0, H, 0, H * 0.2); vg.addColorStop(0, 'rgba(0,0,0,0.72)'); vg.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = vg; g.fillRect(0, 0, W, H);
-    // ===== TITRE : les lettres arrivent de partout (rebond + rotation), puis un reflet de lumière balaie le titre en boucle =====
+    // ===== PAROLE EN COURS : retour à la ligne (jusqu'à 4 lignes) pour que la fin ne soit jamais coupée ; le bloc au-dessus glisse en douceur =====
     const fam = getComputedStyle(document.body).fontFamily || 'sans-serif', maxW = W - 32;
     let title = scenoTrack.title || 'En attente de lecture…', size = Math.max(18, Math.min(34, W / 10)), lines;
+    let lyLines = [], lsz = Math.max(11, size * 0.45);
+    if (scenoLyric.text) {
+        const full = '♪ ' + scenoLyric.text;
+        for (;;) { g.font = 'italic 500 ' + lsz + 'px ' + fam; lyLines = scenoWrap(g, full, maxW); if (lyLines.length <= 4 || lsz <= 9.5) break; lsz -= 0.5; }
+        if (lyLines.length > 4) { lyLines = lyLines.slice(0, 4); let l4 = lyLines[3]; while (g.measureText(l4 + '…').width > maxW && l4.length > 2) l4 = l4.slice(0, -1); lyLines[3] = l4 + '…'; }
+    }
+    const lyTarget = lyLines.length ? lyLines.length * lsz * 1.28 + 4 : 0;
+    scenoLyH += (lyTarget - scenoLyH) * 0.35; // hauteur animée : pas de saut quand le nombre de lignes change
+    // ===== TITRE : « mise au point » — le titre apparaît flou et étiré, puis se resserre et devient net ; un reflet de lumière le balaie ensuite en boucle =====
     for (;;) { g.font = '800 ' + size + 'px ' + fam; lines = scenoWrap(g, title, maxW); if ((lines.length <= 2 && lines.every(l => g.measureText(l).width <= maxW)) || size <= 15) break; size -= 1; }
     if (lines.length > 2) { lines = lines.slice(0, 2); let l2 = lines[1]; while (g.measureText(l2 + '…').width > maxW && l2.length > 2) l2 = l2.slice(0, -1); lines[1] = l2 + '…'; }
-    const aSize = Math.max(12, size * 0.5), yA = H - 38, yLast = yA - aSize - 8, lh = size * 1.08;
-    const total = lines.reduce((a, l) => a + l.length, 0), per = Math.min(0.05, 1.0 / Math.max(1, total)), sweep = ((t - scenoT0 - 1.4) * 0.45) % 2.2 - 0.6; // position du reflet (0..1 sur le titre)
-    g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+    const aSize = Math.max(12, size * 0.5), yA = H - 14 - scenoLyH, yLast = yA - aSize - 8, lh = size * 1.08;
+    const total = lines.reduce((a, l) => a + l.length, 0), sweep = ((t - scenoT0 - 1.8) * 0.45) % 2.2 - 0.6; // position du reflet (0..1 sur le titre)
+    const kf = Math.max(0, Math.min(1, (t - scenoT0) / 1.3)), ef = 1 - Math.pow(1 - kf, 3); // 0 → 1 : flou/étiré → net/serré
+    g.textBaseline = 'alphabetic';
     let gi = 0;
     lines.forEach((ln, li) => {
-        const y0 = yLast - (lines.length - 1 - li) * lh; let cx = 16;
+        const y0 = yLast - (lines.length - 1 - li) * lh, lw = g.measureText(ln).width, mid = 16 + lw / 2; let cx = 16;
         for (let i = 0; i < ln.length; i++, gi++) {
             const ch = ln[i], wch = g.measureText(ch).width;
-            const k = Math.max(0, Math.min(1, (t - scenoT0 - gi * per) / 0.7));
-            if (k > 0 && ch !== ' ') {
-                const h = scenoHash(seed + ':c' + gi), e = k < 1 ? 1 + 2.4 * Math.pow(k - 1, 3) + 1.4 * Math.pow(k - 1, 2) : 1; // easeOutBack
-                const ox = ((h % 200) - 100) * 0.5 * (1 - e), oy = (((h >> 8) % 120) - 20) * (1 - e), rot = (((h >> 16) % 100) - 50) / 50 * 0.9 * (1 - e);
+            if (ch !== ' ' && kf > 0) {
                 const pos = gi / Math.max(1, total - 1), base = mix(lt(A), lt(B), pos), band = Math.max(0, 1 - Math.abs(pos - sweep) / 0.14), col = base.map(v => Math.round(v + (255 - v) * band));
-                const wave = playing && k >= 1 ? Math.sin(t * 2.4 + gi * 0.55) * 1.3 * (0.4 + pulse) : 0;
-                g.save(); g.translate(cx + wch / 2 + ox, y0 + oy + wave); g.rotate(rot); g.globalAlpha = Math.min(1, k * 2);
-                g.shadowColor = rgba(band > 0.2 ? [255, 255, 255] : M, 0.85); g.shadowBlur = (1 - Math.min(1, k)) * 16 + 6 + pulse * 8 + band * 14;
+                const spread = (cx + wch / 2 - mid) * 0.9 * (1 - ef); // lettres écartées du centre de la ligne au début
+                g.save(); g.translate(cx + wch / 2 + spread, y0); g.globalAlpha = Math.min(1, ef * 1.6);
+                try { g.filter = (1 - ef) > 0.02 ? 'blur(' + ((1 - ef) * 7).toFixed(1) + 'px)' : 'none'; } catch (e) {}
+                g.shadowColor = rgba(band > 0.2 ? [255, 255, 255] : M, 0.85); g.shadowBlur = 6 + pulse * 6 + band * 14 + (1 - ef) * 10;
                 g.fillStyle = 'rgb(' + col[0] + ',' + col[1] + ',' + col[2] + ')'; g.textAlign = 'center'; g.fillText(ch, 0, 0); g.restore();
             }
             cx += wch;
         }
     });
-    g.globalAlpha = 1; g.shadowBlur = 0; g.textAlign = 'left';
-    // artiste (apparaît après le titre) et ligne de parole en cours (fondu à chaque changement)
+    g.globalAlpha = 1; g.shadowBlur = 0; g.textAlign = 'left'; try { g.filter = 'none'; } catch (e) {}
+    // artiste (apparaît après le titre)
     const ta = Math.max(0, Math.min(1, (t - scenoT0 - 0.9) / 0.6));
     g.font = '600 ' + aSize + 'px ' + fam; g.fillStyle = 'rgba(255,255,255,' + (0.85 * ta) + ')';
     let art = scenoTrack.artist || ''; while (g.measureText(art).width > maxW && art.length > 4) art = art.slice(0, -2);
     g.fillText(art, 16, yA + (1 - ta) * 6);
-    if (scenoLyric.text) {
-        const la = Math.min(1, (t - scenoLyric.t0) / 0.45);
-        g.font = 'italic 500 ' + Math.max(11, size * 0.45) + 'px ' + fam; g.fillStyle = rgba(lt(M), 0.9 * la);
-        let ln = scenoLyric.text; while (g.measureText('♪ ' + ln).width > maxW && ln.length > 4) ln = ln.slice(0, -2);
-        g.fillText('♪ ' + ln, 16, H - 14 - (1 - la) * 6);
+    if (lyLines.length) {
+        const la = Math.min(1, (t - scenoLyric.t0) / 0.45), lh2 = lsz * 1.28;
+        g.font = 'italic 500 ' + lsz + 'px ' + fam; g.fillStyle = rgba(lt(M), 0.92 * la);
+        lyLines.forEach((l, i) => g.fillText(l, 16, yA + 6 + lsz + i * lh2 - (1 - la) * 0 + (1 - la) * 6));
     }
     // fine barre de progression aux couleurs de la pochette
     try { if (trackDurationMs > 0) { const p = Math.max(0, Math.min(1, divoomProgressMs() / trackDurationMs)); const bg = g.createLinearGradient(0, 0, W, 0); bg.addColorStop(0, rgba(A, 1)); bg.addColorStop(1, rgba(B, 1)); g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(0, H - 3, W, 3); g.fillStyle = bg; g.fillRect(0, H - 3, W * p, 3); } } catch (e) {}
@@ -6963,7 +6970,7 @@ function ensureCreditsModal() {
         <h3>🌌 Scénographie</h3>
         <ul>
             <li><strong>Encadré animé</strong> sous « Explorer & rechercher » (désactivé par défaut, interrupteur dans les Paramètres) : aurore de lumière aux deux couleurs dominantes de la pochette (rideaux ondulants, brume, bokeh, étoiles, étoile filante), qui pulse au tempo et réagit à chaque nouvelle ligne de parole.</li>
-            <li><strong>Titre animé</strong> — les lettres arrivent de partout avec un rebond, puis un reflet de lumière balaie le titre ; artiste, ligne de parole en cours et fine barre de progression.</li>
+            <li><strong>Titre animé</strong> — effet de « mise au point » : le titre apparaît flou et étiré, se resserre et devient net, puis un reflet de lumière le balaie en boucle ; artiste, ligne de parole en cours (sur jusqu'à 4 lignes, jamais coupée) et fine barre de progression.</li>
             <li>Le tempo est simulé à partir du titre (Spotify ne fournit plus le vrai tempo).</li>
         </ul>
 
