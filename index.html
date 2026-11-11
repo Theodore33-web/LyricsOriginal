@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v9.1";
+        const APP_VERSION = "v9.3";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -4472,7 +4472,19 @@ function divoomSetEnabled(type, on) {
     if (!on) { const d = divoomDevices.find(x => x.type === type); if (d) { try { divoomDrop(d); } catch (e) {} } divoomRefreshStatus(); }
     else divoomAutoReconnect();
 }
-let divoomCoverVersion = 0;
+let divoomCoverVersion = 0, divoomCoverChangedAt = Date.now();
+// Mode « Défilement » : pochette en pixels → image de l'artiste → titre + artiste qui défile, en boucle (même horloge pour les deux appareils : changement de titre = départ commun)
+let divoomRotCache = { label: null, w: 40 };
+function divoomRotPhase() {
+    const label = divoomNowLabel || '';
+    if (divoomRotCache.label !== label) { let w = 40; try { w = divoomTextBitmap(label).w; } catch (e) {} divoomRotCache = { label: label, w: w }; }
+    const d = [7000, divoomArtistPx ? 7000 : 0, Math.max(4500, Math.round((divoomRotCache.w + 16) / 30 * 1000) + 500)];
+    const total = d[0] + d[1] + d[2];
+    const now = Date.now(), el = (now - divoomCoverChangedAt) % total;
+    let acc = 0, phase = 0, startOf = now - el;
+    for (let i = 0; i < 3; i++) { if (d[i] > 0 && el < acc + d[i]) { phase = i; startOf = now - (el - acc); break; } acc += d[i]; }
+    return { phase: phase, start: startOf };
+}
 // Image de l'artiste en cours (mode « Image de l'artiste ») : photo de l'artiste réduite en 16×16, comme la pochette
 let divoomArtistId = '', divoomArtistLoadedId = '', divoomArtistPx = null, divoomArtistLoading = false;
 async function divoomArtistEnsure() {
@@ -4601,9 +4613,13 @@ async function divoomDisconnectAll(withBye) {
     divoomStatus('⏳ Déconnexion en cours…');
     try {
         if (withBye) { // les appareils sont traités en parallèle
-            await Promise.all(list.map(d => divoomSendTo(d, 248, 0, 0, divoomByePixels()).catch(() => {})));
-            await divoomSleep(1200);
-            await Promise.all(list.map(d => divoomSendTo(d, 0, 0, 0, divoomPixelsOf(() => null)).catch(() => {})));
+            const isBlank = d => divoomBlank || divoomCfgOf(d.type).mode === 'blank'; // écran vide : pas d'animation d'au revoir, il reste noir et éteint
+            const sendBlank = async d => { d._blank = true; try { await divoomSendTo(d, 0, 0, 0, divoomPixelsOf(() => null)); } catch (e) {} d._blank = false; };
+            await Promise.all(list.map(d => isBlank(d) ? sendBlank(d) : divoomSendTo(d, 248, 0, 0, divoomByePixels()).catch(() => {})));
+            if (list.some(d => !isBlank(d))) {
+                await divoomSleep(1200);
+                await Promise.all(list.map(d => isBlank(d) ? Promise.resolve() : divoomSendTo(d, 0, 0, 0, divoomPixelsOf(() => null)).catch(() => {})));
+            }
             await divoomSleep(150);
         }
     } catch (e) {}
@@ -4632,7 +4648,7 @@ async function divoomClickDevice(type) {
     divoomReconnecting = false;
     if (r === 'none') divoomConnect(type); // aucun port mémorisé pour cet appareil : choix manuel
 }
-const DIVOOM_MODES = [['image', '🖼️ Pochette en pixels'], ['color', '🎨 Pochette en couleur'], ['artist', '🧑‍🎤 Image de l\'artiste'], ['title', '🎵 Titre + artiste (défilement)'], ['stats', '📊 Stats d\'écoute'], ['lyrics', '🎤 Paroles défilantes'], ['blank', '⬛ Écran vide']];
+const DIVOOM_MODES = [['image', '🖼️ Pochette en pixels'], ['color', '🎨 Pochette en couleur'], ['artist', '🧑‍🎤 Image de l\'artiste'], ['rotate', '🔄 Défilement : pochette · artiste · titre'], ['title', '🎵 Titre + artiste (défilement)'], ['stats', '📊 Stats d\'écoute'], ['lyrics', '🎤 Paroles défilantes'], ['blank', '⬛ Écran vide']];
 let divoomPlusStep = 0, divoomComboFirst = ''; // 0 = normal · 1 = combo : choisir le mode de l'enceinte · 2 = combo : choisir le mode du Pixoo
 function divoomRenderPlus() {
     const pop = document.getElementById('dv-plus-pop'); if (!pop) return;
@@ -4751,9 +4767,14 @@ function divoomNewDevice(type, port) {
 }
 async function divoomSendTo(dev, r, g, b, pixels) {
     const frames = [];
-    if (pixels) { if (dev.type === 'pixoo' && !dev.bright) { dev.bright = true; frames.push(divoomSppFrame(divoomBrightnessPayload(100))); } frames.push(divoomSppFrame(divoomPixelsImagePayload(pixels))); }
+    // Écran vide : image noire PUIS luminosité à 0. La luminosité est un réglage mémorisé par l'appareil : l'écran reste éteint même quand le Bluetooth
+    // se coupe ou que la page est fermée (une simple image noire disparaît dès la déconnexion, l'appareil revenant à son affichage habituel).
+    const blankSend = !!dev._blank;
+    if (!blankSend && dev.dimmed) { dev.dimmed = false; frames.push(divoomSppFrame(divoomBrightnessPayload(100))); } // on quitte l'écran vide : luminosité rétablie
+    if (pixels) { if (dev.type === 'pixoo' && !dev.bright && !blankSend) { dev.bright = true; frames.push(divoomSppFrame(divoomBrightnessPayload(100))); } frames.push(divoomSppFrame(divoomPixelsImagePayload(pixels))); }
     else if (dev.type === 'pixoo') { frames.push(divoomSppFrame(divoomBrightnessPayload(100))); frames.push(divoomSppFrame(divoomImagePayload(r, g, b))); }
     else frames.push(divoomSppFrame(divoomLightPayload(r, g, b)));
+    if (blankSend) { frames.push(divoomSppFrame(divoomBrightnessPayload(0))); dev.dimmed = true; dev.bright = false; }
     for (const f of frames) {
         const data = new Uint8Array(f);
         dev.ackCount = 0;
@@ -4928,11 +4949,11 @@ function divoomCfgBlockHTML(type, title) {
       <summary style="font-size:0.8rem;font-weight:bold;color:var(--spotify-green);cursor:pointer;">${title}</summary>
       <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px;">
         <label style="font-size:0.72rem;color:var(--text-grey);display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;"><span>Utiliser cet appareil (le connecter automatiquement)</span><input type="checkbox"${c.enabled !== false ? ' checked' : ''} onchange="divoomSetEnabled('${type}',this.checked)"></label>
-        ${row('Affichage', `<select style="${sel}" onchange="divoomSetCfg('${type}','mode',this.value)">${o('color', c.mode, 'Couleur de la pochette')}${o('image', c.mode, 'Pochette en pixels')}${o('artist', c.mode, 'Image de l\'artiste en cours')}${o('lyrics', c.mode, 'Paroles défilantes')}${o('blank', c.mode, '⬛ Écran vide')}${o('title', c.mode, 'Titre + artiste (défilement continu)')}${o('stats', c.mode, '📊 Stats d\'écoute (défilement)')}${c.mode === 'liked' ? o('liked', c.mode, '❤️ Titres aimés (lancé depuis ❤️)') : ''}</select>`)}
+        ${row('Affichage', `<select style="${sel}" onchange="divoomSetCfg('${type}','mode',this.value)">${o('color', c.mode, 'Couleur de la pochette')}${o('image', c.mode, 'Pochette en pixels')}${o('artist', c.mode, 'Image de l\'artiste en cours')}${o('rotate', c.mode, '🔄 Défilement : pochette · artiste · titre + artiste')}${o('lyrics', c.mode, 'Paroles défilantes')}${o('blank', c.mode, '⬛ Écran vide')}${o('title', c.mode, 'Titre + artiste (défilement continu)')}${o('stats', c.mode, '📊 Stats d\'écoute (défilement)')}${c.mode === 'liked' ? o('liked', c.mode, '❤️ Titres aimés (lancé depuis ❤️)') : ''}</select>`)}
         ${chk('bar', 'Barre de progression')}
         ${chk('heart', 'Petit cœur quand le titre est aimé')}
-        ${c.mode === 'stats' ? '' : chk('announce', 'Titre + artiste à chaque nouveau titre')}
-        ${c.mode === 'stats' ? '' : chk('fallbackTitle', 'Titre + artiste quand il n\'y a pas de parole')}
+        ${(c.mode === 'stats' || c.mode === 'rotate') ? '' : chk('announce', 'Titre + artiste à chaque nouveau titre')}
+        ${(c.mode === 'stats' || c.mode === 'rotate') ? '' : chk('fallbackTitle', 'Titre + artiste quand il n\'y a pas de parole')}
         ${row('Icône en pause', `<select style="${sel}" onchange="divoomSetCfg('${type}','pause',this.value)">${o('off', c.pause, 'Aucune')}${o('pause', c.pause, '⏸ Pause')}${o('play', c.pause, '▶ Lecture')}</select>`)}
         ${row('Transition', `<select style="${sel}" onchange="divoomSetCfg('${type}','trans',this.value)">${o('off', c.trans, 'Aucune')}${o('pixel', c.trans, 'Pixel par pixel')}${o('sweep', c.trans, 'Balayage')}${o('fade', c.trans, 'Fondu')}${o('curtain', c.trans, 'Rideau')}${o('rain', c.trans, 'Pluie')}</select>`)}
       </div>
@@ -4961,6 +4982,7 @@ function divoomPollCover() {
             divoomLastColor = rgb.join();
             divoomCoverRgb = rgb;
             try { divoomCoverPx = divoomCoverPixels(art); } catch (e) { divoomCoverPx = null; }
+            divoomCoverChangedAt = Date.now();
             divoomCoverVersion++; // nouveau titre : chaque appareil réagit selon ses propres réglages
         });
     } catch (e) { console.warn('Divoom :', e); }
@@ -5225,7 +5247,8 @@ function divoomBuildFrame(opts) {
     const textCol = rgb.map(v => Math.max(v, 96) & 0xF8);
     const black = () => Array.from({ length: 256 }, () => [0, 0, 0]);
     let px;
-    if (mode === 'artist' && (opts.artistPx || coverPx)) px = (opts.artistPx || coverPx).map(c => c.slice());
+    if (mode === 'rotate') px = opts.rotPhase === 2 ? black() : (opts.rotPhase === 1 && (opts.artistPx || coverPx) ? (opts.artistPx || coverPx) : (coverPx || black())).map(c => c.slice());
+    else if (mode === 'artist' && (opts.artistPx || coverPx)) px = (opts.artistPx || coverPx).map(c => c.slice());
     else if (mode === 'image' && coverPx) px = coverPx.map(c => c.slice());
     else if (mode === 'lyrics' || mode === 'announce' || mode === 'liked' || mode === 'title' || mode === 'stats') px = black();
     else px = Array.from({ length: 256 }, () => rgb.map(v => v & 0xF8));
@@ -5238,6 +5261,9 @@ function divoomBuildFrame(opts) {
         if (divoomStats.bmText !== txt) { divoomStats.bm = divoomTextBitmap(txt); divoomStats.bmText = txt; }
         const bm = divoomStats.bm, period = bm.w + 16, shift = playing ? Math.floor((Date.now() / 1000) * 24) % period : Math.floor((Date.now() / 1000) * 24) % period;
         drawText(bm, 16 - shift); textShown = true;
+    } else if (mode === 'rotate' && opts.rotPhase === 2) {
+        const bm = divoomTextBitmap(titleLabel()), shift = (Date.now() - (opts.rotStart || Date.now())) / 1000 * 30;
+        drawText(bm, 16 - Math.floor(shift)); textShown = true;
     } else if (mode === 'title') {
         const bm = divoomTextBitmap(titleLabel()), period = bm.w + 16, shift = playing ? Math.floor((Date.now() / 1000) * 24) % period : 0;
         drawText(bm, 16 - shift); textShown = true;
@@ -5347,7 +5373,9 @@ async function divoomBlankTick(dev) {
     const due = dev.lastKey !== 'blank' || dev.dirty || Date.now() - dev.lastSend > 20000;
     if (!due || Date.now() - dev.lastSend < 600) return;
     dev.lastSend = Date.now();
-    const ok = await divoomSafeSend(dev, 0, 0, 0, divoomPixelsOf(() => null));
+    dev._blank = true;
+    let ok = false;
+    try { ok = await divoomSafeSend(dev, 0, 0, 0, divoomPixelsOf(() => null)); } finally { dev._blank = false; }
     if (ok) { dev.lastKey = 'blank'; dev.dirty = false; dev.wasPixels = false; dev.lastFramePx = Array.from({ length: 256 }, () => [0, 0, 0]); }
 }
 async function divoomDeviceTick(dev) {
@@ -5359,18 +5387,23 @@ async function divoomDeviceTick(dev) {
     if (playingNow) divoomPausedSince = 0; else if (!divoomPausedSince) divoomPausedSince = Date.now();
     if (dev.coverSeen !== divoomCoverVersion) { // nouveau titre
         dev.coverSeen = divoomCoverVersion;
-        if (cfg.announce && cfg.mode !== 'stats') dev.announceStart = Date.now() + (cfg.trans !== 'off' && dev.lastFramePx ? 1450 : 0); // le titre attend la fin de la transition pour être lu en entier
+        if (cfg.announce && cfg.mode !== 'stats' && cfg.mode !== 'rotate') dev.announceStart = Date.now() + (cfg.trans !== 'off' && dev.lastFramePx ? 1450 : 0); // le titre attend la fin de la transition pour être lu en entier
         if (cfg.trans !== 'off' && dev.lastFramePx) divoomMakeTransition(dev, cfg.trans);
         dev.dirty = true; dev.lastKey = '';
     }
     const playing = (function () { try { return isCurrentlyPlaying; } catch (e) { return true; } })();
-    const announcePending = cfg.announce && cfg.mode !== 'stats' && dev.announceStart && Date.now() - dev.announceStart < 30000;
+    const announcePending = cfg.announce && cfg.mode !== 'stats' && cfg.mode !== 'rotate' && dev.announceStart && Date.now() - dev.announceStart < 30000;
     const announcing = announcePending && Date.now() >= dev.announceStart; // pas avant la fin de la transition
     const cafe = divoomCafeActive() && cfg.mode !== 'liked'; // tasse de café après 2 min de pause (sauf animation des titres aimés)
     if (cfg.mode === 'liked') divoomLikedEnsure();
     if (cfg.mode === 'stats') divoomStatsEnsure();
     if (dev.lastKey === 'blank') { dev.lastKey = ''; dev.dirty = true; }
-    if (cfg.mode === 'artist') divoomArtistEnsure();
+    if (cfg.mode === 'artist' || cfg.mode === 'rotate') divoomArtistEnsure();
+    let rot = null;
+    if (cfg.mode === 'rotate') {
+        rot = divoomRotPhase();
+        if (dev.rotPhase !== rot.phase) { const first = dev.rotPhase === undefined; dev.rotPhase = rot.phase; if (!first && cfg.trans !== 'off' && dev.lastFramePx) divoomMakeTransition(dev, cfg.trans); dev.dirty = true; }
+    }
     const needPx = cafe || cfg.mode !== 'color' || cfg.bar || announcing || !!dev.trans || (!playing && cfg.pause !== 'off') || (cfg.heart && divoomLikedNow());
     void announcePending;
     if (!needPx) { // fond uni : une seule commande, renvoyée seulement si besoin
@@ -5384,7 +5417,7 @@ async function divoomDeviceTick(dev) {
     if (Date.now() - dev.lastSend < 150) return; // au plus ~6 images par seconde et par appareil
     const out = {};
     const base = { rgb: rgb, coverPx: divoomCoverPx, artistPx: divoomArtistPx, device: true, pause: cfg.pause, heart: cfg.heart, bar: cfg.bar, fallbackTitle: cfg.fallbackTitle, likedN: cfg.likedN, out: out };
-    let target = cafe ? DIVOOM_CAFE_PX.map(c => c.slice()) : announcing ? divoomBuildFrame(Object.assign({}, base, { mode: 'announce', announceStart: dev.announceStart })) : divoomBuildFrame(Object.assign({}, base, { mode: cfg.mode }));
+    let target = cafe ? DIVOOM_CAFE_PX.map(c => c.slice()) : announcing ? divoomBuildFrame(Object.assign({}, base, { mode: 'announce', announceStart: dev.announceStart })) : divoomBuildFrame(Object.assign({}, base, { mode: cfg.mode, rotPhase: rot ? rot.phase : 0, rotStart: rot ? rot.start : 0 }));
     if (!target) return;
     if (announcing && out.announceDone) { dev.announceStart = 0; dev.lastKey = ''; }
     let frame = target;
