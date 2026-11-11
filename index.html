@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v9.61";
+        const APP_VERSION = "v9.7";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -3435,6 +3435,7 @@ function buildA4LyricsSheet(trackName, trackArtist, trackImage, durationStr, lyr
         </head>
         <body>
             <div class="a4-noprint">
+                <button id="a4-back-btn" type="button" style="margin-right: auto;" onclick="try{if(window.opener&&!window.opener.closed)window.opener.focus();}catch(e){}window.close();setTimeout(function(){if(!window.closed){if(history.length>1){history.back();}else{location.href='about:blank';}}},250);">← Retour</button>
                 <label id="a4-gradient-control">
                     <input type="checkbox" id="a4-gradient-toggle" checked>
                     🎨 Dégradé coloré
@@ -6945,11 +6946,30 @@ function ensureCreditsModal() {
             <li><strong>Mini-jeu rythme 🕹️</strong> et <strong>DJ (Gemini)</strong> — annonces et anecdotes DJ générées, petit son joué automatiquement.</li>
         </ul>
 
-        <h3>📱 Appareils (bêta)</h3>
+        <h3>📱 Appareils : Timebox Evo 🔊 et Pixoo 🟦</h3>
         <ul>
-            <li><strong>Divoom Timebox Evo 🔷 et Pixoo</strong> — catégorie « Appareils » des Paramètres, connexion série Bluetooth, les deux appareils en même temps : ils affichent la couleur principale de la pochette, mise à jour à chaque titre.</li>
-            <li>Passe par le Bluetooth du téléphone (Web Bluetooth, Chrome sur Android, page en https) ; un journal intégré et un bouton « Test rouge » aident à diagnostiquer la connexion.</li>
-            <li>Fonction expérimentale : la Timebox Evo utilise surtout le Bluetooth « classique », que les navigateurs ne gèrent pas, donc le résultat n'est pas garanti.</li>
+            <li><strong>Connexion</strong> — liaison série Bluetooth du téléphone (Web Serial, Chrome sur Android, page en https), les deux appareils en même temps, reconnexion automatique, bouton « Inverser les appareils ». Aucun appareil connecté : recherche continue ; un appareil déjà connecté : l'autre n'est tenté que 15 s puis abandonné (ses tentatives font bugger la liaison). Case « Utiliser cet appareil » par appareil.</li>
+            <li><strong>Encadré « Lecture en cours »</strong> — l'image de chaque appareil avec un voyant (🟢 connecté, 🔴 déconnecté, 🔵 connexion en cours) : toucher l'image ou le voyant relance la connexion.</li>
+            <li><strong>Bouton ＋</strong> — pilote les deux appareils d'un coup, avec le même instant de départ. Modes : pochette en pixels, pochette en couleur, image de l'artiste, défilement (pochette · artiste · titre), titre + artiste, stats d'écoute, paroles défilantes, écran vide. <em>Combo</em> : un mode différent par appareil (1ᵉʳ clic = enceinte, 2ᵉ clic = Pixoo).</li>
+            <li><strong>Réglages 100 % par appareil</strong> — affichage, barre de progression (dernière ligne de pixels, couleur dynamique), petit cœur quand le titre est aimé, titre + artiste à chaque nouveau titre, icône en pause, 5 transitions (pixels, balayage, fondu, rideau, pluie).</li>
+            <li><strong>Modes d'affichage</strong> — paroles défilantes, image de l'artiste en 16×16 (écran noir sans photo), défilement pochette · artiste · titre (le titre reste lisible 2 s avant de défiler), stats d'écoute (titres écoutés aujourd'hui, titre et artiste les plus écoutés, temps d'écoute ; basé sur les 50 derniers titres de Spotify), titres aimés (mini-pochettes, panneau ❤️ avec flèches et bouton « Lancer »).</li>
+            <li><strong>Écran vide</strong> — image noire puis luminosité à 0 : l'écran reste éteint même quand le Bluetooth se coupe ou que la page se ferme. La luminosité est rétablie en changeant de mode.</li>
+            <li><strong>Pause</strong> — tasse de café après 2 min de pause, puis luminosité qui baisse progressivement à partir de 5 min (minimum après 3 min de plus) ; tout revient à la reprise de la lecture.</li>
+            <li><strong>Arrière-plan</strong> — minuteur dans un Web Worker, verrou web et option « Garder actif en arrière-plan » ; Chrome sur Android gèle quand même les pages après environ 1 min, la page doit rester visible (écran partagé / fenêtre flottante).</li>
+            <li><strong>Fiabilité</strong> — le jeton Spotify est renouvelé automatiquement avant son expiration (1 h), un seul sondage Spotify à la fois, pause automatique en cas de trop de requêtes (429), détection fiable de deux titres du même album.</li>
+            <li>Fonction expérimentale : testée avec une Timebox Evo ; le rendu du Pixoo n'est pas garanti.</li>
+        </ul>
+
+        <h3>🌌 Scénographie</h3>
+        <ul>
+            <li><strong>Encadré animé</strong> sous « Explorer & rechercher » (désactivé par défaut, interrupteur dans les Paramètres) : aurore de lumière aux deux couleurs dominantes de la pochette (rideaux ondulants, brume, bokeh, étoiles, étoile filante), qui pulse au tempo et réagit à chaque nouvelle ligne de parole.</li>
+            <li><strong>Titre animé</strong> — les lettres arrivent de partout avec un rebond, puis un reflet de lumière balaie le titre ; artiste, ligne de parole en cours et fine barre de progression.</li>
+            <li>Le tempo est simulé à partir du titre (Spotify ne fournit plus le vrai tempo).</li>
+        </ul>
+
+        <h3>📄 Feuille de paroles A4</h3>
+        <ul>
+            <li>Bouton <strong>← Retour</strong> sur la feuille : revient au site sans quitter l'application.</li>
         </ul>
 
         <h3>🗣️ Commandes vocales</h3>
@@ -7004,7 +7024,7 @@ function ensureCreditsModal() {
             <li><strong>Web Speech API</strong> (SpeechRecognition) — commandes vocales.</li>
             <li><strong>Web Audio API</strong> — soundboard, sons des feux d'artifice, son du Mode DJ.</li>
             <li><strong>MediaDevices / MediaRecorder</strong> — enregistrement micro (Drive, reconnaissance de chanson).</li>
-            <li><strong>Web Serial API</strong> — envoi de la couleur principale de la pochette aux appareils Divoom (Timebox Evo, Pixoo) en série Bluetooth.</li>
+            <li><strong>Web Serial API</strong> — envoi des images (pochette, paroles, titre…) aux appareils Divoom (Timebox Evo, Pixoo) en série Bluetooth.</li>
             <li><strong>Screen Wake Lock API</strong> — garde l'écran allumé pendant l'écoute.</li>
             <li><strong>Canvas 2D</strong> — spectres, feux d'artifice, effets visuels, et détection de la couleur principale de la pochette (calcul local sur l'image, aucun service externe).</li>
             <li><strong>localStorage</strong> — réglages, historique et caches (clips, sous-titres) enregistrés dans ton navigateur.</li>
