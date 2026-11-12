@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v9.8";
+        const APP_VERSION = "v10.0";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -815,6 +815,12 @@
         #divoom-icons .dv-led.try { background: #2196f3; box-shadow: 0 0 6px #2196f3; animation: dvPulse 0.9s ease-in-out infinite; }
         @keyframes dvPulse { 50% { opacity: 0.3; } }
         #lecture-en-cours-title { white-space: nowrap; }
+        @property --npc1 { syntax: '<color>'; inherits: true; initial-value: rgb(30,215,96); }
+        @property --npc2 { syntax: '<color>'; inherits: true; initial-value: rgb(120,80,255); }
+        #np-card.np-bg { transition: --npc1 1.2s ease, --npc2 1.2s ease; background-color: #121212 !important; background-size: 200% 200%, 200% 200%, auto !important;
+            background-image: radial-gradient(circle at 20% 15%, color-mix(in srgb, var(--npc1) 55%, transparent), transparent 60%), radial-gradient(circle at 85% 90%, color-mix(in srgb, var(--npc2) 50%, transparent), transparent 60%), linear-gradient(rgba(0,0,0,0.25), rgba(0,0,0,0.25)) !important;
+            animation: npbgDrift 14s ease-in-out infinite alternate; }
+        @keyframes npbgDrift { from { background-position: 0% 0%, 100% 100%, 0 0; } to { background-position: 100% 60%, 0% 30%, 0 0; } }
         #divoom-icons { gap: 8px; flex: none; }
         #divoom-icons .dv-plus { width: 28px !important; height: 28px !important; min-width: 28px !important; flex: none !important; padding: 0 !important; margin: 0 !important; border-radius: 50% !important; background: rgba(255,255,255,0.12) !important; color: #fff !important; border: 1px solid rgba(255,255,255,0.35) !important; font-size: 1.1rem !important; line-height: 1 !important; display: inline-flex !important; align-items: center; justify-content: center; cursor: pointer; box-shadow: none !important; }
         #dv-plus-pop { display: none; position: absolute; right: 0; top: calc(100% + 8px); z-index: 20; flex-direction: column; gap: 6px; padding: 10px; border-radius: 12px; background: rgba(18,18,18,0.97); border: 1px solid rgba(255,255,255,0.18); box-shadow: 0 8px 24px rgba(0,0,0,0.6); min-width: 210px; }
@@ -1894,6 +1900,14 @@
 </div>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Fond de « Lecture en cours » aux couleurs de la pochette</span>
+    <label class="switch">
+        <input type="checkbox" id="npbg-toggle" onchange="toggleNpBg(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
     <span style="font-size: 0.85rem; color: var(--text-grey);">Aperçu des 3 prochains titres (à côté de la pochette)</span>
     <label class="switch">
         <input type="checkbox" id="queue-peek-toggle" onchange="toggleQueuePeekSetting(this.checked)">
@@ -2133,7 +2147,7 @@
             <div id="seno-card" class="card" style="display: none; padding: 0; overflow: hidden; position: relative;">
                 <canvas id="seno-canvas" style="display: block; width: 100%; height: 250px;"></canvas>
             </div>
-            <div class="card">
+            <div class="card" id="np-card">
                 <div style="display: flex; align-items: center; justify-content: space-between;">
                     <p id="lecture-en-cours-title" style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 0;">LECTURE EN COURS</p>
                     <span id="divoom-icons">
@@ -2600,7 +2614,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 }, 100);
                 
                 updateNowPlaying();
-                try { applyDivoomState(); setTimeout(divoomAutoReconnect, 4000); } catch (e) {}
+                try { applyDivoomState(); setTimeout(divoomAutoReconnect, 5000); } catch (e) {}
                 initSpectrum();
                 initDiscoBallState();
                 initSpotlightsState();
@@ -4562,7 +4576,20 @@ function toggleScenography(on) {
     try { localStorage.setItem('scenoEnabled', on ? 'true' : 'false'); } catch (e) {}
     scenoSync();
 }
+let npBgEnabled = (function () { try { return localStorage.getItem('npBgEnabled') !== 'false'; } catch (e) { return true; } })(); // activé par défaut
+function toggleNpBg(on) { npBgEnabled = !!on; try { localStorage.setItem('npBgEnabled', on ? 'true' : 'false'); } catch (e) {} npBgSync(); }
+function npBgSync() {
+    const c = document.getElementById('np-card'); if (!c) return;
+    const t = document.getElementById('npbg-toggle'); if (t && t.checked !== npBgEnabled) t.checked = npBgEnabled;
+    c.classList.toggle('np-bg', npBgEnabled);
+    if (npBgEnabled) {
+        scenoUpdateColors();
+        const a = scenoCols.c1, b = scenoCols.c2;
+        c.style.setProperty('--npc1', 'rgb(' + a.join(',') + ')'); c.style.setProperty('--npc2', 'rgb(' + b.join(',') + ')');
+    }
+}
 function scenoSync() {
+    try { npBgSync(); } catch (e) {}
     const card = document.getElementById('seno-card'); if (!card) return;
     const dash = document.getElementById('dashboard');
     const visible = scenoEnabled && dash && getComputedStyle(dash).display !== 'none' && !driveMusicModeActive;
@@ -4817,6 +4844,7 @@ function divoomUpdateIcons() {
 // Touche sur une image / son voyant : tente de (re)connecter cet appareil (port mémorisé, sinon choix dans la liste Bluetooth)
 async function divoomClickDevice(type) {
     if (divoomConnecting[type] || divoomReconnecting) return;
+    divoomSafeMode = false; // action volontaire : on lève la suspension de sécurité
     if (divoomDevices.some(d => d.type === type)) { divoomStatus('✅ ' + DIVOOM_TYPES[type] + ' est déjà connecté'); return; }
     if (divoomCfgOf(type).enabled === false) { divoomSetCfg(type, 'enabled', true); try { divoomRenderCfgUI(); } catch (e) {} }
     divoomReconnecting = true;
@@ -4825,7 +4853,7 @@ async function divoomClickDevice(type) {
     divoomReconnecting = false;
     if (r === 'none') divoomConnect(type); // aucun port mémorisé pour cet appareil : choix manuel
 }
-const DIVOOM_MODES = [['image', '🖼️ Pochette en pixels'], ['color', '🎨 Pochette en couleur'], ['artist', '🧑‍🎤 Image de l\'artiste'], ['rotate', '🔄 Défilement : pochette · artiste · titre'], ['title', '🎵 Titre + artiste (défilement)'], ['stats', '📊 Stats d\'écoute'], ['lyrics', '🎤 Paroles défilantes'], ['blank', '⬛ Écran vide']];
+const DIVOOM_MODES = [['image', '🖼️ Pochette en pixels'], ['color', '🎨 Pochette en couleur'], ['artist', '🧑‍🎤 Image de l\'artiste'], ['rotate', '🔄 Défilement : pochette · artiste · titre'], ['aurora', '🌌 Aurore (scénographie)'], ['title', '🎵 Titre + artiste (défilement)'], ['stats', '📊 Stats d\'écoute'], ['lyrics', '🎤 Paroles défilantes'], ['blank', '⬛ Écran vide']];
 let divoomPlusStep = 0, divoomComboFirst = ''; // 0 = normal · 1 = combo : choisir le mode de l'enceinte · 2 = combo : choisir le mode du Pixoo
 function divoomRenderPlus() {
     const pop = document.getElementById('dv-plus-pop'); if (!pop) return;
@@ -5052,7 +5080,14 @@ async function divoomIdentify() {
 let divoomReconnecting = false, divoomNavigating = false;
 let divoomAutoEnabled = localStorage.getItem('divoomAutoReconnect') !== 'false'; // réglage « reconnexion automatique », activé par défaut
 function divoomSetAutoReconnect(on) { divoomAutoEnabled = !!on; try { localStorage.setItem('divoomAutoReconnect', on ? 'true' : 'false'); } catch (e) {} if (on) divoomAutoReconnect(); }
+// Sécurité anti-plantage : si la page précédente s'est arrêtée PENDANT l'ouverture d'un appareil (drapeau « divoomOpening » jamais retiré), la reconnexion
+// automatique est suspendue : il faut toucher un voyant pour reconnecter (cela relance proprement, sans replanter Chrome au chargement).
+const divoomLoadedAt = Date.now();
+let divoomSafeMode = false;
+try { const f = Number(localStorage.getItem('divoomOpening') || 0); if (f && Date.now() - f < 300000) divoomSafeMode = true; localStorage.removeItem('divoomOpening'); } catch (e) {}
 async function divoomAutoReconnect() {
+    if (divoomSafeMode) { if (currentToken && divoomEnabled) divoomStatus('⚠️ Reconnexion automatique suspendue (la page s\'était arrêtée pendant une connexion) : touche un voyant 🔴 pour reconnecter'); return; }
+    if (Date.now() - divoomLoadedAt < 5000) { setTimeout(divoomAutoReconnect, 5200 - (Date.now() - divoomLoadedAt)); return; } // on laisse la page se stabiliser avant de toucher au Bluetooth
     if (divoomReconnecting || divoomNavigating || !currentToken || !divoomAutoEnabled) return; // jamais sur l'écran de connexion Spotify
     divoomReconnecting = true;
     try { await divoomAutoReconnectInner(); } catch (e) {}
@@ -5074,13 +5109,21 @@ async function divoomAutoReconnectInner(manual, onlyType) {
         todo.forEach(t => { divoomConnecting[t.type] = true; }); divoomUpdateIcons();
         if (manual) divoomStatus('⏳ Reconnexion de ' + todo.map(t => DIVOOM_TYPES[t.type]).join(' + ') + '…');
         const withTimeout = (pr, ms) => Promise.race([pr, new Promise((_, rej) => setTimeout(() => rej(new Error('délai dépassé')), ms))]);
-        const res = await Promise.all(todo.map(async (t) => {
-            try {
-                if (!t.p.writable) await withTimeout(t.p.open({ baudRate: 115200 }), 15000);
-                divoomDevices.push(divoomNewDevice(t.type, t.p));
-                return true;
-            } catch (e) { return false; } // éteint ou hors de portée : on réessaiera
-        }));
+        // Ouverture UN APPAREIL APRÈS L'AUTRE (deux ouvertures Bluetooth simultanées déstabilisent Chrome), avec le drapeau anti-plantage
+        const res = [];
+        try { localStorage.setItem('divoomOpening', String(Date.now())); } catch (e) {}
+        try {
+            for (let i = 0; i < todo.length; i++) {
+                const t = todo[i];
+                try {
+                    if (!t.p.writable) await withTimeout(t.p.open({ baudRate: 115200 }), 15000);
+                    divoomDevices.push(divoomNewDevice(t.type, t.p));
+                    res.push(true);
+                } catch (e) { res.push(false); } // éteint ou hors de portée : on réessaiera
+                divoomConnecting[t.type] = false; divoomUpdateIcons();
+                if (i < todo.length - 1) await divoomSleep(700);
+            }
+        } finally { try { localStorage.removeItem('divoomOpening'); } catch (e) {} }
         const n = res.filter(Boolean).length;
         todo.forEach(t => { divoomConnecting[t.type] = false; });
         if (divoomDevices.length) todo.forEach((t, i) => { if (!res[i]) divoomGaveUp[t.type] = true; }); // un appareil fonctionne déjà : 15 s d'essai, puis on laisse tomber (touche le voyant pour réessayer)
@@ -5092,6 +5135,7 @@ async function divoomAutoReconnectInner(manual, onlyType) {
     } catch (e) { if (manual) divoomStatus('⚠️ ' + (e && e.message ? e.message : e)); }
 }
 async function divoomReconnectNow() {
+    divoomSafeMode = false;
     if (!divoomEnabled) { divoomStatus('⚠️ Active d\'abord la fonction avec l\'interrupteur'); return; }
     if (divoomReconnecting) return;
     divoomReconnecting = true;
@@ -5103,7 +5147,11 @@ window.addEventListener('load', () => {
     try { const t = document.getElementById('divoom-toggle'); if (t) t.checked = divoomEnabled; const q = document.getElementById('queue-peek-toggle'); if (q) q.checked = queuePeekEnabled; } catch (e) {}
 });
 // Pendant un changement de page (redirection vers Spotify, rechargement) : on arrête tout accès Bluetooth
-window.addEventListener('pagehide', () => { divoomNavigating = true; try { divoomStopTicker(); } catch (e) {} });
+window.addEventListener('pagehide', () => {
+    divoomNavigating = true; try { divoomStopTicker(); } catch (e) {}
+    // libère proprement les liaisons Bluetooth : la page suivante (rechargement) ne retrouve pas un port encore occupé
+    divoomDevices.slice().forEach(d => { try { d.writer.releaseLock(); } catch (e) {} try { if (d.reader) d.reader.cancel().catch(() => {}); } catch (e) {} try { d.port.close().catch(() => {}); } catch (e) {} });
+});
 window.addEventListener('pageshow', (ev) => { if (ev.persisted) divoomNavigating = false; });
 try {
     if (navigator.serial) {
@@ -5126,7 +5174,7 @@ function divoomCfgBlockHTML(type, title) {
       <summary style="font-size:0.8rem;font-weight:bold;color:var(--spotify-green);cursor:pointer;">${title}</summary>
       <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px;">
         <label style="font-size:0.72rem;color:var(--text-grey);display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;"><span>Utiliser cet appareil (le connecter automatiquement)</span><input type="checkbox"${c.enabled !== false ? ' checked' : ''} onchange="divoomSetEnabled('${type}',this.checked)"></label>
-        ${row('Affichage', `<select style="${sel}" onchange="divoomSetCfg('${type}','mode',this.value)">${o('color', c.mode, 'Couleur de la pochette')}${o('image', c.mode, 'Pochette en pixels')}${o('artist', c.mode, 'Image de l\'artiste en cours')}${o('rotate', c.mode, '🔄 Défilement : pochette · artiste · titre + artiste')}${o('lyrics', c.mode, 'Paroles défilantes')}${o('blank', c.mode, '⬛ Écran vide')}${o('title', c.mode, 'Titre + artiste (défilement continu)')}${o('stats', c.mode, '📊 Stats d\'écoute (défilement)')}${c.mode === 'liked' ? o('liked', c.mode, '❤️ Titres aimés (lancé depuis ❤️)') : ''}</select>`)}
+        ${row('Affichage', `<select style="${sel}" onchange="divoomSetCfg('${type}','mode',this.value)">${o('color', c.mode, 'Couleur de la pochette')}${o('image', c.mode, 'Pochette en pixels')}${o('artist', c.mode, 'Image de l\'artiste en cours')}${o('rotate', c.mode, '🔄 Défilement : pochette · artiste · titre + artiste')}${o('aurora', c.mode, '🌌 Aurore (scénographie)')}${o('lyrics', c.mode, 'Paroles défilantes')}${o('blank', c.mode, '⬛ Écran vide')}${o('title', c.mode, 'Titre + artiste (défilement continu)')}${o('stats', c.mode, '📊 Stats d\'écoute (défilement)')}${c.mode === 'liked' ? o('liked', c.mode, '❤️ Titres aimés (lancé depuis ❤️)') : ''}</select>`)}
         ${chk('bar', 'Barre de progression')}
         ${chk('heart', 'Petit cœur quand le titre est aimé')}
         ${(c.mode === 'stats' || c.mode === 'rotate') ? '' : chk('announce', 'Titre + artiste à chaque nouveau titre')}
@@ -5177,6 +5225,30 @@ const DIVOOM_FONT = {
  ' ':'000000000000000','.':'000000000000010',',':'000000000010100','!':'010010010000010','?':'110001010000010',
  "'":'010010000000000','-':'000000111000000',':':'000010000010000'
 };
+// Mode « Aurore » : la scénographie en 16×16 — rideaux de lumière aux deux couleurs de la pochette, qui ondulent et pulsent au tempo (simulé), étoiles qui scintillent
+function divoomAuroraPx() {
+    const t = Date.now() / 1000, playing = (function () { try { return isCurrentlyPlaying; } catch (e) { return true; } })();
+    const A = scenoCols.c1, B = scenoCols.c2, M = A.map((v, i) => (v + B[i]) >> 1), seed = scenoHash(scenoTrack.id || scenoTrack.title || 'x') % 1000;
+    const bpm = scenoBpm(), bf = t * bpm / 60, pulse = playing ? Math.exp(-(bf - Math.floor(bf)) * 4.5) : 0, sp = playing ? 1 : 0.25;
+    const pal = k => { k = ((k % 1) + 1) % 1 * 3; const i = Math.floor(k), f = k - i, P = [A, M, B], c = P[i % 3], d = P[(i + 1) % 3]; return c.map((v, j) => v + (d[j] - v) * f); };
+    const px = [];
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) px.push([Math.round(A[0] * 0.05), Math.round(A[1] * 0.05) + 1, Math.round(A[2] * 0.08) + 3]);
+    for (let x = 0; x < 16; x++) {
+        const u = x / 16, w1 = Math.sin(u * 5.2 + t * 0.5 * sp + seed), w2 = Math.sin(u * 11.3 - t * 0.85 * sp), w3 = Math.sin(u * 2.1 + t * 0.3 * sp);
+        const top = 6.5 - 3.2 * (0.5 + 0.5 * w1) - 1.4 * w3 - pulse * 1.4, bot = 11 + 2.2 * w2 + pulse * 1.2, inten = Math.max(0.25, 0.65 + 0.35 * w1 + 0.2 * w2) * (0.7 + 0.5 * pulse);
+        const c = pal(u * 0.9 + t * 0.04 * sp);
+        for (let y = 0; y < 16; y++) {
+            const d = (y - top) / Math.max(1, bot - top); if (d < 0 || d > 1) continue;
+            const v = Math.pow(Math.sin(Math.PI * d), 1.4) * inten, p = px[y * 16 + x];
+            for (let j = 0; j < 3; j++) p[j] = Math.min(255, p[j] + c[j] * v * 1.15);
+        }
+    }
+    for (let i = 0; i < 7; i++) { // étoiles
+        const h = scenoHash(seed + ":" + i), x = h % 16, y = (h >>> 4) % 5, tw = 0.5 + 0.5 * Math.sin(t * (1 + (h % 5) * 0.4) + i);
+        const p = px[y * 16 + x]; for (let j = 0; j < 3; j++) p[j] = Math.min(255, p[j] + 170 * tw);
+    }
+    return px.map(p => p.map(v => Math.round(v) & 0xF8));
+}
 function divoomTextBitmap(text) { // renvoie { w, cols } où cols[x] = tableau de 5 booléens
     const clean = text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[’`´]/g, "'");
     const cols = [];
@@ -5424,7 +5496,8 @@ function divoomBuildFrame(opts) {
     const textCol = rgb.map(v => Math.max(v, 96) & 0xF8);
     const black = () => Array.from({ length: 256 }, () => [0, 0, 0]);
     let px;
-    if (mode === 'rotate') px = opts.rotPhase === 2 ? black() : (opts.rotPhase === 1 && opts.artistPx ? opts.artistPx : (coverPx || black())).map(c => c.slice());
+    if (mode === 'aurora') px = divoomAuroraPx();
+    else if (mode === 'rotate') px = opts.rotPhase === 2 ? black() : (opts.rotPhase === 1 && opts.artistPx ? opts.artistPx : (coverPx || black())).map(c => c.slice());
     else if (mode === 'artist') px = opts.artistPx ? opts.artistPx.map(c => c.slice()) : black(); // pas de photo d'artiste : rien à afficher (écran noir), pas la pochette
     else if (mode === 'image' && coverPx) px = coverPx.map(c => c.slice());
     else if (mode === 'lyrics' || mode === 'announce' || mode === 'liked' || mode === 'title' || mode === 'stats') px = black();
@@ -5577,6 +5650,7 @@ async function divoomDeviceTick(dev) {
     if (cfg.mode === 'stats') divoomStatsEnsure();
     if (dev.lastKey === 'blank') { dev.lastKey = ''; dev.dirty = true; }
     if (cfg.mode === 'artist' || cfg.mode === 'rotate') divoomArtistEnsure();
+    if (cfg.mode === 'aurora') scenoUpdateColors();
     let rot = null;
     if (cfg.mode === 'rotate') {
         rot = divoomRotPhase();
@@ -5749,7 +5823,7 @@ function toggleSettings() {
         if (divoomTgl) divoomTgl.checked = divoomEnabled;
         const qpTgl = document.getElementById('queue-peek-toggle'); if (qpTgl) qpTgl.checked = queuePeekEnabled;
         applyDivoomState();
-        setTimeout(divoomAutoReconnect, 800);
+        setTimeout(divoomAutoReconnect, 5000);
         const uiRefTgl = document.getElementById('ui-refined-toggle');
         if (uiRefTgl) uiRefTgl.checked = uiRefinedEnabled;
         const spectrumSel = document.getElementById('spectrum-style-select');
@@ -6960,6 +7034,9 @@ function ensureCreditsModal() {
             <li><strong>Bouton ＋</strong> — pilote les deux appareils d'un coup, avec le même instant de départ. Modes : pochette en pixels, pochette en couleur, image de l'artiste, défilement (pochette · artiste · titre), titre + artiste, stats d'écoute, paroles défilantes, écran vide. <em>Combo</em> : un mode différent par appareil (1ᵉʳ clic = enceinte, 2ᵉ clic = Pixoo).</li>
             <li><strong>Réglages 100 % par appareil</strong> — affichage, barre de progression (dernière ligne de pixels, couleur dynamique), petit cœur quand le titre est aimé, titre + artiste à chaque nouveau titre, icône en pause, 5 transitions (pixels, balayage, fondu, rideau, pluie).</li>
             <li><strong>Modes d'affichage</strong> — paroles défilantes, image de l'artiste en 16×16 (écran noir sans photo), défilement pochette · artiste · titre (le titre reste lisible 2 s avant de défiler), stats d'écoute (titres écoutés aujourd'hui, titre et artiste les plus écoutés, temps d'écoute ; basé sur les 50 derniers titres de Spotify), titres aimés (mini-pochettes, panneau ❤️ avec flèches et bouton « Lancer »).</li>
+            <li><strong>Aurore sur les écrans</strong> — la scénographie en 16×16 : rideaux de lumière aux deux couleurs de la pochette qui ondulent et pulsent au tempo, étoiles qui scintillent (mode « 🌌 Aurore (scénographie) », aussi dans le ＋).</li>
+            <li><strong>Fond « Lecture en cours »</strong> — réglage pour que le fond de l'encadré épouse en douceur les couleurs de la pochette (activé par défaut).</li>
+            <li><strong>Anti-plantage</strong> — ouverture des appareils un par un, 5 s d'attente après le chargement, liaisons fermées proprement au rechargement ; si la page s'arrête pendant une connexion, la reconnexion automatique est suspendue et il suffit de toucher un voyant.</li>
             <li><strong>Écran vide</strong> — image noire puis luminosité à 0 : l'écran reste éteint même quand le Bluetooth se coupe ou que la page se ferme. La luminosité est rétablie en changeant de mode.</li>
             <li><strong>Pause</strong> — tasse de café après 2 min de pause, puis luminosité qui baisse progressivement à partir de 5 min (minimum après 3 min de plus) ; tout revient à la reprise de la lecture.</li>
             <li><strong>Arrière-plan</strong> — minuteur dans un Web Worker, verrou web et option « Garder actif en arrière-plan » ; Chrome sur Android gèle quand même les pages après environ 1 min, la page doit rester visible (écran partagé / fenêtre flottante).</li>
