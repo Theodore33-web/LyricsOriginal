@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v10.4";
+        const APP_VERSION = "v10.5";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1111,8 +1111,7 @@
         body.ui-refined #login-section > div > div:first-child { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; }
         body.ui-refined #credits-btn { background: transparent; border: 1px solid var(--ui-line); color: var(--text-grey); border-radius: 40px; padding: 12px 22px; }
         body.ui-refined #credits-btn:hover { color: #fff; border-color: rgba(255,255,255,0.35); background: rgba(255,255,255,0.06); }
-        body.ui-refined #login-section img { display: none !important; } /* l'ancienne animation formait un 2e encadré à côté du bouton */
-        body.ui-refined #login-section img.x { border-radius: 22px !important; box-shadow: 0 14px 36px rgba(0,0,0,0.4); border: 1px solid var(--ui-line); }
+        body.ui-refined #login-section img { border-radius: 22px !important; box-shadow: 0 14px 36px rgba(0,0,0,0.4); border: 1px solid var(--ui-line); }
         body.ui-refined .lyric-line { font-weight: 500; line-height: 1.45; opacity: 0.32; letter-spacing: -0.01em; }
         body.ui-refined .lyric-line.active { font-weight: 700; opacity: 1; text-shadow: 0 0 26px rgba(255,255,255,0.28); }
         body.ui-refined #explorer-rechercher-title,
@@ -4780,7 +4779,7 @@ function cfxSync() {
     if (vis && !cfxRaf) cfxRaf = requestAnimationFrame(cfxFrame);
     if (!vis && cfxRaf) { cancelAnimationFrame(cfxRaf); cfxRaf = 0; }
 }
-let cfxT = 0;
+let cfxT = 0, cfxSp = [];
 function cfxFrame(ts) {
     cfxRaf = requestAnimationFrame(cfxFrame);
     if (document.hidden || ts - cfxLast < 33) return;
@@ -4796,8 +4795,8 @@ function cfxFrame(ts) {
     cfxT += dt * (playing ? 1 : 0.25);
     const t = cfxT, bpm = scenoBpm(), ph = (t * bpm / 60) % 1, beat = playing ? Math.exp(-ph * 4) : 0, k = playing ? 1 : 0.4;
     const A = scenoCols.c1, B = scenoCols.c2, rgba = (c, a) => 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a + ')';
-    // bande : toute la largeur de l'encadré, un peu plus haute que la pochette (elle dépasse de ~18 px en haut et en bas)
-    const by = Math.max(0, ar.top - cr.top - 18), bh = Math.min(H - by, ar.height + 36), cy = by + bh / 2, half = bh / 2;
+    // bande : toute la largeur de l'encadré, du haut (un peu au-dessus de la pochette) jusqu'au bas de la pochette
+    const by = Math.max(0, ar.top - cr.top - 24), bot = Math.min(H, ar.bottom - cr.top), bh = Math.max(20, bot - by), cy = by + bh * 0.5, half = bh / 2; // s'arrête au bas de la pochette : rien en dessous
     const st = ['aurore', 'egaliseur', 'ondes', 'projecteurs'].indexOf(cfxStyle) >= 0 ? cfxStyle : 'aurore';
     g.save(); g.beginPath(); g.rect(0, by, W, bh); g.clip();
     const hg = g.createLinearGradient(0, 0, W, 0); hg.addColorStop(0, rgba(A, 1)); hg.addColorStop(0.5, rgba(B, 1)); hg.addColorStop(1, rgba(A, 1));
@@ -4811,15 +4810,17 @@ function cfxFrame(ts) {
             g.closePath(); const gr = g.createLinearGradient(0, 0, W, 0); gr.addColorStop(0, rgba(i % 2 ? B : A, 0.0)); gr.addColorStop(0.25, rgba(i % 2 ? B : A, 0.5)); gr.addColorStop(0.75, rgba(i % 2 ? A : B, 0.5)); gr.addColorStop(1, rgba(i % 2 ? A : B, 0.0));
             g.fillStyle = gr; g.fill();
         }
-    } else if (st === 'egaliseur') { // barres symétriques (rythme simulé)
-        const n = Math.max(12, Math.floor(W / 10)), bw = W / n;
+    } else if (st === 'egaliseur') { // barres qui montent depuis le bas de la pochette (rythme simulé), avec reflet lumineux au sommet
+        const n = Math.max(14, Math.floor(W / 9)), bw = W / n;
         for (let i = 0; i < n; i++) {
             const x = i * bw + bw / 2, u = i / (n - 1);
-            const v = (0.3 + 0.7 * Math.abs(Math.sin(t * (1.4 + (i % 5) * 0.37) + i * 0.9))) * (0.55 + 0.6 * beat) * k + 0.04;
-            const hh = Math.max(2, half * Math.min(1, v));
-            g.fillStyle = rgba(u < 0.5 ? A : B, 0.35 + 0.45 * v); g.beginPath();
-            if (g.roundRect) g.roundRect(x - bw * 0.3, cy - hh, bw * 0.6, hh * 2, bw * 0.3); else g.rect(x - bw * 0.3, cy - hh, bw * 0.6, hh * 2);
+            const v = Math.min(1, (0.25 + 0.75 * Math.abs(Math.sin(t * (1.4 + (i % 5) * 0.37) + i * 0.9)) * Math.abs(Math.sin(t * 0.5 + i * 0.31 + 1))) * (0.6 + 0.6 * beat) * k + 0.05);
+            const hh = Math.max(3, bh * v), col = u < 0.5 ? A : B;
+            const gr = g.createLinearGradient(0, bot, 0, bot - hh); gr.addColorStop(0, rgba(col, 0.15)); gr.addColorStop(1, rgba(col, 0.85));
+            g.fillStyle = gr; g.beginPath();
+            if (g.roundRect) g.roundRect(x - bw * 0.3, bot - hh, bw * 0.6, hh + 4, bw * 0.3); else g.rect(x - bw * 0.3, bot - hh, bw * 0.6, hh + 4);
             g.fill();
+            g.fillStyle = 'rgba(255,255,255,' + (0.55 * v) + ')'; g.fillRect(x - bw * 0.3, bot - hh, bw * 0.6, 2);
         }
     } else if (st === 'ondes') { // fines lignes sinusoïdales façon oscilloscope
         g.globalCompositeOperation = 'lighter'; g.lineWidth = 2; g.shadowBlur = 10;
@@ -4833,16 +4834,21 @@ function cfxFrame(ts) {
     } else { // projecteurs : faisceaux qui balaient de haut en bas
         g.globalCompositeOperation = 'lighter';
         for (let i = 0; i < 5; i++) {
-            const ox = W * (i + 0.5) / 5, ang = Math.sin(t * (0.6 + i * 0.17) + i * 2) * 0.55, len = bh * 1.6, wd = 16 + 26 * beat * k + 10;
+            const ox = W * (i + 0.5) / 5, ang = Math.sin(t * (0.6 + i * 0.17) + i * 2) * 0.55, len = bh * 1.15, wd = 16 + 26 * beat * k + 10;
             const ex = ox + Math.sin(ang) * len, ey = by + Math.cos(ang) * len;
             const gr = g.createLinearGradient(ox, by, ex, ey); gr.addColorStop(0, rgba(i % 2 ? B : A, 0.65 * k + 0.1)); gr.addColorStop(1, rgba(i % 2 ? B : A, 0));
             g.fillStyle = gr; g.beginPath(); g.moveTo(ox - 2, by); g.lineTo(ox + 2, by); g.lineTo(ex + wd, ey); g.lineTo(ex - wd, ey); g.closePath(); g.fill();
         }
     }
+    // étincelles qui montent dans la bande (communes à tous les styles)
+    if (playing && cfxSp.length < 26 && Math.random() < 0.5) cfxSp.push({ x: Math.random() * W, y: bot, vy: 14 + Math.random() * 30, life: 1, c: Math.random() < 0.5 ? A : B, s: 0.8 + Math.random() * 1.8 });
+    cfxSp = cfxSp.filter(p => (p.life -= dt * 0.7) > 0 && p.y > by);
+    g.globalCompositeOperation = 'lighter';
+    cfxSp.forEach(p => { p.y -= p.vy * dt; p.x += Math.sin(p.y * 0.08 + p.s) * 0.3; g.fillStyle = rgba(p.c, p.life * 0.8); g.beginPath(); g.arc(p.x, p.y, p.s, 0, 6.2832); g.fill(); });
     g.restore();
     // bords estompés : l'effet se fond dans l'encadré (haut, bas, gauche, droite)
     g.globalCompositeOperation = 'destination-out';
-    const fv = g.createLinearGradient(0, by, 0, by + bh); fv.addColorStop(0, 'rgba(0,0,0,1)'); fv.addColorStop(0.22, 'rgba(0,0,0,0)'); fv.addColorStop(0.78, 'rgba(0,0,0,0)'); fv.addColorStop(1, 'rgba(0,0,0,1)');
+    const fv = g.createLinearGradient(0, by, 0, by + bh); fv.addColorStop(0, 'rgba(0,0,0,1)'); fv.addColorStop(0.25, 'rgba(0,0,0,0)'); fv.addColorStop(0.9, 'rgba(0,0,0,0)'); fv.addColorStop(1, 'rgba(0,0,0,0.85)');
     g.fillStyle = fv; g.fillRect(0, by, W, bh);
     const fh = g.createLinearGradient(0, 0, W, 0); fh.addColorStop(0, 'rgba(0,0,0,1)'); fh.addColorStop(0.1, 'rgba(0,0,0,0)'); fh.addColorStop(0.9, 'rgba(0,0,0,0)'); fh.addColorStop(1, 'rgba(0,0,0,1)');
     g.fillStyle = fh; g.fillRect(0, by, W, bh);
@@ -7150,7 +7156,7 @@ function ensureCreditsModal() {
             <li><strong>Aurore sur les écrans</strong> — la scénographie en 16×16 : rideaux de lumière aux deux couleurs de la pochette qui ondulent et pulsent au tempo, étoiles qui scintillent (mode « 🌌 Aurore (scénographie) », aussi dans le ＋).</li>
             <li><strong>Fond « Lecture en cours »</strong> — réglage pour que le fond de l'encadré épouse en douceur les couleurs de la pochette (désactivé par défaut).</li>
             <li><strong>Aurore LED</strong> — le cœur des titres likés n'est plus affiché dans ce mode ; l'écran d'accueil « Se connecter » disparaît aussi après une reconnexion automatique.</li>
-            <li><strong>Effet animé pochette</strong> — bande lumineuse sur toute la largeur de « Lecture en cours », un peu plus haute que la pochette, au choix : aurore, égaliseur, ondes ou projecteurs (un seul effet à la fois) ; désactivé par défaut.</li>
+            <li><strong>Effet animé pochette</strong> — bande lumineuse sur toute la largeur de « Lecture en cours », du haut au bas de la pochette (rien en dessous), au choix : aurore, égaliseur, ondes ou projecteurs (un seul effet à la fois) ; désactivé par défaut.</li>
             <li><strong>Anti-plantage</strong> — ouverture des appareils un par un, 5 s d'attente après le chargement, liaisons fermées proprement au rechargement ; si la page s'arrête pendant une connexion, la reconnexion automatique est suspendue et il suffit de toucher un voyant.</li>
             <li><strong>Écran vide</strong> — image noire puis luminosité à 0 : l'écran reste éteint même quand le Bluetooth se coupe ou que la page se ferme. La luminosité est rétablie en changeant de mode.</li>
             <li><strong>Pause</strong> — tasse de café après 2 min de pause, puis luminosité qui baisse progressivement à partir de 5 min (minimum après 3 min de plus) ; tout revient à la reprise de la lecture.</li>
