@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v10.3";
+        const APP_VERSION = "v10.4";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1913,11 +1913,11 @@
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 8px;">
     <span style="font-size: 0.85rem; color: var(--text-grey);">Effet animé pochette (derrière et autour de la pochette)</span>
-    <select id="cfx-style" onchange="setCoverFxStyle(this.value)" style="max-width: 130px;">
-        <option value="aura">Aura</option>
+    <select id="cfx-style" onchange="setCoverFxStyle(this.value)" style="max-width: 120px; min-width: 0;">
+        <option value="aurore">Aurore</option>
+        <option value="egaliseur">Égaliseur</option>
         <option value="ondes">Ondes</option>
-        <option value="vinyle">Vinyle</option>
-        <option value="nova">Nova (tout)</option>
+        <option value="projecteurs">Projecteurs</option>
     </select>
     <label class="switch">
         <input type="checkbox" id="cfx-toggle" onchange="toggleCoverFx(this.checked)">
@@ -4760,8 +4760,8 @@ setInterval(() => { try { scenoSync(); } catch (e) {} }, 500);
 
 // ===== Effet animé pochette : halo, ondes, vinyle… dessinés derrière et autour de la pochette (aucun décalage de la page) =====
 let cfxEnabled = (function () { try { return localStorage.getItem('cfxEnabled') === 'true'; } catch (e) { return false; } })(); // désactivé par défaut
-let cfxStyle = (function () { try { return localStorage.getItem('cfxStyle') || 'aura'; } catch (e) { return 'aura'; } })();
-let cfxRaf = 0, cfxLast = 0, cfxSpin = 0, cfxParts = [];
+let cfxStyle = (function () { try { return localStorage.getItem('cfxStyle') || 'aurore'; } catch (e) { return 'aurore'; } })();
+let cfxRaf = 0, cfxLast = 0;
 function toggleCoverFx(on) { cfxEnabled = !!on; try { localStorage.setItem('cfxEnabled', on ? 'true' : 'false'); } catch (e) {} cfxSync(); }
 function setCoverFxStyle(v) { cfxStyle = v; try { localStorage.setItem('cfxStyle', v); } catch (e) {} }
 function cfxRR(g, x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
@@ -4780,6 +4780,7 @@ function cfxSync() {
     if (vis && !cfxRaf) cfxRaf = requestAnimationFrame(cfxFrame);
     if (!vis && cfxRaf) { cancelAnimationFrame(cfxRaf); cfxRaf = 0; }
 }
+let cfxT = 0;
 function cfxFrame(ts) {
     cfxRaf = requestAnimationFrame(cfxFrame);
     if (document.hidden || ts - cfxLast < 33) return;
@@ -4790,59 +4791,62 @@ function cfxFrame(ts) {
     const W = cr.width, H = cr.height; if (!W || !H) return;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
-    const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
-    const x = ar.left - cr.left, y = ar.top - cr.top, w = ar.width, h = ar.height, rad = Math.min(24, w * 0.08) + 2;
+    const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H); g.globalCompositeOperation = 'source-over';
     const playing = (function () { try { return isCurrentlyPlaying; } catch (e) { return true; } })();
-    const t = ts / 1000, bpm = scenoBpm(), ph = (t * bpm / 60) % 1, beat = playing ? Math.exp(-ph * 4.5) : 0, k = playing ? 1 : 0.35;
+    cfxT += dt * (playing ? 1 : 0.25);
+    const t = cfxT, bpm = scenoBpm(), ph = (t * bpm / 60) % 1, beat = playing ? Math.exp(-ph * 4) : 0, k = playing ? 1 : 0.4;
     const A = scenoCols.c1, B = scenoCols.c2, rgba = (c, a) => 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a + ')';
-    const cx = x + w / 2, cy = y + h / 2, st = cfxStyle, all = st === 'nova';
-    g.save();
-    if (st === 'vinyle' || all) { // disque noir qui sort de derrière la pochette et tourne
-        cfxSpin += dt * (playing ? 2.2 : 0.2);
-        const R = h * 0.56, dx = w * (all ? 0.2 : 0.3), vx = cx + dx;
-        g.save(); g.translate(vx, cy); g.rotate(cfxSpin);
-        const bgD = g.createRadialGradient(0, 0, 0, 0, 0, R); bgD.addColorStop(0, '#222'); bgD.addColorStop(1, '#050505');
-        g.fillStyle = bgD; g.beginPath(); g.arc(0, 0, R, 0, 6.2832); g.fill();
-        g.strokeStyle = 'rgba(255,255,255,0.07)'; g.lineWidth = 1;
-        for (let r = R * 0.38; r < R * 0.97; r += R * 0.07) { g.beginPath(); g.arc(0, 0, r, 0, 6.2832); g.stroke(); }
-        const sh = g.createLinearGradient(-R, -R, R, R); sh.addColorStop(0.35, 'rgba(255,255,255,0)'); sh.addColorStop(0.5, 'rgba(255,255,255,0.16)'); sh.addColorStop(0.65, 'rgba(255,255,255,0)');
-        g.fillStyle = sh; g.beginPath(); g.arc(0, 0, R, 0, 6.2832); g.fill();
-        const lab = g.createRadialGradient(0, 0, 0, 0, 0, R * 0.3); lab.addColorStop(0, rgba(A, 1)); lab.addColorStop(1, rgba(B, 1));
-        g.fillStyle = lab; g.beginPath(); g.arc(0, 0, R * 0.3, 0, 6.2832); g.fill();
-        g.fillStyle = '#0b0b0b'; g.beginPath(); g.arc(0, 0, R * 0.045, 0, 6.2832); g.fill();
-        g.restore();
-    }
-    if (st === 'aura' || all) { // halo coloré qui respire au tempo + double couleur
-        g.save();
-        g.shadowColor = rgba(A, 0.55 + 0.4 * beat); g.shadowBlur = (26 + 34 * beat) * k + 8; g.shadowOffsetX = -6; g.shadowOffsetY = -4;
-        g.fillStyle = '#000'; cfxRR(g, x, y, w, h, rad); g.fill();
-        g.shadowColor = rgba(B, 0.5 + 0.4 * beat); g.shadowOffsetX = 6; g.shadowOffsetY = 5;
-        cfxRR(g, x, y, w, h, rad); g.fill();
-        g.restore();
-    }
-    if (st === 'ondes' || all) { // ondes qui s'éloignent de la pochette sur le tempo
-        for (let i = 0; i < 3; i++) {
-            const u = (((t * bpm / 60) / 2) + i / 3) % 1, e = u * Math.min(36, W * 0.1) + 2;
-            g.strokeStyle = rgba(i % 2 ? B : A, (1 - u) * 0.55 * k); g.lineWidth = 2.2 * (1 - u) + 0.6;
-            cfxRR(g, x - e, y - e, w + 2 * e, h + 2 * e, rad + e); g.stroke();
+    // bande : toute la largeur de l'encadré, un peu plus haute que la pochette (elle dépasse de ~18 px en haut et en bas)
+    const by = Math.max(0, ar.top - cr.top - 18), bh = Math.min(H - by, ar.height + 36), cy = by + bh / 2, half = bh / 2;
+    const st = ['aurore', 'egaliseur', 'ondes', 'projecteurs'].indexOf(cfxStyle) >= 0 ? cfxStyle : 'aurore';
+    g.save(); g.beginPath(); g.rect(0, by, W, bh); g.clip();
+    const hg = g.createLinearGradient(0, 0, W, 0); hg.addColorStop(0, rgba(A, 1)); hg.addColorStop(0.5, rgba(B, 1)); hg.addColorStop(1, rgba(A, 1));
+    if (st === 'aurore') { // rubans de lumière ondulants
+        g.globalCompositeOperation = 'lighter';
+        for (let i = 0; i < 4; i++) {
+            const amp = half * (0.35 + 0.25 * i / 3) * (0.7 + 0.5 * beat) * k + 4, th = half * 0.55, f = 0.012 + i * 0.004, sp = 0.7 + i * 0.35;
+            g.beginPath();
+            for (let x = 0; x <= W; x += 6) { const y = cy + Math.sin(x * f + t * sp + i * 1.7) * amp + Math.sin(x * f * 2.3 - t * 0.9 + i) * amp * 0.3; x ? g.lineTo(x, y - th * 0.5) : g.moveTo(x, y - th * 0.5); }
+            for (let x = W; x >= 0; x -= 6) { const y = cy + Math.sin(x * f + t * sp + i * 1.7) * amp + Math.sin(x * f * 2.3 - t * 0.9 + i) * amp * 0.3; g.lineTo(x, y + th * 0.5); }
+            g.closePath(); const gr = g.createLinearGradient(0, 0, W, 0); gr.addColorStop(0, rgba(i % 2 ? B : A, 0.0)); gr.addColorStop(0.25, rgba(i % 2 ? B : A, 0.5)); gr.addColorStop(0.75, rgba(i % 2 ? A : B, 0.5)); gr.addColorStop(1, rgba(i % 2 ? A : B, 0.0));
+            g.fillStyle = gr; g.fill();
+        }
+    } else if (st === 'egaliseur') { // barres symétriques (rythme simulé)
+        const n = Math.max(12, Math.floor(W / 10)), bw = W / n;
+        for (let i = 0; i < n; i++) {
+            const x = i * bw + bw / 2, u = i / (n - 1);
+            const v = (0.3 + 0.7 * Math.abs(Math.sin(t * (1.4 + (i % 5) * 0.37) + i * 0.9))) * (0.55 + 0.6 * beat) * k + 0.04;
+            const hh = Math.max(2, half * Math.min(1, v));
+            g.fillStyle = rgba(u < 0.5 ? A : B, 0.35 + 0.45 * v); g.beginPath();
+            if (g.roundRect) g.roundRect(x - bw * 0.3, cy - hh, bw * 0.6, hh * 2, bw * 0.3); else g.rect(x - bw * 0.3, cy - hh, bw * 0.6, hh * 2);
+            g.fill();
+        }
+    } else if (st === 'ondes') { // fines lignes sinusoïdales façon oscilloscope
+        g.globalCompositeOperation = 'lighter'; g.lineWidth = 2; g.shadowBlur = 10;
+        for (let i = 0; i < 6; i++) {
+            const col = i % 2 ? B : A; g.strokeStyle = rgba(col, 0.55); g.shadowColor = rgba(col, 0.9);
+            const amp = half * (0.25 + 0.12 * i) * (0.6 + 0.7 * beat) * k + 2;
+            g.beginPath();
+            for (let x = 0; x <= W; x += 5) { const y = cy + Math.sin(x * (0.02 + i * 0.006) + t * (1.2 + i * 0.4) + i) * amp * Math.sin(Math.PI * x / W); x ? g.lineTo(x, y) : g.moveTo(x, y); }
+            g.stroke();
+        }
+    } else { // projecteurs : faisceaux qui balaient de haut en bas
+        g.globalCompositeOperation = 'lighter';
+        for (let i = 0; i < 5; i++) {
+            const ox = W * (i + 0.5) / 5, ang = Math.sin(t * (0.6 + i * 0.17) + i * 2) * 0.55, len = bh * 1.6, wd = 16 + 26 * beat * k + 10;
+            const ex = ox + Math.sin(ang) * len, ey = by + Math.cos(ang) * len;
+            const gr = g.createLinearGradient(ox, by, ex, ey); gr.addColorStop(0, rgba(i % 2 ? B : A, 0.65 * k + 0.1)); gr.addColorStop(1, rgba(i % 2 ? B : A, 0));
+            g.fillStyle = gr; g.beginPath(); g.moveTo(ox - 2, by); g.lineTo(ox + 2, by); g.lineTo(ex + wd, ey); g.lineTo(ex - wd, ey); g.closePath(); g.fill();
         }
     }
-    // traînée lumineuse qui tourne autour de la pochette (sert aussi de repère de progression visuel)
-    {
-        const sp = playing ? 0.11 : 0.02, head = (t * sp) % 1;
-        for (let i = 0; i < 26; i++) {
-            const u = head - i * 0.006, pt = cfxPerim(x - 1, y - 1, w + 2, h + 2, u);
-            g.fillStyle = rgba(i % 2 ? B : A, (1 - i / 26) * 0.9 * (0.5 + 0.5 * k)); g.beginPath(); g.arc(pt[0], pt[1], 3.2 * (1 - i / 34), 0, 6.2832); g.fill();
-        }
-    }
-    // étincelles qui montent autour de la pochette
-    if (playing && (st === 'aura' || all) && cfxParts.length < 22 && Math.random() < 0.4) {
-        const side = Math.random(), pt = cfxPerim(x, y, w, h, side);
-        cfxParts.push({ x: pt[0], y: pt[1], vx: (Math.random() - 0.5) * 14, vy: -(14 + Math.random() * 26), life: 1, c: Math.random() < 0.5 ? A : B, s: 1 + Math.random() * 2 });
-    }
-    cfxParts = cfxParts.filter(p => (p.life -= dt * 0.55) > 0);
-    cfxParts.forEach(p => { p.x += p.vx * dt; p.y += p.vy * dt; g.fillStyle = rgba(p.c, p.life * 0.9); g.beginPath(); g.arc(p.x, p.y, p.s, 0, 6.2832); g.fill(); });
     g.restore();
+    // bords estompés : l'effet se fond dans l'encadré (haut, bas, gauche, droite)
+    g.globalCompositeOperation = 'destination-out';
+    const fv = g.createLinearGradient(0, by, 0, by + bh); fv.addColorStop(0, 'rgba(0,0,0,1)'); fv.addColorStop(0.22, 'rgba(0,0,0,0)'); fv.addColorStop(0.78, 'rgba(0,0,0,0)'); fv.addColorStop(1, 'rgba(0,0,0,1)');
+    g.fillStyle = fv; g.fillRect(0, by, W, bh);
+    const fh = g.createLinearGradient(0, 0, W, 0); fh.addColorStop(0, 'rgba(0,0,0,1)'); fh.addColorStop(0.1, 'rgba(0,0,0,0)'); fh.addColorStop(0.9, 'rgba(0,0,0,0)'); fh.addColorStop(1, 'rgba(0,0,0,1)');
+    g.fillStyle = fh; g.fillRect(0, by, W, bh);
+    g.globalCompositeOperation = 'source-over';
 }
 setInterval(() => { try { cfxSync(); } catch (e) {} }, 500);
 
@@ -5275,7 +5279,7 @@ function divoomTestColor() {
 }
 // Panneau de réglages : un bloc par appareil
 function divoomCfgBlockHTML(type, title) {
-    const c = divoomCfgOf(type), sel = 'background:#1a1a1a;color:#fff;border:1px solid #444;border-radius:6px;padding:3px 5px;font-size:0.72rem;';
+    const c = divoomCfgOf(type), sel = 'background:#1a1a1a;color:#fff;border:1px solid #444;border-radius:6px;padding:3px 5px;font-size:0.72rem;max-width:62%;min-width:0;flex:0 1 auto;text-overflow:ellipsis;';
     const o = (v, cur, label) => `<option value="${v}"${v === cur ? ' selected' : ''}>${label}</option>`;
     const chk = (k, label) => `<label style="font-size:0.72rem;color:var(--text-grey);display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;text-align:left;"><span style="text-align:left;">${label}</span><input type="checkbox"${c[k] ? ' checked' : ''} onchange="divoomSetCfg('${type}','${k}',this.checked)"></label>`;
     const row = (label, inner) => `<label style="font-size:0.72rem;color:var(--text-grey);display:flex;align-items:center;justify-content:space-between;gap:6px;">${label}${inner}</label>`;
@@ -7146,7 +7150,7 @@ function ensureCreditsModal() {
             <li><strong>Aurore sur les écrans</strong> — la scénographie en 16×16 : rideaux de lumière aux deux couleurs de la pochette qui ondulent et pulsent au tempo, étoiles qui scintillent (mode « 🌌 Aurore (scénographie) », aussi dans le ＋).</li>
             <li><strong>Fond « Lecture en cours »</strong> — réglage pour que le fond de l'encadré épouse en douceur les couleurs de la pochette (désactivé par défaut).</li>
             <li><strong>Aurore LED</strong> — le cœur des titres likés n'est plus affiché dans ce mode ; l'écran d'accueil « Se connecter » disparaît aussi après une reconnexion automatique.</li>
-            <li><strong>Effet animé pochette</strong> — halo qui respire, ondes, vinyle qui tourne ou « Nova » (tout ensemble), avec une lumière qui orbite autour de la pochette ; réglage dédié, désactivé par défaut.</li>
+            <li><strong>Effet animé pochette</strong> — bande lumineuse sur toute la largeur de « Lecture en cours », un peu plus haute que la pochette, au choix : aurore, égaliseur, ondes ou projecteurs (un seul effet à la fois) ; désactivé par défaut.</li>
             <li><strong>Anti-plantage</strong> — ouverture des appareils un par un, 5 s d'attente après le chargement, liaisons fermées proprement au rechargement ; si la page s'arrête pendant une connexion, la reconnexion automatique est suspendue et il suffit de toucher un voyant.</li>
             <li><strong>Écran vide</strong> — image noire puis luminosité à 0 : l'écran reste éteint même quand le Bluetooth se coupe ou que la page se ferme. La luminosité est rétablie en changeant de mode.</li>
             <li><strong>Pause</strong> — tasse de café après 2 min de pause, puis luminosité qui baisse progressivement à partir de 5 min (minimum après 3 min de plus) ; tout revient à la reprise de la lecture.</li>
