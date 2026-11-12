@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v10.6";
+        const APP_VERSION = "v10.7";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -821,6 +821,39 @@
             background-image: radial-gradient(circle at 20% 15%, color-mix(in srgb, var(--npc1) 55%, transparent), transparent 60%), radial-gradient(circle at 85% 90%, color-mix(in srgb, var(--npc2) 50%, transparent), transparent 60%), linear-gradient(rgba(0,0,0,0.25), rgba(0,0,0,0.25)) !important;
             animation: npbgDrift 14s ease-in-out infinite alternate; }
         #np-card { isolation: isolate; }
+
+        /* Paroles : texte blanc (design épuré) */
+        body.ui-refined #lyrics-content, body.ui-refined .lyric-line, body.ui-refined .lyric-line:not(.active):not(.paroles-anim-line) { color: #fff !important; }
+        /* Encadré Appareils */
+        #devices-card { display: none; }
+        #devices-card #divoom-icons { gap: 14px; }
+        /* Pause des animations */
+        body.anim-paused *, body.anim-paused *::before, body.anim-paused *::after { animation-play-state: paused !important; }
+        /* Boîte à outils */
+        #toolbox-back { display: none; position: fixed; inset: 0; z-index: 9800; background: rgba(0,0,0,0.55); align-items: flex-end; justify-content: center; }
+        #toolbox-back.open { display: flex; }
+        #toolbox-panel { width: min(440px, 100%); max-height: 82vh; overflow-y: auto; box-sizing: border-box; padding: 16px 16px 22px; border-radius: 22px 22px 0 0; background: rgba(20,20,22,0.96); border: 1px solid rgba(255,255,255,0.12); box-shadow: 0 -14px 40px rgba(0,0,0,0.6); color: #fff; }
+        @media (min-width: 700px) { #toolbox-back { align-items: center; } #toolbox-panel { border-radius: 22px; } }
+        #toolbox-panel .tb-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; font-weight: 700; }
+        #toolbox-panel .tb-sec { font-size: 0.68rem; letter-spacing: 0.18em; color: var(--text-grey); margin: 14px 0 6px; }
+        #toolbox-panel .tb-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.07); font-size: 0.9rem; }
+        #toolbox-panel .tb-row .tb-right { display: flex; align-items: center; gap: 10px; }
+        #toolbox-panel button.tb-btn { background: rgba(255,255,255,0.1) !important; color: #fff !important; border: 1px solid rgba(255,255,255,0.18) !important; border-radius: 999px !important; padding: 6px 12px !important; font-size: 0.85rem !important; cursor: pointer; width: auto !important; margin: 0 !important; }
+        #toolbox-panel button.tb-btn:disabled { opacity: 0.35; cursor: default; }
+        #toolbox-panel button.tb-wide { width: 100% !important; padding: 12px !important; margin-top: 6px !important; }
+        /* Paroles en plein écran */
+        #lyrics-fs { display: none; position: fixed; inset: 0; z-index: 9900; background: #0b0b0d; color: #fff; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 28px 22px; box-sizing: border-box; overflow: hidden; }
+        #lyrics-fs.open { display: flex; }
+        #lfs-bg { position: absolute; inset: 0; z-index: 0; transition: background 1s ease; }
+        #lyrics-fs > *:not(#lfs-bg) { position: relative; z-index: 1; }
+        #lfs-meta { position: absolute !important; top: 18px; left: 18px; right: 70px; display: flex; align-items: center; gap: 12px; text-align: left; }
+        #lfs-meta img { width: 48px; height: 48px; border-radius: 10px; object-fit: cover; box-shadow: 0 4px 14px rgba(0,0,0,0.5); }
+        #lfs-meta b { display: block; font-size: 0.95rem; } #lfs-meta span { font-size: 0.8rem; opacity: 0.7; }
+        #lfs-close { position: absolute !important; top: 14px; right: 14px; width: 40px !important; height: 40px !important; border-radius: 50% !important; background: rgba(255,255,255,0.12) !important; border: 1px solid rgba(255,255,255,0.2) !important; color: #fff !important; font-size: 1.1rem !important; padding: 0 !important; margin: 0 !important; }
+        #lfs-prev, #lfs-next { font-size: clamp(1rem, 3.4vw, 1.6rem); opacity: 0.35; max-width: 900px; line-height: 1.3; margin: 10px 0; }
+        #lfs-cur { font-size: clamp(1.8rem, 6.4vw, 3.8rem); font-weight: 800; line-height: 1.18; max-width: 1000px; margin: 14px 0; text-shadow: 0 0 40px rgba(255,255,255,0.25); animation: lfsIn 0.45s ease; }
+        @keyframes lfsIn { from { opacity: 0; transform: translateY(18px) scale(0.98); } to { opacity: 1; transform: none; } }
+        #lfs-hint { position: absolute !important; bottom: 14px; font-size: 0.7rem; opacity: 0.35; }
         #cover-fx { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; display: none; }
         #np-card.cfx-on #track-art { position: relative; }
         @keyframes npbgDrift { from { background-position: 0% 0%, 100% 100%, 0 0; } to { background-position: 100% 60%, 0% 30%, 0 0; } }
@@ -1115,6 +1148,7 @@
         body.ui-refined .lyric-line { font-weight: 500; line-height: 1.45; opacity: 0.32; letter-spacing: -0.01em; }
         body.ui-refined .lyric-line.active { font-weight: 700; opacity: 1; text-shadow: 0 0 26px rgba(255,255,255,0.28); }
         body.ui-refined #explorer-rechercher-title,
+        body.ui-refined #devices-title,
         body.ui-refined #lecture-en-cours-title { font-size: 0.68rem !important; letter-spacing: 0.2em; font-weight: 600 !important; color: var(--text-grey) !important; }
         body.ui-refined #track-art { border-radius: 16px; box-shadow: 0 18px 40px rgba(0,0,0,0.45); }
         body.ui-refined #track-title { font-size: 1.15rem; font-weight: 650; }
@@ -1448,6 +1482,7 @@
                    <button id="playlist-btn" onclick="togglePlaylistsView()" title="Mes Playlists">🎵</button>
                         <button onclick="toggleQueue()" title="File d'attente">📋</button>
                         <button onclick="toggleTopTracks()" title="Top titres">🪩</button>
+                        <button id="toolbox-btn" onclick="toggleToolbox()" title="Boîte à outils">🧰</button>
                         <button id="settings-btn" onclick="toggleSettings()" title="Paramètres">⚙️</button>
                         <button onclick="toggleStats()" title="Statistiques">📊</button>
                         <button onclick="toggleSoundboard()" title="Sons">📣</button>
@@ -1463,16 +1498,46 @@
 
 <!-- 1. Panneau réglages : à placer près de tes autres zones (profile-card-zone, volume-control-zone, etc.) -->
 <div id="settings-zone" style="display: none; margin-top: 12px; width: 100%; box-sizing: border-box; padding: 10px; flex-direction: column; gap: 10px;">
-    <p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 2px 0 2px 0;">🎚️ INTERFACE &amp; LECTURE</p>
+    <p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 2px 0 2px 0;">✨ EFFETS &amp; ANIMATIONS</p>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: #fff; font-weight: bold;">Design épuré ✨</span>
+    <span style="font-size: 0.85rem; color: #fff; font-weight: bold;">Mettre en pause les animations ⏸️</span>
     <label class="switch">
-        <input type="checkbox" id="ui-refined-toggle" onchange="toggleUiRefinedSetting(this.checked)">
+        <input type="checkbox" id="anim-pause-toggle" onchange="toggleAnimPause(this.checked)">
         <span class="slider"></span>
     </label>
 </div>
 
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Scénographie : encadré animé au-dessus (selon le titre et les couleurs de la pochette)</span>
+    <label class="switch">
+        <input type="checkbox" id="seno-toggle" onchange="toggleScenography(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 8px;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Effet animé pochette (derrière et autour de la pochette)</span>
+    <select id="cfx-style" onchange="setCoverFxStyle(this.value)" style="max-width: 120px; min-width: 0;">
+        <option value="aurore">Aurore</option>
+        <option value="egaliseur">Égaliseur</option>
+        <option value="ondes">Ondes</option>
+        <option value="projecteurs">Projecteurs</option>
+        <option value="constellation">Constellation</option>
+    </select>
+    <label class="switch">
+        <input type="checkbox" id="cfx-toggle" onchange="toggleCoverFx(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Fond de « Lecture en cours » aux couleurs de la pochette</span>
+    <label class="switch">
+        <input type="checkbox" id="npbg-toggle" onchange="toggleNpBg(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
     <span style="font-size: 0.85rem; color: var(--text-grey);">Spectre audio animé 🎛️</span>
@@ -1488,6 +1553,25 @@
         <option value="8">8.0 — Égaliseur LED (couleurs pochette)</option>
     </select>
 </div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Halo pulsé sur la pochette (couleur dominante)</span>
+    <label class="switch">
+        <input type="checkbox" id="pochette-halo-toggle" onchange="togglePochetteHaloSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 14px 0 2px 0;">🎚️ INTERFACE &amp; LECTURE</p>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: #fff; font-weight: bold;">Design épuré ✨</span>
+    <label class="switch">
+        <input type="checkbox" id="ui-refined-toggle" onchange="toggleUiRefinedSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
     <span style="font-size: 0.85rem; color: var(--text-grey);">Fond parole vert</span>
@@ -1551,14 +1635,6 @@
     <span style="font-size: 0.85rem; color: var(--text-grey);">Bouton rideau 🎭</span>
     <label class="switch">
         <input type="checkbox" id="rideau-btn-toggle" onchange="toggleRideauBtnSetting(this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Halo pulsé sur la pochette (couleur dominante)</span>
-    <label class="switch">
-        <input type="checkbox" id="pochette-halo-toggle" onchange="togglePochetteHaloSetting(this.checked)">
         <span class="slider"></span>
     </label>
 </div>
@@ -1895,37 +1971,6 @@
 </div>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Scénographie : encadré animé au-dessus (selon le titre et les couleurs de la pochette)</span>
-    <label class="switch">
-        <input type="checkbox" id="seno-toggle" onchange="toggleScenography(this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Fond de « Lecture en cours » aux couleurs de la pochette</span>
-    <label class="switch">
-        <input type="checkbox" id="npbg-toggle" onchange="toggleNpBg(this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 8px;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Effet animé pochette (derrière et autour de la pochette)</span>
-    <select id="cfx-style" onchange="setCoverFxStyle(this.value)" style="max-width: 120px; min-width: 0;">
-        <option value="aurore">Aurore</option>
-        <option value="egaliseur">Égaliseur</option>
-        <option value="ondes">Ondes</option>
-        <option value="projecteurs">Projecteurs</option>
-        <option value="constellation">Constellation</option>
-    </select>
-    <label class="switch">
-        <input type="checkbox" id="cfx-toggle" onchange="toggleCoverFx(this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
     <span style="font-size: 0.85rem; color: var(--text-grey);">Aperçu des 3 prochains titres (à côté de la pochette)</span>
     <label class="switch">
         <input type="checkbox" id="queue-peek-toggle" onchange="toggleQueuePeekSetting(this.checked)">
@@ -2168,12 +2213,7 @@
             <div class="card" id="np-card">
                 <div style="display: flex; align-items: center; justify-content: space-between;">
                     <p id="lecture-en-cours-title" style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 0;">LECTURE EN COURS</p>
-                    <span id="divoom-icons">
-                        <button class="dv-dev" id="dv-dev-timebox" onclick="divoomClickDevice('timebox')" title="Enceinte Timebox Evo : touche pour (re)connecter"><img id="divoom-icon-timebox" src="enceinte.png" alt="🔊" style="height: 34px;" onerror="this.outerHTML='<span style=&quot;font-size:1.6rem&quot;>🔊</span>'"><i class="dv-led" id="dv-led-timebox"></i></button>
-                        <button class="dv-dev" id="dv-dev-pixoo" onclick="divoomClickDevice('pixoo')" title="Écran LED Pixoo : touche pour (re)connecter"><img id="divoom-icon-pixoo" src="ecranled.png" alt="🟦" style="height: 22px;" onerror="this.outerHTML='<span style=&quot;font-size:1.3rem&quot;>🟦</span>'"><i class="dv-led" id="dv-led-pixoo"></i></button>
-                        <button class="dv-plus" id="dv-plus-btn" onclick="divoomTogglePlus(event)" title="Piloter les deux appareils">＋</button>
-                        <div id="dv-plus-pop"></div>
-                    </span>
+                    
                 </div>
                 <canvas id="cover-fx"></canvas>
                 <img id="track-art" src="" alt="" style="display:none;" crossorigin="anonymous">
@@ -2196,6 +2236,18 @@
     <button id="next-track-btn" onclick="nextTrack()">⏭</button>
     <button id="like-btn" onclick="toggleLikeCurrentTrack()" title="Ajouter aux favoris" style="position: absolute; right: 10px; background: none; border: none; font-size: 1.4rem; cursor: pointer; padding: 5px;">🤍</button>
 </div>
+            </div>
+
+            <div class="card" id="devices-card">
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <p id="devices-title" style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 0;">APPAREILS</p>
+                    <span id="divoom-icons">
+                        <button class="dv-dev" id="dv-dev-timebox" onclick="divoomClickDevice('timebox')" title="Enceinte Timebox Evo : touche pour (re)connecter"><img id="divoom-icon-timebox" src="enceinte.png" alt="🔊" style="height: 34px;" onerror="this.outerHTML='<span style=&quot;font-size:1.6rem&quot;>🔊</span>'"><i class="dv-led" id="dv-led-timebox"></i></button>
+                        <button class="dv-dev" id="dv-dev-pixoo" onclick="divoomClickDevice('pixoo')" title="Écran LED Pixoo : touche pour (re)connecter"><img id="divoom-icon-pixoo" src="ecranled.png" alt="🟦" style="height: 22px;" onerror="this.outerHTML='<span style=&quot;font-size:1.3rem&quot;>🟦</span>'"><i class="dv-led" id="dv-led-pixoo"></i></button>
+                        <button class="dv-plus" id="dv-plus-btn" onclick="divoomTogglePlus(event)" title="Piloter les deux appareils">＋</button>
+                        <div id="dv-plus-pop"></div>
+                    </span>
+                </div>
             </div>
         </div>
     </div>
@@ -4643,9 +4695,10 @@ function scenoWrap(g, text, maxW) { // 1 ou 2 lignes (coupe sur les espaces)
     words.forEach(w => { const cur = lines[lines.length - 1], test = cur ? cur + ' ' + w : w; if (g.measureText(test).width <= maxW || !cur) lines[lines.length - 1] = test; else lines.push(w); });
     return lines;
 }
+var animPaused = (function () { try { return localStorage.getItem('animPaused') === 'true'; } catch (e) { return false; } })();
 function scenoFrame(ts) {
     scenoRaf = requestAnimationFrame(scenoFrame);
-    if (!scenoCanvas || document.hidden) return;
+    if (!scenoCanvas || document.hidden || animPaused) return;
     if (ts - scenoLast < 33) return; // ~30 images/s
     scenoLast = ts;
     scenoUpdateColors();
@@ -4783,7 +4836,7 @@ function cfxSync() {
 let cfxT = 0, cfxSp = [], cfxNodes = [];
 function cfxFrame(ts) {
     cfxRaf = requestAnimationFrame(cfxFrame);
-    if (document.hidden || ts - cfxLast < 33) return;
+    if (document.hidden || animPaused || ts - cfxLast < 33) return;
     const dt = Math.min(0.1, (ts - cfxLast) / 1000); cfxLast = ts;
     const cv = document.getElementById('cover-fx'), art = document.getElementById('track-art'), card = document.getElementById('np-card');
     if (!cv || !art || !card) return;
@@ -4861,6 +4914,72 @@ function cfxFrame(ts) {
     g.fillStyle = fh; g.fillRect(0, by, W, bh);
     g.globalCompositeOperation = 'source-over';
 }
+
+// ===== Boîte à outils, paroles en plein écran, pause des animations =====
+function toggleAnimPause(on) {
+    animPaused = !!on; try { localStorage.setItem('animPaused', on ? 'true' : 'false'); } catch (e) {}
+    document.body.classList.toggle('anim-paused', animPaused);
+    ['anim-pause-toggle', 'tb-anim-pause'].forEach(id => { const el = document.getElementById(id); if (el && el.checked !== animPaused) el.checked = animPaused; });
+}
+const TB_INT = {
+    clip: { en: () => clipFeatureEnabled, set: v => toggleClipFeatureSetting(v), hid: () => clipHidden, show: () => clipShowPanel(), hide: () => clipHidePanel(), st: 'clip-feature-toggle' },
+    pip: { en: () => pipFeatureEnabled, set: v => togglePipFeatureSetting(v), hid: () => pipHidden, show: () => pipShowPanel(), hide: () => pipHidePanel(), st: 'pip-feature-toggle' },
+    subs: { en: () => subsFeatureEnabled, set: v => toggleSubsFeatureSetting(v), hid: () => subsHidden, show: () => subsShowPanel(), hide: () => subsHidePanel(), st: 'subs-feature-toggle' }
+};
+function tbSync() {
+    Object.keys(TB_INT).forEach(k => {
+        const d = TB_INT[k], on = !!d.en();
+        const c = document.getElementById('tb-' + k); if (c && c.checked !== on) c.checked = on;
+        const e = document.getElementById('tb-' + k + '-eye'); if (e) { e.disabled = !on; e.textContent = d.hid() ? '🙈' : '👁'; e.title = d.hid() ? 'Afficher' : 'Masquer'; }
+        const st = document.getElementById(d.st); if (st && st.checked !== on) st.checked = on;
+    });
+    const ap = document.getElementById('tb-anim-pause'); if (ap && ap.checked !== animPaused) ap.checked = animPaused;
+    const ap2 = document.getElementById('anim-pause-toggle'); if (ap2 && ap2.checked !== animPaused) ap2.checked = animPaused;
+}
+function tbFeature(k, on) { try { TB_INT[k].set(on); } catch (e) {} tbSync(); }
+function tbEye(k) { const d = TB_INT[k]; if (!d.en()) return; try { d.hid() ? d.show() : d.hide(); } catch (e) {} tbSync(); }
+function toggleToolbox(force) {
+    const b = document.getElementById('toolbox-back'); if (!b) return;
+    const open = typeof force === 'boolean' ? force : !b.classList.contains('open');
+    b.classList.toggle('open', open); if (open) tbSync();
+}
+let lfsTimer = null, lfsWake = null, lfsLast = '';
+function openLyricsFullscreen() {
+    toggleToolbox(false);
+    const o = document.getElementById('lyrics-fs'); if (!o) return;
+    o.classList.add('open'); lfsLast = ''; lfsTick();
+    clearInterval(lfsTimer); lfsTimer = setInterval(lfsTick, 250);
+    try { if (o.requestFullscreen) o.requestFullscreen().catch(() => {}); } catch (e) {}
+    try { if (navigator.wakeLock) navigator.wakeLock.request('screen').then(w => { lfsWake = w; }).catch(() => {}); } catch (e) {}
+}
+function closeLyricsFullscreen() {
+    const o = document.getElementById('lyrics-fs'); if (o) o.classList.remove('open');
+    clearInterval(lfsTimer); lfsTimer = null;
+    try { if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {}); } catch (e) {}
+    try { if (lfsWake) { lfsWake.release(); lfsWake = null; } } catch (e) {}
+}
+document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement) { const o = document.getElementById('lyrics-fs'); if (o && o.classList.contains('open')) closeLyricsFullscreen(); } });
+document.addEventListener('keydown', ev => { if (ev.key === 'Escape') { closeLyricsFullscreen(); toggleToolbox(false); } });
+function lfsTick() {
+    const set = (id, v) => { const el = document.getElementById(id); if (el && el.textContent !== v) el.textContent = v; };
+    const t = document.getElementById('track-title'), a = document.getElementById('track-artist'), art = document.getElementById('track-art');
+    set('lfs-title', t ? t.textContent : ''); set('lfs-artist', a ? a.textContent : '');
+    const im = document.getElementById('lfs-art'); if (im && art && art.src && im.src !== art.src) im.src = art.src; if (im) im.style.display = art && art.style.display !== 'none' && art.src ? '' : 'none';
+    let cur = '', next = '', prev = '';
+    const act = document.querySelector('#lyrics-content .lyric-line.active');
+    if (act) {
+        cur = (act.innerText || act.textContent || '').trim();
+        const nx = act.nextElementSibling, pv = act.previousElementSibling;
+        next = nx ? (nx.innerText || nx.textContent || '').trim() : ''; prev = pv ? (pv.innerText || pv.textContent || '').trim() : '';
+    } else cur = '♪';
+    const key = cur + '|' + next;
+    if (key !== lfsLast) {
+        lfsLast = key; set('lfs-prev', prev); set('lfs-next', next);
+        const c = document.getElementById('lfs-cur'); if (c) { c.style.animation = 'none'; void c.offsetWidth; c.style.animation = ''; c.textContent = cur; }
+    }
+    try { scenoUpdateColors(); const A = scenoCols.c1, B = scenoCols.c2; const bg = document.getElementById('lfs-bg'); if (bg) bg.style.background = 'radial-gradient(circle at 20% 15%, rgba(' + A.join(',') + ',0.45), transparent 60%), radial-gradient(circle at 85% 90%, rgba(' + B.join(',') + ',0.4), transparent 60%), #0b0b0d'; } catch (e) {}
+}
+setTimeout(() => { try { document.body.classList.toggle('anim-paused', animPaused); tbSync(); } catch (e) {} }, 600);
 setInterval(() => { try { cfxSync(); } catch (e) {} }, 500);
 
 
@@ -4959,6 +5078,7 @@ async function divoomDisconnectAll(withBye) {
 function divoomUpdateIcons() {
     const box = document.getElementById('divoom-icons'); if (!box) return;
     box.style.display = divoomEnabled ? 'inline-flex' : 'none';
+    const dcard = document.getElementById('devices-card'); if (dcard) dcard.style.display = divoomEnabled ? 'block' : 'none';
     ['timebox', 'pixoo'].forEach(t => {
         const led = document.getElementById('dv-led-' + t); if (!led) return;
         const ok = divoomDevices.some(d => d.type === t), trying = !ok && divoomConnecting[t];
@@ -7162,6 +7282,8 @@ function ensureCreditsModal() {
             <li><strong>Modes d'affichage</strong> — paroles défilantes, image de l'artiste en 16×16 (écran noir sans photo), défilement pochette · artiste · titre (le titre reste lisible 2 s avant de défiler), stats d'écoute (titres écoutés aujourd'hui, titre et artiste les plus écoutés, temps d'écoute ; basé sur les 50 derniers titres de Spotify), titres aimés (mini-pochettes, panneau ❤️ avec flèches et bouton « Lancer »).</li>
             <li><strong>Aurore sur les écrans</strong> — la scénographie en 16×16 : rideaux de lumière aux deux couleurs de la pochette qui ondulent et pulsent au tempo, étoiles qui scintillent (mode « 🌌 Aurore (scénographie) », aussi dans le ＋).</li>
             <li><strong>Fond « Lecture en cours »</strong> — réglage pour que le fond de l'encadré épouse en douceur les couleurs de la pochette (désactivé par défaut).</li>
+            <li><strong>Boîte à outils 🧰</strong> — un bouton qui regroupe les 3 intégrations (clip, paroles flottantes, sous-titres : activer et afficher/masquer), les paroles en plein écran et la pause des animations.</li>
+            <li><strong>Encadré Appareils</strong> — les voyants Bluetooth et le bouton ＋ ont leur propre encadré sous « Lecture en cours ». Réglages : les effets sont en haut, avec « Mettre en pause les animations ».</li>
             <li><strong>Aurore LED</strong> — le cœur des titres likés n'est plus affiché dans ce mode ; l'écran d'accueil « Se connecter » disparaît aussi après une reconnexion automatique.</li>
             <li><strong>Effet animé pochette</strong> — bande lumineuse sur toute la largeur de « Lecture en cours », exactement la hauteur de la pochette (rien au-dessus ni en dessous), au choix : aurore, égaliseur, ondes, projecteurs ou constellation (nouveau) (un seul effet à la fois) ; désactivé par défaut.</li>
             <li><strong>Anti-plantage</strong> — ouverture des appareils un par un, 5 s d'attente après le chargement, liaisons fermées proprement au rechargement ; si la page s'arrête pendant une connexion, la reconnexion automatique est suspendue et il suffit de toucher un voyant.</li>
@@ -7790,6 +7912,7 @@ function initSpectrum() {
 
     function draw() {
         spectrumAnimId = requestAnimationFrame(draw);
+        if (animPaused) return;
 
         const w = canvas.width;
         const h = canvas.height;
@@ -13332,7 +13455,7 @@ function startWaveBar() {
     const loop = (now) => {
         pfWaveRAF = requestAnimationFrame(loop);
         const dt = Math.min(0.1, (now - pfWaveLast) / 1000); pfWaveLast = now;
-        if (!document.body.classList.contains('playback-paused')) pfWaveT += dt; // les vagues se figent en pause
+        if (!document.body.classList.contains('playback-paused') && !animPaused) pfWaveT += dt; // les vagues se figent en pause
         try { drawWaveBar(); } catch (e) { /* un souci de dessin ne doit jamais bloquer la lecture */ }
     };
     pfWaveRAF = requestAnimationFrame(loop);
@@ -14878,6 +15001,26 @@ function initBouleLedState() {
 }
 </script>
     <script src="script.js"></script>
+
+<div id="toolbox-back" onclick="if(event.target===this)toggleToolbox(false)">
+  <div id="toolbox-panel">
+    <div class="tb-head"><span>🧰 Boîte à outils</span><button class="tb-btn" onclick="toggleToolbox(false)">✕</button></div>
+    <div class="tb-sec">INTÉGRATIONS</div>
+    <div class="tb-row"><span>Clip 🎬</span><span class="tb-right"><button class="tb-btn" id="tb-clip-eye" onclick="tbEye('clip')">👁</button><label class="switch"><input type="checkbox" id="tb-clip" onchange="tbFeature('clip',this.checked)"><span class="slider"></span></label></span></div>
+    <div class="tb-row"><span>Paroles flottantes 🖼️</span><span class="tb-right"><button class="tb-btn" id="tb-pip-eye" onclick="tbEye('pip')">👁</button><label class="switch"><input type="checkbox" id="tb-pip" onchange="tbFeature('pip',this.checked)"><span class="slider"></span></label></span></div>
+    <div class="tb-row"><span>Sous-titres 📝</span><span class="tb-right"><button class="tb-btn" id="tb-subs-eye" onclick="tbEye('subs')">👁</button><label class="switch"><input type="checkbox" id="tb-subs" onchange="tbFeature('subs',this.checked)"><span class="slider"></span></label></span></div>
+    <div class="tb-sec">RACCOURCIS</div>
+    <button class="tb-btn tb-wide" onclick="openLyricsFullscreen()">📖 Paroles en plein écran</button>
+    <div class="tb-row"><span>Pause des animations ⏸️</span><label class="switch"><input type="checkbox" id="tb-anim-pause" onchange="toggleAnimPause(this.checked)"><span class="slider"></span></label></div>
+  </div>
+</div>
+<div id="lyrics-fs" onclick="closeLyricsFullscreen()">
+  <div id="lfs-bg"></div>
+  <div id="lfs-meta"><img id="lfs-art" alt=""><div><b id="lfs-title"></b><span id="lfs-artist"></span></div></div>
+  <button id="lfs-close" onclick="event.stopPropagation();closeLyricsFullscreen()">✕</button>
+  <div id="lfs-prev"></div><div id="lfs-cur"></div><div id="lfs-next"></div>
+  <div id="lfs-hint">Touche l'écran pour fermer</div>
+</div>
 </body>
 </html>
 
