@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v10.7";
+        const APP_VERSION = "v10.8";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -824,9 +824,13 @@
 
         /* Paroles : texte blanc (design épuré) */
         body.ui-refined #lyrics-content, body.ui-refined .lyric-line, body.ui-refined .lyric-line:not(.active):not(.paroles-anim-line) { color: #fff !important; }
-        /* Encadré Appareils */
-        #devices-card { display: none; }
-        #devices-card #divoom-icons { gap: 14px; }
+        /* Bouton boîte à outils (remplace les 3 boutons de réaffichage) */
+        .floating-reveal-btn, #clip-reveal-btn { display: none !important; }
+        #toolbox-fab { position: fixed; right: 15px; bottom: 45px; z-index: 9600; width: 44px; height: 44px; padding: 0; border-radius: 50%; border: 1px solid rgba(255,255,255,0.25); background: rgba(20,20,22,0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); font-size: 1.25rem; cursor: pointer; box-shadow: 0 6px 18px rgba(0,0,0,0.5); }
+        body.on-home #toolbox-fab { display: none !important; }
+        #toolbox-panel .tb-box { padding: 12px; border-radius: 14px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; gap: 8px; }
+        #toolbox-panel #divoom-icons { flex-wrap: wrap; justify-content: space-around; align-items: center; gap: 14px; width: 100%; }
+        #toolbox-panel #dv-plus-pop { position: static !important; top: auto; right: auto; flex: 0 0 100%; width: 100%; box-sizing: border-box; margin-top: 6px; }
         /* Pause des animations */
         body.anim-paused *, body.anim-paused *::before, body.anim-paused *::after { animation-play-state: paused !important; }
         /* Boîte à outils */
@@ -1148,7 +1152,6 @@
         body.ui-refined .lyric-line { font-weight: 500; line-height: 1.45; opacity: 0.32; letter-spacing: -0.01em; }
         body.ui-refined .lyric-line.active { font-weight: 700; opacity: 1; text-shadow: 0 0 26px rgba(255,255,255,0.28); }
         body.ui-refined #explorer-rechercher-title,
-        body.ui-refined #devices-title,
         body.ui-refined #lecture-en-cours-title { font-size: 0.68rem !important; letter-spacing: 0.2em; font-weight: 600 !important; color: var(--text-grey) !important; }
         body.ui-refined #track-art { border-radius: 16px; box-shadow: 0 18px 40px rgba(0,0,0,0.45); }
         body.ui-refined #track-title { font-size: 1.15rem; font-weight: 650; }
@@ -1482,7 +1485,6 @@
                    <button id="playlist-btn" onclick="togglePlaylistsView()" title="Mes Playlists">🎵</button>
                         <button onclick="toggleQueue()" title="File d'attente">📋</button>
                         <button onclick="toggleTopTracks()" title="Top titres">🪩</button>
-                        <button id="toolbox-btn" onclick="toggleToolbox()" title="Boîte à outils">🧰</button>
                         <button id="settings-btn" onclick="toggleSettings()" title="Paramètres">⚙️</button>
                         <button onclick="toggleStats()" title="Statistiques">📊</button>
                         <button onclick="toggleSoundboard()" title="Sons">📣</button>
@@ -1593,14 +1595,6 @@
     <span style="font-size: 0.85rem; color: var(--text-grey);">Mini-lecteur flottant (barre toujours visible en haut)</span>
     <label class="switch">
         <input type="checkbox" id="mini-player-toggle" onchange="toggleMiniPlayerSetting(this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Panneau Picture-in-picture 🖼️</span>
-    <label class="switch">
-        <input type="checkbox" id="pip-feature-toggle" onchange="togglePipFeatureSetting(this.checked)">
         <span class="slider"></span>
     </label>
 </div>
@@ -2080,25 +2074,9 @@
         <option value="pixel16">Pixels 16 cases (écran LED)</option>
     </select>
 </div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Intégration Clip 🎬</span>
-    <label class="switch">
-        <input type="checkbox" id="clip-feature-toggle" onchange="toggleClipFeatureSetting(this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
 <div style="display: flex; flex-direction: column; gap: 4px; width: 100%;">
     <input type="password" id="clip-api-key-input" placeholder="Clé API YouTube Data v3 (déjà intégrée, modifiable)" onchange="setClipApiKey(this.value)" style="background: #1a1a1a; color: #fff; border: 1px solid #444; border-radius: 6px; padding: 6px 8px; font-size: 0.75rem; width: 100%; box-sizing: border-box;">
     <span style="font-size: 0.7rem; color: var(--text-grey);">Le clip YouTube est joué sans son et synchronisé sur Spotify. Tu peux aussi coller un lien avec le bouton 🔗 du panneau.</span>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Paroles via sous-titres YouTube 📝</span>
-    <label class="switch">
-        <input type="checkbox" id="subs-feature-toggle" onchange="toggleSubsFeatureSetting(this.checked)">
-        <span class="slider"></span>
-    </label>
 </div>
 <span style="font-size: 0.7rem; color: var(--text-grey);">Nécessite l'Intégration Clip. Un bouton lance l'appel (quota : 10 par jour), le résultat est mémorisé pour ne jamais le refaire.</span>
 
@@ -2238,17 +2216,6 @@
 </div>
             </div>
 
-            <div class="card" id="devices-card">
-                <div style="display: flex; align-items: center; justify-content: space-between;">
-                    <p id="devices-title" style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 0;">APPAREILS</p>
-                    <span id="divoom-icons">
-                        <button class="dv-dev" id="dv-dev-timebox" onclick="divoomClickDevice('timebox')" title="Enceinte Timebox Evo : touche pour (re)connecter"><img id="divoom-icon-timebox" src="enceinte.png" alt="🔊" style="height: 34px;" onerror="this.outerHTML='<span style=&quot;font-size:1.6rem&quot;>🔊</span>'"><i class="dv-led" id="dv-led-timebox"></i></button>
-                        <button class="dv-dev" id="dv-dev-pixoo" onclick="divoomClickDevice('pixoo')" title="Écran LED Pixoo : touche pour (re)connecter"><img id="divoom-icon-pixoo" src="ecranled.png" alt="🟦" style="height: 22px;" onerror="this.outerHTML='<span style=&quot;font-size:1.3rem&quot;>🟦</span>'"><i class="dv-led" id="dv-led-pixoo"></i></button>
-                        <button class="dv-plus" id="dv-plus-btn" onclick="divoomTogglePlus(event)" title="Piloter les deux appareils">＋</button>
-                        <div id="dv-plus-pop"></div>
-                    </span>
-                </div>
-            </div>
         </div>
     </div>
 
@@ -4922,22 +4889,18 @@ function toggleAnimPause(on) {
     ['anim-pause-toggle', 'tb-anim-pause'].forEach(id => { const el = document.getElementById(id); if (el && el.checked !== animPaused) el.checked = animPaused; });
 }
 const TB_INT = {
-    clip: { en: () => clipFeatureEnabled, set: v => toggleClipFeatureSetting(v), hid: () => clipHidden, show: () => clipShowPanel(), hide: () => clipHidePanel(), st: 'clip-feature-toggle' },
-    pip: { en: () => pipFeatureEnabled, set: v => togglePipFeatureSetting(v), hid: () => pipHidden, show: () => pipShowPanel(), hide: () => pipHidePanel(), st: 'pip-feature-toggle' },
-    subs: { en: () => subsFeatureEnabled, set: v => toggleSubsFeatureSetting(v), hid: () => subsHidden, show: () => subsShowPanel(), hide: () => subsHidePanel(), st: 'subs-feature-toggle' }
+    clip: { hid: () => clipHidden, show: () => clipShowPanel(), hide: () => clipHidePanel() },
+    pip: { hid: () => pipHidden, show: () => pipShowPanel(), hide: () => pipHidePanel() },
+    subs: { hid: () => subsHidden, show: () => subsShowPanel(), hide: () => subsHidePanel() }
 };
 function tbSync() {
     Object.keys(TB_INT).forEach(k => {
-        const d = TB_INT[k], on = !!d.en();
-        const c = document.getElementById('tb-' + k); if (c && c.checked !== on) c.checked = on;
-        const e = document.getElementById('tb-' + k + '-eye'); if (e) { e.disabled = !on; e.textContent = d.hid() ? '🙈' : '👁'; e.title = d.hid() ? 'Afficher' : 'Masquer'; }
-        const st = document.getElementById(d.st); if (st && st.checked !== on) st.checked = on;
+        const e = document.getElementById('tb-' + k + '-eye'); if (e) e.textContent = TB_INT[k].hid() ? '👁 Afficher' : '🙈 Masquer';
     });
     const ap = document.getElementById('tb-anim-pause'); if (ap && ap.checked !== animPaused) ap.checked = animPaused;
     const ap2 = document.getElementById('anim-pause-toggle'); if (ap2 && ap2.checked !== animPaused) ap2.checked = animPaused;
 }
-function tbFeature(k, on) { try { TB_INT[k].set(on); } catch (e) {} tbSync(); }
-function tbEye(k) { const d = TB_INT[k]; if (!d.en()) return; try { d.hid() ? d.show() : d.hide(); } catch (e) {} tbSync(); }
+function tbEye(k) { const d = TB_INT[k]; try { d.hid() ? d.show() : d.hide(); } catch (e) {} tbSync(); }
 function toggleToolbox(force) {
     const b = document.getElementById('toolbox-back'); if (!b) return;
     const open = typeof force === 'boolean' ? force : !b.classList.contains('open');
@@ -5078,7 +5041,7 @@ async function divoomDisconnectAll(withBye) {
 function divoomUpdateIcons() {
     const box = document.getElementById('divoom-icons'); if (!box) return;
     box.style.display = divoomEnabled ? 'inline-flex' : 'none';
-    const dcard = document.getElementById('devices-card'); if (dcard) dcard.style.display = divoomEnabled ? 'block' : 'none';
+    const dcard = document.getElementById('tb-devices'); if (dcard) dcard.style.display = divoomEnabled ? 'block' : 'none';
     ['timebox', 'pixoo'].forEach(t => {
         const led = document.getElementById('dv-led-' + t); if (!led) return;
         const ok = divoomDevices.some(d => d.type === t), trying = !ok && divoomConnecting[t];
@@ -7282,8 +7245,7 @@ function ensureCreditsModal() {
             <li><strong>Modes d'affichage</strong> — paroles défilantes, image de l'artiste en 16×16 (écran noir sans photo), défilement pochette · artiste · titre (le titre reste lisible 2 s avant de défiler), stats d'écoute (titres écoutés aujourd'hui, titre et artiste les plus écoutés, temps d'écoute ; basé sur les 50 derniers titres de Spotify), titres aimés (mini-pochettes, panneau ❤️ avec flèches et bouton « Lancer »).</li>
             <li><strong>Aurore sur les écrans</strong> — la scénographie en 16×16 : rideaux de lumière aux deux couleurs de la pochette qui ondulent et pulsent au tempo, étoiles qui scintillent (mode « 🌌 Aurore (scénographie) », aussi dans le ＋).</li>
             <li><strong>Fond « Lecture en cours »</strong> — réglage pour que le fond de l'encadré épouse en douceur les couleurs de la pochette (désactivé par défaut).</li>
-            <li><strong>Boîte à outils 🧰</strong> — un bouton qui regroupe les 3 intégrations (clip, paroles flottantes, sous-titres : activer et afficher/masquer), les paroles en plein écran et la pause des animations.</li>
-            <li><strong>Encadré Appareils</strong> — les voyants Bluetooth et le bouton ＋ ont leur propre encadré sous « Lecture en cours ». Réglages : les effets sont en haut, avec « Mettre en pause les animations ».</li>
+            <li><strong>Boîte à outils 🧰</strong> — un bouton en bas à droite remplace les 3 boutons des intégrations (clip, paroles flottantes, sous-titres, toujours actives : afficher / masquer). Il contient aussi un encadré Appareils (voyants Bluetooth + bouton ＋), les paroles en plein écran et la pause des animations. Réglages : les effets sont en haut.</li>
             <li><strong>Aurore LED</strong> — le cœur des titres likés n'est plus affiché dans ce mode ; l'écran d'accueil « Se connecter » disparaît aussi après une reconnexion automatique.</li>
             <li><strong>Effet animé pochette</strong> — bande lumineuse sur toute la largeur de « Lecture en cours », exactement la hauteur de la pochette (rien au-dessus ni en dessous), au choix : aurore, égaliseur, ondes, projecteurs ou constellation (nouveau) (un seul effet à la fois) ; désactivé par défaut.</li>
             <li><strong>Anti-plantage</strong> — ouverture des appareils un par un, 5 s d'attente après le chargement, liaisons fermées proprement au rechargement ; si la page s'arrête pendant une connexion, la reconnexion automatique est suspendue et il suffit de toucher un voyant.</li>
@@ -12298,7 +12260,7 @@ function updateBrasTourneDisquePosition() {
 // minuteur et bouton pause/reprendre (plus de paroles).
 // Fonctionnalité désactivée par défaut : le bouton 🖼️ n'apparaît que si le réglage est activé.
 // ==========================================
-let pipFeatureEnabled = localStorage.getItem('pipFeatureEnabled') === 'true';
+let pipFeatureEnabled = true; // toujours actif (géré depuis la boîte à outils)
 let pipPanelOpen = false;
 let pipHidden = false;   // PiP caché par l'utilisateur (🙈), mémorisé
 try { pipHidden = localStorage.getItem('pipHidden') === 'true'; } catch (e) {}
@@ -12523,7 +12485,7 @@ function updatePipPanelContentUnsafe(forceColor) {
 // défaut. Le clip est cherché via l'API YouTube Data v3 (clé à renseigner dans les réglages) ou
 // choisi à la main (bouton 🔗). Le choix et le décalage de chaque clip sont mémorisés.
 // ==========================================
-let clipFeatureEnabled = localStorage.getItem('clipFeatureEnabled') === 'true';
+let clipFeatureEnabled = true; // toujours actif (géré depuis la boîte à outils)
 // Clé API YouTube Data v3 intégrée par défaut (un autre champ dans les réglages peut la remplacer)
 const CLIP_DEFAULT_API_KEY = 'AIzaSyDVjvbkx9Ekech-ZKrRBKiYhyWGhnEc7Jw';
 let clipApiKey = localStorage.getItem('clipApiKey') || CLIP_DEFAULT_API_KEY;
@@ -13041,7 +13003,7 @@ function subsAdjustOffset(deltaSec) {
     updateSubsPanelContent();
     flashOffsetLabel(lab, subsOffsetText(), () => subsOffsetLoad(clipVideoId));
 }
-let subsFeatureEnabled = localStorage.getItem('subsFeatureEnabled') === 'true';
+let subsFeatureEnabled = true; // toujours actif (géré depuis la boîte à outils)
 let subsLines = [];
 let subsLoadedFor = null;
 let subsBusy = false;
@@ -15002,13 +14964,23 @@ function initBouleLedState() {
 </script>
     <script src="script.js"></script>
 
+<button id="toolbox-fab" onclick="toggleToolbox()" title="Boîte à outils">🧰</button>
 <div id="toolbox-back" onclick="if(event.target===this)toggleToolbox(false)">
   <div id="toolbox-panel">
     <div class="tb-head"><span>🧰 Boîte à outils</span><button class="tb-btn" onclick="toggleToolbox(false)">✕</button></div>
     <div class="tb-sec">INTÉGRATIONS</div>
-    <div class="tb-row"><span>Clip 🎬</span><span class="tb-right"><button class="tb-btn" id="tb-clip-eye" onclick="tbEye('clip')">👁</button><label class="switch"><input type="checkbox" id="tb-clip" onchange="tbFeature('clip',this.checked)"><span class="slider"></span></label></span></div>
-    <div class="tb-row"><span>Paroles flottantes 🖼️</span><span class="tb-right"><button class="tb-btn" id="tb-pip-eye" onclick="tbEye('pip')">👁</button><label class="switch"><input type="checkbox" id="tb-pip" onchange="tbFeature('pip',this.checked)"><span class="slider"></span></label></span></div>
-    <div class="tb-row"><span>Sous-titres 📝</span><span class="tb-right"><button class="tb-btn" id="tb-subs-eye" onclick="tbEye('subs')">👁</button><label class="switch"><input type="checkbox" id="tb-subs" onchange="tbFeature('subs',this.checked)"><span class="slider"></span></label></span></div>
+    <div class="tb-row"><span>Clip 🎬</span><button class="tb-btn" id="tb-clip-eye" onclick="tbEye('clip')">Masquer</button></div>
+    <div class="tb-row"><span>Paroles flottantes 🖼️</span><button class="tb-btn" id="tb-pip-eye" onclick="tbEye('pip')">Masquer</button></div>
+    <div class="tb-row"><span>Sous-titres 📝</span><button class="tb-btn" id="tb-subs-eye" onclick="tbEye('subs')">Masquer</button></div>
+    <div id="tb-devices" style="display:none;">
+      <div class="tb-sec">APPAREILS</div>
+      <div class="tb-box"><span id="divoom-icons">
+                        <button class="dv-dev" id="dv-dev-timebox" onclick="divoomClickDevice('timebox')" title="Enceinte Timebox Evo : touche pour (re)connecter"><img id="divoom-icon-timebox" src="enceinte.png" alt="🔊" style="height: 34px;" onerror="this.outerHTML='<span style=&quot;font-size:1.6rem&quot;>🔊</span>'"><i class="dv-led" id="dv-led-timebox"></i></button>
+                        <button class="dv-dev" id="dv-dev-pixoo" onclick="divoomClickDevice('pixoo')" title="Écran LED Pixoo : touche pour (re)connecter"><img id="divoom-icon-pixoo" src="ecranled.png" alt="🟦" style="height: 22px;" onerror="this.outerHTML='<span style=&quot;font-size:1.3rem&quot;>🟦</span>'"><i class="dv-led" id="dv-led-pixoo"></i></button>
+                        <button class="dv-plus" id="dv-plus-btn" onclick="divoomTogglePlus(event)" title="Piloter les deux appareils">＋</button>
+                        <div id="dv-plus-pop"></div>
+                    </span></div>
+    </div>
     <div class="tb-sec">RACCOURCIS</div>
     <button class="tb-btn tb-wide" onclick="openLyricsFullscreen()">📖 Paroles en plein écran</button>
     <div class="tb-row"><span>Pause des animations ⏸️</span><label class="switch"><input type="checkbox" id="tb-anim-pause" onchange="toggleAnimPause(this.checked)"><span class="slider"></span></label></div>
