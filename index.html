@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v11.8";
+        const APP_VERSION = "v12.0";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -4718,10 +4718,22 @@ function scenoWrap(g, text, maxW) { // 1 ou 2 lignes (coupe sur les espaces)
     return lines;
 }
 var animPaused = (function () { try { return localStorage.getItem('animPaused') === 'true'; } catch (e) { return false; } })();
+var scenoPT = 0;
+// Animations en pause : l'image est figée et ne se redessine QUE lorsqu'un nouveau titre est détecté (pendant ~2,5 s, le temps que les couleurs glissent), puis plus rien.
+var fxGate = {};
+function fxPauseGate(id, ts) {
+    const art = document.getElementById('track-art'), key = (art ? art.src : '') + '|' + (scenoTrack.id || '') + '|' + (scenoTrack.title || '');
+    const g = fxGate[id] || (fxGate[id] = { key: '', until: 0, last: 0 });
+    if (g.key !== key) { g.key = key; g.until = ts + 2500; }
+    if (ts > g.until && g.last) return false;
+    if (ts - g.last < 100) return false;
+    g.last = ts; return true;
+}
+window.addEventListener('resize', () => { fxGate = {}; });
 function scenoFrame(ts) {
     scenoRaf = requestAnimationFrame(scenoFrame);
-    if (!scenoCanvas || document.hidden || animPaused) return;
-    if (ts - scenoLast < 33) return; // ~30 images/s
+    if (!scenoCanvas || document.hidden) return;
+    if (animPaused ? !fxPauseGate('seno', ts) : ts - scenoLast < 33) return; // ~30 images/s (4 en pause d'animations : image figée mais mise à jour à chaque nouveau titre)
     scenoLast = ts;
     scenoUpdateColors();
     const cv = scenoCanvas, dpr = Math.min(window.devicePixelRatio || 1, 2), W = cv.clientWidth, H = cv.clientHeight;
@@ -4729,12 +4741,13 @@ function scenoFrame(ts) {
     if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
     const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
     const playing = (function () { try { return isCurrentlyPlaying; } catch (e) { return true; } })();
-    const t = ts / 1000, seed = scenoHash(scenoTrack.id || scenoTrack.title || 'x') % 1000;
+    if (!animPaused || !scenoPT) scenoPT = ts / 1000; // temps gelé quand les animations sont en pause
+    const t = scenoPT, seed = scenoHash(scenoTrack.id || scenoTrack.title || 'x') % 1000;
     const bpm = scenoBpm(), beatsF = t * bpm / 60, beatN = Math.floor(beatsF), frac = beatsF - beatN;
     const pulse = playing ? Math.exp(-frac * 4.5) : 0, speed = playing ? 1 : 0.25;
     const key = scenoTrack.id + '|' + scenoTrack.title;
-    if (key !== scenoTitleKey) { scenoTitleKey = key; scenoT0 = t; scenoStar = null; }
-    const lyr = scenoCurrentLyric(); if (lyr !== scenoLyric.text) { scenoLyric = { text: lyr, t0: t }; if (lyr) scenoRipples.push({ t0: t, x: 0.15 + 0.7 * ((scenoHash(lyr) % 100) / 100) }); }
+    if (key !== scenoTitleKey) { scenoTitleKey = key; scenoT0 = animPaused ? t - 100 : t; scenoStar = null; }
+    const lyr = scenoCurrentLyric(); if (lyr !== scenoLyric.text) { scenoLyric = { text: lyr, t0: animPaused ? t - 100 : t }; if (lyr && !animPaused) scenoRipples.push({ t0: t, x: 0.15 + 0.7 * ((scenoHash(lyr) % 100) / 100) }); }
     scenoRipples = scenoRipples.filter(r => t - r.t0 < 2.6);
     const flash = Math.exp(-(t - scenoLyric.t0) * 2.6);
     const fcs = fxColors(), A = fcs.c1, B = fcs.c2, M = A.map((v, i) => (v + B[i]) >> 1), lt = c => c.map(v => Math.min(255, v + 90));
@@ -4858,8 +4871,8 @@ function cfxSync() {
 let cfxT = 0, cfxSp = [], cfxNodes = [];
 function cfxFrame(ts) {
     cfxRaf = requestAnimationFrame(cfxFrame);
-    if (document.hidden || animPaused || ts - cfxLast < 33) return;
-    const dt = Math.min(0.1, (ts - cfxLast) / 1000); cfxLast = ts;
+    if (document.hidden || (animPaused ? !fxPauseGate('cfx', ts) : ts - cfxLast < 33)) return;
+    const dt = animPaused ? 0 : Math.min(0.1, (ts - cfxLast) / 1000); cfxLast = ts;
     const cv = document.getElementById('cover-fx'), art = document.getElementById('track-art'), card = document.getElementById('np-card');
     if (!cv || !art || !card) return;
     const cr = card.getBoundingClientRect(), ar = art.getBoundingClientRect();
@@ -4940,7 +4953,7 @@ function cfxFrame(ts) {
 // ===== Boîte à outils, paroles en plein écran, pause des animations =====
 function toggleAnimPause(on) {
     animPaused = !!on; try { localStorage.setItem('animPaused', on ? 'true' : 'false'); } catch (e) {}
-    document.body.classList.toggle('anim-paused', animPaused);
+    document.body.classList.toggle('anim-paused', animPaused); fxGate = {};
     tbSync();
 }
 const TB_INT = {
@@ -5024,8 +5037,8 @@ function bubblesSync() {
 }
 function bubblesFrame(ts) {
     bubRaf = requestAnimationFrame(bubblesFrame);
-    if (document.hidden || animPaused || ts - bubLast < 33) return;
-    const dt = Math.min(0.1, (ts - bubLast) / 1000); bubLast = ts;
+    if (document.hidden || (animPaused ? !fxPauseGate('bub', ts) : ts - bubLast < 33)) return;
+    const dt = animPaused ? 0 : Math.min(0.1, (ts - bubLast) / 1000); bubLast = ts;
     const cv = document.getElementById('bubbles-fx'), card = document.getElementById('explorer-card'); if (!cv || !card) return;
     const W = card.clientWidth, H = card.clientHeight; if (!W || !H) return;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
