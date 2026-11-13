@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v10.9";
+        const APP_VERSION = "v11.0";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -844,6 +844,13 @@
         #toolbox-panel button.tb-wide { margin-top: 0 !important; }
         #toolbox-panel .tb-box { padding: 0; background: none; border: none; }
         #toolbox-panel #divoom-icons { padding: 2px 0; }
+        /* Boîte à outils compacte (remplace le bouton ＋ : mêmes dimensions, boutons serrés) */
+        #toolbox-back #toolbox-panel { width: 210px !important; gap: 4px !important; padding: 8px !important; }
+        #toolbox-panel button.tb-btn { padding: 6px 9px !important; font-size: 0.78rem !important; }
+        #toolbox-panel #divoom-icons { padding: 0 0 2px; gap: 10px; }
+        #toolbox-panel.tb-plus > button.tb-btn, #toolbox-panel.tb-plus #divoom-icons > button { display: none !important; }
+        #toolbox-panel.tb-plus #divoom-icons { padding: 0; }
+        #toolbox-panel.tb-plus #dv-plus-pop { background: none; border: none; box-shadow: none; padding: 0; margin: 0; min-width: 0; }
         /* Pause des animations */
         body.anim-paused *, body.anim-paused *::before, body.anim-paused *::after { animation-play-state: paused !important; }
         /* Boîte à outils */
@@ -868,11 +875,17 @@
         #lfs-meta img { width: 48px; height: 48px; border-radius: 10px; object-fit: cover; box-shadow: 0 4px 14px rgba(0,0,0,0.5); }
         #lfs-meta b { display: block; font-size: 0.95rem; } #lfs-meta span { font-size: 0.8rem; opacity: 0.7; }
         #lfs-close { position: absolute !important; top: 14px; right: 14px; width: 40px !important; height: 40px !important; border-radius: 50% !important; background: rgba(255,255,255,0.12) !important; border: 1px solid rgba(255,255,255,0.2) !important; color: #fff !important; font-size: 1.1rem !important; padding: 0 !important; margin: 0 !important; }
-        #lfs-list { position: absolute !important; inset: 0; z-index: 1; overflow-y: auto; scrollbar-width: none; padding: 42vh 22px; box-sizing: border-box; -webkit-mask-image: linear-gradient(transparent 0, #000 16%, #000 84%, transparent 100%); mask-image: linear-gradient(transparent 0, #000 16%, #000 84%, transparent 100%); }
+        #lfs-list { position: absolute !important; inset: 0; z-index: 1; overflow-y: auto; scrollbar-width: none; padding: 42vh 22px 46vh; box-sizing: border-box; -webkit-mask-image: linear-gradient(transparent 0, #000 16%, #000 84%, transparent 100%); mask-image: linear-gradient(transparent 0, #000 16%, #000 84%, transparent 100%); }
         #lfs-list::-webkit-scrollbar { display: none; }
         #lfs-list .lfs-line { font-size: clamp(1.5rem, 5.6vw, 2.9rem); font-weight: 800; line-height: 1.22; color: #fff; opacity: 0.38; margin: 0 auto 0.7em; max-width: 960px; transition: opacity 0.45s ease, transform 0.45s ease, filter 0.45s ease; transform: scale(0.94); transform-origin: center; filter: blur(0.6px); }
         #lfs-list .lfs-line.on { opacity: 1; transform: scale(1.04); filter: none; text-shadow: 0 0 28px rgba(255,255,255,0.35); }
         #lfs-list .lfs-line.near { opacity: 0.6; filter: none; }
+        #lfs-bar { position: absolute !important; left: 0; right: 0; bottom: 0; z-index: 4 !important; display: flex; align-items: center; gap: 10px; padding: 12px 18px calc(14px + env(safe-area-inset-bottom)); background: linear-gradient(transparent, rgba(0,0,0,0.65)); }
+        #lfs-bar span { font-size: 0.72rem; opacity: 0.8; min-width: 34px; text-align: center; }
+        #lfs-pbg { flex: 1; height: 22px; display: flex; align-items: center; cursor: pointer; position: relative; }
+        #lfs-pbg::before { content: ''; position: absolute; left: 0; right: 0; height: 5px; border-radius: 3px; background: rgba(255,255,255,0.22); }
+        #lfs-pfill { position: relative; height: 5px; border-radius: 3px; background: #fff; width: 0%; pointer-events: none; }
+        #lfs-pp { width: 38px !important; height: 38px !important; border-radius: 50% !important; background: #fff !important; color: #000 !important; border: none !important; font-size: 1rem !important; padding: 0 !important; margin: 0 !important; flex: none; }
         #lfs-hint { position: absolute !important; bottom: 14px; font-size: 0.7rem; opacity: 0.35; }
         #cover-fx { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; display: none; }
         #np-card.cfx-on #track-art { position: relative; }
@@ -1634,22 +1647,6 @@
 </div>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Bouton pétard 🎉</span>
-    <label class="switch">
-        <input type="checkbox" id="party-popper-toggle" onchange="togglePartyPopperSetting(this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Bouton rideau 🎭</span>
-    <label class="switch">
-        <input type="checkbox" id="rideau-btn-toggle" onchange="toggleRideauBtnSetting(this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
     <span style="font-size: 0.85rem; color: var(--text-grey);">Paroles cliquables (navigation)</span>
     <label class="switch">
         <input type="checkbox" id="clickable-lyrics-toggle" onchange="toggleClickableLyricsSetting(this.checked)">
@@ -1657,7 +1654,7 @@
     </label>
 </div>
 
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+<div style="display: none;">
     <span style="font-size: 0.85rem; color: var(--text-grey);">Défilement automatique des paroles</span>
     <label class="switch">
         <input type="checkbox" id="autoscroll-lyrics-toggle" checked onchange="toggleAutoScrollLyricsSetting(this.checked)">
@@ -1929,12 +1926,35 @@
     </label>
 </div>
 
-<p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 14px 0 2px 0;">🔥 FLAMMES &amp; PÉTARDS</p>
+<p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 14px 0 2px 0;">🎆 BOUTONS &amp; FEUX D'ARTIFICE</p>
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Bouton pétard 🎉</span>
+    <label class="switch">
+        <input type="checkbox" id="party-popper-toggle" onchange="togglePartyPopperSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Flammes en bas d'écran</span>
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Bouton rideau 🎭</span>
     <label class="switch">
-        <input type="checkbox" id="flames-toggle" onchange="toggleFlamesSetting(this.checked)">
+        <input type="checkbox" id="rideau-btn-toggle" onchange="toggleRideauBtnSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Bouton brume de scène 🌫️</span>
+    <label class="switch">
+        <input type="checkbox" id="brume-btn-toggle" onchange="toggleBrumeBtnSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Bouton ballon qui gonfle 🎈</span>
+    <label class="switch">
+        <input type="checkbox" id="ballon-btn-toggle" onchange="toggleBallonBtnSetting(this.checked)">
         <span class="slider"></span>
     </label>
 </div>
@@ -1951,6 +1971,16 @@
     <span style="font-size: 0.85rem; color: var(--text-grey);">Pétard clic-clac</span>
     <label class="switch">
         <input type="checkbox" id="petard-clic-clac-toggle" onchange="togglePetardClicClacSetting(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<p style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 14px 0 2px 0;">🔥 FLAMMES</p>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Flammes en bas d'écran</span>
+    <label class="switch">
+        <input type="checkbox" id="flames-toggle" onchange="toggleFlamesSetting(this.checked)">
         <span class="slider"></span>
     </label>
 </div>
@@ -2090,11 +2120,9 @@
         <option value="pixel16">Pixels 16 cases (écran LED)</option>
     </select>
 </div>
-<div style="display: flex; flex-direction: column; gap: 4px; width: 100%;">
+<div style="display: none;">
     <input type="password" id="clip-api-key-input" placeholder="Clé API YouTube Data v3 (déjà intégrée, modifiable)" onchange="setClipApiKey(this.value)" style="background: #1a1a1a; color: #fff; border: 1px solid #444; border-radius: 6px; padding: 6px 8px; font-size: 0.75rem; width: 100%; box-sizing: border-box;">
-    <span style="font-size: 0.7rem; color: var(--text-grey);">Le clip YouTube est joué sans son et synchronisé sur Spotify. Tu peux aussi coller un lien avec le bouton 🔗 du panneau.</span>
 </div>
-<span style="font-size: 0.7rem; color: var(--text-grey);">Nécessite l'Intégration Clip. Un bouton lance l'appel (quota : 10 par jour), le résultat est mémorisé pour ne jamais le refaire.</span>
 
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
     <span style="font-size: 0.85rem; color: var(--text-grey);">Flou progressif des lignes passées</span>
@@ -2141,22 +2169,6 @@
     <span style="font-size: 0.85rem; color: var(--text-grey);">Séquence d'écoute (flamme) 🔥</span>
     <label class="switch">
         <input type="checkbox" id="streak-toggle" onchange="toggleStreakSetting(this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Bouton brume de scène 🌫️</span>
-    <label class="switch">
-        <input type="checkbox" id="brume-btn-toggle" onchange="toggleBrumeBtnSetting(this.checked)">
-        <span class="slider"></span>
-    </label>
-</div>
-
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Bouton ballon qui gonfle 🎈</span>
-    <label class="switch">
-        <input type="checkbox" id="ballon-btn-toggle" onchange="toggleBallonBtnSetting(this.checked)">
         <span class="slider"></span>
     </label>
 </div>
@@ -4902,7 +4914,7 @@ function cfxFrame(ts) {
 function toggleAnimPause(on) {
     animPaused = !!on; try { localStorage.setItem('animPaused', on ? 'true' : 'false'); } catch (e) {}
     document.body.classList.toggle('anim-paused', animPaused);
-    ['anim-pause-toggle', 'tb-anim-pause'].forEach(id => { const el = document.getElementById(id); if (el && el.checked !== animPaused) el.checked = animPaused; });
+    tbSync();
 }
 const TB_INT = {
     clip: { hid: () => clipHidden, show: () => clipShowPanel(), hide: () => clipHidePanel() },
@@ -4910,17 +4922,18 @@ const TB_INT = {
     subs: { hid: () => subsHidden, show: () => subsShowPanel(), hide: () => subsHidePanel() }
 };
 function tbSync() {
+    const lab = { clip: ['Clip', '🎬'], pip: ['Paroles flottantes', '🖼️'], subs: ['Sous-titres', '📝'] };
     Object.keys(TB_INT).forEach(k => {
-        const e = document.getElementById('tb-' + k + '-eye'); if (e) e.textContent = TB_INT[k].hid() ? '👁 Afficher' : '🙈 Masquer';
+        const e = document.getElementById('tb-' + k + '-eye'); if (e) e.textContent = lab[k][1] + ' ' + lab[k][0] + ' : ' + (TB_INT[k].hid() ? 'afficher' : 'masquer');
     });
-    const ap = document.getElementById('tb-anim-pause'); if (ap && ap.checked !== animPaused) ap.checked = animPaused;
+    const ab = document.getElementById('tb-anim-btn'); if (ab) ab.textContent = animPaused ? '▶️ Reprendre les animations' : '⏸️ Pause des animations';
     const ap2 = document.getElementById('anim-pause-toggle'); if (ap2 && ap2.checked !== animPaused) ap2.checked = animPaused;
 }
 function tbEye(k) { const d = TB_INT[k]; try { d.hid() ? d.show() : d.hide(); } catch (e) {} tbSync(); }
 function toggleToolbox(force) {
     const b = document.getElementById('toolbox-back'); if (!b) return;
     const open = typeof force === 'boolean' ? force : !b.classList.contains('open');
-    b.classList.toggle('open', open); if (open) tbSync();
+    b.classList.toggle('open', open); if (open) tbSync(); else { const pp = document.getElementById('dv-plus-pop'); if (pp) pp.classList.remove('open'); }
 }
 let lfsTimer = null, lfsWake = null, lfsLast = '';
 function openLyricsFullscreen() {
@@ -4945,6 +4958,9 @@ function lfsTick() {
     const t = document.getElementById('track-title'), a = document.getElementById('track-artist'), art = document.getElementById('track-art');
     set('lfs-title', t ? t.textContent : ''); set('lfs-artist', a ? a.textContent : '');
     const im = document.getElementById('lfs-art'); if (im && art && art.src && im.src !== art.src) im.src = art.src; if (im) im.style.display = art && art.style.display !== 'none' && art.src ? '' : 'none';
+    const pf = document.getElementById('progress-fill'), lf = document.getElementById('lfs-pfill'); if (pf && lf) lf.style.width = pf.style.width || '0%';
+    set('lfs-tc', (document.getElementById('time-current') || {}).textContent || '0:00'); set('lfs-tm', (document.getElementById('time-max') || {}).textContent || '0:00');
+    const pp = document.getElementById('lfs-pp'); if (pp) { const pl = (function () { try { return !!isCurrentlyPlaying; } catch (e) { return true; } })(); const ic = pl ? '⏸' : '▶'; if (pp.textContent !== ic) pp.textContent = ic; }
     const list = document.getElementById('lfs-list'); if (!list) return;
     const src = Array.from(document.querySelectorAll('#lyrics-content .lyric-line'));
     const texts = src.map(e => (e.innerText || e.textContent || '').trim());
@@ -4964,6 +4980,8 @@ function lfsTick() {
     try { scenoUpdateColors(); const A = scenoCols.c1, B = scenoCols.c2; const bg = document.getElementById('lfs-bg'); if (bg) bg.style.background = 'radial-gradient(circle at 20% 15%, rgba(' + A.join(',') + ',0.30), transparent 60%), radial-gradient(circle at 85% 90%, rgba(' + B.join(',') + ',0.28), transparent 60%), #08080a'; } catch (e) {}
 }
 setTimeout(() => { try { document.body.classList.toggle('anim-paused', animPaused); tbSync(); } catch (e) {} }, 600);
+window.addEventListener('load', () => { const pop = document.getElementById('dv-plus-pop'), pn = document.getElementById('toolbox-panel'); if (!pop || !pn) return;
+    new MutationObserver(() => pn.classList.toggle('tb-plus', pop.classList.contains('open'))).observe(pop, { attributes: true, attributeFilter: ['class'] }); });
 setInterval(() => { try { cfxSync(); } catch (e) {} }, 500);
 
 
@@ -5096,6 +5114,7 @@ function divoomRenderPlus() {
     });
     if (divoomPlusStep === 0) h += '<button onclick="divoomPlusStep=1;divoomRenderPlus()" class="' + (tm !== pm ? 'on' : '') + '">🎛️ Combo : un mode par appareil' + (tm !== pm && !divoomBlank ? ' (' + ((DIVOOM_MODES.find(m => m[0] === tm) || ['', tm])[1].split(' ')[0]) + ' + ' + ((DIVOOM_MODES.find(m => m[0] === pm) || ['', pm])[1].split(' ')[0]) + ')' : '') + '</button><button onclick="divoomSwapTypes()">🔁 Inverser les appareils</button>';
     else h += '<button onclick="divoomPlusStep=0;divoomRenderPlus()">✖ Annuler le combo</button>';
+    h += '<button onclick="divoomTogglePlus()">✕ Fermer</button>';
     pop.innerHTML = h;
 }
 function divoomPlusPick(m) {
@@ -14988,31 +15007,30 @@ function initBouleLedState() {
 <button id="toolbox-fab" onclick="toggleToolbox()" title="Boîte à outils">🧰</button>
 <div id="toolbox-back" onclick="if(event.target===this)toggleToolbox(false)">
   <div id="toolbox-panel">
-    <div class="tb-head"><span>🧰 Boîte à outils</span><button class="tb-btn" onclick="toggleToolbox(false)">✕</button></div>
-    <div class="tb-sec">INTÉGRATIONS</div>
-    <div class="tb-row"><span>Clip 🎬</span><button class="tb-btn" id="tb-clip-eye" onclick="tbEye('clip')">Masquer</button></div>
-    <div class="tb-row"><span>Paroles flottantes 🖼️</span><button class="tb-btn" id="tb-pip-eye" onclick="tbEye('pip')">Masquer</button></div>
-    <div class="tb-row"><span>Sous-titres 📝</span><button class="tb-btn" id="tb-subs-eye" onclick="tbEye('subs')">Masquer</button></div>
-    <div id="tb-devices" style="display:none;">
-      <div class="tb-sec">APPAREILS</div>
-      <div class="tb-box"><span id="divoom-icons">
+    <div id="tb-devices" style="display:none;"><div class="tb-box"><span id="divoom-icons">
                         <button class="dv-dev" id="dv-dev-timebox" onclick="divoomClickDevice('timebox')" title="Enceinte Timebox Evo : touche pour (re)connecter"><img id="divoom-icon-timebox" src="enceinte.png" alt="🔊" style="height: 34px;" onerror="this.outerHTML='<span style=&quot;font-size:1.6rem&quot;>🔊</span>'"><i class="dv-led" id="dv-led-timebox"></i></button>
                         <button class="dv-dev" id="dv-dev-pixoo" onclick="divoomClickDevice('pixoo')" title="Écran LED Pixoo : touche pour (re)connecter"><img id="divoom-icon-pixoo" src="ecranled.png" alt="🟦" style="height: 22px;" onerror="this.outerHTML='<span style=&quot;font-size:1.3rem&quot;>🟦</span>'"><i class="dv-led" id="dv-led-pixoo"></i></button>
                         <button class="dv-plus" id="dv-plus-btn" onclick="divoomTogglePlus(event)" title="Piloter les deux appareils">＋</button>
                         <div id="dv-plus-pop"></div>
-                    </span></div>
-    </div>
-    <div class="tb-sec">RACCOURCIS</div>
-    <button class="tb-btn tb-wide" onclick="openLyricsFullscreen()">📖 Paroles en plein écran</button>
-    <div class="tb-row"><span>Pause des animations ⏸️</span><label class="switch"><input type="checkbox" id="tb-anim-pause" onchange="toggleAnimPause(this.checked)"><span class="slider"></span></label></div>
+                    </span></div></div>
+    <button class="tb-btn" id="tb-clip-eye" onclick="tbEye('clip')">Clip</button>
+    <button class="tb-btn" id="tb-pip-eye" onclick="tbEye('pip')">Paroles flottantes</button>
+    <button class="tb-btn" id="tb-subs-eye" onclick="tbEye('subs')">Sous-titres</button>
+    <button class="tb-btn" onclick="openLyricsFullscreen()">📖 Paroles en plein écran</button>
+    <button class="tb-btn" id="tb-anim-btn" onclick="toggleAnimPause(!animPaused)">⏸️ Pause des animations</button>
   </div>
 </div>
-<div id="lyrics-fs" onclick="closeLyricsFullscreen()">
+<div id="lyrics-fs">
   <div id="lfs-bg"></div>
   <div id="lfs-meta"><img id="lfs-art" alt=""><div><b id="lfs-title"></b><span id="lfs-artist"></span></div></div>
   <button id="lfs-close" onclick="event.stopPropagation();closeLyricsFullscreen()">✕</button>
   <div id="lfs-list"></div>
-  <div id="lfs-hint">Touche l'écran pour fermer</div>
+  <div id="lfs-bar" onclick="event.stopPropagation()">
+    <button id="lfs-pp" onclick="event.stopPropagation();togglePlay()">⏸</button>
+    <span id="lfs-tc">0:00</span>
+    <div id="lfs-pbg" onclick="event.stopPropagation();seekTrack(event)"><div id="lfs-pfill"></div></div>
+    <span id="lfs-tm">0:00</span>
+  </div>
 </div>
 </body>
 </html>
