@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v11.0";
+        const APP_VERSION = "v11.1";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -871,21 +871,18 @@
         #lfs-bg { position: absolute; inset: 0; z-index: 0; transition: background 1s ease; }
         #lfs-meta, #lfs-close, #lfs-hint { z-index: 3 !important; }
         #lyrics-fs > *:not(#lfs-bg) { position: relative; z-index: 1; }
-        #lfs-meta { position: absolute !important; top: 18px; left: 18px; right: 70px; display: flex; align-items: center; gap: 12px; text-align: left; }
+        #lfs-meta { position: absolute !important; top: 14px; left: 18px; right: 200px; display: flex; align-items: center; gap: 12px; text-align: left; }
         #lfs-meta img { width: 48px; height: 48px; border-radius: 10px; object-fit: cover; box-shadow: 0 4px 14px rgba(0,0,0,0.5); }
         #lfs-meta b { display: block; font-size: 0.95rem; } #lfs-meta span { font-size: 0.8rem; opacity: 0.7; }
-        #lfs-close { position: absolute !important; top: 14px; right: 14px; width: 40px !important; height: 40px !important; border-radius: 50% !important; background: rgba(255,255,255,0.12) !important; border: 1px solid rgba(255,255,255,0.2) !important; color: #fff !important; font-size: 1.1rem !important; padding: 0 !important; margin: 0 !important; }
-        #lfs-list { position: absolute !important; inset: 0; z-index: 1; overflow-y: auto; scrollbar-width: none; padding: 42vh 22px 46vh; box-sizing: border-box; -webkit-mask-image: linear-gradient(transparent 0, #000 16%, #000 84%, transparent 100%); mask-image: linear-gradient(transparent 0, #000 16%, #000 84%, transparent 100%); }
+        #lfs-close { position: static !important; width: 40px !important; height: 40px !important; border-radius: 50% !important; background: rgba(255,255,255,0.12) !important; border: 1px solid rgba(255,255,255,0.2) !important; color: #fff !important; font-size: 1.1rem !important; padding: 0 !important; margin: 0 !important; }
+        #lfs-list { position: absolute !important; inset: 0; z-index: 1; overflow-y: auto; scrollbar-width: none; padding: 42vh 22px; box-sizing: border-box; -webkit-mask-image: linear-gradient(transparent 0, #000 16%, #000 84%, transparent 100%); mask-image: linear-gradient(transparent 0, #000 16%, #000 84%, transparent 100%); }
         #lfs-list::-webkit-scrollbar { display: none; }
         #lfs-list .lfs-line { font-size: clamp(1.5rem, 5.6vw, 2.9rem); font-weight: 800; line-height: 1.22; color: #fff; opacity: 0.38; margin: 0 auto 0.7em; max-width: 960px; transition: opacity 0.45s ease, transform 0.45s ease, filter 0.45s ease; transform: scale(0.94); transform-origin: center; filter: blur(0.6px); }
         #lfs-list .lfs-line.on { opacity: 1; transform: scale(1.04); filter: none; text-shadow: 0 0 28px rgba(255,255,255,0.35); }
         #lfs-list .lfs-line.near { opacity: 0.6; filter: none; }
-        #lfs-bar { position: absolute !important; left: 0; right: 0; bottom: 0; z-index: 4 !important; display: flex; align-items: center; gap: 10px; padding: 12px 18px calc(14px + env(safe-area-inset-bottom)); background: linear-gradient(transparent, rgba(0,0,0,0.65)); }
-        #lfs-bar span { font-size: 0.72rem; opacity: 0.8; min-width: 34px; text-align: center; }
-        #lfs-pbg { flex: 1; height: 22px; display: flex; align-items: center; cursor: pointer; position: relative; }
-        #lfs-pbg::before { content: ''; position: absolute; left: 0; right: 0; height: 5px; border-radius: 3px; background: rgba(255,255,255,0.22); }
-        #lfs-pfill { position: relative; height: 5px; border-radius: 3px; background: #fff; width: 0%; pointer-events: none; }
-        #lfs-pp { width: 38px !important; height: 38px !important; border-radius: 50% !important; background: #fff !important; color: #000 !important; border: none !important; font-size: 1rem !important; padding: 0 !important; margin: 0 !important; flex: none; }
+        #lfs-top { position: absolute !important; top: 14px; right: 14px; z-index: 4 !important; display: flex; align-items: center; gap: 10px; }
+        #lfs-time { font-size: 0.8rem; opacity: 0.85; white-space: nowrap; }
+        #lfs-pp { width: 40px !important; height: 40px !important; border-radius: 50% !important; background: #fff !important; color: #000 !important; border: none !important; font-size: 1rem !important; padding: 0 !important; margin: 0 !important; flex: none; }
         #lfs-hint { position: absolute !important; bottom: 14px; font-size: 0.7rem; opacity: 0.35; }
         #cover-fx { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; display: none; }
         #np-card.cfx-on #track-art { position: relative; }
@@ -4924,9 +4921,9 @@ const TB_INT = {
 function tbSync() {
     const lab = { clip: ['Clip', '🎬'], pip: ['Paroles flottantes', '🖼️'], subs: ['Sous-titres', '📝'] };
     Object.keys(TB_INT).forEach(k => {
-        const e = document.getElementById('tb-' + k + '-eye'); if (e) e.textContent = lab[k][1] + ' ' + lab[k][0] + ' : ' + (TB_INT[k].hid() ? 'afficher' : 'masquer');
+        const e = document.getElementById('tb-' + k + '-eye'); if (e) e.textContent = lab[k][1] + ' ' + lab[k][0] + ' ' + (TB_INT[k].hid() ? '👁' : '🙈');
     });
-    const ab = document.getElementById('tb-anim-btn'); if (ab) ab.textContent = animPaused ? '▶️ Reprendre les animations' : '⏸️ Pause des animations';
+    const ab = document.getElementById('tb-anim-btn'); if (ab) ab.textContent = animPaused ? '▶️ Reprendre animations' : '⏸️ Pause des animations';
     const ap2 = document.getElementById('anim-pause-toggle'); if (ap2 && ap2.checked !== animPaused) ap2.checked = animPaused;
 }
 function tbEye(k) { const d = TB_INT[k]; try { d.hid() ? d.show() : d.hide(); } catch (e) {} tbSync(); }
@@ -4958,8 +4955,7 @@ function lfsTick() {
     const t = document.getElementById('track-title'), a = document.getElementById('track-artist'), art = document.getElementById('track-art');
     set('lfs-title', t ? t.textContent : ''); set('lfs-artist', a ? a.textContent : '');
     const im = document.getElementById('lfs-art'); if (im && art && art.src && im.src !== art.src) im.src = art.src; if (im) im.style.display = art && art.style.display !== 'none' && art.src ? '' : 'none';
-    const pf = document.getElementById('progress-fill'), lf = document.getElementById('lfs-pfill'); if (pf && lf) lf.style.width = pf.style.width || '0%';
-    set('lfs-tc', (document.getElementById('time-current') || {}).textContent || '0:00'); set('lfs-tm', (document.getElementById('time-max') || {}).textContent || '0:00');
+    set('lfs-time', ((document.getElementById('time-current') || {}).textContent || '0:00') + ' / ' + ((document.getElementById('time-max') || {}).textContent || '0:00'));
     const pp = document.getElementById('lfs-pp'); if (pp) { const pl = (function () { try { return !!isCurrentlyPlaying; } catch (e) { return true; } })(); const ic = pl ? '⏸' : '▶'; if (pp.textContent !== ic) pp.textContent = ic; }
     const list = document.getElementById('lfs-list'); if (!list) return;
     const src = Array.from(document.querySelectorAll('#lyrics-content .lyric-line'));
@@ -15023,14 +15019,8 @@ function initBouleLedState() {
 <div id="lyrics-fs">
   <div id="lfs-bg"></div>
   <div id="lfs-meta"><img id="lfs-art" alt=""><div><b id="lfs-title"></b><span id="lfs-artist"></span></div></div>
-  <button id="lfs-close" onclick="event.stopPropagation();closeLyricsFullscreen()">✕</button>
+  <div id="lfs-top"><span id="lfs-time">0:00 / 0:00</span><button id="lfs-pp" onclick="togglePlay()">⏸</button><button id="lfs-close" onclick="closeLyricsFullscreen()">✕</button></div>
   <div id="lfs-list"></div>
-  <div id="lfs-bar" onclick="event.stopPropagation()">
-    <button id="lfs-pp" onclick="event.stopPropagation();togglePlay()">⏸</button>
-    <span id="lfs-tc">0:00</span>
-    <div id="lfs-pbg" onclick="event.stopPropagation();seekTrack(event)"><div id="lfs-pfill"></div></div>
-    <span id="lfs-tm">0:00</span>
-  </div>
 </div>
 </body>
 </html>
