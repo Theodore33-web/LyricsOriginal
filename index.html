@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v11.3";
+        const APP_VERSION = "v11.5";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -820,7 +820,9 @@
         #np-card.np-bg { transition: --npc1 1.2s ease, --npc2 1.2s ease; background-color: #121212 !important; background-size: 200% 200%, 200% 200%, auto !important;
             background-image: radial-gradient(circle at 20% 15%, color-mix(in srgb, var(--npc1) 55%, transparent), transparent 60%), radial-gradient(circle at 85% 90%, color-mix(in srgb, var(--npc2) 50%, transparent), transparent 60%), linear-gradient(rgba(0,0,0,0.25), rgba(0,0,0,0.25)) !important;
             animation: npbgDrift 14s ease-in-out infinite alternate; }
-        #np-card { isolation: isolate; }
+        #np-card, #explorer-card { isolation: isolate; }
+        #explorer-card { position: relative; }
+        #bubbles-fx { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; display: none; border-radius: inherit; }
 
         /* Paroles : texte blanc (design épuré) */
         body.ui-refined #lyrics-content, body.ui-refined .lyric-line, body.ui-refined .lyric-line:not(.active):not(.paroles-anim-line) { color: #fff !important; }
@@ -1496,7 +1498,8 @@
     
         <div class="sidebar">   
             
-            <div class="card">
+            <div class="card" id="explorer-card">
+                <canvas id="bubbles-fx"></canvas>
                 <p id="explorer-rechercher-title" style="color: var(--spotify-green); font-weight: bold; font-size: 0.8rem; margin: 0 0 10px 0; text-align: center;">EXPLORER & RECHERCHER</p>
                 
                 <div class="search-box" style="display: flex; flex-direction: column; gap: 8px; max-width: 400px; width: 100%;">
@@ -1571,6 +1574,14 @@
     <span style="font-size: 0.85rem; color: var(--text-grey);">Fond de « Lecture en cours » aux couleurs de la pochette</span>
     <label class="switch">
         <input type="checkbox" id="npbg-toggle" onchange="toggleNpBg(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Bulles encadré recherche 🫧</span>
+    <label class="switch">
+        <input type="checkbox" id="bubbles-toggle" onchange="toggleBubbles(this.checked)">
         <span class="slider"></span>
     </label>
 </div>
@@ -2686,7 +2697,7 @@ const clientId = "91d4165085fd4ed3bd281f16667d64bc";
                 }, 100);
                 
                 updateNowPlaying();
-                try { applyDivoomState(); setTimeout(divoomAutoReconnect, 5000); } catch (e) {}
+                try { applyDivoomState(); setTimeout(divoomAutoReconnect, divoomStartDelay); } catch (e) {}
                 initSpectrum();
                 initDiscoBallState();
                 initSpotlightsState();
@@ -4986,6 +4997,50 @@ function lfsTick() {
 setTimeout(() => { try { document.body.classList.toggle('anim-paused', animPaused); tbSync(); } catch (e) {} }, 600);
 window.addEventListener('load', () => { const pop = document.getElementById('dv-plus-pop'), pn = document.getElementById('toolbox-panel'); if (!pop || !pn) return;
     new MutationObserver(() => pn.classList.toggle('tb-plus', pop.classList.contains('open'))).observe(pop, { attributes: true, attributeFilter: ['class'] }); });
+
+// ===== Bulles aux couleurs de la pochette qui montent dans l'encadré « Explorer & rechercher » =====
+let bubblesEnabled = (function () { try { return localStorage.getItem('bubblesEnabled') === 'true'; } catch (e) { return false; } })(); // désactivé par défaut
+let bubRaf = 0, bubLast = 0, bubs = [];
+function toggleBubbles(on) { bubblesEnabled = !!on; try { localStorage.setItem('bubblesEnabled', on ? 'true' : 'false'); } catch (e) {} bubblesSync(); }
+function bubblesSync() {
+    const cv = document.getElementById('bubbles-fx'), card = document.getElementById('explorer-card'); if (!cv || !card) return;
+    const tg = document.getElementById('bubbles-toggle'); if (tg && tg.checked !== bubblesEnabled) tg.checked = bubblesEnabled;
+    const dash = document.getElementById('dashboard');
+    const vis = bubblesEnabled && dash && getComputedStyle(dash).display !== 'none' && card.offsetWidth > 0;
+    cv.style.display = vis ? 'block' : 'none';
+    if (vis && !bubRaf) bubRaf = requestAnimationFrame(bubblesFrame);
+    if (!vis && bubRaf) { cancelAnimationFrame(bubRaf); bubRaf = 0; bubs = []; }
+}
+function bubblesFrame(ts) {
+    bubRaf = requestAnimationFrame(bubblesFrame);
+    if (document.hidden || animPaused || ts - bubLast < 33) return;
+    const dt = Math.min(0.1, (ts - bubLast) / 1000); bubLast = ts;
+    const cv = document.getElementById('bubbles-fx'), card = document.getElementById('explorer-card'); if (!cv || !card) return;
+    const W = card.clientWidth, H = card.clientHeight; if (!W || !H) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+    const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+    try { scenoUpdateColors(); } catch (e) {}
+    const A = scenoCols.c1, B = scenoCols.c2;
+    const want = Math.max(10, Math.min(26, Math.round(W / 16)));
+    while (bubs.length < want) { const r = 3 + Math.random() * 11; bubs.push({ x: Math.random() * W, y: bubs.length < want / 2 && !bubs.init ? Math.random() * H : H + r + Math.random() * 40, r, vy: 14 + Math.random() * 30 + (14 - r) * 1.5, ph: Math.random() * 6.28, w: 4 + Math.random() * 10, c: Math.random() < 0.5 ? A : B, a: 0.35 + Math.random() * 0.4 }); }
+    bubs.init = true;
+    g.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < bubs.length; i++) {
+        const b = bubs[i]; b.y -= b.vy * dt; b.ph += dt * 1.6;
+        const x = b.x + Math.sin(b.ph) * b.w;
+        if (b.y < -b.r * 2) { bubs[i] = { x: Math.random() * W, y: H + b.r + 6, r: b.r, vy: b.vy, ph: Math.random() * 6.28, w: b.w, c: Math.random() < 0.5 ? scenoCols.c1 : scenoCols.c2, a: b.a }; continue; }
+        const fade = Math.min(1, b.y / (H * 0.25)); // s'estompent en arrivant en haut
+        const col = 'rgba(' + Math.min(255, b.c[0] + 50) + ',' + Math.min(255, b.c[1] + 50) + ',' + Math.min(255, b.c[2] + 50) + ',';
+        const gr = g.createRadialGradient(x - b.r * 0.3, b.y - b.r * 0.3, b.r * 0.1, x, b.y, b.r);
+        gr.addColorStop(0, col + (0.28 * fade) + ')'); gr.addColorStop(0.7, col + (0.14 * fade) + ')'); gr.addColorStop(1, col + (0.95 * fade) + ')');
+        g.fillStyle = gr; g.beginPath(); g.arc(x, b.y, b.r, 0, 6.2832); g.fill();
+        g.strokeStyle = 'rgba(255,255,255,' + (0.35 * fade) + ')'; g.lineWidth = 0.8; g.beginPath(); g.arc(x, b.y, b.r - 0.4, 0, 6.2832); g.stroke();
+        g.fillStyle = 'rgba(255,255,255,' + (0.7 * fade) + ')'; g.beginPath(); g.arc(x - b.r * 0.35, b.y - b.r * 0.35, Math.max(0.8, b.r * 0.16), 0, 6.2832); g.fill();
+    }
+    g.globalCompositeOperation = 'source-over';
+}
+setInterval(() => { try { bubblesSync(); } catch (e) {} }, 500);
 setInterval(() => { try { cfxSync(); } catch (e) {} }, 500);
 
 
@@ -5336,11 +5391,23 @@ function divoomSetAutoReconnect(on) { divoomAutoEnabled = !!on; try { localStora
 // Sécurité anti-plantage : si la page précédente s'est arrêtée PENDANT l'ouverture d'un appareil (drapeau « divoomOpening » jamais retiré), la reconnexion
 // automatique est suspendue : il faut toucher un voyant pour reconnecter (cela relance proprement, sans replanter Chrome au chargement).
 const divoomLoadedAt = Date.now();
+// Relance juste après avoir quitté la page : le Bluetooth peut encore être occupé → on attend (jusqu'à 15 s au total) avant de le toucher
+const divoomSinceUnload = (function () { try { return Date.now() - Number(localStorage.getItem('lastUnload') || 0); } catch (e) { return 1e9; } })();
+const divoomStartDelay = 5000 + Math.max(0, 10000 - divoomSinceUnload);
+// Détection d'un plantage : le témoin « pageAlive » n'est effacé qu'à la fermeture propre de la page (pagehide).
+// S'il est encore là au chargement, la page précédente a planté ou a été tuée : on suspend les animations lourdes pour cette session (réactivables dans 🧰).
+let crashRecovered = false;
+try { const a = Number(localStorage.getItem('pageAlive') || 0); if (a && Date.now() - a < 600000) crashRecovered = true; localStorage.setItem('pageAlive', String(Date.now())); } catch (e) {}
+setInterval(() => { try { localStorage.setItem('pageAlive', String(Date.now())); } catch (e) {} }, 15000);
+if (crashRecovered) {
+    animPaused = true; document.body.classList.add('anim-paused');
+    setTimeout(() => { try { tbSync(); showLyricsToggleMessage('Relance après un arrêt brutal : animations en pause (🧰 pour les reprendre)'); } catch (e) {} }, 2500);
+}
 let divoomSafeMode = false;
 try { const f = Number(localStorage.getItem('divoomOpening') || 0); if (f && Date.now() - f < 300000) divoomSafeMode = true; localStorage.removeItem('divoomOpening'); } catch (e) {}
 async function divoomAutoReconnect() {
     if (divoomSafeMode) { if (currentToken && divoomEnabled) divoomStatus('⚠️ Reconnexion automatique suspendue (la page s\'était arrêtée pendant une connexion) : touche un voyant 🔴 pour reconnecter'); return; }
-    if (Date.now() - divoomLoadedAt < 5000) { setTimeout(divoomAutoReconnect, 5200 - (Date.now() - divoomLoadedAt)); return; } // on laisse la page se stabiliser avant de toucher au Bluetooth
+    if (Date.now() - divoomLoadedAt < divoomStartDelay) { setTimeout(divoomAutoReconnect, divoomStartDelay + 200 - (Date.now() - divoomLoadedAt)); return; } // on laisse la page se stabiliser avant de toucher au Bluetooth
     if (divoomReconnecting || divoomNavigating || !currentToken || !divoomAutoEnabled) return; // jamais sur l'écran de connexion Spotify
     divoomReconnecting = true;
     try { await divoomAutoReconnectInner(); } catch (e) {}
@@ -5401,11 +5468,12 @@ window.addEventListener('load', () => {
 });
 // Pendant un changement de page (redirection vers Spotify, rechargement) : on arrête tout accès Bluetooth
 window.addEventListener('pagehide', () => {
+    try { localStorage.removeItem('pageAlive'); localStorage.setItem('lastUnload', String(Date.now())); } catch (e) {}
     divoomNavigating = true; try { divoomStopTicker(); } catch (e) {}
     // libère proprement les liaisons Bluetooth : la page suivante (rechargement) ne retrouve pas un port encore occupé
     divoomDevices.slice().forEach(d => { try { d.writer.releaseLock(); } catch (e) {} try { if (d.reader) d.reader.cancel().catch(() => {}); } catch (e) {} try { d.port.close().catch(() => {}); } catch (e) {} });
 });
-window.addEventListener('pageshow', (ev) => { if (ev.persisted) divoomNavigating = false; });
+window.addEventListener('pageshow', (ev) => { if (ev.persisted) { divoomNavigating = false; try { localStorage.setItem('pageAlive', String(Date.now())); } catch (e) {} } });
 try {
     if (navigator.serial) {
         navigator.serial.addEventListener('connect', (ev) => { if (!divoomDevices.some(d => d.port === ev.target)) Object.keys(divoomGaveUp).forEach(k => delete divoomGaveUp[k]); /* un appareil absent vient d'apparaître */ setTimeout(divoomAutoReconnect, 1500); });
@@ -6076,7 +6144,7 @@ function toggleSettings() {
         if (divoomTgl) divoomTgl.checked = divoomEnabled;
         const qpTgl = document.getElementById('queue-peek-toggle'); if (qpTgl) qpTgl.checked = queuePeekEnabled;
         applyDivoomState();
-        setTimeout(divoomAutoReconnect, 5000);
+        setTimeout(divoomAutoReconnect, divoomStartDelay);
         const uiRefTgl = document.getElementById('ui-refined-toggle');
         if (uiRefTgl) uiRefTgl.checked = uiRefinedEnabled;
         const spectrumSel = document.getElementById('spectrum-style-select');
@@ -7289,6 +7357,7 @@ function ensureCreditsModal() {
             <li><strong>Modes d'affichage</strong> — paroles défilantes, image de l'artiste en 16×16 (écran noir sans photo), défilement pochette · artiste · titre (le titre reste lisible 2 s avant de défiler), stats d'écoute (titres écoutés aujourd'hui, titre et artiste les plus écoutés, temps d'écoute ; basé sur les 50 derniers titres de Spotify), titres aimés (mini-pochettes, panneau ❤️ avec flèches et bouton « Lancer »).</li>
             <li><strong>Aurore sur les écrans</strong> — la scénographie en 16×16 : rideaux de lumière aux deux couleurs de la pochette qui ondulent et pulsent au tempo, étoiles qui scintillent (mode « 🌌 Aurore (scénographie) », aussi dans le ＋).</li>
             <li><strong>Fond « Lecture en cours »</strong> — réglage pour que le fond de l'encadré épouse en douceur les couleurs de la pochette (désactivé par défaut).</li>
+            <li><strong>Bulles encadré recherche 🫧</strong> — des bulles aux couleurs de la pochette montent dans l'encadré « Explorer &amp; rechercher » (réglage dédié, désactivé par défaut).</li>
             <li><strong>Boîte à outils 🧰</strong> — un bouton en bas à droite remplace les 3 boutons des intégrations (clip, paroles flottantes, sous-titres, toujours actives : afficher / masquer). Il contient aussi un encadré Appareils (voyants Bluetooth + bouton ＋), les paroles en plein écran et la pause des animations. Réglages : les effets sont en haut.</li>
             <li><strong>Aurore LED</strong> — le cœur des titres likés n'est plus affiché dans ce mode ; l'écran d'accueil « Se connecter » disparaît aussi après une reconnexion automatique.</li>
             <li><strong>Effet animé pochette</strong> — bande lumineuse sur toute la largeur de « Lecture en cours », exactement la hauteur de la pochette (rien au-dessus ni en dessous), au choix : aurore, égaliseur, ondes, projecteurs ou constellation (nouveau) (un seul effet à la fois) ; désactivé par défaut.</li>
