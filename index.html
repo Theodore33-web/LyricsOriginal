@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v11.5";
+        const APP_VERSION = "v11.6";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -5022,21 +5022,21 @@ function bubblesFrame(ts) {
     const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
     try { scenoUpdateColors(); } catch (e) {}
     const A = scenoCols.c1, B = scenoCols.c2;
-    const want = Math.max(10, Math.min(26, Math.round(W / 16)));
-    while (bubs.length < want) { const r = 3 + Math.random() * 11; bubs.push({ x: Math.random() * W, y: bubs.length < want / 2 && !bubs.init ? Math.random() * H : H + r + Math.random() * 40, r, vy: 14 + Math.random() * 30 + (14 - r) * 1.5, ph: Math.random() * 6.28, w: 4 + Math.random() * 10, c: Math.random() < 0.5 ? A : B, a: 0.35 + Math.random() * 0.4 }); }
+    const want = Math.max(7, Math.min(14, Math.round(W / 30)));
+    const mk = (y0) => { const r = 12 + Math.random() * 34; return { x: Math.random() * W, y: y0 === null ? H + r + Math.random() * 60 : y0, r, vy: 7 + Math.random() * 13, ph: Math.random() * 6.28, w: 6 + Math.random() * 16, c: Math.random() < 0.5 ? scenoCols.c1 : scenoCols.c2, a: 0.5 + Math.random() * 0.5 }; };
+    while (bubs.length < want) bubs.push(mk(bubs.init ? null : Math.random() * H));
     bubs.init = true;
     g.globalCompositeOperation = 'lighter';
     for (let i = 0; i < bubs.length; i++) {
-        const b = bubs[i]; b.y -= b.vy * dt; b.ph += dt * 1.6;
+        const b = bubs[i]; b.y -= b.vy * dt; b.ph += dt * 0.7;
         const x = b.x + Math.sin(b.ph) * b.w;
-        if (b.y < -b.r * 2) { bubs[i] = { x: Math.random() * W, y: H + b.r + 6, r: b.r, vy: b.vy, ph: Math.random() * 6.28, w: b.w, c: Math.random() < 0.5 ? scenoCols.c1 : scenoCols.c2, a: b.a }; continue; }
-        const fade = Math.min(1, b.y / (H * 0.25)); // s'estompent en arrivant en haut
-        const col = 'rgba(' + Math.min(255, b.c[0] + 50) + ',' + Math.min(255, b.c[1] + 50) + ',' + Math.min(255, b.c[2] + 50) + ',';
-        const gr = g.createRadialGradient(x - b.r * 0.3, b.y - b.r * 0.3, b.r * 0.1, x, b.y, b.r);
-        gr.addColorStop(0, col + (0.28 * fade) + ')'); gr.addColorStop(0.7, col + (0.14 * fade) + ')'); gr.addColorStop(1, col + (0.95 * fade) + ')');
+        if (b.y < -b.r * 1.5) { bubs[i] = mk(null); continue; }
+        const fade = Math.min(1, Math.max(0, b.y / (H * 0.3)), Math.max(0, (H + b.r - b.y) / (b.r * 2))); // apparition douce en bas, disparition en haut
+        const col = 'rgba(' + Math.min(255, b.c[0] + 30) + ',' + Math.min(255, b.c[1] + 30) + ',' + Math.min(255, b.c[2] + 30) + ',';
+        const gr = g.createRadialGradient(x, b.y, b.r * 0.15, x, b.y, b.r);
+        gr.addColorStop(0, col + (0.05 * b.a * fade) + ')'); gr.addColorStop(0.8, col + (0.13 * b.a * fade) + ')'); gr.addColorStop(1, col + (0.26 * b.a * fade) + ')');
         g.fillStyle = gr; g.beginPath(); g.arc(x, b.y, b.r, 0, 6.2832); g.fill();
-        g.strokeStyle = 'rgba(255,255,255,' + (0.35 * fade) + ')'; g.lineWidth = 0.8; g.beginPath(); g.arc(x, b.y, b.r - 0.4, 0, 6.2832); g.stroke();
-        g.fillStyle = 'rgba(255,255,255,' + (0.7 * fade) + ')'; g.beginPath(); g.arc(x - b.r * 0.35, b.y - b.r * 0.35, Math.max(0.8, b.r * 0.16), 0, 6.2832); g.fill();
+        g.strokeStyle = col + (0.38 * b.a * fade) + ')'; g.lineWidth = 1.2; g.beginPath(); g.arc(x, b.y, b.r - 0.6, 0, 6.2832); g.stroke();
     }
     g.globalCompositeOperation = 'source-over';
 }
@@ -7357,7 +7357,7 @@ function ensureCreditsModal() {
             <li><strong>Modes d'affichage</strong> — paroles défilantes, image de l'artiste en 16×16 (écran noir sans photo), défilement pochette · artiste · titre (le titre reste lisible 2 s avant de défiler), stats d'écoute (titres écoutés aujourd'hui, titre et artiste les plus écoutés, temps d'écoute ; basé sur les 50 derniers titres de Spotify), titres aimés (mini-pochettes, panneau ❤️ avec flèches et bouton « Lancer »).</li>
             <li><strong>Aurore sur les écrans</strong> — la scénographie en 16×16 : rideaux de lumière aux deux couleurs de la pochette qui ondulent et pulsent au tempo, étoiles qui scintillent (mode « 🌌 Aurore (scénographie) », aussi dans le ＋).</li>
             <li><strong>Fond « Lecture en cours »</strong> — réglage pour que le fond de l'encadré épouse en douceur les couleurs de la pochette (désactivé par défaut).</li>
-            <li><strong>Bulles encadré recherche 🫧</strong> — des bulles aux couleurs de la pochette montent dans l'encadré « Explorer &amp; rechercher » (réglage dédié, désactivé par défaut).</li>
+            <li><strong>Bulles encadré recherche 🫧</strong> — des cercles translucides aux couleurs de la pochette montent doucement en fond de l'encadré « Explorer &amp; rechercher » (réglage dédié, désactivé par défaut).</li>
             <li><strong>Boîte à outils 🧰</strong> — un bouton en bas à droite remplace les 3 boutons des intégrations (clip, paroles flottantes, sous-titres, toujours actives : afficher / masquer). Il contient aussi un encadré Appareils (voyants Bluetooth + bouton ＋), les paroles en plein écran et la pause des animations. Réglages : les effets sont en haut.</li>
             <li><strong>Aurore LED</strong> — le cœur des titres likés n'est plus affiché dans ce mode ; l'écran d'accueil « Se connecter » disparaît aussi après une reconnexion automatique.</li>
             <li><strong>Effet animé pochette</strong> — bande lumineuse sur toute la largeur de « Lecture en cours », exactement la hauteur de la pochette (rien au-dessus ni en dessous), au choix : aurore, égaliseur, ondes, projecteurs ou constellation (nouveau) (un seul effet à la fois) ; désactivé par défaut.</li>
