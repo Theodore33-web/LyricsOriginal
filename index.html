@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v11.7";
+        const APP_VERSION = "v11.8";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -4654,6 +4654,14 @@ let queuePeekTracks = [], queuePeekSel = -1, queuePeekTimer = null;
 let scenoEnabled = (function () { try { return localStorage.getItem('scenoEnabled') === 'true'; } catch (e) { return false; } })(); // désactivée par défaut
 let scenoTrack = { id: '', title: '', artist: '' };
 const scenoCols = { c1: [30, 215, 96], c2: [120, 80, 255], src: '' };
+// Couleurs « lissées » utilisées par tous les effets : à chaque nouveau titre elles glissent en ~1 s vers les couleurs de la nouvelle pochette
+var fxCols = { c1: [30, 215, 96], c2: [120, 80, 255] }, fxColLast = 0;
+function fxColors() {
+    try { scenoUpdateColors(); } catch (e) {}
+    const now = performance.now(), dt = Math.min(0.2, Math.max(0, (now - fxColLast) / 1000)); fxColLast = now;
+    if (dt > 0) { const k = 1 - Math.exp(-dt * 3); ['c1', 'c2'].forEach(n => { fxCols[n] = fxCols[n].map((v, i) => v + (scenoCols[n][i] - v) * k); }); }
+    return { c1: fxCols.c1.map(Math.round), c2: fxCols.c2.map(Math.round) };
+}
 let scenoRaf = 0, scenoLast = 0, scenoCanvas = null, scenoTitleKey = '', scenoT0 = 0, scenoLyric = { text: '', t0: 0 };
 function scenoHash(str) { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0); }
 function scenoBpm() { return 72 + (scenoHash(scenoTrack.id || scenoTrack.title) % 70); } // tempo SIMULÉ (déterministe par titre) : Spotify ne donne plus le vrai tempo
@@ -4729,7 +4737,7 @@ function scenoFrame(ts) {
     const lyr = scenoCurrentLyric(); if (lyr !== scenoLyric.text) { scenoLyric = { text: lyr, t0: t }; if (lyr) scenoRipples.push({ t0: t, x: 0.15 + 0.7 * ((scenoHash(lyr) % 100) / 100) }); }
     scenoRipples = scenoRipples.filter(r => t - r.t0 < 2.6);
     const flash = Math.exp(-(t - scenoLyric.t0) * 2.6);
-    const A = scenoCols.c1, B = scenoCols.c2, M = A.map((v, i) => (v + B[i]) >> 1), lt = c => c.map(v => Math.min(255, v + 90));
+    const fcs = fxColors(), A = fcs.c1, B = fcs.c2, M = A.map((v, i) => (v + B[i]) >> 1), lt = c => c.map(v => Math.min(255, v + 90));
     const rgba = (c, a) => 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a + ')';
     const mix = (c, d, k) => c.map((v, i) => Math.round(v + (d[i] - v) * k));
     const palette = k => { k = ((k % 1) + 1) % 1 * 3; const i = Math.floor(k), f = k - i, P = [A, M, B]; return mix(P[i % 3], P[(i + 1) % 3], f); }; // A → M → B → A en boucle
@@ -4862,7 +4870,7 @@ function cfxFrame(ts) {
     const playing = (function () { try { return isCurrentlyPlaying; } catch (e) { return true; } })();
     cfxT += dt * (playing ? 1 : 0.25);
     const t = cfxT, bpm = scenoBpm(), ph = (t * bpm / 60) % 1, beat = playing ? Math.exp(-ph * 4) : 0, k = playing ? 1 : 0.4;
-    const A = scenoCols.c1, B = scenoCols.c2, rgba = (c, a) => 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a + ')';
+    const fcs = fxColors(), A = fcs.c1, B = fcs.c2, rgba = (c, a) => 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a + ')';
     // bande : toute la largeur de l'encadré, exactement la hauteur de la pochette
     const by = Math.max(0, ar.top - cr.top), bot = Math.min(H, ar.bottom - cr.top), bh = Math.max(20, bot - by), cy = by + bh * 0.5, half = bh / 2; // exactement la hauteur de la pochette : rien au-dessus ni en dessous
     const st = ['aurore', 'egaliseur', 'ondes', 'projecteurs', 'constellation'].indexOf(cfxStyle) >= 0 ? cfxStyle : 'aurore';
@@ -5023,27 +5031,25 @@ function bubblesFrame(ts) {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
     const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
-    try { scenoUpdateColors(); } catch (e) {}
-    const A = scenoCols.c1, B = scenoCols.c2;
-    const want = Math.max(26, Math.min(48, Math.round(W / 8.5)));
-    const mk = (y0) => { const z = Math.random(), L = z < 0.45 ? 0 : z < 0.8 ? 1 : 2; // 3 plans de profondeur : lointain (petit, lent, pâle) → proche (plus gros, plus rapide)
-        const r = [3 + Math.random() * 4, 6 + Math.random() * 6, 11 + Math.random() * 9][L];
-        return { L, x: Math.random() * W, y: y0 === null ? H + r + Math.random() * 50 : y0, r, vy: [6 + Math.random() * 6, 12 + Math.random() * 10, 22 + Math.random() * 14][L], ph: Math.random() * 6.28, w: [3, 7, 12][L] * (0.6 + Math.random() * 0.8), c: Math.random() < 0.5 ? scenoCols.c1 : scenoCols.c2, a: [0.45, 0.75, 1][L] }; };
+    const fcs = fxColors(), PAL = [fcs.c1, fcs.c2];
+    const want = Math.max(16, Math.min(30, Math.round(W / 13)));
+    const mk = (y0) => { const L = Math.random() < 0.5 ? 0 : Math.random() < 0.7 ? 1 : 2; // 3 plans : lointain (petit, lent, discret) → proche
+        const r = [3 + Math.random() * 3, 6 + Math.random() * 5, 11 + Math.random() * 7][L];
+        return { L, x: Math.random() * W, y: y0 === null ? H + r + Math.random() * 50 : y0, r, vy: [5 + Math.random() * 5, 10 + Math.random() * 8, 17 + Math.random() * 10][L], ph: Math.random() * 6.28, w: [2, 5, 9][L] * (0.6 + Math.random() * 0.8), ci: Math.random() < 0.5 ? 0 : 1, a: [0.5, 0.75, 1][L] }; };
     while (bubs.length < want) bubs.push(mk(bubs.init ? null : Math.random() * H));
+    bubs.length = Math.min(bubs.length, want);
     bubs.init = true;
-    const bpm = (function () { try { return scenoBpm(); } catch (e) { return 100; } })(), ph0 = (ts / 1000 * bpm / 60) % 1, beat = Math.exp(-ph0 * 4.5);
-    g.globalCompositeOperation = 'lighter';
-    const order = bubs.map((b, i) => i).sort((i, j) => bubs[i].L - bubs[j].L); // les lointains d'abord
+    g.globalCompositeOperation = 'source-over';
+    const order = bubs.map((b, i) => i).sort((i, j) => bubs[i].L - bubs[j].L);
     for (const i of order) {
-        const b = bubs[i]; b.y -= b.vy * dt; b.ph += dt * (0.5 + b.L * 0.25);
-        const x = b.x + Math.sin(b.ph) * b.w, R = b.r * (1 + 0.07 * beat * (b.L + 1) / 3);
+        const b = bubs[i]; b.y -= b.vy * dt; b.ph += dt * (0.4 + b.L * 0.2);
+        const x = b.x + Math.sin(b.ph) * b.w;
         if (b.y < -b.r * 1.5) { bubs[i] = mk(null); continue; }
         const fade = Math.min(1, Math.max(0, b.y / (H * 0.3)), Math.max(0, (H + b.r - b.y) / (b.r * 2)));
-        const col = 'rgba(' + Math.min(255, b.c[0] + 35) + ',' + Math.min(255, b.c[1] + 35) + ',' + Math.min(255, b.c[2] + 35) + ',';
-        const gr = g.createRadialGradient(x, b.y, R * 0.1, x, b.y, R);
-        gr.addColorStop(0, col + (0.10 * b.a * fade) + ')'); gr.addColorStop(0.75, col + (0.2 * b.a * fade) + ')'); gr.addColorStop(1, col + (0.42 * b.a * fade) + ')');
-        g.fillStyle = gr; g.beginPath(); g.arc(x, b.y, R, 0, 6.2832); g.fill();
-        g.strokeStyle = col + ((0.35 + 0.25 * beat) * b.a * fade) + ')'; g.lineWidth = 0.8 + b.L * 0.3; g.beginPath(); g.arc(x, b.y, Math.max(0.5, R - 0.5), 0, 6.2832); g.stroke();
+        const c = PAL[b.ci], w = 0.5; // anneau fin : 50 % de la couleur de la pochette + 50 % de blanc, pour rester sobre avec le design épuré
+        const rr = Math.round(c[0] * w + 255 * (1 - w)), gg = Math.round(c[1] * w + 255 * (1 - w)), bb = Math.round(c[2] * w + 255 * (1 - w));
+        g.fillStyle = 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + (0.05 * b.a * fade) + ')'; g.beginPath(); g.arc(x, b.y, b.r, 0, 6.2832); g.fill();
+        g.strokeStyle = 'rgba(' + rr + ',' + gg + ',' + bb + ',' + (0.40 * b.a * fade) + ')'; g.lineWidth = 1; g.beginPath(); g.arc(x, b.y, Math.max(0.5, b.r - 0.5), 0, 6.2832); g.stroke();
     }
     g.globalCompositeOperation = 'source-over';
 }
@@ -7364,7 +7370,7 @@ function ensureCreditsModal() {
             <li><strong>Modes d'affichage</strong> — paroles défilantes, image de l'artiste en 16×16 (écran noir sans photo), défilement pochette · artiste · titre (le titre reste lisible 2 s avant de défiler), stats d'écoute (titres écoutés aujourd'hui, titre et artiste les plus écoutés, temps d'écoute ; basé sur les 50 derniers titres de Spotify), titres aimés (mini-pochettes, panneau ❤️ avec flèches et bouton « Lancer »).</li>
             <li><strong>Aurore sur les écrans</strong> — la scénographie en 16×16 : rideaux de lumière aux deux couleurs de la pochette qui ondulent et pulsent au tempo, étoiles qui scintillent (mode « 🌌 Aurore (scénographie) », aussi dans le ＋).</li>
             <li><strong>Fond « Lecture en cours »</strong> — réglage pour que le fond de l'encadré épouse en douceur les couleurs de la pochette (désactivé par défaut).</li>
-            <li><strong>Bulles encadré recherche 🫧</strong> — des cercles translucides aux couleurs de la pochette montent doucement en fond de l'encadré « Explorer &amp; rechercher » (réglage dédié, désactivé par défaut).</li>
+            <li><strong>Bulles encadré recherche 🫧</strong> — fins cercles sobres (anneaux discrets) aux couleurs de la pochette qui montent doucement en fond de l'encadré « Explorer &amp; rechercher » (réglage dédié, désactivé par défaut). Les couleurs de tous les effets (scénographie, effet pochette, cercles) glissent en douceur vers celles du nouveau titre.</li>
             <li><strong>Boîte à outils 🧰</strong> — un bouton en bas à droite remplace les 3 boutons des intégrations (clip, paroles flottantes, sous-titres, toujours actives : afficher / masquer). Il contient aussi un encadré Appareils (voyants Bluetooth + bouton ＋), les paroles en plein écran et la pause des animations. Réglages : les effets sont en haut.</li>
             <li><strong>Aurore LED</strong> — le cœur des titres likés n'est plus affiché dans ce mode ; l'écran d'accueil « Se connecter » disparaît aussi après une reconnexion automatique.</li>
             <li><strong>Effet animé pochette</strong> — bande lumineuse sur toute la largeur de « Lecture en cours », exactement la hauteur de la pochette (rien au-dessus ni en dessous), au choix : aurore, égaliseur, ondes, projecteurs ou constellation (nouveau) (un seul effet à la fois) ; désactivé par défaut.</li>
