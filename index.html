@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v11.1";
+        const APP_VERSION = "v11.3";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -828,6 +828,10 @@
         .floating-reveal-btn, #clip-reveal-btn { display: none !important; }
         #toolbox-fab { position: fixed; right: 15px; bottom: 45px; z-index: 9600; width: 44px; height: 44px; padding: 0; border-radius: 50%; border: 1px solid rgba(255,255,255,0.25); background: rgba(20,20,22,0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); font-size: 1.25rem; cursor: pointer; box-shadow: 0 6px 18px rgba(0,0,0,0.5); }
         body.on-home #toolbox-fab { display: none !important; }
+        /* Effet verre dépoli sur le bouton 🧰 */
+        #toolbox-fab { background: rgba(255,255,255,0.10) !important; border: 1px solid rgba(255,255,255,0.28) !important; backdrop-filter: blur(14px) saturate(1.6) !important; -webkit-backdrop-filter: blur(14px) saturate(1.6) !important; box-shadow: 0 6px 20px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.35) !important; transition: transform 0.15s ease, background 0.2s ease; }
+        #toolbox-fab:active { transform: scale(0.92); background: rgba(255,255,255,0.18) !important; }
+        body.anim-paused #toolbox-fab { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; background: rgba(40,40,44,0.9) !important; }
         #toolbox-panel .tb-box { padding: 12px; border-radius: 14px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; gap: 8px; }
         #toolbox-panel #divoom-icons { flex-wrap: wrap; justify-content: space-around; align-items: center; gap: 14px; width: 100%; }
         #toolbox-panel #dv-plus-pop { position: static !important; top: auto; right: auto; flex: 0 0 100%; width: 100%; box-sizing: border-box; margin-top: 6px; }
@@ -851,6 +855,10 @@
         #toolbox-panel.tb-plus > button.tb-btn, #toolbox-panel.tb-plus #divoom-icons > button { display: none !important; }
         #toolbox-panel.tb-plus #divoom-icons { padding: 0; }
         #toolbox-panel.tb-plus #dv-plus-pop { background: none; border: none; box-shadow: none; padding: 0; margin: 0; min-width: 0; }
+        /* Ouverture animée de la boîte à outils : fondu + léger glissement */
+        #toolbox-back.open #toolbox-panel { animation: tbIn 0.22s ease-out; }
+        @keyframes tbIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+        body.anim-paused #toolbox-panel { animation: none !important; }
         /* Pause des animations */
         body.anim-paused *, body.anim-paused *::before, body.anim-paused *::after { animation-play-state: paused !important; }
         /* Boîte à outils */
@@ -882,7 +890,7 @@
         #lfs-list .lfs-line.near { opacity: 0.6; filter: none; }
         #lfs-top { position: absolute !important; top: 14px; right: 14px; z-index: 4 !important; display: flex; align-items: center; gap: 10px; }
         #lfs-time { font-size: 0.8rem; opacity: 0.85; white-space: nowrap; }
-        #lfs-pp { width: 40px !important; height: 40px !important; border-radius: 50% !important; background: #fff !important; color: #000 !important; border: none !important; font-size: 1rem !important; padding: 0 !important; margin: 0 !important; flex: none; }
+        #lfs-pp { width: 40px !important; height: 40px !important; border-radius: 50% !important; background: rgba(255,255,255,0.12) !important; color: #fff !important; border: 1px solid rgba(255,255,255,0.2) !important; font-size: 1.1rem !important; padding: 0 !important; margin: 0 !important; flex: none; }
         #lfs-hint { position: absolute !important; bottom: 14px; font-size: 0.7rem; opacity: 0.35; }
         #cover-fx { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; display: none; }
         #np-card.cfx-on #track-art { position: relative; }
@@ -4956,7 +4964,7 @@ function lfsTick() {
     set('lfs-title', t ? t.textContent : ''); set('lfs-artist', a ? a.textContent : '');
     const im = document.getElementById('lfs-art'); if (im && art && art.src && im.src !== art.src) im.src = art.src; if (im) im.style.display = art && art.style.display !== 'none' && art.src ? '' : 'none';
     set('lfs-time', ((document.getElementById('time-current') || {}).textContent || '0:00') + ' / ' + ((document.getElementById('time-max') || {}).textContent || '0:00'));
-    const pp = document.getElementById('lfs-pp'); if (pp) { const pl = (function () { try { return !!isCurrentlyPlaying; } catch (e) { return true; } })(); const ic = pl ? '⏸' : '▶'; if (pp.textContent !== ic) pp.textContent = ic; }
+    const pp = document.getElementById('lfs-pp'); if (pp) { const pl = (function () { try { return !!isCurrentlyPlaying; } catch (e) { return true; } })(); const ic = pl ? '⏸️' : '▶️'; if (pp.textContent !== ic) pp.textContent = ic; }
     const list = document.getElementById('lfs-list'); if (!list) return;
     const src = Array.from(document.querySelectorAll('#lyrics-content .lyric-line'));
     const texts = src.map(e => (e.innerText || e.textContent || '').trim());
@@ -15019,7 +15027,7 @@ function initBouleLedState() {
 <div id="lyrics-fs">
   <div id="lfs-bg"></div>
   <div id="lfs-meta"><img id="lfs-art" alt=""><div><b id="lfs-title"></b><span id="lfs-artist"></span></div></div>
-  <div id="lfs-top"><span id="lfs-time">0:00 / 0:00</span><button id="lfs-pp" onclick="togglePlay()">⏸</button><button id="lfs-close" onclick="closeLyricsFullscreen()">✕</button></div>
+  <div id="lfs-top"><span id="lfs-time">0:00 / 0:00</span><button id="lfs-pp" onclick="togglePlay()">⏸️</button><button id="lfs-close" onclick="closeLyricsFullscreen()">✕</button></div>
   <div id="lfs-list"></div>
 </div>
 </body>
