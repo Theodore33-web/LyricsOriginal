@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v11.61";
+        const APP_VERSION = "v11.7";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -822,6 +822,9 @@
             animation: npbgDrift 14s ease-in-out infinite alternate; }
         #np-card, #explorer-card { isolation: isolate; }
         #explorer-card { position: relative; }
+        /* Boutons et champ opaques quand l'effet est actif : les cercles passent bien DERRIÈRE */
+        #explorer-card.bub-on button:not([title="Rechercher par texte"]), #explorer-card.bub-on input { background-color: #26292b !important; background-image: none !important; }
+        #explorer-card.bub-on input[type="text"], #explorer-card.bub-on input:not([type]) { background-color: #1f2224 !important; }
         #bubbles-fx { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; display: none; border-radius: inherit; }
 
         /* Paroles : texte blanc (design épuré) */
@@ -5007,7 +5010,7 @@ function bubblesSync() {
     const tg = document.getElementById('bubbles-toggle'); if (tg && tg.checked !== bubblesEnabled) tg.checked = bubblesEnabled;
     const dash = document.getElementById('dashboard');
     const vis = bubblesEnabled && dash && getComputedStyle(dash).display !== 'none' && card.offsetWidth > 0;
-    cv.style.display = vis ? 'block' : 'none';
+    cv.style.display = vis ? 'block' : 'none'; card.classList.toggle('bub-on', !!vis);
     if (vis && !bubRaf) bubRaf = requestAnimationFrame(bubblesFrame);
     if (!vis && bubRaf) { cancelAnimationFrame(bubRaf); bubRaf = 0; bubs = []; }
 }
@@ -5022,21 +5025,25 @@ function bubblesFrame(ts) {
     const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
     try { scenoUpdateColors(); } catch (e) {}
     const A = scenoCols.c1, B = scenoCols.c2;
-    const want = Math.max(7, Math.min(14, Math.round(W / 30)));
-    const mk = (y0) => { const r = 12 + Math.random() * 34; return { x: Math.random() * W, y: y0 === null ? H + r + Math.random() * 60 : y0, r, vy: 7 + Math.random() * 13, ph: Math.random() * 6.28, w: 6 + Math.random() * 16, c: Math.random() < 0.5 ? scenoCols.c1 : scenoCols.c2, a: 0.5 + Math.random() * 0.5 }; };
+    const want = Math.max(26, Math.min(48, Math.round(W / 8.5)));
+    const mk = (y0) => { const z = Math.random(), L = z < 0.45 ? 0 : z < 0.8 ? 1 : 2; // 3 plans de profondeur : lointain (petit, lent, pâle) → proche (plus gros, plus rapide)
+        const r = [3 + Math.random() * 4, 6 + Math.random() * 6, 11 + Math.random() * 9][L];
+        return { L, x: Math.random() * W, y: y0 === null ? H + r + Math.random() * 50 : y0, r, vy: [6 + Math.random() * 6, 12 + Math.random() * 10, 22 + Math.random() * 14][L], ph: Math.random() * 6.28, w: [3, 7, 12][L] * (0.6 + Math.random() * 0.8), c: Math.random() < 0.5 ? scenoCols.c1 : scenoCols.c2, a: [0.45, 0.75, 1][L] }; };
     while (bubs.length < want) bubs.push(mk(bubs.init ? null : Math.random() * H));
     bubs.init = true;
+    const bpm = (function () { try { return scenoBpm(); } catch (e) { return 100; } })(), ph0 = (ts / 1000 * bpm / 60) % 1, beat = Math.exp(-ph0 * 4.5);
     g.globalCompositeOperation = 'lighter';
-    for (let i = 0; i < bubs.length; i++) {
-        const b = bubs[i]; b.y -= b.vy * dt; b.ph += dt * 0.7;
-        const x = b.x + Math.sin(b.ph) * b.w;
+    const order = bubs.map((b, i) => i).sort((i, j) => bubs[i].L - bubs[j].L); // les lointains d'abord
+    for (const i of order) {
+        const b = bubs[i]; b.y -= b.vy * dt; b.ph += dt * (0.5 + b.L * 0.25);
+        const x = b.x + Math.sin(b.ph) * b.w, R = b.r * (1 + 0.07 * beat * (b.L + 1) / 3);
         if (b.y < -b.r * 1.5) { bubs[i] = mk(null); continue; }
-        const fade = Math.min(1, Math.max(0, b.y / (H * 0.3)), Math.max(0, (H + b.r - b.y) / (b.r * 2))); // apparition douce en bas, disparition en haut
-        const col = 'rgba(' + Math.min(255, b.c[0] + 30) + ',' + Math.min(255, b.c[1] + 30) + ',' + Math.min(255, b.c[2] + 30) + ',';
-        const gr = g.createRadialGradient(x, b.y, b.r * 0.15, x, b.y, b.r);
-        gr.addColorStop(0, col + (0.05 * b.a * fade) + ')'); gr.addColorStop(0.8, col + (0.13 * b.a * fade) + ')'); gr.addColorStop(1, col + (0.26 * b.a * fade) + ')');
-        g.fillStyle = gr; g.beginPath(); g.arc(x, b.y, b.r, 0, 6.2832); g.fill();
-        g.strokeStyle = col + (0.38 * b.a * fade) + ')'; g.lineWidth = 1.2; g.beginPath(); g.arc(x, b.y, b.r - 0.6, 0, 6.2832); g.stroke();
+        const fade = Math.min(1, Math.max(0, b.y / (H * 0.3)), Math.max(0, (H + b.r - b.y) / (b.r * 2)));
+        const col = 'rgba(' + Math.min(255, b.c[0] + 35) + ',' + Math.min(255, b.c[1] + 35) + ',' + Math.min(255, b.c[2] + 35) + ',';
+        const gr = g.createRadialGradient(x, b.y, R * 0.1, x, b.y, R);
+        gr.addColorStop(0, col + (0.10 * b.a * fade) + ')'); gr.addColorStop(0.75, col + (0.2 * b.a * fade) + ')'); gr.addColorStop(1, col + (0.42 * b.a * fade) + ')');
+        g.fillStyle = gr; g.beginPath(); g.arc(x, b.y, R, 0, 6.2832); g.fill();
+        g.strokeStyle = col + ((0.35 + 0.25 * beat) * b.a * fade) + ')'; g.lineWidth = 0.8 + b.L * 0.3; g.beginPath(); g.arc(x, b.y, Math.max(0.5, R - 0.5), 0, 6.2832); g.stroke();
     }
     g.globalCompositeOperation = 'source-over';
 }
