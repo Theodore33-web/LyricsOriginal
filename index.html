@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v12.2";
+        const APP_VERSION = "v12.3";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -866,8 +866,9 @@
         body.anim-paused #toolbox-panel { animation: none !important; }
         /* Pause des animations */
         body.anim-paused *, body.anim-paused *::before, body.anim-paused *::after { animation-play-state: paused !important; }
-        /* Le nom de l'artiste (Lecture en cours) garde son effet d'apparition même quand les animations sont en pause */
-        body.anim-paused #track-artist, body.anim-paused #track-artist::before, body.anim-paused #track-artist::after { animation-play-state: running !important; }
+        /* Le titre et le nom de l'artiste (Lecture en cours) gardent leur effet d'apparition même quand les animations sont en pause */
+        body.anim-paused #track-artist, body.anim-paused #track-artist::before, body.anim-paused #track-artist::after,
+        body.anim-paused #track-title, body.anim-paused #track-title::before, body.anim-paused #track-title::after { animation-play-state: running !important; }
         /* Boîte à outils */
         #toolbox-back { display: none; position: fixed; inset: 0; z-index: 9800; background: rgba(0,0,0,0.55); align-items: flex-end; justify-content: center; }
         #toolbox-back.open { display: flex; }
@@ -1548,6 +1549,14 @@
     <span style="font-size: 0.85rem; color: #fff; font-weight: bold;">Mettre en pause les animations ⏸️</span>
     <label class="switch">
         <input type="checkbox" id="anim-pause-toggle" onchange="toggleAnimPause(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Canvas haute résolution ×2 <span style="font-size: 0.7rem;">(désactivé : ×1,5, plus économe)</span></span>
+    <label class="switch">
+        <input type="checkbox" id="fxhires-toggle" onchange="toggleFxHiRes(this.checked)">
         <span class="slider"></span>
     </label>
 </div>
@@ -4657,6 +4666,9 @@ let scenoEnabled = (function () { try { return localStorage.getItem('scenoEnable
 let scenoTrack = { id: '', title: '', artist: '' };
 const scenoCols = { c1: [30, 215, 96], c2: [120, 80, 255], src: '' };
 // Couleurs « lissées » utilisées par tous les effets : à chaque nouveau titre elles glissent en ~1 s vers les couleurs de la nouvelle pochette
+var fxHiRes = (function () { try { return localStorage.getItem('fxHiRes') === 'true'; } catch (e) { return false; } })(); // canvas : ×1,5 (désactivé) ou ×2 (activé)
+function fxDprMax() { return fxHiRes ? 2 : 1.5; }
+function toggleFxHiRes(on) { fxHiRes = !!on; try { localStorage.setItem('fxHiRes', on ? 'true' : 'false'); } catch (e) {} const c = document.getElementById('fxhires-toggle'); if (c && c.checked !== fxHiRes) c.checked = fxHiRes; fxGate = {}; }
 var fxCols = { c1: [30, 215, 96], c2: [120, 80, 255] }, fxColLast = 0;
 function fxColors() {
     try { scenoUpdateColors(); } catch (e) {}
@@ -4744,7 +4756,7 @@ function scenoFrame(ts) {
     const _c0 = performance.now(); // ~30 images/s (4 en pause d'animations : image figée mais mise à jour à chaque nouveau titre)
     scenoLast = ts;
     scenoUpdateColors();
-    const cv = scenoCanvas, dpr = Math.min(window.devicePixelRatio || 1, scenoQ ? 1 : 1.5), W = cv.clientWidth, H = cv.clientHeight;
+    const cv = scenoCanvas, dpr = Math.min(window.devicePixelRatio || 1, scenoQ ? 1 : fxDprMax()), W = cv.clientWidth, H = cv.clientHeight;
     if (!W || !H) return;
     if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
     const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -4809,7 +4821,7 @@ function scenoFrame(ts) {
     const fam = getComputedStyle(document.body).fontFamily || 'sans-serif', maxW = W - 32;
     let title = scenoTrack.title || 'En attente de lecture…', size = Math.max(18, Math.min(34, W / 10)), lines;
     let lyLines = [], lsz = Math.max(11, size * 0.45);
-    if (scenoLyric.text) {
+    if (scenoLyric.text && !animPaused) { // en pause d'animations, la ligne de parole serait figée et sans sens : on ne l'affiche pas
         const full = '♪ ' + scenoLyric.text;
         for (;;) { g.font = 'italic 500 ' + lsz + 'px ' + fam; lyLines = scenoWrap(g, full, maxW); if (lyLines.length <= 4 || lsz <= 9.5) break; lsz -= 0.5; }
         if (lyLines.length > 4) { lyLines = lyLines.slice(0, 4); let l4 = lyLines[3]; while (g.measureText(l4 + '…').width > maxW && l4.length > 2) l4 = l4.slice(0, -1); lyLines[3] = l4 + '…'; }
@@ -4890,7 +4902,7 @@ function cfxFrame(ts) {
     if (!cv || !art || !card) return;
     const cr = card.getBoundingClientRect(), ar = art.getBoundingClientRect();
     const W = cr.width, H = cr.height; if (!W || !H) return;
-    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    const dpr = Math.min(window.devicePixelRatio || 1, fxDprMax());
     if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
     const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H); g.globalCompositeOperation = 'source-over';
     const playing = (function () { try { return isCurrentlyPlaying; } catch (e) { return true; } })();
@@ -4981,6 +4993,7 @@ function tbSync() {
     });
     const ab = document.getElementById('tb-anim-btn'); if (ab) ab.textContent = animPaused ? '▶️ Reprendre animations' : '⏸️ Pause des animations';
     const ap2 = document.getElementById('anim-pause-toggle'); if (ap2 && ap2.checked !== animPaused) ap2.checked = animPaused;
+    const hr = document.getElementById('fxhires-toggle'); if (hr && hr.checked !== fxHiRes) hr.checked = fxHiRes;
 }
 function tbEye(k) { const d = TB_INT[k]; try { d.hid() ? d.show() : d.hide(); } catch (e) {} tbSync(); }
 function toggleToolbox(force) {
@@ -5055,7 +5068,7 @@ function bubblesFrame(ts) {
     const dt = animPaused ? 0 : Math.min(0.1, (ts - bubLast) / 1000); bubLast = ts;
     const cv = document.getElementById('bubbles-fx'), card = document.getElementById('explorer-card'); if (!cv || !card) return;
     const W = card.clientWidth, H = card.clientHeight; if (!W || !H) return;
-    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    const dpr = Math.min(window.devicePixelRatio || 1, fxDprMax());
     if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
     const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
     const fcs = fxColors(), PAL = [fcs.c1, fcs.c2];
@@ -7398,6 +7411,7 @@ function ensureCreditsModal() {
             <li><strong>Aurore sur les écrans</strong> — la scénographie en 16×16 : rideaux de lumière aux deux couleurs de la pochette qui ondulent et pulsent au tempo, étoiles qui scintillent (mode « 🌌 Aurore (scénographie) », aussi dans le ＋).</li>
             <li><strong>Fond « Lecture en cours »</strong> — réglage pour que le fond de l'encadré épouse en douceur les couleurs de la pochette (désactivé par défaut).</li>
             <li><strong>Économie d'énergie</strong> — en pause d'animations, les effets ne calculent plus rien (la boucle s'arrête) et ne se redessinent qu'à un nouveau titre ; les effets ne sont dessinés que lorsqu'ils sont visibles à l'écran ; la scénographie s'allège toute seule si le téléphone peine ; pause automatique si la batterie est faible. L'effet d'apparition du nom de l'artiste (Lecture en cours) joue même quand les animations sont en pause.</li>
+            <li><strong>Canvas haute résolution</strong> — réglage : désactivé, les effets sont dessinés au maximum en ×1,5 ; activé, en ×2. En pause d'animations, la ligne de parole de la scénographie n'est plus affichée.</li>
             <li><strong>Bulles encadré recherche 🫧</strong> — fins cercles sobres (anneaux discrets) aux couleurs de la pochette qui montent doucement en fond de l'encadré « Explorer &amp; rechercher » (réglage dédié, désactivé par défaut). Les couleurs de tous les effets (scénographie, effet pochette, cercles) glissent en douceur vers celles du nouveau titre.</li>
             <li><strong>Boîte à outils 🧰</strong> — un bouton en bas à droite remplace les 3 boutons des intégrations (clip, paroles flottantes, sous-titres, toujours actives : afficher / masquer). Il contient aussi un encadré Appareils (voyants Bluetooth + bouton ＋), les paroles en plein écran et la pause des animations. Réglages : les effets sont en haut.</li>
             <li><strong>Aurore LED</strong> — le cœur des titres likés n'est plus affiché dans ce mode ; l'écran d'accueil « Se connecter » disparaît aussi après une reconnexion automatique.</li>
