@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v12.0";
+        const APP_VERSION = "v12.2";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -866,6 +866,8 @@
         body.anim-paused #toolbox-panel { animation: none !important; }
         /* Pause des animations */
         body.anim-paused *, body.anim-paused *::before, body.anim-paused *::after { animation-play-state: paused !important; }
+        /* Le nom de l'artiste (Lecture en cours) garde son effet d'apparition même quand les animations sont en pause */
+        body.anim-paused #track-artist, body.anim-paused #track-artist::before, body.anim-paused #track-artist::after { animation-play-state: running !important; }
         /* Boîte à outils */
         #toolbox-back { display: none; position: fixed; inset: 0; z-index: 9800; background: rgba(0,0,0,0.55); align-items: flex-end; justify-content: center; }
         #toolbox-back.open { display: flex; }
@@ -4721,22 +4723,28 @@ var animPaused = (function () { try { return localStorage.getItem('animPaused') 
 var scenoPT = 0;
 // Animations en pause : l'image est figée et ne se redessine QUE lorsqu'un nouveau titre est détecté (pendant ~2,5 s, le temps que les couleurs glissent), puis plus rien.
 var fxGate = {};
-function fxPauseGate(id, ts) {
+function fxPauseState(id, ts) { // 0 = rien à faire (la boucle s'arrête), 1 = attendre, 2 = dessiner
     const art = document.getElementById('track-art'), key = (art ? art.src : '') + '|' + (scenoTrack.id || '') + '|' + (scenoTrack.title || '');
     const g = fxGate[id] || (fxGate[id] = { key: '', until: 0, last: 0 });
     if (g.key !== key) { g.key = key; g.until = ts + 2500; }
-    if (ts > g.until && g.last) return false;
-    if (ts - g.last < 100) return false;
-    g.last = ts; return true;
+    if (ts > g.until && g.last) return 0;
+    if (ts - g.last < 100) return 1;
+    g.last = ts; return 2;
 }
+// Visible à l'écran ? (inutile de dessiner un effet hors de la zone affichée)
+function fxOnScreen(el) { if (!el) return false; const r = el.getBoundingClientRect(); return r.bottom > 0 && r.top < (window.innerHeight || 800) && r.width > 0; }
+var scenoQ = 0, scenoCost = 0, scenoQT = 0; // qualité adaptative : 0 = complète, 1 = sans flou + 20 i/s, 2 = allégée + 15 i/s
 window.addEventListener('resize', () => { fxGate = {}; });
+// Batterie faible (≤ 15 %, pas en charge) : animations mises en pause automatiquement pour cette session (réactivables dans 🧰)
+try { if (navigator.getBattery) navigator.getBattery().then(b => { const chk = () => { if (!animPaused && !b.charging && b.level <= 0.15) { animPaused = true; document.body.classList.add('anim-paused'); try { tbSync(); showLyricsToggleMessage('Batterie faible : animations en pause (🧰 pour les reprendre)'); } catch (e) {} } }; b.addEventListener('levelchange', chk); b.addEventListener('chargingchange', chk); setTimeout(chk, 4000); }).catch(() => {}); } catch (e) {}
 function scenoFrame(ts) {
-    scenoRaf = requestAnimationFrame(scenoFrame);
-    if (!scenoCanvas || document.hidden) return;
-    if (animPaused ? !fxPauseGate('seno', ts) : ts - scenoLast < 33) return; // ~30 images/s (4 en pause d'animations : image figée mais mise à jour à chaque nouveau titre)
+    if (animPaused) { const st = fxPauseState('seno', ts); if (st === 0) { scenoRaf = 0; return; } scenoRaf = requestAnimationFrame(scenoFrame); if (st === 1) return; }
+    else { scenoRaf = requestAnimationFrame(scenoFrame); if (ts - scenoLast < [33, 50, 66][scenoQ]) return; }
+    if (!scenoCanvas || document.hidden || !fxOnScreen(scenoCanvas)) return;
+    const _c0 = performance.now(); // ~30 images/s (4 en pause d'animations : image figée mais mise à jour à chaque nouveau titre)
     scenoLast = ts;
     scenoUpdateColors();
-    const cv = scenoCanvas, dpr = Math.min(window.devicePixelRatio || 1, 2), W = cv.clientWidth, H = cv.clientHeight;
+    const cv = scenoCanvas, dpr = Math.min(window.devicePixelRatio || 1, scenoQ ? 1 : 1.5), W = cv.clientWidth, H = cv.clientHeight;
     if (!W || !H) return;
     if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
     const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -4744,12 +4752,12 @@ function scenoFrame(ts) {
     if (!animPaused || !scenoPT) scenoPT = ts / 1000; // temps gelé quand les animations sont en pause
     const t = scenoPT, seed = scenoHash(scenoTrack.id || scenoTrack.title || 'x') % 1000;
     const bpm = scenoBpm(), beatsF = t * bpm / 60, beatN = Math.floor(beatsF), frac = beatsF - beatN;
-    const pulse = playing ? Math.exp(-frac * 4.5) : 0, speed = playing ? 1 : 0.25;
+    const pulse = (playing && !animPaused) ? Math.exp(-frac * 4.5) : 0, speed = animPaused ? 0 : (playing ? 1 : 0.25);
     const key = scenoTrack.id + '|' + scenoTrack.title;
     if (key !== scenoTitleKey) { scenoTitleKey = key; scenoT0 = animPaused ? t - 100 : t; scenoStar = null; }
     const lyr = scenoCurrentLyric(); if (lyr !== scenoLyric.text) { scenoLyric = { text: lyr, t0: animPaused ? t - 100 : t }; if (lyr && !animPaused) scenoRipples.push({ t0: t, x: 0.15 + 0.7 * ((scenoHash(lyr) % 100) / 100) }); }
     scenoRipples = scenoRipples.filter(r => t - r.t0 < 2.6);
-    const flash = Math.exp(-(t - scenoLyric.t0) * 2.6);
+    const flash = animPaused ? 0 : Math.exp(-(t - scenoLyric.t0) * 2.6);
     const fcs = fxColors(), A = fcs.c1, B = fcs.c2, M = A.map((v, i) => (v + B[i]) >> 1), lt = c => c.map(v => Math.min(255, v + 90));
     const rgba = (c, a) => 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a + ')';
     const mix = (c, d, k) => c.map((v, i) => Math.round(v + (d[i] - v) * k));
@@ -4764,8 +4772,8 @@ function scenoFrame(ts) {
         const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, rgba(c, 0.32 + flash * 0.12)); gr.addColorStop(1, rgba(c, 0)); g.fillStyle = gr; g.fillRect(0, 0, W, H);
     }
     // rideaux : colonnes verticales dont la hauteur, la position et l'intensité ondulent (3 couches qui ne vont pas à la même vitesse)
-    const cols = Math.max(36, Math.round(W / 7)), bw = W / cols + 1;
-    try { g.filter = 'blur(3px)'; } catch (e) {} // adoucit les colonnes : on ne voit plus les raies, juste des voiles de lumière
+    const cols = Math.max(30, Math.round(W / (scenoQ >= 2 ? 11 : 7))), bw = W / cols + 1;
+    if (!scenoQ) { try { g.filter = 'blur(3px)'; } catch (e) {} } // adoucit les colonnes : on ne voit plus les raies, juste des voiles de lumière
     for (let layer = 0; layer < 3; layer++) {
         const sp = (0.25 + layer * 0.17) * speed, amp = H * (0.10 + layer * 0.05), base = H * (0.46 + layer * 0.07);
         for (let i = 0; i < cols; i++) {
@@ -4790,7 +4798,8 @@ function scenoFrame(ts) {
         g.fillStyle = 'rgba(255,255,255,' + (0.12 + 0.6 * tw) + ')'; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
     }
     // étoile filante (toutes les ~9 s, ou au début d'un titre)
-    if (!scenoStar && (t - scenoLastStar > 9 || t - scenoT0 < 0.05)) { scenoStar = { t0: t, x: W * (0.45 + Math.random() * 0.5), y: H * (0.05 + Math.random() * 0.25) }; scenoLastStar = t; }
+    if (animPaused) scenoStar = null; // pas d'étoile filante figée en pause
+    if (!animPaused && !scenoStar && (t - scenoLastStar > 9 || t - scenoT0 < 0.05)) { scenoStar = { t0: t, x: W * (0.45 + Math.random() * 0.5), y: H * (0.05 + Math.random() * 0.25) }; scenoLastStar = t; }
     if (scenoStar) { const k = (t - scenoStar.t0) / 1.1; if (k >= 1) scenoStar = null; else { const x = scenoStar.x - k * W * 0.5, y = scenoStar.y + k * H * 0.35, gr = g.createLinearGradient(x, y, x + 70, y - 45); gr.addColorStop(0, 'rgba(255,255,255,' + (0.9 * (1 - k)) + ')'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.strokeStyle = gr; g.lineWidth = 2; g.beginPath(); g.moveTo(x, y); g.lineTo(x + 70, y - 45); g.stroke(); } }
     // ondes : un anneau de lumière à chaque nouvelle ligne de parole
     scenoRipples.forEach(r => { const k = (t - r.t0) / 2.6; g.beginPath(); g.ellipse(r.x * W, H * 0.55, k * W * 0.55, k * H * 0.28, 0, 0, 7); g.lineWidth = 1.5 + 4 * (1 - k); g.strokeStyle = rgba(lt(M), 0.5 * (1 - k)); g.stroke(); });
@@ -4812,7 +4821,7 @@ function scenoFrame(ts) {
     if (lines.length > 2) { lines = lines.slice(0, 2); let l2 = lines[1]; while (g.measureText(l2 + '…').width > maxW && l2.length > 2) l2 = l2.slice(0, -1); lines[1] = l2 + '…'; }
     const aSize = Math.max(12, size * 0.5), yA = H - 14 - scenoLyH, yLast = yA - aSize - 8, lh = size * 1.08;
     const total = lines.reduce((a, l) => a + l.length, 0), sweep = ((t - scenoT0 - 1.8) * 0.45) % 2.2 - 0.6; // position du reflet (0..1 sur le titre)
-    const kf = Math.max(0, Math.min(1, (t - scenoT0) / 1.3)), ef = 1 - Math.pow(1 - kf, 3); // 0 → 1 : flou/étiré → net/serré
+    const kf = animPaused ? 1 : Math.max(0, Math.min(1, (t - scenoT0) / 1.3)), ef = 1 - Math.pow(1 - kf, 3); // 0 → 1 : flou/étiré → net/serré
     g.textBaseline = 'alphabetic';
     let gi = 0;
     lines.forEach((ln, li) => {
@@ -4823,7 +4832,7 @@ function scenoFrame(ts) {
                 const pos = gi / Math.max(1, total - 1), base = mix(lt(A), lt(B), pos), band = Math.max(0, 1 - Math.abs(pos - sweep) / 0.14), col = base.map(v => Math.round(v + (255 - v) * band));
                 const spread = (cx + wch / 2 - mid) * 0.9 * (1 - ef); // lettres écartées du centre de la ligne au début
                 g.save(); g.translate(cx + wch / 2 + spread, y0); g.globalAlpha = Math.min(1, ef * 1.6);
-                try { g.filter = (1 - ef) > 0.02 ? 'blur(' + ((1 - ef) * 7).toFixed(1) + 'px)' : 'none'; } catch (e) {}
+                try { g.filter = ((1 - ef) > 0.02 && !scenoQ) ? 'blur(' + ((1 - ef) * 7).toFixed(1) + 'px)' : 'none'; } catch (e) {}
                 g.shadowColor = rgba(band > 0.2 ? [255, 255, 255] : M, 0.85); g.shadowBlur = 6 + pulse * 6 + band * 14 + (1 - ef) * 10;
                 g.fillStyle = 'rgb(' + col[0] + ',' + col[1] + ',' + col[2] + ')'; g.textAlign = 'center'; g.fillText(ch, 0, 0); g.restore();
             }
@@ -4831,18 +4840,21 @@ function scenoFrame(ts) {
         }
     });
     g.globalAlpha = 1; g.shadowBlur = 0; g.textAlign = 'left'; try { g.filter = 'none'; } catch (e) {}
-    // artiste (apparaît après le titre)
-    const ta = Math.max(0, Math.min(1, (t - scenoT0 - 0.9) / 0.6));
+    // artiste : effet d'apparition après le titre (toujours visible quand les animations sont en pause)
+    const ta = animPaused ? 1 : Math.max(0, Math.min(1, (t - scenoT0 - 0.9) / 0.6));
     g.font = '600 ' + aSize + 'px ' + fam; g.fillStyle = 'rgba(255,255,255,' + (0.85 * ta) + ')';
     let art = scenoTrack.artist || ''; while (g.measureText(art).width > maxW && art.length > 4) art = art.slice(0, -2);
     g.fillText(art, 16, yA + (1 - ta) * 6);
     if (lyLines.length) {
-        const la = Math.min(1, (t - scenoLyric.t0) / 0.45), lh2 = lsz * 1.28;
+        const la = animPaused ? 1 : Math.min(1, (t - scenoLyric.t0) / 0.45), lh2 = lsz * 1.28;
         g.font = 'italic 500 ' + lsz + 'px ' + fam; g.fillStyle = rgba(lt(M), 0.92 * la);
         lyLines.forEach((l, i) => g.fillText(l, 16, yA + 6 + lsz + i * lh2 - (1 - la) * 0 + (1 - la) * 6));
     }
     // fine barre de progression aux couleurs de la pochette
     try { if (trackDurationMs > 0) { const p = Math.max(0, Math.min(1, divoomProgressMs() / trackDurationMs)); const bg = g.createLinearGradient(0, 0, W, 0); bg.addColorStop(0, rgba(A, 1)); bg.addColorStop(1, rgba(B, 1)); g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(0, H - 3, W, 3); g.fillStyle = bg; g.fillRect(0, H - 3, W * p, 3); } } catch (e) {}
+    // qualité adaptative : si le dessin est trop lent (téléphone qui chauffe), on allège automatiquement
+    if (!animPaused) { scenoCost = scenoCost * 0.9 + (performance.now() - _c0) * 0.1; const nowT = performance.now();
+        if (nowT - scenoQT > 3000) { const q = scenoCost > 22 ? 2 : scenoCost > 12 ? 1 : (scenoCost < 5 ? 0 : scenoQ); if (q > scenoQ) scenoQ = q; else if (q < scenoQ) scenoQ--; scenoQT = nowT; } }
 }
 setInterval(() => { try { scenoSync(); } catch (e) {} }, 500);
 
@@ -4870,14 +4882,15 @@ function cfxSync() {
 }
 let cfxT = 0, cfxSp = [], cfxNodes = [];
 function cfxFrame(ts) {
-    cfxRaf = requestAnimationFrame(cfxFrame);
-    if (document.hidden || (animPaused ? !fxPauseGate('cfx', ts) : ts - cfxLast < 33)) return;
+    if (animPaused) { const st = fxPauseState('cfx', ts); if (st === 0) { cfxRaf = 0; return; } cfxRaf = requestAnimationFrame(cfxFrame); if (st === 1) return; }
+    else { cfxRaf = requestAnimationFrame(cfxFrame); if (ts - cfxLast < 33) return; }
+    if (document.hidden || !fxOnScreen(document.getElementById('cover-fx'))) return;
     const dt = animPaused ? 0 : Math.min(0.1, (ts - cfxLast) / 1000); cfxLast = ts;
     const cv = document.getElementById('cover-fx'), art = document.getElementById('track-art'), card = document.getElementById('np-card');
     if (!cv || !art || !card) return;
     const cr = card.getBoundingClientRect(), ar = art.getBoundingClientRect();
     const W = cr.width, H = cr.height; if (!W || !H) return;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
     if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
     const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H); g.globalCompositeOperation = 'source-over';
     const playing = (function () { try { return isCurrentlyPlaying; } catch (e) { return true; } })();
@@ -5036,12 +5049,13 @@ function bubblesSync() {
     if (!vis && bubRaf) { cancelAnimationFrame(bubRaf); bubRaf = 0; bubs = []; }
 }
 function bubblesFrame(ts) {
-    bubRaf = requestAnimationFrame(bubblesFrame);
-    if (document.hidden || (animPaused ? !fxPauseGate('bub', ts) : ts - bubLast < 33)) return;
+    if (animPaused) { const st = fxPauseState('bub', ts); if (st === 0) { bubRaf = 0; return; } bubRaf = requestAnimationFrame(bubblesFrame); if (st === 1) return; }
+    else { bubRaf = requestAnimationFrame(bubblesFrame); if (ts - bubLast < 40) return; }
+    if (document.hidden || !fxOnScreen(document.getElementById('bubbles-fx'))) return;
     const dt = animPaused ? 0 : Math.min(0.1, (ts - bubLast) / 1000); bubLast = ts;
     const cv = document.getElementById('bubbles-fx'), card = document.getElementById('explorer-card'); if (!cv || !card) return;
     const W = card.clientWidth, H = card.clientHeight; if (!W || !H) return;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
     if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
     const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
     const fcs = fxColors(), PAL = [fcs.c1, fcs.c2];
@@ -7383,6 +7397,7 @@ function ensureCreditsModal() {
             <li><strong>Modes d'affichage</strong> — paroles défilantes, image de l'artiste en 16×16 (écran noir sans photo), défilement pochette · artiste · titre (le titre reste lisible 2 s avant de défiler), stats d'écoute (titres écoutés aujourd'hui, titre et artiste les plus écoutés, temps d'écoute ; basé sur les 50 derniers titres de Spotify), titres aimés (mini-pochettes, panneau ❤️ avec flèches et bouton « Lancer »).</li>
             <li><strong>Aurore sur les écrans</strong> — la scénographie en 16×16 : rideaux de lumière aux deux couleurs de la pochette qui ondulent et pulsent au tempo, étoiles qui scintillent (mode « 🌌 Aurore (scénographie) », aussi dans le ＋).</li>
             <li><strong>Fond « Lecture en cours »</strong> — réglage pour que le fond de l'encadré épouse en douceur les couleurs de la pochette (désactivé par défaut).</li>
+            <li><strong>Économie d'énergie</strong> — en pause d'animations, les effets ne calculent plus rien (la boucle s'arrête) et ne se redessinent qu'à un nouveau titre ; les effets ne sont dessinés que lorsqu'ils sont visibles à l'écran ; la scénographie s'allège toute seule si le téléphone peine ; pause automatique si la batterie est faible. L'effet d'apparition du nom de l'artiste (Lecture en cours) joue même quand les animations sont en pause.</li>
             <li><strong>Bulles encadré recherche 🫧</strong> — fins cercles sobres (anneaux discrets) aux couleurs de la pochette qui montent doucement en fond de l'encadré « Explorer &amp; rechercher » (réglage dédié, désactivé par défaut). Les couleurs de tous les effets (scénographie, effet pochette, cercles) glissent en douceur vers celles du nouveau titre.</li>
             <li><strong>Boîte à outils 🧰</strong> — un bouton en bas à droite remplace les 3 boutons des intégrations (clip, paroles flottantes, sous-titres, toujours actives : afficher / masquer). Il contient aussi un encadré Appareils (voyants Bluetooth + bouton ＋), les paroles en plein écran et la pause des animations. Réglages : les effets sont en haut.</li>
             <li><strong>Aurore LED</strong> — le cœur des titres likés n'est plus affiché dans ce mode ; l'écran d'accueil « Se connecter » disparaît aussi après une reconnexion automatique.</li>
