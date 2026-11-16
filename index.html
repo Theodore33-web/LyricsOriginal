@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v12.11";
+        const APP_VERSION = "v12.12";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -933,8 +933,9 @@
         #np-card #track-artist, #np-card #lyrics-content, #np-card .progress-container, #np-card #track-art, #np-card #track-title, #mini-player-bar > *, #pip-content, #lfs-list, #lfs-meta > div { transition: opacity 0.45s ease, transform 0.45s ease, filter 0.45s ease; }
         body.np-clearing #track-artist, body.np-clearing #lyrics-content, body.np-clearing #np-card .progress-container, body.np-clearing #mini-player-bar > *, body.np-clearing #pip-content, body.np-clearing #lfs-list, body.np-clearing #lfs-meta > div { opacity: 0 !important; transform: translateY(6px); filter: blur(3px); }
         body.np-clearing #np-card #track-art, body.np-clearing #np-card #track-title { opacity: 0 !important; transform: scale(0.94); filter: blur(3px); }
-        #np-card.no-art #track-art-ph { animation: phIn 0.6s ease both; }
-        body.anim-paused #np-card.no-art #track-art-ph { animation: none !important; opacity: 1 !important; transform: none !important; }
+        #track-art-ph { transition: opacity 0.6s ease, transform 0.6s ease; }
+        body.np-clearing #track-art-ph { opacity: 0 !important; transform: scale(0.88) !important; }
+        body.np-clearing #track-title { min-height: 1.3em; }
         @keyframes phIn { from { opacity: 0; transform: scale(0.88); } to { opacity: 1; transform: scale(1); } }
         #track-art-ph svg { width: 58%; height: 58%; }
         #track-art[style*="none"] + #track-art-ph, #np-card.no-art #track-art-ph { display: flex; }
@@ -3998,12 +3999,12 @@ function highlightLyrics(currentTime) {
             if (driveMusicModeActive || npClearing) return;
             const t = document.getElementById('track-title'); if (!t || t.innerText === 'Aucune lecture') return;
             npClearing = true; document.body.classList.add('np-clearing');
-            setTimeout(() => { try { doNoPlayback(); } finally { document.body.classList.remove('np-clearing'); npClearing = false; } }, 520);
+            setTimeout(() => { try { doNoPlayback(); } catch (e) {} setTimeout(() => { const tt = document.getElementById('track-title'); if (tt && !tt.innerText.trim()) tt.innerText = 'Aucune lecture'; document.body.classList.remove('np-clearing'); npClearing = false; }, 1000); }, 520); // icône + texte réapparaissent 1 s après l'effacement
         }
         var npClearing = false;
         function doNoPlayback() {
             const t = document.getElementById('track-title'); if (!t) return;
-            t.innerText = 'Aucune lecture';
+            t.innerText = '';
             const a = document.getElementById('track-artist'); if (a) a.innerText = '';
             const art = document.getElementById('track-art'); if (art) { art.style.display = 'none'; art.removeAttribute('src'); }
             trackDurationMs = 0; currentProgressMs = 0; lastTrackId = ''; currentLyrics = [];
