@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v12.10";
+        const APP_VERSION = "v12.11";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -934,6 +934,7 @@
         body.np-clearing #track-artist, body.np-clearing #lyrics-content, body.np-clearing #np-card .progress-container, body.np-clearing #mini-player-bar > *, body.np-clearing #pip-content, body.np-clearing #lfs-list, body.np-clearing #lfs-meta > div { opacity: 0 !important; transform: translateY(6px); filter: blur(3px); }
         body.np-clearing #np-card #track-art, body.np-clearing #np-card #track-title { opacity: 0 !important; transform: scale(0.94); filter: blur(3px); }
         #np-card.no-art #track-art-ph { animation: phIn 0.6s ease both; }
+        body.anim-paused #np-card.no-art #track-art-ph { animation: none !important; opacity: 1 !important; transform: none !important; }
         @keyframes phIn { from { opacity: 0; transform: scale(0.88); } to { opacity: 1; transform: scale(1); } }
         #track-art-ph svg { width: 58%; height: 58%; }
         #track-art[style*="none"] + #track-art-ph, #np-card.no-art #track-art-ph { display: flex; }
