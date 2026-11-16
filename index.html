@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v12.15";
+        const APP_VERSION = "v12.16";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -832,6 +832,11 @@
         .ic-e { display: inline-block; width: 1.2em; height: 1.2em; vertical-align: -0.22em; line-height: 1; }
         .ic-e svg { width: 100%; height: 100%; display: block; }
         .ic-e .ic-t { display: none !important; }
+        .lyric-line.sing-line, #lfs-list .lfs-line.sing-line { --sing: 0%; background: linear-gradient(90deg, #e3b02a 0%, #cf9a12 calc(var(--sing) - 5%), rgba(255,255,255,0.55) calc(var(--sing) + 7%)) !important; -webkit-background-clip: text !important; background-clip: text !important; -webkit-text-fill-color: transparent !important; filter: drop-shadow(0 0 12px rgba(217,165,22,0.35)); }
+        .sing-line * { -webkit-text-fill-color: transparent !important; background: none !important; }
+        .lyric-line.sung:not(.active), #lfs-list .lfs-line.sung:not(.on) { color: #cf9a12 !important; text-shadow: 0 0 14px rgba(207,154,18,0.28); }
+        #sing-meter { width: 64px; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.12); overflow: hidden; display: inline-block; vertical-align: middle; margin-left: 6px; }
+        #sing-meter-fill { height: 100%; width: 0%; border-radius: 3px; transition: width 0.08s linear; }
         .lyr-spin, .lyr-empty { display: flex; justify-content: center; margin: 14px 0 6px; color: rgba(255,255,255,0.55); }
         .lyr-spin svg, .lyr-empty svg { width: 46px; height: 46px; }
         .lyr-empty { color: rgba(255,255,255,0.45); }
@@ -1604,6 +1609,13 @@
     <span style="font-size: 0.85rem; color: var(--text-grey);">Décor animé de l'accueil : platine, notes en orbite et égaliseur</span>
     <label class="switch">
         <input type="checkbox" id="homefx-toggle" onchange="toggleHomeFx(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Chante : les mots s'allument en jaune moutarde (micro)<span id="sing-meter"><span id="sing-meter-fill"></span></span><br><span style="font-size: 0.7rem; opacity: 0.75;">Casque conseillé : sinon la musique est prise pour ta voix. Rien n'est enregistré.</span></span>
+    <label class="switch">
+        <input type="checkbox" id="sing-toggle" onchange="toggleSing(this.checked)">
         <span class="slider"></span>
     </label>
 </div>
@@ -4823,6 +4835,95 @@ var scenoQ = 0, scenoCost = 0, scenoQT = 0; // qualité adaptative : 0 = complè
 window.addEventListener('resize', () => { fxGate = {}; });
 // Batterie faible (≤ 15 %, pas en charge) : animations mises en pause automatiquement pour cette session (réactivables dans 🧰)
 try { if (navigator.getBattery) navigator.getBattery().then(b => { const chk = () => { if (!animPaused && !b.charging && b.level <= 0.15) { animPaused = true; document.body.classList.add('anim-paused'); try { tbSync(); showLyricsToggleMessage('Batterie faible : animations en pause (🧰 pour les reprendre)'); } catch (e) {} } }; b.addEventListener('levelchange', chk); b.addEventListener('chargingchange', chk); setTimeout(chk, 4000); }).catch(() => {}); } catch (e) {}
+
+// ===== Scénographie : paroles illustrées en direct (un mot-clé de la ligne chantée fait apparaître un dessin animé) =====
+const SCENO_ILLU = [
+    ['coeur', /\b(coeur|heart|love|amour\w*|aime\w*|baiser\w*|kiss\w*)\b/, [255, 80, 120]],
+    ['feu', /\b(feu|flamm\w*|fire|flames?|burn\w*|brul\w*|incendi\w*)\b/, [255, 140, 50]],
+    ['pluie', /\b(pluie|pleu\w*|rain\w*|goutte\w*|averse\w*)\b/, [130, 185, 255]],
+    ['larme', /\b(larme\w*|pleur\w*|cry\w*|cries|tears?|sanglot\w*)\b/, [150, 205, 255]],
+    ['etoile', /\b(etoile\w*|stars?|starlight|constellation\w*)\b/, [255, 230, 140]],
+    ['soleil', /\b(soleil\w*|sun|sunshine|summer|lumiere\w*|light)\b/, [255, 200, 70]],
+    ['lune', /\b(lune|moon\w*|nuit\w*|nights?|minuit|midnight)\b/, [225, 230, 255]],
+    ['mer', /\b(mer|oceans?|vagues?|waves?|sea|plage\w*|beach\w*)\b/, [70, 175, 235]],
+    ['eclair', /\b(eclairs?|orage\w*|thunder\w*|storm\w*|lightning|tonnerre\w*)\b/, [255, 235, 120]],
+    ['neige', /\b(neige\w*|snow\w*|hiver\w*|winter\w*|flocon\w*)\b/, [230, 245, 255]],
+    ['couronne', /\b(couronne\w*|crown\w*|roi|king|reine|queen|princesse|prince)\b/, [255, 205, 80]],
+    ['oeil', /\b(oeil|yeux|eyes?|regard\w*)\b/, [190, 255, 215]]
+];
+let scenoIlluCache = { text: null, kind: '' }, scenoIllu = { kind: '', t0: 0, prev: '', prevT: 0 };
+function scenoIlluOf(text) {
+    if (text === scenoIlluCache.text) return scenoIlluCache.kind;
+    const n = String(text || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/œ/g, 'oe');
+    let best = '', pos = 1e9;
+    SCENO_ILLU.forEach(([k, rx]) => { const m = rx.exec(n); if (m && m.index < pos) { pos = m.index; best = k; } });
+    scenoIlluCache = { text, kind: best }; return best;
+}
+function scenoIlluDraw(g, kind, t, pulse, a, base) {
+    const def = SCENO_ILLU.find(x => x[0] === kind); if (!def) return;
+    const c = def[2].map((v, i) => Math.round(v * 0.72 + base[i] * 0.28)), lw = 0.075;
+    const rgba = (col, al) => 'rgba(' + col[0] + ',' + col[1] + ',' + col[2] + ',' + Math.max(0, Math.min(1, al)) + ')';
+    const hg = g.createRadialGradient(0, 0, 0.1, 0, 0, 2); hg.addColorStop(0, rgba(c, 0.30 * a)); hg.addColorStop(1, rgba(c, 0)); g.fillStyle = hg; g.fillRect(-2, -2, 4, 4);
+    g.globalCompositeOperation = 'source-over'; // le dessin garde ses vraies couleurs (le halo seul est additif)
+    g.lineJoin = 'round'; g.lineCap = 'round'; g.lineWidth = lw;
+    const fillG = (c1, c2) => { const gr = g.createLinearGradient(0, -1, 0, 1); gr.addColorStop(0, rgba(c1, 0.95 * a)); gr.addColorStop(1, rgba(c2, 0.6 * a)); g.fillStyle = gr; };
+    const dark = col => col.map(v => Math.round(v * 0.82));
+    const heart = () => { g.beginPath(); g.moveTo(0, 0.85); g.bezierCurveTo(-1.25, 0, -0.85, -0.95, 0, -0.4); g.bezierCurveTo(0.85, -0.95, 1.25, 0, 0, 0.85); g.closePath(); };
+    switch (kind) {
+        case 'coeur': {
+            for (let k = 0; k < 2; k++) { const ph = (t * 1.2 + k * 0.5) % 1; g.save(); g.scale(1 + ph * 0.7, 1 + ph * 0.7); heart(); g.strokeStyle = rgba(c, (1 - ph) * 0.4 * a); g.stroke(); g.restore(); }
+            const sc = 1 + 0.1 * pulse + 0.03 * Math.sin(t * 2); g.save(); g.scale(sc, sc); heart(); fillG(c, dark(c)); g.fill(); g.strokeStyle = rgba([255, 255, 255], 0.5 * a); g.lineWidth = lw * 0.6; g.stroke(); g.restore(); break; }
+        case 'feu': {
+            const w = Math.sin(t * 9) * 0.08 + Math.sin(t * 5.3) * 0.06;
+            [[1, [255, 70, 30]], [0.68, [255, 150, 40]], [0.4, [255, 232, 120]]].forEach(([sc, col]) => { g.save(); g.scale(sc, sc); g.translate(0, (1 - sc) * 0.55); g.beginPath(); g.moveTo(0, 0.95); g.bezierCurveTo(-0.95, 0.95, -0.95, 0.05, -0.25, -0.35); g.bezierCurveTo(-0.35, -0.7, -0.05 + w, -0.95, 0.1 + w * 1.5, -1.1); g.bezierCurveTo(0.25, -0.6, 0.95, -0.2, 0.95, 0.45); g.bezierCurveTo(0.95, 0.82, 0.5, 0.95, 0, 0.95); g.fillStyle = rgba(col, 0.85 * a); g.fill(); g.restore(); });
+            for (let i = 0; i < 6; i++) { const ph = (t * 0.7 + i * 0.37) % 1; g.beginPath(); g.arc(Math.sin(i * 7.1 + t) * 0.5, 0.6 - ph * 1.8, 0.045, 0, 7); g.fillStyle = rgba([255, 210, 120], (1 - ph) * 0.8 * a); g.fill(); } break; }
+        case 'pluie': {
+            g.fillStyle = rgba(c, 0.5 * a); g.beginPath(); g.arc(-0.5, -0.3, 0.36, 0, 7); g.arc(0, -0.5, 0.48, 0, 7); g.arc(0.55, -0.28, 0.38, 0, 7); g.rect(-0.55, -0.3, 1.1, 0.34); g.fill();
+            g.strokeStyle = rgba(c, 0.9 * a); g.lineWidth = lw * 0.8;
+            for (let i = 0; i < 9; i++) { const ph = (t * 0.9 + i * 0.173) % 1, x = -0.75 + i * 0.19, y = 0.1 + ph * 1; g.globalAlpha = 1 - ph * 0.8; g.beginPath(); g.moveTo(x, y); g.lineTo(x - 0.05, y + 0.2); g.stroke(); } g.globalAlpha = 1; break; }
+        case 'larme': {
+            const by = Math.sin(t * 1.6) * 0.05; g.save(); g.translate(0, by - 0.1); g.scale(0.9, 0.9); g.beginPath(); g.moveTo(0, -1); g.bezierCurveTo(0.25, -0.55, 0.75, -0.1, 0.75, 0.4); g.bezierCurveTo(0.75, 0.85, 0.4, 1, 0, 1); g.bezierCurveTo(-0.4, 1, -0.75, 0.85, -0.75, 0.4); g.bezierCurveTo(-0.75, -0.1, -0.25, -0.55, 0, -1); fillG(c, dark(c)); g.fill(); g.strokeStyle = rgba([255, 255, 255], 0.5 * a); g.lineWidth = lw * 0.6; g.stroke();
+            g.beginPath(); g.ellipse(-0.28, 0.3, 0.1, 0.22, 0.4, 0, 7); g.fillStyle = rgba([255, 255, 255], 0.55 * a); g.fill(); g.restore();
+            for (let k = 0; k < 2; k++) { const ph = (t * 0.7 + k * 0.5) % 1, r = 0.2 + ph * 0.8; g.beginPath(); g.ellipse(0, 1.08, r, r * 0.25, 0, 0, 7); g.strokeStyle = rgba(c, (1 - ph) * 0.5 * a); g.lineWidth = lw * 0.6; g.stroke(); } break; }
+        case 'etoile': {
+            const sc = 1 + 0.08 * pulse; g.save(); g.rotate(t * 0.3); g.scale(sc, sc); g.beginPath(); for (let i = 0; i < 10; i++) { const an = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 0.45 : 1; g.lineTo(Math.cos(an) * r, Math.sin(an) * r); } g.closePath(); fillG(c, dark(c)); g.fill(); g.strokeStyle = rgba([255, 255, 255], 0.55 * a); g.lineWidth = lw * 0.6; g.stroke(); g.restore();
+            for (let i = 0; i < 4; i++) { const an = i * 1.57 + 0.6 + t * 0.2, x = Math.cos(an) * 1.35, y = Math.sin(an) * 1.2, tw = 0.5 + 0.5 * Math.sin(t * 3 + i * 1.7), r = 0.06 + 0.1 * tw; g.strokeStyle = rgba([255, 255, 255], tw * 0.8 * a); g.lineWidth = 0.035; g.beginPath(); g.moveTo(x - r, y); g.lineTo(x + r, y); g.moveTo(x, y - r); g.lineTo(x, y + r); g.stroke(); } break; }
+        case 'soleil': {
+            g.beginPath(); g.arc(0, 0, 0.5, 0, 7); fillG(c, dark(c)); g.fill();
+            g.strokeStyle = rgba(c, 0.9 * a); for (let i = 0; i < 12; i++) { const an = i * Math.PI / 6 + t * 0.25, len = 0.28 + 0.1 * Math.sin(t * 2 + i); g.beginPath(); g.moveTo(Math.cos(an) * 0.7, Math.sin(an) * 0.7); g.lineTo(Math.cos(an) * (0.7 + len), Math.sin(an) * (0.7 + len)); g.stroke(); } break; }
+        case 'lune': {
+            const sc = 1 + 0.03 * Math.sin(t * 1.3); g.save(); g.rotate(-0.35); g.scale(sc, sc); g.beginPath(); g.arc(0, 0, 0.85, 0, 7); g.arc(0.38, -0.12, 0.72, 0, 7, true); fillG(c, dark(c)); g.fill(); g.restore();
+            [[0.75, -0.7, 0], [1.1, 0.1, 1.3], [0.55, 0.75, 2.4]].forEach(([x, y, ph]) => { const tw = 0.5 + 0.5 * Math.sin(t * 2.4 + ph), r = 0.05 + 0.08 * tw; g.strokeStyle = rgba([255, 255, 255], tw * 0.85 * a); g.lineWidth = 0.035; g.beginPath(); g.moveTo(x - r, y); g.lineTo(x + r, y); g.moveTo(x, y - r); g.lineTo(x, y + r); g.stroke(); }); break; }
+        case 'mer': {
+            for (let k = 0; k < 3; k++) { g.beginPath(); for (let x = -1; x <= 1.001; x += 0.1) { const y = -0.2 + k * 0.4 + 0.13 * Math.sin(x * 4 + t * 1.6 + k * 1.7); x === -1 ? g.moveTo(x, y) : g.lineTo(x, y); } g.strokeStyle = rgba(c, (0.95 - k * 0.22) * a); g.lineWidth = lw * (1 - k * 0.12); g.stroke(); } break; }
+        case 'eclair': {
+            const fl = (Math.sin(t * 14) > 0.15 ? 1 : 0.45) * (0.75 + 0.25 * pulse);
+            g.beginPath(); [[0.15, -1], [-0.5, 0.1], [-0.05, 0.1], [-0.25, 1], [0.55, -0.25], [0.1, -0.25]].forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.closePath(); g.fillStyle = rgba(c, 0.95 * a * fl); g.fill(); g.strokeStyle = rgba([255, 255, 255], 0.6 * a * fl); g.lineWidth = lw * 0.6; g.stroke(); break; }
+        case 'neige': {
+            g.save(); g.rotate(t * 0.25); g.strokeStyle = rgba(c, 0.95 * a);
+            for (let i = 0; i < 6; i++) { g.save(); g.rotate(i * Math.PI / 3); g.beginPath(); g.moveTo(0, 0); g.lineTo(0, -1); g.moveTo(0, -0.62); g.lineTo(0.26, -0.88); g.moveTo(0, -0.62); g.lineTo(-0.26, -0.88); g.moveTo(0, -0.3); g.lineTo(0.16, -0.46); g.moveTo(0, -0.3); g.lineTo(-0.16, -0.46); g.stroke(); g.restore(); } g.restore();
+            for (let i = 0; i < 10; i++) { const ph = (t * 0.25 + i * 0.1) % 1; g.beginPath(); g.arc(Math.sin(i * 5.3) * 1.3, -1.3 + ph * 2.6, 0.04, 0, 7); g.fillStyle = rgba(c, 0.7 * a); g.fill(); } break; }
+        case 'couronne': {
+            const sc = 1 + 0.04 * pulse; g.save(); g.scale(sc * 0.95, sc * 0.95); g.beginPath(); g.moveTo(-0.9, 0.55); g.lineTo(-0.9, -0.45); g.lineTo(-0.45, 0); g.lineTo(0, -0.75); g.lineTo(0.45, 0); g.lineTo(0.9, -0.45); g.lineTo(0.9, 0.55); g.closePath(); fillG(c, dark(c)); g.fill(); g.strokeStyle = rgba([255, 255, 255], 0.55 * a); g.lineWidth = lw * 0.6; g.stroke();
+            [[-0.9, -0.45], [0, -0.75], [0.9, -0.45]].forEach(([x, y]) => { g.beginPath(); g.arc(x, y, 0.09, 0, 7); g.fillStyle = rgba([255, 255, 255], 0.9 * a); g.fill(); });
+            const sh = ((t * 0.5) % 1) * 2.4 - 1.2; g.beginPath(); g.moveTo(sh - 0.1, 0.55); g.lineTo(sh + 0.1, -0.7); g.lineTo(sh + 0.2, -0.7); g.lineTo(sh, 0.55); g.fillStyle = rgba([255, 255, 255], 0.16 * a); g.fill(); g.restore(); break; }
+        case 'oeil': {
+            const k = t % 4.2, fy = k < 0.16 ? Math.abs(k - 0.08) / 0.08 * 0.88 + 0.12 : 1;
+            g.save(); g.scale(1, fy); g.beginPath(); g.moveTo(-1, 0); g.quadraticCurveTo(0, -0.95, 1, 0); g.quadraticCurveTo(0, 0.95, -1, 0); g.closePath(); g.fillStyle = rgba(c, 0.16 * a); g.fill(); g.strokeStyle = rgba(c, 0.95 * a); g.stroke();
+            const lx = Math.sin(t * 0.7) * 0.18; g.beginPath(); g.arc(lx, 0, 0.4, 0, 7); g.fillStyle = rgba(c, 0.6 * a); g.fill();
+            g.globalCompositeOperation = 'source-over'; g.beginPath(); g.arc(lx, 0, 0.17, 0, 7); g.fillStyle = 'rgba(5,5,12,' + 0.9 * a + ')'; g.fill();
+            g.beginPath(); g.arc(lx - 0.07, -0.08, 0.05, 0, 7); g.fillStyle = rgba([255, 255, 255], 0.9 * a); g.fill(); g.restore(); break; }
+    }
+}
+function scenoIlluLayer(g, W, H, t, pulse, base) {
+    const kind = scenoIlluOf(scenoLyric.text);
+    if (kind !== scenoIllu.kind) { scenoIllu.prev = scenoIllu.kind; scenoIllu.prevT = t; scenoIllu.kind = kind; scenoIllu.t0 = t; }
+    const cx = W / 2, cy = H * 0.36, S = Math.max(40, Math.min(W * 0.3, H * 0.24));
+    const draw = (k, a, sc) => { if (!k || a <= 0.01) return; g.save(); g.translate(cx, cy); g.scale(S * sc, S * sc); try { scenoIlluDraw(g, k, t, pulse, a, base); } catch (e) {} g.restore(); g.globalCompositeOperation = 'lighter'; };
+    const ap = Math.max(0, Math.min(1, (t - scenoIllu.t0) / 0.7)), c1 = 1.70158, e = 1 + (c1 + 1) * Math.pow(ap - 1, 3) + c1 * Math.pow(ap - 1, 2);
+    draw(scenoIllu.kind, ap, 0.55 + 0.45 * e);
+    if (scenoIllu.prev) { const k = (t - scenoIllu.prevT) / 0.5; if (k < 1) draw(scenoIllu.prev, 1 - k, 1 + 0.2 * k); else scenoIllu.prev = ''; }
+}
 function scenoFrame(ts) {
     if (animPaused) { const st = fxPauseState('seno', ts); if (st === 0) { scenoRaf = 0; return; } scenoRaf = requestAnimationFrame(scenoFrame); if (st === 1) return; }
     else { scenoRaf = requestAnimationFrame(scenoFrame); if (ts - scenoLast < [33, 50, 66][scenoQ]) return; }
@@ -4889,6 +4990,7 @@ function scenoFrame(ts) {
     if (scenoStar) { const k = (t - scenoStar.t0) / 1.1; if (k >= 1) scenoStar = null; else { const x = scenoStar.x - k * W * 0.5, y = scenoStar.y + k * H * 0.35, gr = g.createLinearGradient(x, y, x + 70, y - 45); gr.addColorStop(0, 'rgba(255,255,255,' + (0.9 * (1 - k)) + ')'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.strokeStyle = gr; g.lineWidth = 2; g.beginPath(); g.moveTo(x, y); g.lineTo(x + 70, y - 45); g.stroke(); } }
     // ondes : un anneau de lumière à chaque nouvelle ligne de parole
     scenoRipples.forEach(r => { const k = (t - r.t0) / 2.6; g.beginPath(); g.ellipse(r.x * W, H * 0.55, k * W * 0.55, k * H * 0.28, 0, 0, 7); g.lineWidth = 1.5 + 4 * (1 - k); g.strokeStyle = rgba(lt(M), 0.5 * (1 - k)); g.stroke(); });
+    if (!animPaused && scenoLyric.text !== undefined) { g.globalCompositeOperation = 'lighter'; scenoIlluLayer(g, W, H, t, pulse, M); } // dessin animé du mot-clé de la parole en cours
     g.globalCompositeOperation = 'source-over';
     const vg = g.createLinearGradient(0, H, 0, H * 0.2); vg.addColorStop(0, 'rgba(0,0,0,0.72)'); vg.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = vg; g.fillRect(0, 0, W, H);
     // ===== PAROLE EN COURS : retour à la ligne (jusqu'à 4 lignes) pour que la fin ne soit jamais coupée ; le bloc au-dessus glisse en douceur =====
@@ -5305,6 +5407,66 @@ function homeFxSync() {
 }
 window.addEventListener('load', () => { new MutationObserver(homeFxSync).observe(document.body, { attributes: true, attributeFilter: ['class'] }); setTimeout(homeFxSync, 2500); }); // départ différé : on ne charge pas la page au moment où le Bluetooth se prépare
 document.addEventListener('visibilitychange', homeFxSync); window.addEventListener('resize', () => { if (!homeFxRaf) homeFxSync(); });
+
+// ===== Chante : les mots s'allument en jaune moutarde quand ta voix est détectée (micro, tout reste sur ton téléphone) =====
+let singEnabled = (function () { try { return localStorage.getItem('singEnabled') === 'true'; } catch (e) { return false; } })();
+let singCtx = null, singAn = null, singStream = null, singBuf = null, singTimer = 0, singBase = 0.02, singVoice = false;
+let singCur = { idx: -1, voiced: 0, total: 0 }, singTally = { n: 0, s: 0 }, singLyricsRef = null;
+async function singStart() {
+    if (singStream) return true;
+    try {
+        singStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: false } });
+        singCtx = new (window.AudioContext || window.webkitAudioContext)(); singAn = singCtx.createAnalyser(); singAn.fftSize = 1024; singAn.smoothingTimeConstant = 0.5;
+        singCtx.createMediaStreamSource(singStream).connect(singAn); singBuf = new Uint8Array(singAn.frequencyBinCount);
+        singTimer = setInterval(singTick, 70); document.body.classList.add('sing-on'); return true;
+    } catch (e) { singStop(); return false; }
+}
+function singStop() {
+    clearInterval(singTimer); singTimer = 0;
+    try { if (singStream) singStream.getTracks().forEach(t => t.stop()); } catch (e) {}
+    try { if (singCtx) singCtx.close(); } catch (e) {}
+    singStream = singCtx = singAn = singBuf = null; singVoice = false; singCur = { idx: -1, voiced: 0, total: 0 };
+    document.body.classList.remove('sing-on');
+    document.querySelectorAll('.sing-line').forEach(el => el.classList.remove('sing-line'));
+    const f = document.getElementById('sing-meter-fill'); if (f) f.style.width = '0%';
+}
+async function toggleSing(on) {
+    singEnabled = !!on; try { localStorage.setItem('singEnabled', singEnabled ? 'true' : 'false'); } catch (e) {}
+    if (singEnabled) {
+        const ok = await singStart();
+        if (!ok) { singEnabled = false; try { localStorage.setItem('singEnabled', 'false'); } catch (e) {} const c = document.getElementById('sing-toggle'); if (c) c.checked = false; try { showLyricsToggleMessage('Micro refusé ou indisponible'); ensureLyricsToggleMessageEl().innerText = 'Micro refusé ou indisponible'; } catch (e) {} }
+    } else singStop();
+}
+function singReport() {
+    if (singTally.n >= 6) { const pct = Math.round(100 * singTally.s / singTally.n); try { showLyricsToggleMessage(''); ensureLyricsToggleMessageEl().innerText = '🎤 Tu as chanté ' + pct + ' % des lignes (' + singTally.s + '/' + singTally.n + ')'; } catch (e) {} }
+    singTally = { n: 0, s: 0 };
+}
+function singMark(el, p) { if (!el) return; if (!el.classList.contains('sing-line')) el.classList.add('sing-line'); el.style.setProperty('--sing', (p * 100).toFixed(0) + '%'); }
+function singTick() {
+    if (!singAn || document.hidden) return;
+    singAn.getByteFrequencyData(singBuf);
+    const bin = singCtx.sampleRate / singAn.fftSize, lo = Math.max(1, Math.floor(200 / bin)), hi = Math.min(singBuf.length - 1, Math.ceil(3400 / bin));
+    let sum = 0; for (let i = lo; i <= hi; i++) sum += singBuf[i];
+    const cur = sum / ((hi - lo + 1) * 255);
+    singBase = cur < singBase ? cur : singBase + (cur - singBase) * 0.01; // niveau ambiant (musique de fond) : s'adapte lentement
+    const playing = (function () { try { return isCurrentlyPlaying; } catch (e) { return true; } })();
+    singVoice = playing && cur > 0.1 && cur > singBase * 1.6;
+    const mf = document.getElementById('sing-meter-fill'); if (mf) { mf.style.width = Math.min(100, cur * 400) + '%'; mf.style.background = singVoice ? '#d9a516' : 'rgba(255,255,255,0.35)'; }
+    if (singLyricsRef !== currentLyrics) { singReport(); singLyricsRef = currentLyrics; singCur = { idx: -1, voiced: 0, total: 0 }; }
+    const el = document.querySelector('#lyrics-content .lyric-line.active'), lf = document.querySelector('#lfs-list .lfs-line.on');
+    const idx = el ? parseInt(String(el.id || '').replace('line-', ''), 10) : -1;
+    if (idx !== singCur.idx) {
+        if (singCur.idx >= 0 && idx === singCur.idx + 1) { singTally.n++; if (singCur.total > 0 && singCur.voiced / singCur.total >= 0.3) { singTally.s++; const pe = document.getElementById('line-' + singCur.idx); if (pe) pe.classList.add('sung'); } }
+        document.querySelectorAll('.sing-line').forEach(x => x.classList.remove('sing-line'));
+        singCur = { idx: isNaN(idx) ? -1 : idx, voiced: 0, total: 0 };
+    }
+    if (singCur.idx < 0) return;
+    singCur.total += 0.07; if (singVoice) singCur.voiced += 0.07;
+    const ln = currentLyrics[singCur.idx], nx = currentLyrics[singCur.idx + 1], dur = Math.max(1.5, (nx ? nx.time : (ln ? ln.time + 4 : 4)) - (ln ? ln.time : 0));
+    if (singCur.voiced > 0) { const p = Math.min(1, singCur.voiced / (dur * 0.8)); singMark(el, p); singMark(lf, p); }
+}
+window.addEventListener('load', () => { const c = document.getElementById('sing-toggle'); if (c) c.checked = singEnabled; if (singEnabled) setTimeout(() => { singStart().then(ok => { if (!ok) { singEnabled = false; if (c) c.checked = false; } }); }, 3500); });
+window.addEventListener('pagehide', () => { try { singStop(); } catch (e) {} });
 setInterval(() => { try { cfxSync(); } catch (e) {} }, 500);
 
 
@@ -7630,6 +7792,8 @@ function ensureCreditsModal() {
             <li><strong>Aurore sur les écrans</strong> — la scénographie en 16×16 : rideaux de lumière aux deux couleurs de la pochette qui ondulent et pulsent au tempo, étoiles qui scintillent (mode « 🌌 Aurore (scénographie) », aussi dans le ＋).</li>
             <li><strong>Fond « Lecture en cours »</strong> — réglage pour que le fond de l'encadré épouse en douceur les couleurs de la pochette (désactivé par défaut).</li>
             <li><strong>Économie d'énergie</strong> — en pause d'animations, les effets ne calculent plus rien (la boucle s'arrête) et ne se redessinent qu'à un nouveau titre ; les effets ne sont dessinés que lorsqu'ils sont visibles à l'écran ; la scénographie s'allège toute seule si le téléphone peine ; pause automatique si la batterie est faible. L'effet d'apparition du nom de l'artiste (Lecture en cours) joue même quand les animations sont en pause.</li>
+            <li><strong>Paroles illustrées (scénographie)</strong> — un mot-clé de la ligne chantée (cœur, feu, pluie, larme, étoile, soleil, lune, mer, éclair, neige, couronne, œil) fait apparaître un dessin animé dans la scénographie.</li>
+            <li><strong>Chante, et les mots s'allument</strong> — le micro détecte ta voix et les mots passent en jaune moutarde ; score en fin de titre (traitement local, rien d'enregistré).</li>
             <li><strong>Décor animé de l'accueil (platine)</strong> — disque vinyle, notes en orbite et égaliseur derrière l'écran de connexion ; désactivable dans les Paramètres.</li>
             <li><strong>Désactiver les boutons emoji</strong> — réglage (désactivé par défaut) qui remplace les emoji des boutons (Explorer &amp; rechercher, lecture, boîte à outils, appareils) par des icônes dessinées dans un style Spotify.</li>
             <li><strong>Canvas haute résolution</strong> — réglage : désactivé, les effets sont dessinés au maximum en ×1,5 ; activé, en ×2. En pause d'animations, la ligne de parole de la scénographie n'est plus affichée.</li>
