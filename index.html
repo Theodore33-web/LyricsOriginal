@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v12.17";
+        const APP_VERSION = "v12.18";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -835,8 +835,6 @@
         .sw { transition: color 0.25s ease, text-shadow 0.25s ease; }
         .sw.on { color: #d9a516 !important; text-shadow: 0 0 14px rgba(217,165,22,0.45); }
         body.sing-on .lyric-line.active { filter: none !important; animation: none !important; color: #fff; }
-        #sing-meter-row { display: none; padding: 2px 12px 6px; }
-        body.sing-on #sing-meter-row { display: block; }
         #sing-meter { width: 64px; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.12); overflow: hidden; display: inline-block; vertical-align: middle; margin-left: 6px; }
         #sing-meter-fill { height: 100%; width: 0%; border-radius: 3px; transition: width 0.08s linear; }
         .lyr-spin, .lyr-empty { display: flex; justify-content: center; margin: 14px 0 6px; color: rgba(255,255,255,0.55); }
@@ -5162,7 +5160,7 @@ function tbSync() {
     Object.keys(TB_INT).forEach(k => {
         const e = document.getElementById('tb-' + k + '-eye'); if (e) e.textContent = lab[k][1] + ' ' + lab[k][0] + ' ' + (TB_INT[k].hid() ? '👁' : '🙈');
     });
-    const sb = document.getElementById('tb-sing-btn'); if (sb) sb.textContent = '🎶 Chante : mots en jaune ' + (singEnabled ? '✅' : '✕');
+    const sb = document.getElementById('tb-sing-btn'); if (sb) sb.textContent = '🎶 Chant Synchro ' + (singEnabled ? '✅' : '✕');
     const ab = document.getElementById('tb-anim-btn'); if (ab) ab.textContent = animPaused ? '▶️ Reprendre animations' : '⏸️ Pause des animations';
     const ap2 = document.getElementById('anim-pause-toggle'); if (ap2 && ap2.checked !== animPaused) ap2.checked = animPaused;
     const hr = document.getElementById('fxhires-toggle'); if (hr && hr.checked !== fxHiRes) hr.checked = fxHiRes;
@@ -5407,21 +5405,21 @@ document.addEventListener('visibilitychange', homeFxSync); window.addEventListen
 // ===== Chante : les mots s'allument en jaune moutarde quand ta voix est détectée (micro, tout reste sur ton téléphone) =====
 let singEnabled = (function () { try { return localStorage.getItem('singEnabled') === 'true'; } catch (e) { return false; } })();
 let singCtx = null, singAn = null, singStream = null, singBuf = null, singTimer = 0, singBase = 0.02, singVoice = false;
-let singCur = { idx: -1, voiced: 0, total: 0 }, singTally = { n: 0, s: 0 }, singLyricsRef = null;
+let singCur = { idx: -1 }, singTally = { n: 0, s: 0 }, singLyricsRef = null;
 async function singStart() {
     if (singStream) return true;
     try {
         singStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: false } });
         singCtx = new (window.AudioContext || window.webkitAudioContext)(); singAn = singCtx.createAnalyser(); singAn.fftSize = 1024; singAn.smoothingTimeConstant = 0.5;
         singCtx.createMediaStreamSource(singStream).connect(singAn); singBuf = new Uint8Array(singAn.frequencyBinCount);
-        singTimer = setInterval(singTick, 70); document.body.classList.add('sing-on'); try { document.querySelectorAll('#lyrics-content .lyric-line').forEach(l => { clearParolesLineStyle(l); if (l.querySelector('.kw, [class*="kw"]')) l.textContent = l.textContent; }); } catch (e) {} return true;
+        singTimer = setInterval(singTick, 50); singLast = 0; singCalib = 0; singEma = 0; document.body.classList.add('sing-on'); try { document.querySelectorAll('#lyrics-content .lyric-line').forEach(l => { clearParolesLineStyle(l); if (l.querySelector('.kw, [class*="kw"]')) l.textContent = l.textContent; }); } catch (e) {} return true;
     } catch (e) { singStop(); return false; }
 }
 function singStop() {
     clearInterval(singTimer); singTimer = 0;
     try { if (singStream) singStream.getTracks().forEach(t => t.stop()); } catch (e) {}
     try { if (singCtx) singCtx.close(); } catch (e) {}
-    singStream = singCtx = singAn = singBuf = null; singVoice = false; singCur = { idx: -1, voiced: 0, total: 0 };
+    singStream = singCtx = singAn = singBuf = null; singVoice = false; singCur = { idx: -1 }; singSched = null;
     document.body.classList.remove('sing-on');
     document.querySelectorAll('.sing-line').forEach(el => el.classList.remove('sing-line')); singUnwrapAll();
     const f = document.getElementById('sing-meter-fill'); if (f) f.style.width = '0%';
@@ -5445,34 +5443,49 @@ function singWords(el) { // découpe la ligne en mots (chaque mot garde sa place
     return el.querySelectorAll('.sw');
 }
 function singUnwrapAll() { document.querySelectorAll('.sw').forEach(sp => { const par = sp.parentElement; if (par && par.querySelector('.sw')) par.textContent = par.textContent; }); }
-function singMark(el, p) {
-    if (!el) return; const ws = singWords(el), n = ws.length; if (!n) return;
+function singApply(el, lit) {
+    if (!el) return; const ws = singWords(el); if (!ws.length) return;
     if (!el.classList.contains('sing-line')) el.classList.add('sing-line');
-    const lit = Math.min(n, Math.ceil(p * n - 1e-6));
-    ws.forEach((w, i) => { const on = i < lit; if (w.classList.contains('on') !== on) w.classList.toggle('on', on); });
+    ws.forEach((w, i) => { const on = !!lit[i]; if (w.classList.contains('on') !== on) w.classList.toggle('on', on); });
+}
+let singLast = 0, singHang = 0, singEma = 0, singCalib = 0, singSched = null;
+function singBuild(idx, el) { // planning des mots : chaque mot reçoit une fenêtre de temps proportionnelle à sa longueur
+    const ws = singWords(el), ln = currentLyrics[idx], nx = currentLyrics[idx + 1]; if (!ws.length || !ln) return null;
+    const dur = Math.max(1.5, (nx ? nx.time : ln.time + 4) - ln.time), D = dur * 0.88;
+    const wt = Array.from(ws).map(w => Math.max(2, w.textContent.replace(/[^\p{L}\p{N}]/gu, '').length + 1)), tot = wt.reduce((a, b) => a + b, 0);
+    let cum = 0; const W = wt.map(x => { const o = { s: ln.time + cum / tot * D, e: ln.time + (cum + x) / tot * D }; cum += x; return o; });
+    return { idx, w: W, acc: W.map(() => 0), lit: W.map(() => false), n: W.length };
 }
 function singTick() {
     if (!singAn || document.hidden) return;
+    const now = performance.now(), dt = singLast ? Math.min(0.12, (now - singLast) / 1000) : 0.05; singLast = now;
     singAn.getByteFrequencyData(singBuf);
     const bin = singCtx.sampleRate / singAn.fftSize, lo = Math.max(1, Math.floor(200 / bin)), hi = Math.min(singBuf.length - 1, Math.ceil(3400 / bin));
     let sum = 0; for (let i = lo; i <= hi; i++) sum += singBuf[i];
     const cur = sum / ((hi - lo + 1) * 255);
-    singBase = cur < singBase ? cur : singBase + (cur - singBase) * 0.01; // niveau ambiant (musique de fond) : s'adapte lentement
+    singEma = singEma ? singEma * 0.5 + cur * 0.5 : cur; // lissage : un pic isolé n'allume rien
+    singBase = singEma < singBase ? singEma : singBase + (singEma - singBase) * (singCalib++ < 25 ? 0.1 : 0.01); // niveau ambiant : calibrage rapide les 1,2 premières secondes, puis lent
     const playing = (function () { try { return isCurrentlyPlaying; } catch (e) { return true; } })();
-    singVoice = playing && cur > 0.1 && cur > singBase * 1.6;
+    if (playing && singEma > Math.max(0.09, singBase * 1.6)) { singVoice = true; singHang = 3; } // la voix « tient » 150 ms pour ne pas couper entre deux syllabes
+    else if (singHang > 0) { singHang--; singVoice = playing; } else singVoice = false;
     const mf = document.getElementById('sing-meter-fill'); if (mf) { mf.style.width = Math.min(100, cur * 400) + '%'; mf.style.background = singVoice ? '#d9a516' : 'rgba(255,255,255,0.35)'; }
-    if (singLyricsRef !== currentLyrics) { singReport(); singLyricsRef = currentLyrics; singCur = { idx: -1, voiced: 0, total: 0 }; }
+    if (singLyricsRef !== currentLyrics) { singReport(); singLyricsRef = currentLyrics; singCur = { idx: -1 }; singSched = null; }
     const el = document.querySelector('#lyrics-content .lyric-line.active'), lf = document.querySelector('#lfs-list .lfs-line.on');
     const idx = el ? parseInt(String(el.id || '').replace('line-', ''), 10) : -1;
     if (idx !== singCur.idx) {
-        if (singCur.idx >= 0 && idx === singCur.idx + 1) { singTally.n++; if (singCur.total > 0 && singCur.voiced / singCur.total >= 0.3) { singTally.s++; const pe = document.getElementById('line-' + singCur.idx); if (pe) pe.classList.add('sung'); } }
+        if (singSched && singCur.idx >= 0 && idx === singCur.idx + 1) { singTally.n++; if (singSched.lit.filter(Boolean).length >= singSched.n * 0.4) { singTally.s++; const pe = document.getElementById('line-' + singCur.idx); if (pe) pe.classList.add('sung'); } }
         document.querySelectorAll('.sing-line').forEach(x => x.classList.remove('sing-line'));
-        singCur = { idx: isNaN(idx) ? -1 : idx, voiced: 0, total: 0 };
+        singCur = { idx: isNaN(idx) ? -1 : idx }; singSched = singCur.idx >= 0 ? singBuild(singCur.idx, el) : null;
     }
-    if (singCur.idx < 0) return;
-    singCur.total += 0.07; if (singVoice) singCur.voiced += 0.07;
-    const ln = currentLyrics[singCur.idx], nx = currentLyrics[singCur.idx + 1], dur = Math.max(1.5, (nx ? nx.time : (ln ? ln.time + 4 : 4)) - (ln ? ln.time : 0));
-    if (singCur.voiced > 0) { const p = Math.min(1, singCur.voiced / (dur * 0.8)); singMark(el, p); singMark(lf, p); }
+    if (!singSched) return;
+    // le mot « en cours » est celui prévu par la synchro des paroles (avec 0,25 s de retard de réaction) : il ne s'allume que si ta voix est là à ce moment
+    const sec = (function () { try { return divoomProgressMs() / 1000; } catch (e) { return 0; } })(), tw = sec - 0.25, W = singSched.w;
+    if (singVoice && tw >= W[0].s - 0.3) {
+        let i = -1; for (let j = 0; j < W.length; j++) if (tw < W[j].e) { i = j; break; }
+        if (i < 0 && tw < W[W.length - 1].e + 0.35) i = W.length - 1;
+        if (i >= 0) { singSched.acc[i] += dt; if (!singSched.lit[i] && singSched.acc[i] >= Math.max(0.05, Math.min(0.22, 0.4 * (W[i].e - W[i].s)))) { singSched.lit[i] = true; singApply(el, singSched.lit); singApply(lf, singSched.lit); } }
+    }
+    if (lf && !lf.classList.contains('sing-line') && singSched.lit.some(Boolean)) singApply(lf, singSched.lit);
 }
 window.addEventListener('load', () => { if (singEnabled) setTimeout(() => { singStart().then(ok => { if (!ok) singEnabled = false; try { tbSync(); } catch (e) {} }); }, 3500); });
 window.addEventListener('pagehide', () => { try { singStop(); } catch (e) {} });
@@ -7802,7 +7815,7 @@ function ensureCreditsModal() {
             <li><strong>Fond « Lecture en cours »</strong> — réglage pour que le fond de l'encadré épouse en douceur les couleurs de la pochette (désactivé par défaut).</li>
             <li><strong>Économie d'énergie</strong> — en pause d'animations, les effets ne calculent plus rien (la boucle s'arrête) et ne se redessinent qu'à un nouveau titre ; les effets ne sont dessinés que lorsqu'ils sont visibles à l'écran ; la scénographie s'allège toute seule si le téléphone peine ; pause automatique si la batterie est faible. L'effet d'apparition du nom de l'artiste (Lecture en cours) joue même quand les animations sont en pause.</li>
             <li><strong>Paroles illustrées (scénographie)</strong> — un mot-clé de la ligne chantée (cœur, feu, pluie, larme, étoile, soleil, lune, mer, éclair, neige, couronne, œil) fait apparaître un dessin animé dans la scénographie.</li>
-            <li><strong>Chante, et les mots s'allument</strong> (boîte à outils 🧰) — le micro détecte ta voix et les mots s'allument un par un en jaune moutarde, même quand une ligne passe sur plusieurs lignes à l'écran ; l'effet de parole habituel est désactivé tant que c'est actif ; score en fin de titre (traitement local, rien d'enregistré).</li>
+            <li><strong>Chant Synchro</strong> (boîte à outils 🧰, ex « Chante, et les mots s'allument ») — le micro détecte ta voix et les mots s'allument un par un en jaune moutarde, même quand une ligne passe sur plusieurs lignes à l'écran ; l'effet de parole habituel est désactivé tant que c'est actif ; score en fin de titre (traitement local, rien d'enregistré).</li>
             <li><strong>Décor animé de l'accueil (platine)</strong> — disque vinyle, notes en orbite et égaliseur derrière l'écran de connexion ; désactivable dans les Paramètres.</li>
             <li><strong>Désactiver les boutons emoji</strong> — réglage (désactivé par défaut) qui remplace les emoji des boutons (Explorer &amp; rechercher, lecture, boîte à outils, appareils) par des icônes dessinées dans un style Spotify.</li>
             <li><strong>Canvas haute résolution</strong> — réglage : désactivé, les effets sont dessinés au maximum en ×1,5 ; activé, en ×2. En pause d'animations, la ligne de parole de la scénographie n'est plus affichée.</li>
@@ -15540,8 +15553,7 @@ function initBouleLedState() {
     <button class="tb-btn" id="tb-pip-eye" onclick="tbEye('pip')">Paroles flottantes</button>
     <button class="tb-btn" id="tb-subs-eye" onclick="tbEye('subs')">Sous-titres</button>
     <button class="tb-btn" onclick="openLyricsFullscreen()">📖 Paroles en plein écran</button>
-    <button class="tb-btn" id="tb-sing-btn" onclick="toggleSing(!singEnabled)">🎶 Chante ✕</button>
-    <div id="sing-meter-row"><span id="sing-meter"><span id="sing-meter-fill"></span></span></div>
+    <button class="tb-btn" id="tb-sing-btn" onclick="toggleSing(!singEnabled)">🎶 Chant Synchro ✕</button>
     <button class="tb-btn" id="tb-anim-btn" onclick="toggleAnimPause(!animPaused)">⏸️ Pause des animations</button>
   </div>
 </div>
