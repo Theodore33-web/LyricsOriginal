@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v12.13";
+        const APP_VERSION = "v12.15";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -3417,7 +3417,7 @@ async function fetchLyrics(artist, title, album, duration) {
                 ${parolesHeaderHtml(null)}
                 ${lyrEmptyHtml()}
                 <div class="lyric-line" style="opacity: 1;">Paroles indisponibles automatiquement.</div>
-                <div class="lyric-line" style="opacity: 0.85; font-size: 0.8rem; margin-top: 10px;">
+                <div class="lyric-line" style="opacity: 0.85; font-size: 0.66rem; margin-top: 10px; white-space: nowrap;">
                     Essaie une recherche manuelle :
                     <a href="https://www.google.com/search?q=${encodeURIComponent(artist + ' ' + title + ' paroles')}" target="_blank" rel="noopener" style="color: var(--spotify-green); text-decoration: underline;">Google</a>
                     ·
@@ -5298,11 +5298,12 @@ function homeFxLoop(ts) {
     if (ts - homeFxLast < 33) return; homeFxLast = ts; if (!homeFxT0) homeFxT0 = ts; homeFxDraw((ts - homeFxT0) / 1000);
 }
 function homeFxSync() {
+    if (performance.now() < 2400) return; // pas pendant le démarrage de la page
     document.body.classList.toggle('home-fx-on', homeFxEnabled);
     const t = document.getElementById('homefx-toggle'); if (t && t.checked !== homeFxEnabled) t.checked = homeFxEnabled;
     if (homeFxEnabled && document.body.classList.contains('on-home') && !document.hidden && !homeFxRaf) homeFxRaf = requestAnimationFrame(homeFxLoop);
 }
-window.addEventListener('load', () => { new MutationObserver(homeFxSync).observe(document.body, { attributes: true, attributeFilter: ['class'] }); homeFxSync(); });
+window.addEventListener('load', () => { new MutationObserver(homeFxSync).observe(document.body, { attributes: true, attributeFilter: ['class'] }); setTimeout(homeFxSync, 2500); }); // départ différé : on ne charge pas la page au moment où le Bluetooth se prépare
 document.addEventListener('visibilitychange', homeFxSync); window.addEventListener('resize', () => { if (!homeFxRaf) homeFxSync(); });
 setInterval(() => { try { cfxSync(); } catch (e) {} }, 500);
 
@@ -5656,16 +5657,14 @@ function divoomSetAutoReconnect(on) { divoomAutoEnabled = !!on; try { localStora
 const divoomLoadedAt = Date.now();
 // Relance juste après avoir quitté la page : le Bluetooth peut encore être occupé → on attend (jusqu'à 15 s au total) avant de le toucher
 const divoomSinceUnload = (function () { try { return Date.now() - Number(localStorage.getItem('lastUnload') || 0); } catch (e) { return 1e9; } })();
-const divoomStartDelay = 5000 + Math.max(0, 10000 - divoomSinceUnload);
+const divoomHadDev = (function () { try { return Date.now() - Number(localStorage.getItem('divoomHadDev') || 0) < 90000; } catch (e) { return false; } })(); // la page précédente avait des appareils connectés : on attend plus longtemps avant de rouvrir le Bluetooth
+const divoomStartDelay = 5000 + Math.max(0, 10000 - divoomSinceUnload) + (divoomHadDev ? 6000 : 0);
 // Détection d'un plantage : le témoin « pageAlive » n'est effacé qu'à la fermeture propre de la page (pagehide).
 // S'il est encore là au chargement, la page précédente a planté ou a été tuée : on suspend les animations lourdes pour cette session (réactivables dans 🧰).
 let crashRecovered = false;
 try { const a = Number(localStorage.getItem('pageAlive') || 0); if (a && Date.now() - a < 600000) crashRecovered = true; localStorage.setItem('pageAlive', String(Date.now())); } catch (e) {}
 setInterval(() => { try { localStorage.setItem('pageAlive', String(Date.now())); } catch (e) {} }, 15000);
-if (crashRecovered) {
-    animPaused = true; document.body.classList.add('anim-paused');
-    setTimeout(() => { try { tbSync(); showLyricsToggleMessage('Relance après un arrêt brutal : animations en pause (🧰 pour les reprendre)'); } catch (e) {} }, 2500);
-}
+// (v12.15) plus de pause automatique ni de message après un arrêt brutal : trop de faux positifs (fermeture de l'appli sans pagehide)
 let divoomSafeMode = false;
 try { const f = Number(localStorage.getItem('divoomOpening') || 0); if (f && Date.now() - f < 300000) divoomSafeMode = true; localStorage.removeItem('divoomOpening'); } catch (e) {}
 async function divoomAutoReconnect() {
@@ -5729,10 +5728,20 @@ async function divoomReconnectNow() {
 window.addEventListener('load', () => {
     try { const t = document.getElementById('divoom-toggle'); if (t) t.checked = divoomEnabled; const q = document.getElementById('queue-peek-toggle'); if (q) q.checked = queuePeekEnabled; } catch (e) {}
 });
+// Dès l'annonce du rechargement (avant pagehide) : on coupe tous les envois Bluetooth en cours pour ne pas détruire la page pendant une écriture
+let divoomUnloadTimer = 0;
+window.addEventListener('beforeunload', () => {
+    if (!divoomDevices.length) return;
+    divoomNavigating = true; try { divoomStopTicker(); } catch (e) {} divoomDevices.forEach(d => { d.busy = true; });
+    clearTimeout(divoomUnloadTimer);
+    divoomUnloadTimer = setTimeout(() => { // la navigation a été annulée : la page est toujours là, on reprend
+        divoomNavigating = false; divoomDevices.forEach(d => { d.busy = false; }); try { applyDivoomState(); } catch (e) {}
+    }, 4000);
+});
 // Pendant un changement de page (redirection vers Spotify, rechargement) : on arrête tout accès Bluetooth
 window.addEventListener('pagehide', () => {
-    try { localStorage.removeItem('pageAlive'); localStorage.setItem('lastUnload', String(Date.now())); } catch (e) {}
-    divoomNavigating = true; try { divoomStopTicker(); } catch (e) {}
+    try { localStorage.removeItem('pageAlive'); localStorage.setItem('lastUnload', String(Date.now())); if (divoomDevices.length) localStorage.setItem('divoomHadDev', String(Date.now())); else localStorage.removeItem('divoomHadDev'); } catch (e) {}
+    clearTimeout(divoomUnloadTimer); divoomNavigating = true; try { divoomStopTicker(); } catch (e) {}
     // libère proprement les liaisons Bluetooth : la page suivante (rechargement) ne retrouve pas un port encore occupé
     divoomDevices.slice().forEach(d => { try { d.writer.releaseLock(); } catch (e) {} try { if (d.reader) d.reader.cancel().catch(() => {}); } catch (e) {} try { d.port.close().catch(() => {}); } catch (e) {} });
 });
@@ -10974,7 +10983,7 @@ async function tpFetchLyricsForTrack() {
             lyricsContentEl.innerHTML = `
                 ${lyrEmptyHtml()}
                 <div class="lyric-line tp-lyric-line">Paroles indisponibles automatiquement.</div>
-                <div class="lyric-line tp-lyric-line" style="opacity: 0.85; font-size: 0.8rem; margin-top: 10px;">
+                <div class="lyric-line tp-lyric-line" style="opacity: 0.85; font-size: 0.66rem; margin-top: 10px; white-space: nowrap;">
                     Essaie une recherche manuelle :
                     <a href="https://www.google.com/search?q=${encodeURIComponent(t.artist + ' ' + t.name + ' paroles')}" target="_blank" rel="noopener" style="color: var(--spotify-green); text-decoration: underline;">Google</a>
                     ·
