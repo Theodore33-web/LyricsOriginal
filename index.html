@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v12.8";
+        const APP_VERSION = "v12.9";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -929,6 +929,7 @@
         #queue-peek .qp-info { position: absolute; right: 0; top: calc(100% + 4px); width: 170px; text-align: left; z-index: 8; padding: 5px 9px; border-radius: 9px; background: rgba(0,0,0,0.78); color: #fff; font-size: 0.72rem; line-height: 1.3; display: none; }
         #queue-peek .qp-info b { display: block; font-size: 0.78rem; }
         #track-art-ph { display: none; width: 150px; height: 150px; margin: 10px auto; border-radius: 12px; align-items: center; justify-content: center; color: rgba(255,255,255,0.4); background: linear-gradient(145deg, rgba(255,255,255,0.10), rgba(255,255,255,0.03)); border: 1px solid rgba(255,255,255,0.12); box-shadow: 0 8px 20px rgba(0,0,0,0.3); }
+        body.no-art-on #mini-player-art, body.no-art-on #pip-cover, body.no-art-on #lfs-art { background: linear-gradient(145deg, rgba(255,255,255,0.14), rgba(255,255,255,0.04)), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-opacity='.5' stroke-width='1.5' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='8.5'/%3E%3Ccircle cx='12' cy='12' r='2.2'/%3E%3Cpath d='M12 7.2a4.8 4.8 0 0 1 4.8 4.8M12 16.8A4.8 4.8 0 0 1 7.2 12' stroke-opacity='.3'/%3E%3C/svg%3E") center / 62% no-repeat !important; border: 1px solid rgba(255,255,255,0.12) !important; visibility: visible !important; display: block !important; }
         #track-art-ph svg { width: 58%; height: 58%; }
         #track-art[style*="none"] + #track-art-ph, #np-card.no-art #track-art-ph { display: flex; }
         #np-card.no-art #track-art { display: none !important; }
@@ -3985,6 +3986,23 @@ function highlightLyrics(currentTime) {
             npRunning = true; npRunningAt = Date.now();
             try { await updateNowPlayingInner(); } finally { npRunning = false; }
         }
+        var npNoneCount = 0;
+        // Spotify fermé / aucun appareil actif : l'accueil repasse en « Aucune lecture » (2 réponses vides d'affilée, pour éviter un clignotement)
+        function showNoPlayback() {
+            if (driveMusicModeActive) return;
+            const t = document.getElementById('track-title'); if (!t || t.innerText === 'Aucune lecture') return;
+            t.innerText = 'Aucune lecture';
+            const a = document.getElementById('track-artist'); if (a) a.innerText = '';
+            const art = document.getElementById('track-art'); if (art) { art.style.display = 'none'; art.removeAttribute('src'); }
+            trackDurationMs = 0; currentProgressMs = 0; lastTrackId = ''; currentLyrics = [];
+            const f = document.getElementById('progress-fill'); if (f) f.style.width = '0%';
+            const tc = document.getElementById('time-current'); if (tc) tc.innerText = '0:00';
+            const tm = document.getElementById('time-max'); if (tm) tm.innerText = '0:00';
+            const pp = document.getElementById('play-pause-btn'); if (pp) pp.innerText = '▶️';
+            const lc = document.getElementById('lyrics-content'); if (lc) lc.innerText = 'Lancez une musique sur Spotify...';
+            divoomNowLabel = ''; scenoTrack = { id: '', title: '', artist: '' };
+            artPhSync();
+        }
         async function updateNowPlayingInner() {
             if (!currentToken) return;
             // Mode Musique Drive actif : on ne touche à rien (pochette/titre/artiste/timer), sinon
@@ -3996,12 +4014,13 @@ function highlightLyrics(currentTime) {
                 if (response.status === 401 && await spotifyRefreshToken()) response = await fetch('https://api.spotify.com/v1/me/player?additional_types=track,episode', { headers: { 'Authorization': 'Bearer ' + currentToken } });
                 if (response.status === 429) { npBackoffUntil = Date.now() + Math.max(2, Number(response.headers && response.headers.get && response.headers.get('Retry-After')) || 5) * 1000; return; }
                 if (response.status === 204 || response.status === 401) {
-                    if (response.status === 204) isCurrentlyPlaying = false; // 401 : on garde l'état précédent plutôt que d'afficher « pause » à tort
+                    if (response.status === 204) { isCurrentlyPlaying = false; npNoneCount = (npNoneCount || 0) + 1; if (npNoneCount >= 2) { try { showNoPlayback(); } catch (e) {} } } // 401 : on garde l'état précédent plutôt que d'afficher « pause » à tort
                     return;
                 }
                 const data = await response.json();
 
                 if (data && data.item) {
+                    npNoneCount = 0;
                     const isEpisode = data.currently_playing_type === 'episode';
                     trackDurationMs = data.item.duration_ms;
 
@@ -5179,16 +5198,19 @@ window.addEventListener('load', () => {
     toggleIconSet(iconSetOn);
 });
 
+const ART_PH_IDS = ['mini-player-art', 'pip-cover', 'lfs-art'];
 function artPhSync() {
     const art = document.getElementById('track-art'), card = document.getElementById('np-card'); if (!art || !card) return;
     const src = art.getAttribute('src') || '';
     const none = !src || art.style.display === 'none' || (art.complete && art.naturalWidth === 0);
-    if (card.classList.contains('no-art') !== none) card.classList.toggle('no-art', none);
+    if (card.classList.contains('no-art') === none) return;
+    card.classList.toggle('no-art', none);
+    ART_PH_IDS.forEach(id => { const el = document.getElementById(id); if (!el) return; if (none) el.removeAttribute('src'); });
+    document.body.classList.toggle('no-art-on', none);
 }
 document.addEventListener('error', ev => { if (ev.target && ev.target.id === 'track-art') artPhSync(); }, true);
 document.addEventListener('load', ev => { if (ev.target && ev.target.id === 'track-art') artPhSync(); }, true);
-window.addEventListener('DOMContentLoaded', artPhSync); window.addEventListener('load', artPhSync);
-setInterval(artPhSync, 400);
+window.addEventListener('load', () => { const art = document.getElementById('track-art'); if (art) new MutationObserver(artPhSync).observe(art, { attributes: true, attributeFilter: ['src', 'style'] }); artPhSync(); });
 setInterval(() => { try { cfxSync(); } catch (e) {} }, 500);
 
 
