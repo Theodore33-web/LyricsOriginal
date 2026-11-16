@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v12.7";
+        const APP_VERSION = "v12.8";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -834,7 +834,7 @@
         body.icons-on button.queue-btn .ic-e { width: 1.15em; height: 1.15em; vertical-align: middle; }
         body.icons-on #tp-download-a4-btn, body.icons-on button[title^="Télécharger paroles"] { color: #fff !important; }
         :root { --ic-dev-shift: 15px; }
-        body.icons-on .dv-dev .ic-e { position: relative; left: var(--ic-dev-shift); }
+        body.icons-on .dv-dev .ic-e, body.icons-on .dv-dev .dv-led { position: relative; left: var(--ic-dev-shift); }
         body.icons-on #toolbox-fab { color: #fff !important; }
         body.icons-on #dv-dev-timebox > img, body.icons-on #dv-dev-pixoo > img, body.icons-on #dv-dev-timebox > span:not(.ic-e), body.icons-on #dv-dev-pixoo > span:not(.ic-e) { display: none !important; }
         body.icons-on .dv-dev .ic-e { width: 1.7em; height: 1.7em; color: #fff; vertical-align: middle; }
@@ -930,7 +930,8 @@
         #queue-peek .qp-info b { display: block; font-size: 0.78rem; }
         #track-art-ph { display: none; width: 150px; height: 150px; margin: 10px auto; border-radius: 12px; align-items: center; justify-content: center; color: rgba(255,255,255,0.4); background: linear-gradient(145deg, rgba(255,255,255,0.10), rgba(255,255,255,0.03)); border: 1px solid rgba(255,255,255,0.12); box-shadow: 0 8px 20px rgba(0,0,0,0.3); }
         #track-art-ph svg { width: 58%; height: 58%; }
-        #track-art[style*="none"] + #track-art-ph { display: flex; }
+        #track-art[style*="none"] + #track-art-ph, #np-card.no-art #track-art-ph { display: flex; }
+        #np-card.no-art #track-art { display: none !important; }
         body.ui-refined #track-art-ph { border-radius: 16px; }
         #track-art { 
             width: 150px; 
@@ -5177,6 +5178,17 @@ window.addEventListener('load', () => {
     icMo.observe(document.body, { childList: true, subtree: true, characterData: true });
     toggleIconSet(iconSetOn);
 });
+
+function artPhSync() {
+    const art = document.getElementById('track-art'), card = document.getElementById('np-card'); if (!art || !card) return;
+    const src = art.getAttribute('src') || '';
+    const none = !src || art.style.display === 'none' || (art.complete && art.naturalWidth === 0);
+    if (card.classList.contains('no-art') !== none) card.classList.toggle('no-art', none);
+}
+document.addEventListener('error', ev => { if (ev.target && ev.target.id === 'track-art') artPhSync(); }, true);
+document.addEventListener('load', ev => { if (ev.target && ev.target.id === 'track-art') artPhSync(); }, true);
+window.addEventListener('DOMContentLoaded', artPhSync); window.addEventListener('load', artPhSync);
+setInterval(artPhSync, 400);
 setInterval(() => { try { cfxSync(); } catch (e) {} }, 500);
 
 
@@ -7911,10 +7923,10 @@ function mergeListeningHistory(items) {
     });
 
     // Garde un historique raisonnable (1 an max) pour ne pas faire grossir localStorage indéfiniment
-    const oneYearAgo = Date.now() - (365 * 24 * 60 * 60 * 1000);
+    const oneYearAgo = Date.now() - (3 * 365 * 24 * 60 * 60 * 1000); // 3 ans conservés
     history = history.filter(h => new Date(h.playedAt).getTime() > oneYearAgo);
 
-    localStorage.setItem('listeningHistory', JSON.stringify(history));
+    try { localStorage.setItem('listeningHistory', JSON.stringify(history)); } catch (e) {}
     return history;
 }
 
@@ -7964,8 +7976,8 @@ function aggregateListeningHistory(history, mode) {
         return new Date(entryA ? entryA.playedAt : 0) - new Date(entryB ? entryB.playedAt : 0);
     });
 
-    // Limite le nombre de colonnes affichées (14 jours ou 12 semaines max)
-    const limit = mode === 'week' ? 12 : 14;
+    // Limite le nombre de colonnes affichées (30 jours ou 52 semaines max)
+    const limit = mode === 'week' ? 52 : 30;
     const limitedKeys = sortedKeys.slice(-limit);
 
     return {
