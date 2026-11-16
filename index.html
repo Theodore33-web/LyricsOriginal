@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v12.9";
+        const APP_VERSION = "v12.10";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -929,7 +929,12 @@
         #queue-peek .qp-info { position: absolute; right: 0; top: calc(100% + 4px); width: 170px; text-align: left; z-index: 8; padding: 5px 9px; border-radius: 9px; background: rgba(0,0,0,0.78); color: #fff; font-size: 0.72rem; line-height: 1.3; display: none; }
         #queue-peek .qp-info b { display: block; font-size: 0.78rem; }
         #track-art-ph { display: none; width: 150px; height: 150px; margin: 10px auto; border-radius: 12px; align-items: center; justify-content: center; color: rgba(255,255,255,0.4); background: linear-gradient(145deg, rgba(255,255,255,0.10), rgba(255,255,255,0.03)); border: 1px solid rgba(255,255,255,0.12); box-shadow: 0 8px 20px rgba(0,0,0,0.3); }
-        body.no-art-on #mini-player-art, body.no-art-on #pip-cover, body.no-art-on #lfs-art { background: linear-gradient(145deg, rgba(255,255,255,0.14), rgba(255,255,255,0.04)), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-opacity='.5' stroke-width='1.5' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='8.5'/%3E%3Ccircle cx='12' cy='12' r='2.2'/%3E%3Cpath d='M12 7.2a4.8 4.8 0 0 1 4.8 4.8M12 16.8A4.8 4.8 0 0 1 7.2 12' stroke-opacity='.3'/%3E%3C/svg%3E") center / 62% no-repeat !important; border: 1px solid rgba(255,255,255,0.12) !important; visibility: visible !important; display: block !important; }
+        body.no-art-on #mini-player-art, body.no-art-on #pip-cover, body.no-art-on #lfs-art { content: url("data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7") !important; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-opacity='.5' stroke-width='1.5' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='8.5'/%3E%3Ccircle cx='12' cy='12' r='2.2'/%3E%3Cpath d='M12 7.2a4.8 4.8 0 0 1 4.8 4.8M12 16.8A4.8 4.8 0 0 1 7.2 12' stroke-opacity='.3'/%3E%3C/svg%3E") center / 62% no-repeat, linear-gradient(145deg, rgba(255,255,255,0.14), rgba(255,255,255,0.04)) !important; border: 1px solid rgba(255,255,255,0.12) !important; box-sizing: border-box !important; visibility: visible !important; display: block !important; }
+        #np-card #track-artist, #np-card #lyrics-content, #np-card .progress-container, #np-card #track-art, #np-card #track-title, #mini-player-bar > *, #pip-content, #lfs-list, #lfs-meta > div { transition: opacity 0.45s ease, transform 0.45s ease, filter 0.45s ease; }
+        body.np-clearing #track-artist, body.np-clearing #lyrics-content, body.np-clearing #np-card .progress-container, body.np-clearing #mini-player-bar > *, body.np-clearing #pip-content, body.np-clearing #lfs-list, body.np-clearing #lfs-meta > div { opacity: 0 !important; transform: translateY(6px); filter: blur(3px); }
+        body.np-clearing #np-card #track-art, body.np-clearing #np-card #track-title { opacity: 0 !important; transform: scale(0.94); filter: blur(3px); }
+        #np-card.no-art #track-art-ph { animation: phIn 0.6s ease both; }
+        @keyframes phIn { from { opacity: 0; transform: scale(0.88); } to { opacity: 1; transform: scale(1); } }
         #track-art-ph svg { width: 58%; height: 58%; }
         #track-art[style*="none"] + #track-art-ph, #np-card.no-art #track-art-ph { display: flex; }
         #np-card.no-art #track-art { display: none !important; }
@@ -3989,8 +3994,14 @@ function highlightLyrics(currentTime) {
         var npNoneCount = 0;
         // Spotify fermé / aucun appareil actif : l'accueil repasse en « Aucune lecture » (2 réponses vides d'affilée, pour éviter un clignotement)
         function showNoPlayback() {
-            if (driveMusicModeActive) return;
+            if (driveMusicModeActive || npClearing) return;
             const t = document.getElementById('track-title'); if (!t || t.innerText === 'Aucune lecture') return;
+            npClearing = true; document.body.classList.add('np-clearing');
+            setTimeout(() => { try { doNoPlayback(); } finally { document.body.classList.remove('np-clearing'); npClearing = false; } }, 520);
+        }
+        var npClearing = false;
+        function doNoPlayback() {
+            const t = document.getElementById('track-title'); if (!t) return;
             t.innerText = 'Aucune lecture';
             const a = document.getElementById('track-artist'); if (a) a.innerText = '';
             const art = document.getElementById('track-art'); if (art) { art.style.display = 'none'; art.removeAttribute('src'); }
@@ -5207,6 +5218,7 @@ function artPhSync() {
     card.classList.toggle('no-art', none);
     ART_PH_IDS.forEach(id => { const el = document.getElementById(id); if (!el) return; if (none) el.removeAttribute('src'); });
     document.body.classList.toggle('no-art-on', none);
+    ART_PH_IDS.forEach(id => { const el = document.getElementById(id); if (el && el.getAttribute('alt') === null) el.setAttribute('alt', ''); });
 }
 document.addEventListener('error', ev => { if (ev.target && ev.target.id === 'track-art') artPhSync(); }, true);
 document.addEventListener('load', ev => { if (ev.target && ev.target.id === 'track-art') artPhSync(); }, true);
