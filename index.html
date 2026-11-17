@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v12.18";
+        const APP_VERSION = "v12.20";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -5453,8 +5453,8 @@ function singBuild(idx, el) { // planning des mots : chaque mot reçoit une fen�
     const ws = singWords(el), ln = currentLyrics[idx], nx = currentLyrics[idx + 1]; if (!ws.length || !ln) return null;
     const dur = Math.max(1.5, (nx ? nx.time : ln.time + 4) - ln.time), D = dur * 0.88;
     const wt = Array.from(ws).map(w => Math.max(2, w.textContent.replace(/[^\p{L}\p{N}]/gu, '').length + 1)), tot = wt.reduce((a, b) => a + b, 0);
-    let cum = 0; const W = wt.map(x => { const o = { s: ln.time + cum / tot * D, e: ln.time + (cum + x) / tot * D }; cum += x; return o; });
-    return { idx, w: W, acc: W.map(() => 0), lit: W.map(() => false), n: W.length };
+    let cum = 0; const W = wt.map(x => { const o = { s: cum / tot * D, e: (cum + x) / tot * D }; cum += x; return o; }); // fenêtres relatives au début de la ligne
+    return { idx, w: W, acc: W.map(() => 0), lit: W.map(() => false), n: W.length, anchored: false, ct: 0 };
 }
 function singTick() {
     if (!singAn || document.hidden) return;
@@ -5478,12 +5478,17 @@ function singTick() {
         singCur = { idx: isNaN(idx) ? -1 : idx }; singSched = singCur.idx >= 0 ? singBuild(singCur.idx, el) : null;
     }
     if (!singSched) return;
-    // le mot « en cours » est celui prévu par la synchro des paroles (avec 0,25 s de retard de réaction) : il ne s'allume que si ta voix est là à ce moment
-    const sec = (function () { try { return divoomProgressMs() / 1000; } catch (e) { return 0; } })(), tw = sec - 0.25, W = singSched.w;
-    if (singVoice && tw >= W[0].s - 0.3) {
-        let i = -1; for (let j = 0; j < W.length; j++) if (tw < W[j].e) { i = j; break; }
-        if (i < 0 && tw < W[W.length - 1].e + 0.35) i = W.length - 1;
-        if (i >= 0) { singSched.acc[i] += dt; if (!singSched.lit[i] && singSched.acc[i] >= Math.max(0.05, Math.min(0.22, 0.4 * (W[i].e - W[i].s)))) { singSched.lit[i] = true; singApply(el, singSched.lit); singApply(lf, singSched.lit); } }
+    // Le curseur de temps démarre à la PREMIÈRE voix détectée dans la ligne (et non au début théorique de la ligne) :
+    // il absorbe donc tout décalage entre la chanson et les paroles (paroles en avance ou en retard). Ensuite il avance en temps réel.
+    const W = singSched.w;
+    if (!singSched.anchored && singVoice) { singSched.anchored = true; singSched.ct = -0.2; } // 0,2 s de marge : le 1er mot ne doit jamais être raté (délai de détection de la voix)
+    if (singSched.anchored) {
+        singSched.ct += dt;
+        if (singVoice) {
+            const tw = singSched.ct; let i = -1; for (let j = 0; j < W.length; j++) if (tw < W[j].e) { i = j; break; }
+            if (i < 0 && tw < W[W.length - 1].e + 0.4) i = W.length - 1;
+            if (i >= 0) { singSched.acc[i] += dt; if (!singSched.lit[i] && singSched.acc[i] >= Math.max(0.04, Math.min(0.2, 0.35 * (W[i].e - W[i].s)))) { singSched.lit[i] = true; const L = singSched.lit; if (L[1] && !L[0]) L[0] = true; for (let k = 1; k < L.length - 1; k++) if (!L[k] && L[k - 1] && L[k + 1] && (W[k].e - W[k].s) < 0.35) L[k] = true; singApply(el, L); singApply(lf, L); } }
+        }
     }
     if (lf && !lf.classList.contains('sing-line') && singSched.lit.some(Boolean)) singApply(lf, singSched.lit);
 }
