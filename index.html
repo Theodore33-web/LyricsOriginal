@@ -1,12 +1,12 @@
 
 <!DOCTYPE html>
 <html lang="fr">
-<head> 
+<head>
     <script>
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v12.25";
+        const APP_VERSION = "v12.26";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -5493,7 +5493,7 @@ function singTick() {
     const mf = document.getElementById('sing-meter-fill'); if (mf) { mf.style.width = Math.min(100, cur * 400) + '%'; mf.style.background = singVoice ? '#d9a516' : 'rgba(255,255,255,0.35)'; }
     if (singLyricsRef !== currentLyrics) { singReport(); singLyricsRef = currentLyrics; singCur = { idx: -1 }; singSched = null; singReported = false; }
     // 5 s avant la fin du titre : le score s'affiche (pendant 8 s)
-    try { if (!singReported && trackDurationMs > 0 && trackDurationMs > 12000 && divoomProgressMs() >= trackDurationMs - 5000) { if (singSched && singCur.idx >= 0) { singTally.n++; if (singSched.lit.filter(Boolean).length >= singSched.n * 0.4) singTally.s++; singSched = null; singCur = { idx: -2 }; } singReported = true; singReport(); } } catch (e) {}
+    try { if (!singReported && trackDurationMs > 0 && trackDurationMs > 12000 && divoomProgressMs() >= trackDurationMs - 5000) { if (singSched && singCur.idx >= 0) { singTally.n++; if (singSched.lit.filter(Boolean).length >= singSched.n * 0.4) singTally.s++; singSched = null; singCur = { idx: -2 }; } singReported = true; singReport(1); } } catch (e) {}
     const el = document.querySelector('#lyrics-content .lyric-line.active'), lf = document.querySelector('#lfs-list .lfs-line.on');
     const idx = el ? parseInt(String(el.id || '').replace('line-', ''), 10) : -1;
     if (idx !== singCur.idx) {
