@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v12.31";
+        const APP_VERSION = "v12.34";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -940,19 +940,19 @@
         @keyframes kfsDust { 0% { transform: translate(0, 0); opacity: 0; } 12% { opacity: var(--o); } 100% { transform: translate(var(--dx), -112cqh); opacity: 0; } }
         #kfs-wipe { position: absolute; z-index: 4; top: 0; bottom: 0; left: 0; width: 55cqw; pointer-events: none; opacity: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.20), transparent); }
         #kfs-wipe.go-next { animation: kfsWipeN 0.8s ease-out; } #kfs-wipe.go-prev { animation: kfsWipeP 0.8s ease-out; }
-        @keyframes kfsWipeN { from { transform: translateX(-60cqw); opacity: 1; } to { transform: translateX(110cqw); opacity: 0.2; } }
-        @keyframes kfsWipeP { from { transform: translateX(110cqw); opacity: 1; } to { transform: translateX(-60cqw); opacity: 0.2; } }
+        @keyframes kfsWipeN { from { transform: translateX(110cqw); opacity: 1; } to { transform: translateX(-60cqw); opacity: 0.2; } }
+        @keyframes kfsWipeP { from { transform: translateX(-60cqw); opacity: 1; } to { transform: translateX(110cqw); opacity: 0.2; } }
         #kfs-lines.out-next { animation: kfsOutN 0.3s ease-in forwards; } #kfs-lines.out-prev { animation: kfsOutP 0.3s ease-in forwards; }
         #kfs-lines.in-next { animation: kfsInN 0.55s cubic-bezier(.2,.8,.2,1); } #kfs-lines.in-prev { animation: kfsInP 0.55s cubic-bezier(.2,.8,.2,1); }
-        @keyframes kfsOutN { to { transform: translateX(14cqw); opacity: 0; filter: blur(6px); } } @keyframes kfsOutP { to { transform: translateX(-14cqw); opacity: 0; filter: blur(6px); } }
-        @keyframes kfsInN { from { transform: translateX(-14cqw); opacity: 0; filter: blur(6px); } } @keyframes kfsInP { from { transform: translateX(14cqw); opacity: 0; filter: blur(6px); } }
+        @keyframes kfsOutN { to { transform: translateX(-14cqw); opacity: 0; filter: blur(6px); } } @keyframes kfsOutP { to { transform: translateX(14cqw); opacity: 0; filter: blur(6px); } }
+        @keyframes kfsInN { from { transform: translateX(14cqw); opacity: 0; filter: blur(6px); } } @keyframes kfsInP { from { transform: translateX(-14cqw); opacity: 0; filter: blur(6px); } }
         #kfs-tag { position: absolute; z-index: 2; bottom: 3cqh; left: 50%; transform: translateX(-50%); font-size: max(0.65rem, 2cqh); letter-spacing: 0.32em; text-transform: uppercase; font-weight: 700; opacity: 0.4; display: flex; align-items: center; gap: 0.7em; }
         #kfs-tag svg { width: 1.5em; height: 1.5em; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
         #kfs-prog { position: absolute; z-index: 2; left: 0; bottom: 0; height: 3px; width: 100%; background: rgba(255,255,255,0.08); }
         #kfs-prog i { display: block; height: 100%; width: 0; background: rgba(255,255,255,0.75); transition: width 0.3s linear; }
         #kfs-lines { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3cqh; padding: 8cqh 5cqw 3cqh; text-align: center; }
         #kfs-lines .kl { --k: min(11.2cqh, 6.1cqw); font-size: 35px; font-weight: 800; line-height: 1.12; max-width: 94cqw; color: #fff; opacity: 0.38; transition: opacity 0.5s ease; overflow-wrap: anywhere; }
-        #kfs-lines .kl.mid { font-size: 55px; opacity: 1; text-shadow: 0 0 26px rgba(255,255,255,0.3); }
+        #kfs-lines .kl.mid { font-size: 50px; opacity: 1; text-shadow: 0 0 26px rgba(255,255,255,0.3); }
         #karaoke-fs.intro #kfs-lines { opacity: 0; } #kfs-lines { transition: opacity 0.6s ease; }
         #kfs-lines .kl:empty::before { content: "\00a0"; }
         #kfs-top { position: absolute; z-index: 2; top: 2cqh; left: 3cqw; right: 3cqw; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -5280,7 +5280,7 @@ let kfsTouch = null, kfsBusy = false;
     o.addEventListener('touchend', e => {
         if (!kfsTouch || !kfsOn(e)) return; const t = e.changedTouches[0]; let dx = t.clientX - kfsTouch.x, dy = t.clientY - kfsTouch.y; const dt = Date.now() - kfsTouch.t; kfsTouch = null;
         if (!document.fullscreenElement && window.innerHeight > window.innerWidth) { const q = dx; dx = dy; dy = -q; } // écran pivoté en portrait : le « côté droit » de l'affichage est le bas de l'écran
-        if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 1.5 && dt < 900) { kfsSwipe(dx > 0 ? 'next' : 'prev'); }
+        if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 1.5 && dt < 900) { kfsSwipe(dx > 0 ? 'prev' : 'next'); }
     }, { passive: true });
 })();
 function kfsSwipe(dir) {
@@ -5314,6 +5314,7 @@ function kfsTick() {
     const src = Array.from(document.querySelectorAll('#lyrics-content .lyric-line'));
     const txt = i => (i >= 0 && i < src.length) ? (src[i].innerText || src[i].textContent || '').trim() : '';
     const idx = src.findIndex(e => e.classList.contains('active') || e.classList.contains('plain-active'));
+    const kcur = document.getElementById('kl-cur'); if (kcur && kcur.dataset.li !== String(idx)) { kcur.textContent = ''; kcur.classList.remove('sing-line'); kcur.dataset.li = String(idx); }
     if (!src.length) { set('kl-prev', ''); set('kl-cur', '♪'); set('kl-next', ''); }
     else if (idx < 0) { set('kl-prev', ''); set('kl-cur', '♪'); set('kl-next', txt(0)); }
     else { set('kl-prev', txt(idx - 1)); set('kl-cur', txt(idx) || '♪'); set('kl-next', txt(idx + 1)); }
@@ -5615,6 +5616,7 @@ function singTick() {
     // 5 s avant la fin du titre : le score s'affiche (pendant 8 s)
     try { if (!singReported && trackDurationMs > 0 && trackDurationMs > 12000 && divoomProgressMs() >= trackDurationMs - 5000) { if (singSched && singCur.idx >= 0) { singTally.n++; if (singSched.lit.filter(Boolean).length >= singSched.n * 0.4) singTally.s++; singSched = null; singCur = { idx: -2 }; } singReported = true; singReport(1); } } catch (e) {}
     const el = document.querySelector('#lyrics-content .lyric-line.active'), lf = document.querySelector('#lfs-list .lfs-line.on');
+    const kc = (singEnabled && singStream) ? document.querySelector('#karaoke-fs.open #kl-cur') : null; // mots jaunes aussi dans le mode Karaoké (seulement si Chant Synchro est activé)
     const idx = el ? parseInt(String(el.id || '').replace('line-', ''), 10) : -1;
     if (idx !== singCur.idx) {
         if (singSched && singCur.idx >= 0 && idx > singCur.idx && idx - singCur.idx <= 3) { singTally.n++; if (singSched.lit.filter(Boolean).length >= singSched.n * 0.4) { singTally.s++; const pe = document.getElementById('line-' + singCur.idx); if (pe) pe.classList.add('sung'); } }
@@ -5629,9 +5631,10 @@ function singTick() {
         singSched.v += dt;
         const reach = Math.min(1, singSched.v / (D * 0.75)) * D; let changed = false;
         W.forEach((w, i) => { if (!singSched.lit[i] && (reach > w.s || reach >= D)) { singSched.lit[i] = true; changed = true; } });
-        if (changed) { singApply(el, singSched.lit); singApply(lf, singSched.lit); }
+        if (changed) { singApply(el, singSched.lit); singApply(lf, singSched.lit); if (kc && kc.dataset.li === String(singCur.idx)) singApply(kc, singSched.lit); }
     }
     if (lf && !lf.classList.contains('sing-line') && singSched.lit.some(Boolean)) singApply(lf, singSched.lit);
+    if (kc && kc.dataset.li === String(singCur.idx) && !kc.querySelector('.sw') && singSched.lit.some(Boolean)) singApply(kc, singSched.lit);
 }
 window.addEventListener('load', () => { if (singEnabled) setTimeout(() => { singStart().then(ok => { if (!ok) singEnabled = false; try { tbSync(); } catch (e) {} }); }, 3500); });
 window.addEventListener('pagehide', () => { try { singStop(); } catch (e) {} });
@@ -7961,7 +7964,7 @@ function ensureCreditsModal() {
             <li><strong>Fond « Lecture en cours »</strong> — réglage pour que le fond de l'encadré épouse en douceur les couleurs de la pochette (désactivé par défaut).</li>
             <li><strong>Économie d'énergie</strong> — en pause d'animations, les effets ne calculent plus rien (la boucle s'arrête) et ne se redessinent qu'à un nouveau titre ; les effets ne sont dessinés que lorsqu'ils sont visibles à l'écran ; la scénographie s'allège toute seule si le téléphone peine ; pause automatique si la batterie est faible. L'effet d'apparition du nom de l'artiste (Lecture en cours) joue même quand les animations sont en pause.</li>
             <li><strong>Paroles illustrées (scénographie)</strong> — un mot-clé de la ligne chantée (cœur, feu, pluie, larme, étoile, soleil, lune, mer, éclair, neige, couronne, œil) fait apparaître un dessin animé dans la scénographie.</li>
-            <li><strong>Mode Karaoké</strong> (boîte à outils 🧰) — écran paysage à 3 lignes de paroles (ligne active 55 px, voisines 35 px, décor de projecteurs, glisser à droite/gauche pour changer de titre), pochette, durée et bouton pause ; au début de chaque titre, la pochette et le titre s'affichent 3 secondes.</li>
+            <li><strong>Mode Karaoké</strong> (boîte à outils 🧰) — écran paysage à 3 lignes de paroles (ligne active 50 px, mots jaunes du Chant Synchro si activé, voisines 35 px, décor de projecteurs, glisser à gauche = titre suivant, à droite = précédent), pochette, durée et bouton pause ; au début de chaque titre, la pochette et le titre s'affichent 3 secondes.</li>
             <li><strong>Chant Synchro</strong> (boîte à outils 🧰, ex « Chante, et les mots s'allument ») — le micro détecte ta voix et les mots s'allument un par un en jaune moutarde, même quand une ligne passe sur plusieurs lignes à l'écran ; l'effet de parole habituel est désactivé tant que c'est actif ; score en fin de titre (traitement local, rien d'enregistré).</li>
             <li><strong>Décor animé de l'accueil (platine)</strong> — disque vinyle, notes en orbite et égaliseur derrière l'écran de connexion ; désactivable dans les Paramètres.</li>
             <li><strong>Désactiver les boutons emoji</strong> — réglage (désactivé par défaut) qui remplace les emoji des boutons (Explorer &amp; rechercher, lecture, boîte à outils, appareils) par des icônes dessinées dans un style Spotify.</li>
