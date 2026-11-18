@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v12.38";
+        const APP_VERSION = "v12.39";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1700,7 +1700,7 @@
     </label>
 </div>
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Effet fond parole : vinyle lumineux qui tourne quand les paroles sont introuvables</span>
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Effet fond parole : sismographe lumineux (trois plumes qui tracent le pouls) quand les paroles sont introuvables</span>
     <label class="switch">
         <input type="checkbox" id="lyrfx-toggle" onchange="toggleLyrFx(this.checked)">
         <span class="slider"></span>
@@ -5281,8 +5281,8 @@ function ambPulse() {
     const bf = t * bpm / 60, soft = playing ? Math.pow(0.5 + 0.5 * Math.cos(bf * 6.2832), 2) : 0; // pulsation douce (pas de flash)
     return { t, bpm, bf, soft, playing };
 }
-let conRaf = 0, conLast = 0, conT = 0, conAng = 0;
-// Effet « Vinyle fantôme » : un grand disque à moitié hors cadre tourne lentement derrière le message ; les reflets de lumière suivent les couleurs de la pochette
+let conRaf = 0, conLast = 0, conT = 0, conAcc = 0, conHist = [[], [], []];
+// Effet « Sismographe » : trois plumes lumineuses (aux couleurs de la pochette) tracent le pouls du titre sur un papier millimétré qui défile ; un pic part à chaque temps (tempo simulé)
 function constFrame(ts) {
     conRaf = 0;
     const box = document.getElementById('lyrics-container'), cv = document.getElementById('const-fx');
@@ -5292,30 +5292,38 @@ function constFrame(ts) {
     const W = box.clientWidth, H = box.clientHeight; if (!W || !H) return;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
-    const P = ambPulse(), sp = animPaused ? 0 : (P.playing ? 1 : 0.25), C = fxColors(), A = C.c1, B = C.c2;
-    conAng += dt * sp * 0.9; conT += dt * sp;
+    const P = ambPulse(), sp = animPaused ? 0 : (P.playing ? 1 : 0.4), C = fxColors(), A = C.c1, B = C.c2, M = A.map((v, i) => (v + B[i]) >> 1), cols = [A, M, B];
+    const step = 3, n = Math.ceil(W / step) + 2, speed = 90 * sp; // px/s
+    conT += dt * sp; conAcc += dt * speed;
+    while (conAcc >= step) {
+        conAcc -= step;
+        for (let k = 0; k < 3; k++) {
+            const bf = P.bf + k * 0.33, fr = bf - Math.floor(bf), spike = P.playing ? Math.exp(-fr * 7) * Math.sin(fr * 34) * (1.0 - k * 0.2) : 0;
+            const nz = Math.sin(conT * (2.3 + k) + k) * 0.10 + Math.sin(conT * 7.1 + k * 2) * 0.05 + (Math.random() - 0.5) * 0.04;
+            conHist[k].push(nz + spike); if (conHist[k].length > n) conHist[k].shift();
+        }
+    }
     const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
-    const R = Math.max(W, H) * 0.62, cx = W * 0.5, cy = H * 0.62;
-    g.save(); g.beginPath(); g.arc(cx, cy, R, 0, 6.2832); g.clip();
-    g.fillStyle = 'rgba(8,9,11,0.55)'; g.fillRect(cx - R, cy - R, R * 2, R * 2);
-    // sillons
-    g.lineWidth = 1; for (let r = R * 0.26; r < R; r += 4.5) { g.strokeStyle = 'rgba(255,255,255,' + (0.035 + 0.02 * Math.sin(r * 0.7)).toFixed(3) + ')'; g.beginPath(); g.arc(cx, cy, r, 0, 6.2832); g.stroke(); }
-    // reflets (deux secteurs de lumière opposés qui tournent avec le disque)
-    try {
-        const cg = g.createConicGradient(conAng, cx, cy), sg = (st, col, al) => cg.addColorStop(st, 'rgba(' + col.join(',') + ',' + al + ')');
-        const k = 0.16 + 0.1 * P.soft;
-        sg(0, A, 0); sg(0.04, A, k); sg(0.1, A, 0); sg(0.5, B, 0); sg(0.54, B, k); sg(0.6, B, 0); sg(1, A, 0);
-        g.fillStyle = cg; g.fillRect(cx - R, cy - R, R * 2, R * 2);
-    } catch (e) {}
-    // étiquette centrale
-    const lr = R * 0.2, lg = g.createRadialGradient(cx, cy, 0, cx, cy, lr); lg.addColorStop(0, 'rgba(' + A.join(',') + ',0.45)'); lg.addColorStop(1, 'rgba(' + B.join(',') + ',0.3)');
-    g.fillStyle = lg; g.beginPath(); g.arc(cx, cy, lr, 0, 6.2832); g.fill();
-    g.fillStyle = 'rgba(8,9,11,0.9)'; g.beginPath(); g.arc(cx, cy, Math.max(3, R * 0.018), 0, 6.2832); g.fill();
-    g.restore();
-    g.strokeStyle = 'rgba(255,255,255,0.10)'; g.lineWidth = 1.2; g.beginPath(); g.arc(cx, cy, R, 0, 6.2832); g.stroke();
-    // halo qui respire au tempo
-    const hg = g.createRadialGradient(cx, cy, R * 0.9, cx, cy, R * 1.15); hg.addColorStop(0, 'rgba(' + B.join(',') + ',' + (0.10 + 0.12 * P.soft).toFixed(3) + ')'); hg.addColorStop(1, 'rgba(' + B.join(',') + ',0)');
-    g.fillStyle = hg; g.beginPath(); g.arc(cx, cy, R * 1.15, 0, 6.2832); g.fill();
+    // papier millimétré qui défile
+    const off = (conT * 90) % 28; g.lineWidth = 1;
+    for (let x = W - off; x > 0; x -= 28) { g.strokeStyle = 'rgba(255,255,255,0.045)'; g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); }
+    for (let y = H * 0.1; y < H; y += 28) { g.strokeStyle = 'rgba(255,255,255,0.035)'; g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
+    g.globalCompositeOperation = 'lighter'; g.lineJoin = 'round'; g.lineCap = 'round';
+    const rows = [0.38, 0.62, 0.84], amps = [H * 0.16, H * 0.12, H * 0.09];
+    for (let k = 0; k < 3; k++) {
+        const hist = conHist[k], c = cols[k], y0 = H * rows[k]; if (hist.length < 2) continue;
+        const len = hist.length, x1 = W - 14;
+        // trace : plus lumineuse près de la plume, qui s'estompe vers la gauche
+        for (let i = 1; i < len; i++) {
+            const xa = x1 - (len - i) * step, xb = xa + step, f = i / len; if (xb < 0) continue;
+            g.strokeStyle = 'rgba(' + c.join(',') + ',' + (0.06 + 0.7 * f * f).toFixed(3) + ')'; g.lineWidth = 1 + 1.2 * f;
+            g.beginPath(); g.moveTo(xa, y0 - hist[i - 1] * amps[k]); g.lineTo(xb, y0 - hist[i] * amps[k]); g.stroke();
+        }
+        const py = y0 - hist[len - 1] * amps[k], gr = g.createRadialGradient(x1, py, 0, x1, py, 16 + 10 * P.soft);
+        gr.addColorStop(0, 'rgba(255,255,255,0.9)'); gr.addColorStop(0.15, 'rgba(' + c.join(',') + ',0.55)'); gr.addColorStop(1, 'rgba(' + c.join(',') + ',0)');
+        g.fillStyle = gr; g.beginPath(); g.arc(x1, py, 16 + 10 * P.soft, 0, 6.2832); g.fill();
+    }
+    g.globalCompositeOperation = 'source-over';
 }
 function lyrFxGet() { try { return localStorage.getItem('lyrFxEnabled') === 'true'; } catch (e) { return false; } }
 function toggleLyrFx(on) { try { localStorage.setItem('lyrFxEnabled', on ? 'true' : 'false'); } catch (e) {} const t = document.getElementById('lyrfx-toggle'); if (t && t.checked !== on) t.checked = on; constSync(); }
@@ -8083,7 +8091,7 @@ function ensureCreditsModal() {
             <li><strong>Fond « Lecture en cours »</strong> — réglage pour que le fond de l'encadré épouse en douceur les couleurs de la pochette (désactivé par défaut).</li>
             <li><strong>Économie d'énergie</strong> — en pause d'animations, les effets ne calculent plus rien (la boucle s'arrête) et ne se redessinent qu'à un nouveau titre ; les effets ne sont dessinés que lorsqu'ils sont visibles à l'écran ; la scénographie s'allège toute seule si le téléphone peine ; pause automatique si la batterie est faible. L'effet d'apparition du nom de l'artiste (Lecture en cours) joue même quand les animations sont en pause.</li>
             <li><strong>Paroles illustrées (scénographie)</strong> — un mot-clé de la ligne chantée (cœur, feu, pluie, larme, étoile, soleil, lune, mer, éclair, neige, couronne, œil) fait apparaître un dessin animé dans la scénographie.</li>
-            <li><strong>Effet fond parole</strong> (paramètres, désactivé par défaut) — « Vinyle fantôme » : un grand disque aux reflets de la pochette tourne derrière le message « paroles introuvables » ; tempo simulé.</li>
+            <li><strong>Effet fond parole</strong> (paramètres, désactivé par défaut) — « Sismographe » : trois plumes lumineuses aux couleurs de la pochette tracent le pouls du titre sur un papier millimétré qui défile, derrière le message « paroles introuvables » ; tempo simulé.</li>
             <li><strong>Décor studio</strong> et <strong>Pub enceinte</strong> (paramètres) — deux encadrés image sous les paroles, désactivés par défaut.</li>
             <li><strong>Mode Karaoké</strong> (boîte à outils 🧰) — écran paysage à 3 lignes de paroles (ligne active 50 px, mots jaunes du Chant Synchro si activé, voisines 35 px, décor de projecteurs, glisser à gauche = titre suivant, à droite = précédent), pochette, durée et bouton pause ; au début de chaque titre, la pochette et le titre s'affichent 3 secondes.</li>
             <li><strong>Chant Synchro</strong> (boîte à outils 🧰, ex « Chante, et les mots s'allument ») — le micro détecte ta voix et les mots s'allument un par un en jaune moutarde, même quand une ligne passe sur plusieurs lignes à l'écran ; l'effet de parole habituel est désactivé tant que c'est actif ; score en fin de titre (traitement local, rien d'enregistré).</li>
