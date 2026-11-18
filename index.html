@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v12.30";
+        const APP_VERSION = "v12.31";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -933,13 +933,26 @@
         @keyframes kfsSway2 { from { transform: rotate(30deg); } to { transform: rotate(12deg); } }
         @keyframes kfsSway3 { from { transform: rotate(-9deg); } to { transform: rotate(9deg); } }
         #kfs-lights .fl { top: auto; bottom: -22cqh; left: 10cqw; width: 80cqw; height: 40cqh; clip-path: none; border-radius: 50%; filter: blur(30px); background: radial-gradient(ellipse, rgba(var(--ka), 0.30), transparent 70%); }
+        #kfs-lights .p1, #kfs-lights .p2 { top: auto; bottom: -6cqh; width: 36cqw; height: 16cqh; clip-path: none; border-radius: 50%; filter: blur(16px); background: radial-gradient(ellipse, rgba(var(--ka), 0.42), transparent 70%); }
+        #kfs-lights .p1 { left: 4cqw; } #kfs-lights .p2 { right: 4cqw; background: radial-gradient(ellipse, rgba(var(--kb), 0.42), transparent 70%); }
+        #kfs-dust { position: absolute; inset: 0; }
+        #kfs-dust u { position: absolute; bottom: -4cqh; border-radius: 50%; background: rgba(255,255,255,0.55); filter: blur(0.6px); opacity: 0; text-decoration: none; animation: kfsDust var(--d) linear var(--w) infinite; }
+        @keyframes kfsDust { 0% { transform: translate(0, 0); opacity: 0; } 12% { opacity: var(--o); } 100% { transform: translate(var(--dx), -112cqh); opacity: 0; } }
+        #kfs-wipe { position: absolute; z-index: 4; top: 0; bottom: 0; left: 0; width: 55cqw; pointer-events: none; opacity: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.20), transparent); }
+        #kfs-wipe.go-next { animation: kfsWipeN 0.8s ease-out; } #kfs-wipe.go-prev { animation: kfsWipeP 0.8s ease-out; }
+        @keyframes kfsWipeN { from { transform: translateX(-60cqw); opacity: 1; } to { transform: translateX(110cqw); opacity: 0.2; } }
+        @keyframes kfsWipeP { from { transform: translateX(110cqw); opacity: 1; } to { transform: translateX(-60cqw); opacity: 0.2; } }
+        #kfs-lines.out-next { animation: kfsOutN 0.3s ease-in forwards; } #kfs-lines.out-prev { animation: kfsOutP 0.3s ease-in forwards; }
+        #kfs-lines.in-next { animation: kfsInN 0.55s cubic-bezier(.2,.8,.2,1); } #kfs-lines.in-prev { animation: kfsInP 0.55s cubic-bezier(.2,.8,.2,1); }
+        @keyframes kfsOutN { to { transform: translateX(14cqw); opacity: 0; filter: blur(6px); } } @keyframes kfsOutP { to { transform: translateX(-14cqw); opacity: 0; filter: blur(6px); } }
+        @keyframes kfsInN { from { transform: translateX(-14cqw); opacity: 0; filter: blur(6px); } } @keyframes kfsInP { from { transform: translateX(14cqw); opacity: 0; filter: blur(6px); } }
         #kfs-tag { position: absolute; z-index: 2; bottom: 3cqh; left: 50%; transform: translateX(-50%); font-size: max(0.65rem, 2cqh); letter-spacing: 0.32em; text-transform: uppercase; font-weight: 700; opacity: 0.4; display: flex; align-items: center; gap: 0.7em; }
         #kfs-tag svg { width: 1.5em; height: 1.5em; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
         #kfs-prog { position: absolute; z-index: 2; left: 0; bottom: 0; height: 3px; width: 100%; background: rgba(255,255,255,0.08); }
         #kfs-prog i { display: block; height: 100%; width: 0; background: rgba(255,255,255,0.75); transition: width 0.3s linear; }
         #kfs-lines { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3cqh; padding: 8cqh 5cqw 3cqh; text-align: center; }
         #kfs-lines .kl { --k: min(11.2cqh, 6.1cqw); font-size: 35px; font-weight: 800; line-height: 1.12; max-width: 94cqw; color: #fff; opacity: 0.38; transition: opacity 0.5s ease; overflow-wrap: anywhere; }
-        #kfs-lines .kl.mid { font-size: 60px; opacity: 1; text-shadow: 0 0 26px rgba(255,255,255,0.3); }
+        #kfs-lines .kl.mid { font-size: 55px; opacity: 1; text-shadow: 0 0 26px rgba(255,255,255,0.3); }
         #karaoke-fs.intro #kfs-lines { opacity: 0; } #kfs-lines { transition: opacity 0.6s ease; }
         #kfs-lines .kl:empty::before { content: "\00a0"; }
         #kfs-top { position: absolute; z-index: 2; top: 2cqh; left: 3cqw; right: 3cqw; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -5246,7 +5259,7 @@ let kfsTimer = null, kfsWake = null, kfsLeaving = false, kfsKey = '', kfsIntroT 
 function openKaraoke() {
     toggleToolbox(false);
     const o = document.getElementById('karaoke-fs'); if (!o) return;
-    kfsKey = ''; kfsCurIdx = -9; o.classList.add('open'); kfsTick();
+    kfsKey = ''; kfsCurIdx = -9; kfsDustInit(); o.classList.add('open'); kfsTick();
     clearInterval(kfsTimer); kfsTimer = setInterval(kfsTick, 150);
     try { if (o.requestFullscreen) o.requestFullscreen().then(() => { const fb = () => { if (window.innerHeight > window.innerWidth) { kfsLeaving = true; try { document.exitFullscreen().catch(() => {}); } catch (e) {} setTimeout(() => { kfsLeaving = false; }, 600); } }; try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').then(() => setTimeout(fb, 400)).catch(fb); else fb(); } catch (e) { fb(); } }).catch(() => {}); } catch (e) {}
     try { if (navigator.wakeLock) navigator.wakeLock.request('screen').then(w => { kfsWake = w; }).catch(() => {}); } catch (e) {}
@@ -5260,7 +5273,7 @@ function closeKaraoke() {
 }
 document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement) { const o = document.getElementById('karaoke-fs'); if (o && o.classList.contains('open') && !kfsLeaving) closeKaraoke(); } });
 document.addEventListener('keydown', ev => { if (ev.key === 'Escape') closeKaraoke(); });
-let kfsTouch = null;
+let kfsTouch = null, kfsBusy = false;
 (function () {
     const o = document; const kfsOn = e => !!(e.target.closest && e.target.closest('#karaoke-fs.open'));
     o.addEventListener('touchstart', e => { if (!kfsOn(e) || e.target.closest('button')) { kfsTouch = null; return; } const t = e.touches[0]; kfsTouch = { x: t.clientX, y: t.clientY, t: Date.now() }; }, { passive: true });
@@ -5271,7 +5284,17 @@ let kfsTouch = null;
     }, { passive: true });
 })();
 function kfsSwipe(dir) {
+    const L = document.getElementById('kfs-lines'), W = document.getElementById('kfs-wipe'); if (!L || kfsBusy) return;
+    kfsBusy = true;
+    L.className = ''; void L.offsetWidth; L.classList.add('out-' + dir);
+    if (W) { W.className = ''; void W.offsetWidth; W.classList.add('go-' + dir); }
     try { dir === 'next' ? nextTrack() : previousTrack(); } catch (e) {}
+    setTimeout(() => { L.className = ''; void L.offsetWidth; L.classList.add('in-' + dir); setTimeout(() => { L.className = ''; kfsBusy = false; }, 600); }, 320);
+}
+function kfsDustInit() {
+    const d = document.getElementById('kfs-dust'); if (!d || d.children.length) return;
+    for (let i = 0; i < 22; i++) { const u = document.createElement('u'); const r = 2 + Math.random() * 4;
+        u.style.cssText = 'left:' + (Math.random() * 100).toFixed(1) + '%;width:' + r.toFixed(1) + 'px;height:' + r.toFixed(1) + 'px;--d:' + (9 + Math.random() * 12).toFixed(1) + 's;--w:-' + (Math.random() * 18).toFixed(1) + 's;--o:' + (0.15 + Math.random() * 0.4).toFixed(2) + ';--dx:' + ((Math.random() - 0.5) * 12).toFixed(1) + 'cqw'; d.appendChild(u); }
 }
 function kfsIntro() {
     const o = document.getElementById('karaoke-fs'), it = document.getElementById('kfs-intro'); if (!o || !it) return;
@@ -7938,7 +7961,7 @@ function ensureCreditsModal() {
             <li><strong>Fond « Lecture en cours »</strong> — réglage pour que le fond de l'encadré épouse en douceur les couleurs de la pochette (désactivé par défaut).</li>
             <li><strong>Économie d'énergie</strong> — en pause d'animations, les effets ne calculent plus rien (la boucle s'arrête) et ne se redessinent qu'à un nouveau titre ; les effets ne sont dessinés que lorsqu'ils sont visibles à l'écran ; la scénographie s'allège toute seule si le téléphone peine ; pause automatique si la batterie est faible. L'effet d'apparition du nom de l'artiste (Lecture en cours) joue même quand les animations sont en pause.</li>
             <li><strong>Paroles illustrées (scénographie)</strong> — un mot-clé de la ligne chantée (cœur, feu, pluie, larme, étoile, soleil, lune, mer, éclair, neige, couronne, œil) fait apparaître un dessin animé dans la scénographie.</li>
-            <li><strong>Mode Karaoké</strong> (boîte à outils 🧰) — écran paysage à 3 lignes de paroles (ligne active 60 px, voisines 35 px, décor de projecteurs, glisser à droite/gauche pour changer de titre), pochette, durée et bouton pause ; au début de chaque titre, la pochette et le titre s'affichent 3 secondes.</li>
+            <li><strong>Mode Karaoké</strong> (boîte à outils 🧰) — écran paysage à 3 lignes de paroles (ligne active 55 px, voisines 35 px, décor de projecteurs, glisser à droite/gauche pour changer de titre), pochette, durée et bouton pause ; au début de chaque titre, la pochette et le titre s'affichent 3 secondes.</li>
             <li><strong>Chant Synchro</strong> (boîte à outils 🧰, ex « Chante, et les mots s'allument ») — le micro détecte ta voix et les mots s'allument un par un en jaune moutarde, même quand une ligne passe sur plusieurs lignes à l'écran ; l'effet de parole habituel est désactivé tant que c'est actif ; score en fin de titre (traitement local, rien d'enregistré).</li>
             <li><strong>Décor animé de l'accueil (platine)</strong> — disque vinyle, notes en orbite et égaliseur derrière l'écran de connexion ; désactivable dans les Paramètres.</li>
             <li><strong>Désactiver les boutons emoji</strong> — réglage (désactivé par défaut) qui remplace les emoji des boutons (Explorer &amp; rechercher, lecture, boîte à outils, appareils) par des icônes dessinées dans un style Spotify.</li>
@@ -15683,7 +15706,7 @@ function initBouleLedState() {
   </div>
 </div>
 <div id="karaoke-fs">
-  <div id="kfs-bg"></div><div id="kfs-lights"><i class="b1"></i><i class="b2"></i><i class="b3"></i><i class="fl"></i></div>
+  <div id="kfs-bg"></div><div id="kfs-lights"><i class="b1"></i><i class="b2"></i><i class="b3"></i><i class="fl"></i><i class="p1"></i><i class="p2"></i><span id="kfs-dust"></span></div><div id="kfs-wipe"></div>
   <div id="kfs-tag"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/></svg>Karaoké</div>
   <div id="kfs-prog"><i id="kfs-progi"></i></div>
   <div id="kfs-top"><div id="kfs-id"><img id="kfs-art" alt=""><div><b id="kfs-title"></b><span id="kfs-artist"></span></div></div><div id="kfs-ctl"><span id="kfs-time">0:00 / 0:00</span><button id="kfs-pp" onclick="togglePlay()">⏸️</button><button id="kfs-close" onclick="closeKaraoke()">✕</button></div></div>
