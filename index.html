@@ -1,4 +1,4 @@
- 
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v12.27";
+        const APP_VERSION = "v12.28";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -923,13 +923,29 @@
         #karaoke-fs.open { display: block; inset: 0; }
         @media (orientation: portrait) { #karaoke-fs.open { inset: auto; top: 0; left: 100vw; width: 100vh; height: 100vw; transform-origin: top left; transform: rotate(90deg); } }
         #kfs-bg { position: absolute; inset: 0; z-index: 0; }
-        #kfs-lines { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5cqh; padding: 0 6cqw; text-align: center; }
-        #kfs-lines .kl { --k: min(6.2cqh, 3.4cqw); font-size: var(--k); font-weight: 800; line-height: 1.2; max-width: 92cqw; color: #fff; opacity: 0.45; transition: opacity 0.4s ease, color 0.4s ease; overflow-wrap: anywhere; }
+        #kfs-lines { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3cqh; padding: 8cqh 5cqw 3cqh; text-align: center; }
+        #kfs-lines .kl { --k: min(11.2cqh, 6.1cqw); font-size: var(--k); font-weight: 800; line-height: 1.12; max-width: 94cqw; color: #fff; opacity: 0.45; transition: opacity 0.5s ease; overflow-wrap: anywhere; }
         #kfs-lines .kl.mid { font-size: calc(var(--k) * 1.4); opacity: 1; text-shadow: 0 0 26px rgba(255,255,255,0.3); }
+        #kfs-lines .kl.mid.zoom { animation: kflZoom 0.55s cubic-bezier(.2,.8,.2,1); }
+        @keyframes kflZoom { 0% { transform: scale(0.78); opacity: 0.2; } 60% { transform: scale(1.06); opacity: 1; } 100% { transform: scale(1); } }
+        #karaoke-fs.intro #kfs-lines { opacity: 0; } #kfs-lines { transition: opacity 0.6s ease; }
         #kfs-lines .kl:empty::before { content: "\00a0"; }
-        #kfs-top { position: absolute; z-index: 2; top: 2cqh; left: 3cqw; right: 3cqw; display: flex; align-items: center; justify-content: space-between; font-size: max(0.8rem, 2.6cqh); opacity: 0.75; }
-        #kfs-top b { font-weight: 700; } #kfs-top span { opacity: 0.7; margin-left: 0.6em; }
-        #kfs-close { background: rgba(255,255,255,0.12) !important; border: 0 !important; color: #fff !important; border-radius: 50% !important; width: 40px !important; height: 40px !important; cursor: pointer; font-size: 1.1rem; }
+        #kfs-top { position: absolute; z-index: 2; top: 2cqh; left: 3cqw; right: 3cqw; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+        #kfs-id { display: flex; align-items: center; gap: 10px; min-width: 0; font-size: max(0.8rem, 2.6cqh); opacity: 0.85; }
+        #kfs-art { width: 40px; height: 40px; border-radius: 8px; object-fit: cover; flex: none; }
+        #kfs-id > div { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; } #kfs-id b { font-weight: 700; } #kfs-id span { opacity: 0.7; margin-left: 0.6em; }
+        #kfs-ctl { display: flex; align-items: center; gap: 10px; flex: none; }
+        #kfs-time { font-size: max(0.8rem, 2.6cqh); opacity: 0.8; font-variant-numeric: tabular-nums; }
+        #kfs-pp, #kfs-close { background: rgba(255,255,255,0.12) !important; border: 0 !important; color: #fff !important; border-radius: 50% !important; width: 40px !important; height: 40px !important; min-width: 40px !important; padding: 0 !important; margin: 0 !important; cursor: pointer; font-size: 1.1rem; display: flex !important; align-items: center; justify-content: center; line-height: 1 !important; }
+        #kfs-pp .ic-e, #kfs-close .ic-e { display: flex; align-items: center; justify-content: center; margin: 0 !important; }
+        #kfs-intro { position: absolute; inset: 0; z-index: 3; display: flex; align-items: center; justify-content: center; gap: 5cqw; padding: 0 7cqw; opacity: 0; pointer-events: none; transition: opacity 0.6s ease; }
+        #kfs-intro.show { opacity: 1; }
+        #kfs-intro img { height: 62cqh; width: 62cqh; max-width: 40cqw; max-height: 40cqw; object-fit: cover; border-radius: 3cqh; box-shadow: 0 2cqh 7cqh rgba(0,0,0,0.55); transform: translateX(-3cqw) scale(0.9); transition: transform 0.9s cubic-bezier(.2,.8,.2,1); flex: none; }
+        #kfs-intro.show img { transform: none; }
+        #kfs-intro .it { min-width: 0; text-align: left; transform: translateX(4cqw); opacity: 0; transition: transform 0.9s 0.15s cubic-bezier(.2,.8,.2,1), opacity 0.9s 0.15s; }
+        #kfs-intro.show .it { transform: none; opacity: 1; }
+        #kfs-intro .it b { display: block; font-size: min(9cqh, 4.6cqw); font-weight: 800; line-height: 1.12; overflow-wrap: anywhere; }
+        #kfs-intro .it span { display: block; margin-top: 1.6cqh; font-size: min(5.6cqh, 3cqw); opacity: 0.7; font-weight: 600; }
         #lyrics-fs.open { display: flex; }
         #lfs-bg { position: absolute; inset: 0; z-index: 0; transition: background 1s ease; }
         #lfs-meta, #lfs-close, #lfs-hint { z-index: 3 !important; }
@@ -5214,31 +5230,43 @@ document.addEventListener('fullscreenchange', () => { if (!document.fullscreenEl
 document.addEventListener('keydown', ev => { if (ev.key === 'Escape') { closeLyricsFullscreen(); toggleToolbox(false); } });
 
 // ===== Mode Karaoké : 3 lignes en paysage, la ligne active 1,4× plus grande =====
-let kfsTimer = null, kfsWake = null, kfsLeaving = false;
+let kfsTimer = null, kfsWake = null, kfsLeaving = false, kfsKey = '', kfsIntroT = null, kfsCurIdx = -9;
 function openKaraoke() {
     toggleToolbox(false);
     const o = document.getElementById('karaoke-fs'); if (!o) return;
-    o.classList.add('open'); kfsTick();
+    kfsKey = ''; kfsCurIdx = -9; o.classList.add('open'); kfsTick();
     clearInterval(kfsTimer); kfsTimer = setInterval(kfsTick, 150);
     try { if (o.requestFullscreen) o.requestFullscreen().then(() => { const fb = () => { if (window.innerHeight > window.innerWidth) { kfsLeaving = true; try { document.exitFullscreen().catch(() => {}); } catch (e) {} setTimeout(() => { kfsLeaving = false; }, 600); } }; try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').then(() => setTimeout(fb, 400)).catch(fb); else fb(); } catch (e) { fb(); } }).catch(() => {}); } catch (e) {}
     try { if (navigator.wakeLock) navigator.wakeLock.request('screen').then(w => { kfsWake = w; }).catch(() => {}); } catch (e) {}
 }
 function closeKaraoke() {
     const o = document.getElementById('karaoke-fs'); if (o) o.classList.remove('open');
-    clearInterval(kfsTimer); kfsTimer = null;
+    clearInterval(kfsTimer); kfsTimer = null; clearTimeout(kfsIntroT); const ii = document.getElementById('kfs-intro'); if (ii) ii.classList.remove('show');
     try { if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (e) {}
     try { if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {}); } catch (e) {}
     try { if (kfsWake) { kfsWake.release(); kfsWake = null; } } catch (e) {}
 }
 document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement) { const o = document.getElementById('karaoke-fs'); if (o && o.classList.contains('open') && !kfsLeaving) closeKaraoke(); } });
 document.addEventListener('keydown', ev => { if (ev.key === 'Escape') closeKaraoke(); });
+function kfsIntro() {
+    const o = document.getElementById('karaoke-fs'), it = document.getElementById('kfs-intro'); if (!o || !it) return;
+    o.classList.add('intro'); it.classList.remove('show'); void it.offsetWidth; it.classList.add('show');
+    clearTimeout(kfsIntroT); kfsIntroT = setTimeout(() => { it.classList.remove('show'); o.classList.remove('intro'); }, 3000);
+}
 function kfsTick() {
     const set = (id, v) => { const el = document.getElementById(id); if (el && el.textContent !== v) el.textContent = v; };
     const t = document.getElementById('track-title'), a = document.getElementById('track-artist');
-    set('kfs-title', t ? t.textContent : ''); set('kfs-artist', a ? a.textContent : '');
+    const tt = t ? t.textContent : '', aa = a ? a.textContent : '';
+    set('kfs-title', tt); set('kfs-artist', aa); set('kfs-ititle', tt); set('kfs-iartist', aa);
+    const art = document.getElementById('track-art'), has = !!(art && art.src && art.style.display !== 'none' && !/^data:image\/gif/.test(art.src));
+    ['kfs-art', 'kfs-iart'].forEach(id => { const im = document.getElementById(id); if (!im) return; if (has && im.src !== art.src) im.src = art.src; im.style.display = has ? '' : 'none'; });
+    set('kfs-time', ((document.getElementById('time-current') || {}).textContent || '0:00') + ' / ' + ((document.getElementById('time-max') || {}).textContent || '0:00'));
+    const pp = document.getElementById('kfs-pp'); if (pp) { const pl = (function () { try { return !!isCurrentlyPlaying; } catch (e) { return true; } })(); const ic = pl ? '⏸️' : '▶️'; if (pp.textContent !== ic) pp.textContent = ic; }
+    const key = tt + '|' + aa; if (key !== kfsKey) { const first = !kfsKey; kfsKey = key; if (tt && tt !== 'Aucune lecture') kfsIntro(); }
     const src = Array.from(document.querySelectorAll('#lyrics-content .lyric-line'));
     const txt = i => (i >= 0 && i < src.length) ? (src[i].innerText || src[i].textContent || '').trim() : '';
     const idx = src.findIndex(e => e.classList.contains('active') || e.classList.contains('plain-active'));
+    if (idx !== kfsCurIdx) { kfsCurIdx = idx; const m = document.getElementById('kl-cur'); if (m) { m.classList.remove('zoom'); void m.offsetWidth; m.classList.add('zoom'); } }
     if (!src.length) { set('kl-prev', ''); set('kl-cur', '♪'); set('kl-next', ''); }
     else if (idx < 0) { set('kl-prev', ''); set('kl-cur', '♪'); set('kl-next', txt(0)); }
     else { set('kl-prev', txt(idx - 1)); set('kl-cur', txt(idx) || '♪'); set('kl-next', txt(idx + 1)); }
@@ -7885,7 +7913,7 @@ function ensureCreditsModal() {
             <li><strong>Fond « Lecture en cours »</strong> — réglage pour que le fond de l'encadré épouse en douceur les couleurs de la pochette (désactivé par défaut).</li>
             <li><strong>Économie d'énergie</strong> — en pause d'animations, les effets ne calculent plus rien (la boucle s'arrête) et ne se redessinent qu'à un nouveau titre ; les effets ne sont dessinés que lorsqu'ils sont visibles à l'écran ; la scénographie s'allège toute seule si le téléphone peine ; pause automatique si la batterie est faible. L'effet d'apparition du nom de l'artiste (Lecture en cours) joue même quand les animations sont en pause.</li>
             <li><strong>Paroles illustrées (scénographie)</strong> — un mot-clé de la ligne chantée (cœur, feu, pluie, larme, étoile, soleil, lune, mer, éclair, neige, couronne, œil) fait apparaître un dessin animé dans la scénographie.</li>
-            <li><strong>Mode Karaoké</strong> (boîte à outils 🧰) — écran paysage à 3 lignes de paroles : la ligne active, au milieu, est 1,4 fois plus grande que les deux autres.</li>
+            <li><strong>Mode Karaoké</strong> (boîte à outils 🧰) — écran paysage à 3 lignes de paroles (ligne active 1,4× plus grande, avec un zoom à chaque changement), pochette, durée et bouton pause ; au début de chaque titre, la pochette et le titre s'affichent 3 secondes.</li>
             <li><strong>Chant Synchro</strong> (boîte à outils 🧰, ex « Chante, et les mots s'allument ») — le micro détecte ta voix et les mots s'allument un par un en jaune moutarde, même quand une ligne passe sur plusieurs lignes à l'écran ; l'effet de parole habituel est désactivé tant que c'est actif ; score en fin de titre (traitement local, rien d'enregistré).</li>
             <li><strong>Décor animé de l'accueil (platine)</strong> — disque vinyle, notes en orbite et égaliseur derrière l'écran de connexion ; désactivable dans les Paramètres.</li>
             <li><strong>Désactiver les boutons emoji</strong> — réglage (désactivé par défaut) qui remplace les emoji des boutons (Explorer &amp; rechercher, lecture, boîte à outils, appareils) par des icônes dessinées dans un style Spotify.</li>
@@ -15631,7 +15659,8 @@ function initBouleLedState() {
 </div>
 <div id="karaoke-fs">
   <div id="kfs-bg"></div>
-  <div id="kfs-top"><div><b id="kfs-title"></b><span id="kfs-artist"></span></div><button id="kfs-close" onclick="closeKaraoke()">✕</button></div>
+  <div id="kfs-top"><div id="kfs-id"><img id="kfs-art" alt=""><div><b id="kfs-title"></b><span id="kfs-artist"></span></div></div><div id="kfs-ctl"><span id="kfs-time">0:00 / 0:00</span><button id="kfs-pp" onclick="togglePlay()">⏸️</button><button id="kfs-close" onclick="closeKaraoke()">✕</button></div></div>
+  <div id="kfs-intro"><img id="kfs-iart" alt=""><div class="it"><b id="kfs-ititle"></b><span id="kfs-iartist"></span></div></div>
   <div id="kfs-lines"><div class="kl" id="kl-prev"></div><div class="kl mid" id="kl-cur"></div><div class="kl" id="kl-next"></div></div>
 </div>
 <div id="lyrics-fs">
