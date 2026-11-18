@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v12.34";
+        const APP_VERSION = "v12.35";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -110,6 +110,12 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             border: 1px solid rgba(255, 255, 255, 0.08);
         }
+        #lyrics-col { flex: 2; min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+        #lyrics-col > .lyrics-section { flex: none; width: 100%; box-sizing: border-box; }
+        .deco-frame { display: none; background: var(--card-grey); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); overflow: hidden; }
+        .deco-frame.on { display: block; }
+        .deco-frame img { display: block; width: 100%; height: auto; }
+        body.ui-refined .deco-frame { border-radius: var(--ui-radius); border: 1px solid var(--ui-line); box-shadow: 0 18px 50px rgba(0,0,0,0.38); }
         .lyrics-section::-webkit-scrollbar { width: 0px; }
         .lyrics-section.fond-parole-active {
             background: #123b27;
@@ -1600,8 +1606,12 @@
 
 
     <div id="dashboard">
+        <div id="lyrics-col">
         <div class="lyrics-section" id="lyrics-container" onclick="handleLyricsTripleClick()">
             <div id="lyrics-content">Lancez une musique sur Spotify...</div>
+        </div>
+        <div class="deco-frame" id="deco-studio"><img id="deco-studio-img" alt="Décor studio" data-src="décor studio" onerror="decoImgFail(this)"></div>
+        <div class="deco-frame" id="deco-pub"><img id="deco-pub-img" alt="Pub enceinte" src="S-E.jfif" onerror="this.parentNode.classList.remove('on')"></div>
         </div>
     
         <div class="sidebar">   
@@ -1674,6 +1684,20 @@
     <span style="font-size: 0.85rem; color: var(--text-grey);">Décor animé de l'accueil : platine, notes en orbite et égaliseur</span>
     <label class="switch">
         <input type="checkbox" id="homefx-toggle" onchange="toggleHomeFx(this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Décor studio : un encadré image sous les paroles</span>
+    <label class="switch">
+        <input type="checkbox" id="decor-studio-toggle" onchange="toggleDeco('studio', this.checked)">
+        <span class="slider"></span>
+    </label>
+</div>
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Pub enceinte : un encadré image sous les paroles</span>
+    <label class="switch">
+        <input type="checkbox" id="pub-enceinte-toggle" onchange="toggleDeco('pub', this.checked)">
         <span class="slider"></span>
     </label>
 </div>
@@ -5209,6 +5233,27 @@ function cfxFrame(ts) {
     g.globalCompositeOperation = 'source-over';
 }
 
+// ===== Encadrés image sous les paroles : « Décor studio » et « Pub enceinte » (désactivés par défaut) =====
+const DECO_KEYS = { studio: 'decorStudioEnabled', pub: 'pubEnceinteEnabled' };
+function decoGet(k) { try { return localStorage.getItem(DECO_KEYS[k]) === 'true'; } catch (e) { return false; } }
+function decoImgFail(img) { // « décor studio » : on essaie les extensions courantes avant d'abandonner
+    const exts = ['.png', '.jpg', '.jpeg', '.webp', '.jfif', '.gif']; const n = parseInt(img.dataset.try || '0', 10);
+    if (n < exts.length) { img.dataset.try = String(n + 1); img.src = encodeURI(img.dataset.src + exts[n]); }
+    else { const f = img.parentNode; if (f) f.classList.remove('on'); }
+}
+function toggleDeco(k, on) {
+    try { localStorage.setItem(DECO_KEYS[k], on ? 'true' : 'false'); } catch (e) {}
+    decoSync();
+}
+function decoSync() {
+    [['studio', 'deco-studio', 'decor-studio-toggle'], ['pub', 'deco-pub', 'pub-enceinte-toggle']].forEach(([k, id, tg]) => {
+        const on = decoGet(k), f = document.getElementById(id), t = document.getElementById(tg);
+        if (t && t.checked !== on) t.checked = on;
+        if (f) { f.classList.toggle('on', on); if (on) { const im = f.querySelector('img'); if (im && !im.getAttribute('src')) decoImgFail(im); else if (im && im.dataset.fail) { im.dataset.fail = ''; } } }
+    });
+}
+document.addEventListener('DOMContentLoaded', decoSync); window.addEventListener('load', decoSync);
+
 // ===== Boîte à outils, paroles en plein écran, pause des animations =====
 function toggleAnimPause(on) {
     animPaused = !!on; try { localStorage.setItem('animPaused', on ? 'true' : 'false'); } catch (e) {}
@@ -7964,6 +8009,7 @@ function ensureCreditsModal() {
             <li><strong>Fond « Lecture en cours »</strong> — réglage pour que le fond de l'encadré épouse en douceur les couleurs de la pochette (désactivé par défaut).</li>
             <li><strong>Économie d'énergie</strong> — en pause d'animations, les effets ne calculent plus rien (la boucle s'arrête) et ne se redessinent qu'à un nouveau titre ; les effets ne sont dessinés que lorsqu'ils sont visibles à l'écran ; la scénographie s'allège toute seule si le téléphone peine ; pause automatique si la batterie est faible. L'effet d'apparition du nom de l'artiste (Lecture en cours) joue même quand les animations sont en pause.</li>
             <li><strong>Paroles illustrées (scénographie)</strong> — un mot-clé de la ligne chantée (cœur, feu, pluie, larme, étoile, soleil, lune, mer, éclair, neige, couronne, œil) fait apparaître un dessin animé dans la scénographie.</li>
+            <li><strong>Décor studio</strong> et <strong>Pub enceinte</strong> (paramètres) — deux encadrés image sous les paroles, désactivés par défaut.</li>
             <li><strong>Mode Karaoké</strong> (boîte à outils 🧰) — écran paysage à 3 lignes de paroles (ligne active 50 px, mots jaunes du Chant Synchro si activé, voisines 35 px, décor de projecteurs, glisser à gauche = titre suivant, à droite = précédent), pochette, durée et bouton pause ; au début de chaque titre, la pochette et le titre s'affichent 3 secondes.</li>
             <li><strong>Chant Synchro</strong> (boîte à outils 🧰, ex « Chante, et les mots s'allument ») — le micro détecte ta voix et les mots s'allument un par un en jaune moutarde, même quand une ligne passe sur plusieurs lignes à l'écran ; l'effet de parole habituel est désactivé tant que c'est actif ; score en fin de titre (traitement local, rien d'enregistré).</li>
             <li><strong>Décor animé de l'accueil (platine)</strong> — disque vinyle, notes en orbite et égaliseur derrière l'écran de connexion ; désactivable dans les Paramètres.</li>
