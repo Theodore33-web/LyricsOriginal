@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v12.40";
+        const APP_VERSION = "v12.41";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1700,7 +1700,7 @@
     </label>
 </div>
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-    <span style="font-size: 0.85rem; color: var(--text-grey);">Effet fond parole : gouttes de lumière et anneaux sur l'eau quand les paroles sont introuvables</span>
+    <span style="font-size: 0.85rem; color: var(--text-grey);">Effet fond parole : bandeaux du titre et de l'artiste qui défilent en lettres creuses quand les paroles sont introuvables</span>
     <label class="switch">
         <input type="checkbox" id="lyrfx-toggle" onchange="toggleLyrFx(this.checked)">
         <span class="slider"></span>
@@ -5281,8 +5281,8 @@ function ambPulse() {
     const bf = t * bpm / 60, soft = playing ? Math.pow(0.5 + 0.5 * Math.cos(bf * 6.2832), 2) : 0; // pulsation douce (pas de flash)
     return { t, bpm, bf, soft, playing };
 }
-let conRaf = 0, conLast = 0, conT = 0, conDrops = [], conBeat = -1, conIdle = 0;
-// Effet « Gouttes de lumière » : à chaque temps une goutte lumineuse tombe sur une eau noire et s'étend en anneaux concentriques aux couleurs de la pochette (tempo simulé)
+let conRaf = 0, conLast = 0, conT = 0, conOff = [0, 0, 0, 0, 0], conTxt = '', conW = [];
+// Effet « Bandeaux de titre » : le titre et l'artiste défilent en grandes lettres creuses sur plusieurs rangées qui vont en sens opposés ; une rangée s'illumine à chaque temps (tempo simulé)
 function constFrame(ts) {
     conRaf = 0;
     const box = document.getElementById('lyrics-container'), cv = document.getElementById('const-fx');
@@ -5292,32 +5292,25 @@ function constFrame(ts) {
     const W = box.clientWidth, H = box.clientHeight; if (!W || !H) return;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
-    const P = ambPulse(), sp = animPaused ? 0 : 1, C = fxColors(), cols = [C.c1, C.c2];
+    const P = ambPulse(), sp = animPaused ? 0 : (P.playing ? 1 : 0.3), C = fxColors(), cols = [C.c1, C.c2];
+    const tEl = document.getElementById('track-title'), aEl = document.getElementById('track-artist');
+    let tt = ((tEl && tEl.textContent) || '').trim(), at = ((aEl && aEl.textContent) || '').trim();
+    if (!tt || tt === 'Aucune lecture') tt = 'Lyrics Original'; const txt = (at ? tt + '  ·  ' + at : tt).toUpperCase() + '  ·  ♪  ·  ';
     conT += dt * sp;
-    const bi = Math.floor(P.bf); let spawn = false;
-    if (P.playing && !animPaused) { if (bi !== conBeat && bi % 2 === 0) spawn = true; } else if (!animPaused) { conIdle += dt; if (conIdle > 2.2) { conIdle = 0; spawn = true; } }
-    conBeat = bi;
-    if (spawn && conDrops.length < 9) conDrops.push({ x: W * (0.12 + Math.random() * 0.76), y: H * (0.3 + Math.random() * 0.62), t: -0.28, c: Math.floor(Math.random() * 2) });
-    const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H); g.globalCompositeOperation = 'lighter';
-    const reach = Math.max(W, H) * 0.34, life = 3.2;
-    conDrops = conDrops.filter(d => d.t < life);
-    conDrops.forEach(d => {
-        d.t += dt * sp; const c = cols[d.c], c2 = cols[1 - d.c];
-        if (d.t < 0) { // la goutte tombe
-            const f = (d.t + 0.28) / 0.28, y = d.y - (1 - f * f) * H * 0.35;
-            const gr = g.createRadialGradient(d.x, y, 0, d.x, y, 9); gr.addColorStop(0, 'rgba(255,255,255,0.95)'); gr.addColorStop(0.4, 'rgba(' + c.join(',') + ',0.6)'); gr.addColorStop(1, 'rgba(' + c.join(',') + ',0)');
-            g.fillStyle = gr; g.beginPath(); g.arc(d.x, y, 9, 0, 6.2832); g.fill(); return;
-        }
-        const k = d.t / life;
-        if (d.t < 0.5) { const fg = g.createRadialGradient(d.x, d.y, 0, d.x, d.y, 60); fg.addColorStop(0, 'rgba(' + c.join(',') + ',' + (0.5 * (1 - d.t / 0.5)).toFixed(3) + ')'); fg.addColorStop(1, 'rgba(' + c.join(',') + ',0)'); g.fillStyle = fg; g.beginPath(); g.arc(d.x, d.y, 60, 0, 6.2832); g.fill(); }
-        for (let i = 0; i < 4; i++) {
-            const tt = d.t - i * 0.32; if (tt <= 0) continue; const kk = tt / life, r = Math.sqrt(kk) * reach, al = Math.pow(1 - kk, 1.6) * (0.55 - i * 0.1);
-            if (al <= 0) continue;
-            g.strokeStyle = 'rgba(' + (i % 2 ? c2 : c).join(',') + ',' + al.toFixed(3) + ')'; g.lineWidth = 2.2 - i * 0.4;
-            g.beginPath(); g.ellipse(d.x, d.y, r, r * 0.42, 0, 0, 6.2832); g.stroke(); // perspective : l'eau est vue d'un peu au-dessus
-        }
-    });
-    g.globalCompositeOperation = 'source-over';
+    const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+    const rows = 5, rh = H / rows, fs = Math.max(26, Math.min(rh * 0.62, 64)); g.font = '800 ' + fs + 'px Inter, "Segoe UI", system-ui, sans-serif'; g.textBaseline = 'middle'; g.lineJoin = 'round';
+    if (conTxt !== txt) { conTxt = txt; } const tw = Math.max(60, g.measureText(conTxt).width);
+    const lit = P.playing ? Math.floor(P.bf / 2) % rows : -1, dir = [1, -1, 1, -1, 1];
+    for (let r = 0; r < rows; r++) {
+        conOff[r] = (conOff[r] + dt * sp * (26 + r * 9) * dir[r]) % tw; if (conOff[r] < 0) conOff[r] += tw;
+        const y = rh * (r + 0.5), c = cols[r % 2], on = r === lit ? P.soft : 0;
+        g.strokeStyle = 'rgba(' + c.join(',') + ',' + (0.22 + 0.5 * on).toFixed(3) + ')'; g.lineWidth = 1.3;
+        if (on > 0.05) { g.shadowColor = 'rgba(' + c.join(',') + ',0.9)'; g.shadowBlur = 14 * on; } else g.shadowBlur = 0;
+        for (let x = -tw + conOff[r]; x < W; x += tw) g.strokeText(conTxt, x, y);
+        g.shadowBlur = 0;
+    }
+    // fondu sur les bords pour rester discret
+    g.globalCompositeOperation = 'destination-in'; const m = g.createLinearGradient(0, 0, W, 0); m.addColorStop(0, 'rgba(0,0,0,0)'); m.addColorStop(0.12, 'rgba(0,0,0,1)'); m.addColorStop(0.88, 'rgba(0,0,0,1)'); m.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = m; g.fillRect(0, 0, W, H); g.globalCompositeOperation = 'source-over';
 }
 function lyrFxGet() { try { return localStorage.getItem('lyrFxEnabled') === 'true'; } catch (e) { return false; } }
 function toggleLyrFx(on) { try { localStorage.setItem('lyrFxEnabled', on ? 'true' : 'false'); } catch (e) {} const t = document.getElementById('lyrfx-toggle'); if (t && t.checked !== on) t.checked = on; constSync(); }
@@ -8085,7 +8078,7 @@ function ensureCreditsModal() {
             <li><strong>Fond « Lecture en cours »</strong> — réglage pour que le fond de l'encadré épouse en douceur les couleurs de la pochette (désactivé par défaut).</li>
             <li><strong>Économie d'énergie</strong> — en pause d'animations, les effets ne calculent plus rien (la boucle s'arrête) et ne se redessinent qu'à un nouveau titre ; les effets ne sont dessinés que lorsqu'ils sont visibles à l'écran ; la scénographie s'allège toute seule si le téléphone peine ; pause automatique si la batterie est faible. L'effet d'apparition du nom de l'artiste (Lecture en cours) joue même quand les animations sont en pause.</li>
             <li><strong>Paroles illustrées (scénographie)</strong> — un mot-clé de la ligne chantée (cœur, feu, pluie, larme, étoile, soleil, lune, mer, éclair, neige, couronne, œil) fait apparaître un dessin animé dans la scénographie.</li>
-            <li><strong>Effet fond parole</strong> (paramètres, désactivé par défaut) — « Gouttes de lumière » : à chaque temps une goutte tombe sur une eau noire et s'étend en anneaux aux couleurs de la pochette, derrière le message « paroles introuvables » ; tempo simulé.</li>
+            <li><strong>Effet fond parole</strong> (paramètres, désactivé par défaut) — « Bandeaux de titre » : le titre et l'artiste défilent en grandes lettres creuses sur cinq rangées de sens opposés, une rangée s'illuminant à chaque temps, derrière le message « paroles introuvables » ; tempo simulé.</li>
             <li><strong>Décor studio</strong> et <strong>Pub enceinte</strong> (paramètres) — deux encadrés image sous les paroles, désactivés par défaut.</li>
             <li><strong>Mode Karaoké</strong> (boîte à outils 🧰) — écran paysage à 3 lignes de paroles (ligne active 50 px, mots jaunes du Chant Synchro si activé, voisines 35 px, décor de projecteurs, glisser à gauche = titre suivant, à droite = précédent), pochette, durée et bouton pause ; au début de chaque titre, la pochette et le titre s'affichent 3 secondes.</li>
             <li><strong>Chant Synchro</strong> (boîte à outils 🧰, ex « Chante, et les mots s'allument ») — le micro détecte ta voix et les mots s'allument un par un en jaune moutarde, même quand une ligne passe sur plusieurs lignes à l'écran ; l'effet de parole habituel est désactivé tant que c'est actif ; score en fin de titre (traitement local, rien d'enregistré).</li>
