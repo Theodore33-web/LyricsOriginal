@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v12.50"; 
+        const APP_VERSION = "v12.51";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -5349,7 +5349,7 @@ setInterval(() => { try { constSync(); } catch (e) {} }, 500);
 // ===== Envoi des paroles synchronisées au jeu GDevelop (désactivé par défaut : rien n'est envoyé tant que le réglage est coupé) =====
 // Format : { "type": "lyrics", "track": { "title", "artist", "durationMs" }, "lines": [ { "text": "…", "start": 12.34 }, … ] }   (start = début de la phrase, en secondes)
 // Puis, à chaque changement de phrase : { "type": "line", "index": 3, "text": "…", "start": 12.34, "progressMs": 12500 }
-// Canaux : BroadcastChannel « lyrics-original-gdevelop » (même site), postMessage (page parente / fenêtre ouvrante), localStorage « lyricsOriginalGD » (même site) et POST HTTP vers l'adresse saisie.
+// Canaux : BroadcastChannel « lyrics-original-gdevelop » (même site), postMessage (page parente / fenêtre ouvrante), localStorage « lyricsOriginalGD » (même site) (aucun envoi HTTP : l'adresse saisie sert à ouvrir / intégrer le jeu, qui reçoit les données par postMessage, y compris dans ses cadres imbriqués comme sur gd.games).
 const GD_DEFAULT_URL = 'https://gd.games/theodore33_creator/livearena';
 let gdOn = false, gdUrl = GD_DEFAULT_URL, gdBC = null, gdTSig = '', gdTKey = '', gdSig = '', gdIdx = -2, gdTimer = null, gdWin = null, gdLastLine = null, gdLastLyrics = null, gdLastTrack = null;
 try { gdOn = localStorage.getItem('gdevelopEnabled') === 'true'; gdUrl = (localStorage.getItem('gdevelopUrl') || GD_DEFAULT_URL).replace('theodore33_games/', 'theodore33_creator/'); } catch (e) {}
