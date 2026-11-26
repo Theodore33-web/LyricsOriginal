@@ -1,12 +1,12 @@
 
 <!DOCTYPE html>
 <html lang="fr">
-<head> 
-    <script>    
+<head>
+    <script>
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v12.51";
+        const APP_VERSION = "v12.52";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1724,7 +1724,7 @@
 </div>
 <div id="gdevelop-opts" style="display: none; width: 100%; box-sizing: border-box; gap: 8px; flex-direction: column;">
     <div style="display: flex; gap: 8px; width: 100%;">
-        <input type="url" id="gdevelop-url" placeholder="https://gd.games/theodore33_creator/livearena" style="flex: 1; min-width: 0; box-sizing: border-box; padding: 8px 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color: #fff; font-size: 0.8rem;" onchange="gdSetUrl(this.value)">
+        <input type="url" id="gdevelop-url" placeholder="https://gd.games/theodore33_player/live-arena" style="flex: 1; min-width: 0; box-sizing: border-box; padding: 8px 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color: #fff; font-size: 0.8rem;" onchange="gdSetUrl(this.value)">
         <button type="button" id="gdevelop-open" onclick="gdOpenGame()" style="padding: 8px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.1); color: #fff; font-size: 0.8rem; cursor: pointer; white-space: nowrap;">Ouvrir le jeu</button>
     </div>
     <span id="gdevelop-status" style="font-size: 0.75rem; color: var(--text-grey);">Ouvre le jeu depuis ce bouton : les paroles lui sont envoyées en direct.</span>
@@ -5350,9 +5350,9 @@ setInterval(() => { try { constSync(); } catch (e) {} }, 500);
 // Format : { "type": "lyrics", "track": { "title", "artist", "durationMs" }, "lines": [ { "text": "…", "start": 12.34 }, … ] }   (start = début de la phrase, en secondes)
 // Puis, à chaque changement de phrase : { "type": "line", "index": 3, "text": "…", "start": 12.34, "progressMs": 12500 }
 // Canaux : BroadcastChannel « lyrics-original-gdevelop » (même site), postMessage (page parente / fenêtre ouvrante), localStorage « lyricsOriginalGD » (même site) (aucun envoi HTTP : l'adresse saisie sert à ouvrir / intégrer le jeu, qui reçoit les données par postMessage, y compris dans ses cadres imbriqués comme sur gd.games).
-const GD_DEFAULT_URL = 'https://gd.games/theodore33_creator/livearena';
+const GD_DEFAULT_URL = 'https://gd.games/theodore33_player/live-arena';
 let gdOn = false, gdUrl = GD_DEFAULT_URL, gdBC = null, gdTSig = '', gdTKey = '', gdSig = '', gdIdx = -2, gdTimer = null, gdWin = null, gdLastLine = null, gdLastLyrics = null, gdLastTrack = null;
-try { gdOn = localStorage.getItem('gdevelopEnabled') === 'true'; gdUrl = (localStorage.getItem('gdevelopUrl') || GD_DEFAULT_URL).replace('theodore33_games/', 'theodore33_creator/'); } catch (e) {}
+try { gdOn = localStorage.getItem('gdevelopEnabled') === 'true'; gdUrl = (localStorage.getItem('gdevelopUrl') || GD_DEFAULT_URL).replace(/theodore33_(games|creator)\/livearena/, 'theodore33_player/live-arena'); } catch (e) {}
 function gdStatus(t) { const el = document.getElementById('gdevelop-status'); if (el) el.textContent = t; }
 function gdTargets() { // fenêtre du jeu ouverte par le bouton, et/ou encadré intégré dans la page
     const t = [];
