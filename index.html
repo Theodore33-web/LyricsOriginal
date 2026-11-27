@@ -6,7 +6,7 @@
         // ==== CONSTANTE DE VERSION — tout en haut du fichier pour la modifier rapidement ====
         // (placée juste après <head> : impossible de la mettre avant <!DOCTYPE html> sans
         // faire basculer le navigateur en "quirks mode" et casser tout l'affichage du site)
-        const APP_VERSION = "v12.52";
+        const APP_VERSION = "v12.56";
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1727,7 +1727,7 @@
         <input type="url" id="gdevelop-url" placeholder="https://gd.games/theodore33_player/live-arena" style="flex: 1; min-width: 0; box-sizing: border-box; padding: 8px 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color: #fff; font-size: 0.8rem;" onchange="gdSetUrl(this.value)">
         <button type="button" id="gdevelop-open" onclick="gdOpenGame()" style="padding: 8px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.1); color: #fff; font-size: 0.8rem; cursor: pointer; white-space: nowrap;">Ouvrir le jeu</button>
     </div>
-    <span id="gdevelop-status" style="font-size: 0.75rem; color: var(--text-grey);">Ouvre le jeu depuis ce bouton : les paroles lui sont envoyées en direct.</span>
+    <span id="gdevelop-status" style="font-size: 0.75rem; color: var(--text-grey);">Les infos (titre, pochette, couleur, paroles) passent par ton relais Google Apps Script ; le jeu les lit où qu'il soit ouvert.</span>
 </div>
 <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
     <span style="font-size: 0.85rem; color: var(--text-grey);">🎮 Jeu GDevelop dans un encadré sous les paroles (même adresse que ci-dessus)</span>
@@ -5349,55 +5349,45 @@ setInterval(() => { try { constSync(); } catch (e) {} }, 500);
 // ===== Envoi des paroles synchronisées au jeu GDevelop (désactivé par défaut : rien n'est envoyé tant que le réglage est coupé) =====
 // Format : { "type": "lyrics", "track": { "title", "artist", "durationMs" }, "lines": [ { "text": "…", "start": 12.34 }, … ] }   (start = début de la phrase, en secondes)
 // Puis, à chaque changement de phrase : { "type": "line", "index": 3, "text": "…", "start": 12.34, "progressMs": 12500 }
-// Canaux : BroadcastChannel « lyrics-original-gdevelop » (même site), postMessage (page parente / fenêtre ouvrante), localStorage « lyricsOriginalGD » (même site) (aucun envoi HTTP : l'adresse saisie sert à ouvrir / intégrer le jeu, qui reçoit les données par postMessage, y compris dans ses cadres imbriqués comme sur gd.games).
+// Transport : relais Google Apps Script (APPS_SCRIPT_URL) — POST {action:'live_set', secret, patch} ; le jeu lit GET ?action=live_get. Aucun envoi par lien, fenêtre, encadré, BroadcastChannel ni postMessage.
 const GD_DEFAULT_URL = 'https://gd.games/theodore33_player/live-arena';
-let gdOn = false, gdUrl = GD_DEFAULT_URL, gdBC = null, gdTSig = '', gdTKey = '', gdSig = '', gdIdx = -2, gdTimer = null, gdWin = null, gdLastLine = null, gdLastLyrics = null, gdLastTrack = null;
+let gdOn = false, gdUrl = GD_DEFAULT_URL, gdTSig = '', gdTKey = '', gdSig = '', gdIdx = -2, gdTimer = null, gdLastSync2 = 0;
 try { gdOn = localStorage.getItem('gdevelopEnabled') === 'true'; gdUrl = (localStorage.getItem('gdevelopUrl') || GD_DEFAULT_URL).replace(/theodore33_(games|creator)\/livearena/, 'theodore33_player/live-arena'); } catch (e) {}
 function gdStatus(t) { const el = document.getElementById('gdevelop-status'); if (el) el.textContent = t; }
-function gdTargets() { // fenêtre du jeu ouverte par le bouton, et/ou encadré intégré dans la page
-    const t = [];
-    try { if (gdWin && !gdWin.closed) t.push(gdWin); } catch (e) {}
-    try { const fr = document.getElementById('deco-game-iframe'); if (gdEmbedOn && fr && fr.contentWindow) t.push(fr.contentWindow); } catch (e) {}
-    return t;
-}
-function gdPostToGame(obj) { // le jeu est sur un autre site : postMessage vers sa fenêtre ET vers ses cadres intégrés (le jeu tourne souvent dans un iframe)
-    const t = gdTargets(); if (!t.length) return false;
-    t.forEach(w => { try { w.postMessage(obj, '*'); } catch (e) {} for (let i = 0; i < 6; i++) { try { const f = w.frames[i]; if (!f) break; f.postMessage(obj, '*'); } catch (e) {} } });
-    return true;
-}
+// ---- Envoi via le relais Google Apps Script : AUCUN envoi par lien / fenêtre / encadré ----
+// Le site écrit dans  <URL base>/liveArena.json  ; chaque jeu GDevelop (n'importe où) lit ce même nœud en direct.
+let gdHadTrack = false, gdSentOnce = false, gdLastSync = 0, gdWriting = false, gdPending = null, gdErrShown = 0;
 let gdEmbedOn = false; try { gdEmbedOn = localStorage.getItem('gdEmbedEnabled') === 'true'; } catch (e) {}
-function gdEmbedSync() {
+function gdEmbedSync() { // encadré = simple écran de visionnage du jeu (il ne reçoit rien du site)
     const f = document.getElementById('deco-game'), fr = document.getElementById('deco-game-iframe'), tg = document.getElementById('gdevelop-embed-toggle');
     if (tg && tg.checked !== gdEmbedOn) tg.checked = gdEmbedOn;
     if (!f || !fr) return;
     f.classList.toggle('on', gdEmbedOn);
     const want = gdEmbedOn ? (gdUrl || GD_DEFAULT_URL) : '';
-    if (want && fr.dataset.src !== want) { fr.dataset.src = want; fr.src = want; }       // le jeu ne se charge que si l'encadré est activé
-    if (!want && fr.dataset.src) { fr.dataset.src = ''; fr.removeAttribute('src'); }      // coupé : le jeu est déchargé
+    if (want && fr.dataset.src !== want) { fr.dataset.src = want; fr.src = want; }
+    if (!want && fr.dataset.src) { fr.dataset.src = ''; fr.removeAttribute('src'); }
 }
 function toggleGdEmbed(on) { gdEmbedOn = !!on; try { localStorage.setItem('gdEmbedEnabled', gdEmbedOn ? 'true' : 'false'); } catch (e) {} gdEmbedSync(); }
-function gdEmbedLoaded() { [1500, 5000, 10000].forEach(ms => setTimeout(() => { try { if (gdOn && gdEmbedOn) { if (gdLastTrack) gdPostToGame(gdLastTrack); if (gdLastLyrics) gdPostToGame(gdLastLyrics); if (gdLastLine) gdPostToGame(gdLastLine); } } catch (e) {} }, ms)); }
+function gdEmbedLoaded() { }
+function gdWrite(patch) { // relais Google Apps Script (action « live_set ») : la clé reste dans le relais, le jeu lit via « live_get »
+    gdPending = Object.assign(gdPending || {}, patch);
+    if (gdWriting) return;
+    gdWriting = true; const body = gdPending; gdPending = null;
+    fetch(APPS_SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'live_set', secret: APPS_SCRIPT_SECRET, patch: body }) })
+        .then(r => r.json()).then(j => { if (!j || !j.success) throw new Error((j && j.error) || 'refusé'); gdStatus('✅ Envoi au jeu actif.'); })
+        .catch(e => { if (Date.now() - gdErrShown > 8000) { gdErrShown = Date.now(); gdStatus('⚠️ Envoi impossible (' + (e.message || e) + ') : ajoute l\'action live_set dans le script Apps Script.'); } })
+        .finally(() => { gdWriting = false; if (gdPending) { const n = gdPending; gdPending = null; gdWrite(n); } });
+}
 function gdSend(obj) {
-    if (!gdOn) return; // sécurité : jamais d'envoi quand le réglage est coupé
-    obj.source = 'lyrics-original'; obj.sentAt = Date.now();
-    if (obj.type === 'lyrics') gdLastLyrics = obj; else if (obj.type === 'line') gdLastLine = obj; else if (obj.type === 'track') gdLastTrack = obj;
-    try { if (!gdBC && window.BroadcastChannel) gdBC = new BroadcastChannel('lyrics-original-gdevelop'); if (gdBC) gdBC.postMessage(obj); } catch (e) {} // jeu hébergé sur le même site
-    try { if (window.parent && window.parent !== window) window.parent.postMessage(obj, '*'); } catch (e) {}
-    gdPostToGame(obj);
-    if (obj.type === 'lyrics') { try { localStorage.setItem('lyricsOriginalGD', JSON.stringify(obj)); } catch (e) {} }
+    if (!gdOn) return; gdSentOnce = true; // sécurité : jamais d'envoi quand le réglage est coupé
+    if (obj.type === 'track') gdWrite({ track: obj.track, trackSeq: obj.newTrack ? Date.now() : undefined, playing: obj.playing });
+    else if (obj.type === 'lyrics') gdWrite({ lines: obj.lines.length ? obj.lines : null, lyricsSeq: Date.now() });
+    else if (obj.type === 'line') gdWrite({ progressMs: obj.progressMs, playing: obj.playing, lineIndex: obj.index });
+    else if (obj.type === 'stop') gdWrite({ track: null, lines: null, playing: false });
 }
-function gdOpenGame() {
-    if (!gdOn) toggleGdevelop(true);
-    try { gdWin = window.open(gdUrl || GD_DEFAULT_URL, 'lyricsOriginalGame'); } catch (e) { gdWin = null; }
-    if (!gdWin) { gdStatus('⚠️ Fenêtre bloquée par le navigateur : autorise les pop-ups pour ce site.'); return; }
-    gdStatus('Jeu ouvert : envoi des paroles en cours…');
-    [3500, 8000, 15000].forEach(ms => setTimeout(() => { try { if (gdOn && gdLastTrack) gdPostToGame(gdLastTrack); if (gdOn && gdLastLyrics) gdPostToGame(gdLastLyrics); if (gdOn && gdLastLine) gdPostToGame(gdLastLine); } catch (e) {} }, ms)); // le temps que le jeu se charge
+function gdOpenGame() { // simple ouverture du lien (aucune donnée n'est envoyée par ce lien)
+    try { window.open(gdUrl || GD_DEFAULT_URL, '_blank', 'noopener'); } catch (e) {}
 }
-window.addEventListener('message', ev => { // le jeu peut dire « je suis prêt » : { type: 'gd-ready' } → on renvoie l'état courant
-    const d = ev.data; if (!gdOn || !d || d.type !== 'gd-ready') return;
-    if (!gdWin && ev.source) gdWin = ev.source;
-    if (gdLastTrack) gdPostToGame(gdLastTrack); if (gdLastLyrics) gdPostToGame(gdLastLyrics); if (gdLastLine) gdPostToGame(gdLastLine);
-});
 function gdLinesNow() { try { return (currentLyrics || []).filter(l => l && typeof l.text === 'string').map(l => ({ text: l.text, start: Math.round(l.time * 1000) / 1000 })); } catch (e) { return []; } }
 function gdHex(c) { return '#' + c.map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join(''); }
 function gdTrackInfo() { // infos du titre : texte, pochette (URL) et couleurs principales de la pochette
@@ -5413,14 +5403,18 @@ function gdTick() {
     if (!gdOn) return;
     const lines = gdLinesNow(), info = gdTrackInfo();
     let playing = true; try { playing = !!isCurrentlyPlaying; } catch (e) {}
+    const noTrack = !info.title || info.title === 'Aucune lecture';
+    if (noTrack) { if (gdHadTrack) { gdHadTrack = false; gdSig = ''; gdTSig = ''; gdTKey = ''; gdSend({ type: 'stop' }); } return; } // plus de lecture : le jeu revient à l'image d'origine
+    gdHadTrack = true;
     // 1) début de titre (ou pochette / couleur qui arrive après le titre) : le jeu peut afficher pochette + titre + artiste en grand, puis colorer son fond
     const tsig = info.title + '|' + info.artist + '|' + info.coverUrl + '|' + info.color;
     if (info.title && info.title !== 'Aucune lecture' && tsig !== gdTSig) { const isNew = (info.title + '|' + info.artist) !== gdTKey; gdTSig = tsig; gdTKey = info.title + '|' + info.artist; gdSend({ type: 'track', newTrack: isNew, track: info, playing: playing }); }
     // 2) paroles synchronisées
     const sig = info.title + '|' + info.artist + '|' + lines.length + '|' + (lines[0] ? lines[0].text : '') + '|' + (lines.length ? lines[lines.length - 1].start : '');
     if (sig !== gdSig) { gdSig = sig; gdIdx = -2; gdSend({ type: 'lyrics', track: info, lineCount: lines.length, lines: lines }); }
-    if (!lines.length) return;
     let t = 0; try { t = divoomProgressMs() / 1000; } catch (e) {}
+    if (Date.now() - gdLastSync > 4000 && info.title) { gdLastSync = Date.now(); gdSend({ type: 'line', index: gdIdx, progressMs: Math.round(t * 1000), playing: playing }); }
+    if (!lines.length) return;
     let idx = -1; for (let i = 0; i < lines.length; i++) { if (lines[i].start <= t + 0.05) idx = i; else break; }
     if (idx !== gdIdx) { gdIdx = idx; gdSend({ type: 'line', index: idx, total: lines.length, text: idx >= 0 ? lines[idx].text : '', start: idx >= 0 ? lines[idx].start : 0, next: idx + 1 < lines.length ? lines[idx + 1].text : '', nextStart: idx + 1 < lines.length ? lines[idx + 1].start : null, progressMs: Math.round(t * 1000), playing: playing, color: info.color }); }
 }
@@ -5430,7 +5424,7 @@ function gdSync() {
     const op = document.getElementById('gdevelop-opts'); if (op) op.style.display = gdOn ? 'flex' : 'none';
     const u = document.getElementById('gdevelop-url'); if (u && u.value !== gdUrl) u.value = gdUrl;
     if (gdOn) { gdTimer = setInterval(() => { try { gdTick(); } catch (e) {} }, 250); gdSig = ''; gdTSig = ''; gdTKey = ''; gdTick(); }
-    else { try { if (gdBC) { gdBC.close(); gdBC = null; } } catch (e) {} }
+    else { try { if (gdSentOnce) { gdSentOnce = false; gdWrite({ track: null, lines: null, playing: false }); } } catch (e) {} }
 }
 function toggleGdevelop(on) { gdOn = !!on; try { localStorage.setItem('gdevelopEnabled', gdOn ? 'true' : 'false'); } catch (e) {} gdSync(); }
 function gdSetUrl(v) { gdUrl = (v || '').trim() || GD_DEFAULT_URL; try { gdEmbedSync(); } catch (e) {} try { localStorage.setItem('gdevelopUrl', gdUrl); } catch (e) {} gdSig = ''; }
@@ -8207,7 +8201,7 @@ function ensureCreditsModal() {
             <li><strong>Paroles illustrées (scénographie)</strong> — un mot-clé de la ligne chantée (cœur, feu, pluie, larme, étoile, soleil, lune, mer, éclair, neige, couronne, œil) fait apparaître un dessin animé dans la scénographie.</li>
             <li><strong>Effet fond parole</strong> (paramètres, désactivé par défaut) — « Bandeaux de titre » : le titre et l'artiste défilent en grandes lettres creuses sur cinq rangées de sens opposés, une rangée s'illuminant à chaque temps, derrière le message « paroles introuvables » ; tempo simulé.</li>
             <li><strong>Décor studio</strong> et <strong>Pub enceinte</strong> (paramètres) — deux encadrés image sous les paroles, désactivés par défaut.</li>
-            <li><strong>Envoi au jeu GDevelop</strong> (paramètres, désactivé par défaut) — envoie en temps réel les paroles synchronisées en JSON (tableau de phrases avec leur minutage de début) à la fenêtre du jeu ouverte depuis le bouton « Ouvrir le jeu » (postMessage), ainsi que par BroadcastChannel et localStorage pour un jeu hébergé sur le même site.</li>
+            <li><strong>Envoi au jeu GDevelop</strong> (paramètres, désactivé par défaut) — envoie titre, pochette, couleur de la pochette et paroles synchronisées à ton relais Google Apps Script ; le jeu les lit où qu'il soit ouvert</li>
             <li><strong>Jeu GDevelop dans un encadré</strong> (paramètres, désactivé par défaut) — affiche le jeu (adresse des paramètres) dans un encadré sous les paroles ; il reçoit les paroles en direct quand l'envoi GDevelop est activé.</li>
             <li><strong>Logo Spotify</strong> (menu ＋ des écrans LED, et réglage « Affichage » de chaque appareil) — affiche le logo Spotify en 16×16 pixels sur l'enceinte Timebox Evo et/ou l'écran Pixoo.</li>
             <li><strong>Mode Karaoké</strong> (boîte à outils 🧰) — écran paysage à 3 lignes de paroles (ligne active 50 px, mots jaunes du Chant Synchro si activé, voisines 35 px, décor de projecteurs, glisser à gauche = titre suivant, à droite = précédent), pochette, durée et bouton pause ; au début de chaque titre, la pochette et le titre s'affichent 3 secondes.</li>
